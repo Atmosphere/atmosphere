@@ -284,7 +284,8 @@ public final class RunReattachSupport {
      * empty. A long-polling poll is written only the events not handed to its
      * tracking id yet, and resumed when any were written; with none it stays
      * suspended, returns {@code 0}, and is answered with the run's next event,
-     * if the run is still going.
+     * if the run is still going, unless its client is a long-polling member of
+     * a {@code broadcastReply} room, whose frames reach its polls already.
      *
      * @param resource the reconnecting resource
      * @param registry the registry to look the run id up in
@@ -401,7 +402,11 @@ public final class RunReattachSupport {
      * run's next event, until the poll ends (a reply, its suspend timeout, a
      * close), the run does, or a newer poll of its tracking id takes over the
      * wait; past {@link RunEventReplayBuffer#maxWaitingPolls()} tracking ids
-     * waiting, it is left to a reply or its suspend timeout. Frames carry the event's own sequence, plus one,
+     * waiting, it is left to a reply or its suspend timeout. The poll of a
+     * long-polling member of a {@code broadcastReply} room
+     * ({@code org.atmosphere.ai.LongPollingRoomReplies}) does not wait: the
+     * room's frames reach that poll, or are kept for the member's next one,
+     * already. Frames carry the event's own sequence, plus one,
      * so the pieces a client gets over several polls number consistently.
      * While it waits it listens to the run, which keeps a pending grace from
      * firing; when it ends with the run still going and nobody else listening,
@@ -456,7 +461,11 @@ public final class RunReattachSupport {
             // Subscribed before claiming: an event captured in between is either
             // claimed here or delivered to accept, and claimed once. A poll with
             // no tracking id does not wait: it takes what the run holds.
-            var subscription = consumer != null ? buffer.awaitNext(consumer, this)
+            // Nor does the poll of a member of a room (a broadcastReply room): the
+            // room's frames reach its polls already, and the run's next frame
+            // written here as well would reach the client twice.
+            var subscription = consumer != null && !roomMember()
+                    ? buffer.awaitNext(consumer, this)
                     : new RunEventReplayBuffer.Subscription(buffer.snapshot(), false, () -> { });
             unsubscribe = subscription.cancel();
             var claimed = consumer != null ? buffer.claimNew(consumer) : subscription.backlog();
@@ -479,6 +488,16 @@ public final class RunReattachSupport {
             logger.debug("Reattach run {} for resource {}: nothing new; the poll waits for the run's next event",
                     runId, resource.uuid());
             return 0;
+        }
+
+        /** Whether the poll's client is a long-polling member of the room the poll is suspended on. */
+        private boolean roomMember() {
+            try {
+                return org.atmosphere.ai.LongPollingRoomReplies.isMember(resource.getBroadcaster(), consumer);
+            } catch (RuntimeException e) {
+                logger.trace("Unable to read the broadcaster of {}", resource.uuid(), e);
+                return false;
+            }
         }
 
         /** The run's next event: answer the poll with it. */

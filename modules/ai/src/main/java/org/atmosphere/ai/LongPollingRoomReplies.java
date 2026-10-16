@@ -115,9 +115,15 @@ import java.util.concurrent.locks.ReentrantLock;
  * carrying the run id is handed that frame and those after it again. The run
  * remembers this for at most
  * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} members, the first
- * ones, apart from the clients a poll carrying the run id was handed events to:
- * however many members a room has, their polls never make the run forget one of
- * those clients.</p>
+ * ones, apart from the clients a poll carrying the run id was handed events to,
+ * which a member receiving the room's frames never makes it forget. A member
+ * receives the run id with the room's reply, though, and its polls carry it: a
+ * member past those is handed the run's retained events again on its first poll
+ * carrying it, and then takes a place among those clients, pushing out the
+ * least recently served past
+ * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} of them. A poll of a
+ * member carrying the run id does not wait for the run's next event: the room's
+ * frames reach the member's polls already.</p>
  */
 public final class LongPollingRoomReplies {
 
@@ -288,6 +294,23 @@ public final class LongPollingRoomReplies {
             }
         }
         return left;
+    }
+
+    /**
+     * Whether the long-polling client {@code trackingId} is a member of the room
+     * of {@code broadcaster}: the room's replies reach its polls, kept in its
+     * mailbox or written to a poll of it that waits.
+     *
+     * @param broadcaster the broadcaster a poll of the client is suspended on;
+     *                    {@code null} is no room
+     * @param trackingId  the client's tracking id; {@code null} is no member
+     */
+    public static boolean isMember(Broadcaster broadcaster, String trackingId) {
+        if (broadcaster == null || trackingId == null) {
+            return false;
+        }
+        var room = ROOMS.get(broadcaster);
+        return room != null && room.members.containsKey(trackingId);
     }
 
     /** Members of {@code broadcaster}'s room; for tests. */

@@ -20,6 +20,8 @@ import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
 import org.atmosphere.ai.resume.RunEventCapturingSession;
 import org.atmosphere.ai.resume.RunEventReplayBuffer;
+import org.atmosphere.ai.resume.RunReattachSupport;
+import org.atmosphere.ai.resume.RunRegistry;
 import org.atmosphere.cache.BoundedMemoryCache;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -27,10 +29,12 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.Broadcaster;
@@ -49,6 +53,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -683,6 +689,72 @@ class LongPollingRoomRepliesTest {
 
         assertTrue(run.claimNew(owner.uuid()).isEmpty(), "the room's members received the run from their"
                 + " mailboxes: that must not make the run hand the owner every frame again");
+    }
+
+    /**
+     * A member's mailbox already delivers the rest of the run to its polls: a
+     * poll of it carrying the run id that waited for the run's next event too
+     * was written each later frame directly, while the room kept the same frame
+     * for its next poll, so the client received every later frame twice.
+     */
+    @Test
+    void aRoomMembersPollCarryingTheRunIdDoesNotAlsoWaitForTheRunsNextFrame() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", "room-session", new ExecutionHandle.Settable(() -> { }),
+                new RunEventReplayBuffer(), null);
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket),
+                run.replayBuffer());
+        session.sendMetadata(RunReattachSupport.RUN_ID_HEADER, run.runId());
+        session.send("one.");
+        awaitFrames(socket, 2);
+        assertTrue(nextPoll(member).contains("streaming-text:one."));
+
+        // The member's next poll carries the run id; its mailbox is empty, so the handler replays the run to it.
+        var sink = new StringWriter();
+        var resumed = new ArrayList<String>();
+        var poll = suspendedPoll(member.uuid(), run.runId(), sink, resumed);
+        room.addAtmosphereResource(member);
+        assertEquals(0, RunReattachSupport.replayPendingRun(poll, registry), "the member received all of the run");
+
+        session.send("two.");
+        session.complete();
+        awaitComplete(socket);
+
+        assertEquals("", sink.toString(), "the room keeps the rest of the run for the member: the poll carrying"
+                + " the run id must not be written it as well");
+        assertTrue(resumed.isEmpty(), "the poll is left to the room: " + resumed);
+        assertEquals(List.of("streaming-text:two.", "complete"), nextPoll(member));
+        assertTrue(run.replayBuffer().claimNew(member.uuid()).isEmpty(), "the member received every frame of the run");
+    }
+
+    /** A suspended long-polling poll of {@code trackingId} on the room carrying {@code runId}. */
+    private AtmosphereResource suspendedPoll(String trackingId, String runId, StringWriter sink, List<String> resumed) {
+        var poll = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        when(poll.getRequest()).thenReturn(request);
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(runId);
+        when(poll.uuid()).thenReturn(trackingId);
+        when(poll.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        when(poll.isSuspended()).thenReturn(true);
+        when(poll.getBroadcaster()).thenReturn(room);
+        when(poll.getAtmosphereConfig()).thenReturn(config);
+        when(poll.resume()).thenAnswer(invocation -> {
+            resumed.add("resume");
+            return poll;
+        });
+        try {
+            when(poll.getResponse()).thenReturn(response);
+            when(response.getWriter()).thenReturn(new PrintWriter(sink));
+        } catch (IOException e) {
+            throw new AssertionError("a mock does not throw", e);
+        }
+        return poll;
     }
 
     @Test
