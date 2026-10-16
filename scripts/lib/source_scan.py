@@ -55,9 +55,9 @@ Usage:
 
 ``--multiline`` matches the regex against a file's whole projection rather than
 one line at a time, so a call split across lines (``AiEnvironment`` on one line,
-``.current()`` on the next) is still found. A match is reported once, at the line
-it starts on; when it spans lines, ``text`` is those original lines joined by a
-space.
+``.current()`` on the next) is still found. Each match is reported once, at the
+line it starts on, so a line holding two matches is reported twice; when a match
+spans lines, ``text`` is those original lines joined by a space.
 """
 
 import argparse
@@ -185,8 +185,11 @@ def project(text):
 def multiline_hits(rx, rows, mode, strip):
     """Match ``rx`` across the projected lines of one file.
 
-    Returns ``(first_line_no, text)`` per line a match starts on, ``text`` being
-    the original lines the match spans, stripped and joined by a space. Lines are
+    Returns ``(first_line_no, text)`` per match, in source order, ``text`` being
+    the original lines the match spans, stripped and joined by a space. Two
+    matches on one line are two hits: a caller counting reads (the AI-state
+    allowlist's ``sites``) must see a second read added to a line that already
+    holds one, which one hit per line would hide. Lines are
     projected exactly as the per-line scan projects them, then joined by newlines,
     so ``\\s`` in the regex spans a line break and a comment between two tokens
     is already gone.
@@ -212,15 +215,12 @@ def multiline_hits(rx, rows, mode, strip):
                 hi = mid - 1
         return lo
 
-    spans = {}
+    hits = []
     for m in rx.finditer("\n".join(hays)):
         first = row_of(m.start())
         last = row_of(max(m.start(), m.end() - 1))
-        spans[first] = max(spans.get(first, first), last)
-    return [
-        (rows[first][0], " ".join(rows[i][1].strip() for i in range(first, last + 1)))
-        for first, last in sorted(spans.items())
-    ]
+        hits.append((rows[first][0], " ".join(rows[i][1].strip() for i in range(first, last + 1))))
+    return hits
 
 
 def iter_files(roots, excludes):
@@ -331,6 +331,11 @@ MULTILINE_SELF_TEST = [
         "single-line hits keep their own line numbers",
         "int a;\nObject o = AiEnvironment.current();\nObject p = AiEnvironment.current();\n",
         r"\bAiEnvironment\s*\.\s*current\s*\(", [2, 3],
+    ),
+    (
+        "two reads on one line are two hits",
+        "int a;\nObject o = AiEnvironment.current() != null ? AiEnvironment.current() : null;\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [2, 2],
     ),
 ]
 

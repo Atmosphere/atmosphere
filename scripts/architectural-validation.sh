@@ -178,11 +178,23 @@ if classes and methods and ambient and no_arg:
     cls = "(?:" + "|".join(classes) + ")"
     mth = "(?:" + "|".join(methods) + ")"
     amb = "(?:" + "|".join(ambient) + ")"
+    fac = "(?:" + "|".join(no_arg) + ")"
+    # An import that brings a member in under a bare name: Java's `import
+    # static`, or Kotlin's plain `import` of a Java static, aliased (`as x`) or
+    # not. Only the members a qualified call is flagged for: a constant
+    # (DecisionModelResolver.MAX_CONCURRENCY_PROPERTY) or a pure helper
+    # (AiConfig.resolveBaseUrl) reads no state. A resolver's resolve/resolveAll
+    # is overloaded with one taking the application, so its import is flagged
+    # only when the file then calls the imported name with no argument.
+    imp = r"\bimport\s+(?:static\s+)?org\.atmosphere\.(?:\w+\.)*"
     ai_regex = (rf"\b{cls}\s*\.\s*{mth}\s*\(|\b{cls}\s*::\s*{mth}\b"
                 rf"|\bAiEnvironment\s*\.\s*{amb}\s*\(|\bAiEnvironment\s*::\s*{amb}\b"
-                rf"|\b(?:{'|'.join(no_arg)})\s*\.\s*(?:resolve|resolveAll)\s*\(\s*\)"
-                rf"|\b(?:{'|'.join(no_arg)})\s*::\s*(?:resolve|resolveAll)\b"
-                rf"|\bimport\s+static\s+org\.atmosphere\.(?:\w+\.)*(?:{'|'.join(classes + no_arg)}|AiEnvironment)\.")
+                rf"|\b{fac}\s*\.\s*(?:resolve|resolveAll)\s*\(\s*\)"
+                rf"|\b{fac}\s*::\s*(?:resolve|resolveAll)\b"
+                rf"|{imp}{cls}\.(?:{mth}|\*)(?![\w$])"
+                rf"|{imp}AiEnvironment\.(?:{amb}|\*)(?![\w$])"
+                rf"|{imp}{fac}\.(?:(?P<fm>resolve|resolveAll)(?![\w$])(?:[ \t]+as[ \t]+(?P<fa>\w+)|(?![ \t]+as[ \t]))|\*)"
+                rf"(?=[\s\S]*?(?<![\w.$])(?(fa)(?P=fa)|(?(fm)(?P=fm)|(?:resolve|resolveAll)))\s*\(\s*\))")
 print(f"AI_STATE_REGEX={shlex.quote(ai_regex)}")
 PYTHON_PARSER
 )"
@@ -1168,7 +1180,11 @@ echo -e "${BLUE}--- AI State Read Through The Application ---${NC}"
 # excuses nor excuse a new one in the same file.
 #
 # The scan matches across lines (--multiline), so a call split over two lines
-# (`AiEnvironment` / `.current()`) is a read like any other.
+# (`AiEnvironment` / `.current()`) is a read like any other, and reports each
+# read, so two on one line count twice against the entry's sites. An import
+# that brings a flagged member in under a bare name (Java `import static`, a
+# Kotlin `import`, aliased or not) is a read; a resolver's resolve/resolveAll
+# import only where the file then calls the imported name with no argument.
 #
 # Scope: every src/main under modules/, found with `find` because the
 # SRC_DIRS glob (modules/*/src/main/java) misses Kotlin sources and the nested

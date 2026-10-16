@@ -133,14 +133,19 @@ reason = "wires the documented atmosphere.ai.mode=fake demo mode"
 #
 # The check scans every modules/**/src/main (Java and Kotlin, nested Quarkus
 # modules included; not the non-shipped modules, not samples, which are user
-# code) in CODE mode, matching across lines: comments, Javadoc and imports
-# other than static imports are not code reads, and a call split over two
-# lines is one. A static import of these classes (the no-argument resolvers
-# included) is flagged, since it would hide every call behind a bare name.
+# code) in CODE mode, matching across lines: comments, Javadoc, class imports
+# and imports of a constant or a pure helper are not code reads, and a call
+# split over two lines is one. An import that brings one of the flagged
+# members in under a bare name (a Java static import, or a Kotlin import of a
+# Java static, aliased or not) is flagged, since it would hide every call
+# behind that name; for the no-argument resolvers, whose resolve/resolveAll is
+# overloaded with one taking the application, only when the file then calls
+# the imported name with no argument.
 #
 # Every hit must match an [[ai_application_state.allowed]] entry: file, a regex
 # tight to the site (the reported text is the trimmed source line), `sites`
-# (how many hits the entry explains) and a reason. An entry that matches
+# (how many hits the entry explains: one per read, so a line holding two reads
+# is two hits) and a reason. An entry that matches
 # nothing fails the check (stale), and so does one that matches more or fewer
 # hits than its sites, so the list can only shrink to what is true and a new
 # read in an allowlisted file is not excused by the reads already there. This
@@ -169,7 +174,8 @@ static_methods = [
 ambient_methods = ["current", "bound", "processDefault"]
 # Resolvers whose no-argument resolve()/resolveAll() read AiEnvironment.current()
 # while an overload takes the application (DecisionModelResolver.resolve(environment),
-# AiEnvironment.embeddings()): only the no-argument calls are flagged.
+# AiEnvironment.embeddings()): only the no-argument calls are flagged, and an
+# import of resolve/resolveAll only in a file that then calls it with none.
 no_arg_facades = ["EmbeddingRuntimeResolver", "DecisionModelResolver"]
 
 # --- The static API itself ---------------------------------------------------

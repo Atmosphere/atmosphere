@@ -719,7 +719,7 @@ are not deprecated, so calling them gives no compiler warning although they read
 `AiEnvironment.current()` as the deprecated readers do. Framework code that holds an application
 does not itself read the statics, `AiEnvironment.current()` or
 `AiEnvironment.processDefault()`: `scripts/architectural-validation.sh` fails the build on such a read
-in `modules/**/src/main` (a call split across lines, or hidden behind a static import, included)
+in `modules/**/src/main` (a call split across lines, or hidden behind a Java static import or a Kotlin import, included)
 unless `scripts/validation-patterns.toml` allowlists it with a regex tight to the site, the number of
 sites and a reason. The remaining reads are allowlisted there: the façade itself, runtime instances
 no environment attached, public entry points that take no application, hosts and reports for a

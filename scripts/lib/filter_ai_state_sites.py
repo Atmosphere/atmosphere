@@ -37,7 +37,10 @@ a regex broad enough to match a second read there (the façade's
 ``AiEnvironment\.current\(\)``) or an alternation of several sites, which goes
 stale only when the last of them is gone. ``sites`` pins how many findings the
 entry explains, so a read added to or removed from an allowlisted file fails
-the gate until the entry is updated. ``file`` is matched as a path suffix, so a
+the gate until the entry is updated. The scanner reports one finding per read,
+not per line, so a read added to a line that already holds an allowlisted one
+is counted too: every finding carries that line's text, so the line's entry
+matches it. ``file`` is matched as a path suffix, so a
 basename covers a file of that name in any module (the two Spring Boot starters
 mirror each other), and ``sites`` then counts both.
 

@@ -260,11 +260,44 @@ s_ai_facade_extra() { inject_after_line "$AI_CLASS" "$CLASS_DECL" \
 s_ai_multiline() { inject_after_line "$AI_PROC" "$CLASS_DECL" \
                     '    private Object zzzAi() { return org.atmosphere.ai.AiEnvironment
             .current().settings(); }'; }
-# A static import of a no-argument resolver hides every call behind a bare resolve().
+# A read added to a line that already holds an allowlisted one is a read more:
+# the scan reports each match, not each line, so the facade's sites no longer
+# match. Rewrites an existing AiConfig line, since a new line would mismatch
+# whether or not the line's reads were counted one by one.
+s_ai_same_line() { python3 - "$AI_CLASS" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+old = "return AiEnvironment.current().settings();"
+assert s.count(old) == 1, "the AiConfig.get() read moved; update s_ai_same_line"
+open(p, 'w').write(s.replace(old, "return AiEnvironment.current().settings() != null"
+                             " ? AiEnvironment.current().settings() : AiEnvironment.processDefault().settings();"))
+PY
+}
+# A static import of a no-argument resolver hides a call behind a bare resolve().
 s_ai_import_embedding() { inject_after_line "$AI_PROC" '^package ' \
-                    'import static org.atmosphere.ai.EmbeddingRuntimeResolver.resolve;'; }
+                    'import static org.atmosphere.ai.EmbeddingRuntimeResolver.resolve;'
+                  inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private static Object zzzAi() { return resolve(); }'; }
 s_ai_import_decision() { inject_after_line "$AI_PROC" '^package ' \
-                    'import static org.atmosphere.ai.decision.DecisionModelResolver.resolve;'; }
+                    'import static org.atmosphere.ai.decision.DecisionModelResolver.resolve;'
+                  inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private static Object zzzAi() { return resolve(); }'; }
+# Kotlin imports a Java static with a plain import, aliased or not, and calls it
+# by its bare name, which no qualified-call pattern sees.
+s_ai_kotlin_import() { inject_after_line "$AI_KT" '^package ' \
+                    'import org.atmosphere.ai.AgentRuntimeResolver.resolveAll'
+                  printf '\nprivate fun zzzAi(): Any = resolveAll()\n' >> "$AI_KT"; }
+s_ai_kotlin_alias() { inject_after_line "$AI_KT" '^package ' \
+                    'import org.atmosphere.ai.EmbeddingRuntimeResolver.resolve as zzzResolve'
+                  printf '\nprivate fun zzzEmb(): Any = zzzResolve()\n' >> "$AI_KT"; }
+# A resolver's overload handed the application, a constant and a pure helper,
+# all imported static, read no AI state.
+s_ai_import_clean() { inject_after_line "$AI_PROC" '^package ' \
+                    'import static org.atmosphere.ai.decision.DecisionModelResolver.resolve;
+import static org.atmosphere.ai.decision.DecisionModelResolver.MAX_CONCURRENCY_PROPERTY;
+import static org.atmosphere.ai.AiConfig.resolveBaseUrl;'
+                  inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private static Object zzzAi(org.atmosphere.ai.AiEnvironment e) { return resolve(e); }'; }
 # A comment or Javadoc naming the static API reads nothing, and neither does a
 # resolver overload that is handed the application.
 s_ai_comment()  { inject_after_line "$AI_PROC" "$CLASS_DECL" \
@@ -313,8 +346,13 @@ run_case "ai-state-facade-extra" "match a different number of AI state reads"   
 run_case "ai-state-multiline"  "process-wide AI state read"                          s_ai_multiline
 run_case "ai-state-import-embedding" "process-wide AI state read"                    s_ai_import_embedding
 run_case "ai-state-import-decision" "process-wide AI state read"                     s_ai_import_decision
+run_case "ai-state-kotlin-import" "process-wide AI state read"                        s_ai_kotlin_import
+run_case "ai-state-kotlin-alias" "process-wide AI state read"                         s_ai_kotlin_alias
+run_case "ai-state-same-line"  "match a different number of AI state reads"          s_ai_same_line
 run_clean_case "ai-state-comment" "process-wide AI state read" \
                                   "AI state read through the application"            s_ai_comment
+run_clean_case "ai-state-import-clean" "process-wide AI state read" \
+                                  "AI state read through the application"            s_ai_import_clean
 
 # The workflow that runs this proof must run when a file a case injects into
 # changes: a refactor of one (LlmReranker losing the read s_ai_stale rewrites,
