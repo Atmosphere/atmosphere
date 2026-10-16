@@ -68,6 +68,7 @@ jobs:
           - spring-boot-multi-agent-startup-team
           - spring-boot-passivation-agent
           - spring-boot-one-dep-agent
+          - spring-boot-reattach-harness
         spring-boot-version: [4]
         include:
           # Run Spring Boot samples with SB3 as well
@@ -76,6 +77,9 @@ jobs:
           - sample: spring-boot-ai-chat
             spring-boot-version: 3
           - sample: spring-boot-rag-chat
+            spring-boot-version: 3
+          # Its tests pin application.yml to keys the spring-boot3 starter binds
+          - sample: spring-boot-reattach-harness
             spring-boot-version: 3
         exclude:
           # Non-Spring-Boot samples don't need the SB version axis

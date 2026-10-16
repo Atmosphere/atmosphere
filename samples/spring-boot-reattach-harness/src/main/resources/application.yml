@@ -4,7 +4,14 @@ server:
 atmosphere:
   packages: org.atmosphere.samples.springboot.reattach
   # Two @AiEndpoints live here; the Console talks to the session.send emitter.
-  console-endpoint: /atmosphere/agent/harness
+  # Pinned through ai.path, which the Console's endpoint detection reads in
+  # both starters (as samples/spring-boot-orchestration-demo does), and not
+  # through console-endpoint, which the spring-boot3 starter does not bind: on
+  # that profile the Console would fall back to whichever handler the map
+  # iterates first. Both endpoints are user-defined, so no default AI endpoint
+  # is registered at this path.
+  ai:
+    path: /atmosphere/agent/harness
   auth:
     # The reattach harness is a CI-only surface; leave auth off so the
     # Playwright spec can focus on the reattach contract without carrying
