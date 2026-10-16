@@ -93,6 +93,32 @@ test.describe('Chat over WebTransport', () => {
       .toBeVisible({ timeout: 10_000 });
   });
 
+  test('a room join hands the room the suspended connection', async ({ page }) => {
+    // The 2026-10-16 sweep logged "DefaultBroadcaster: AtmosphereResource
+    // <uuid> is not suspended ... Suspend first" on every connect: the Room
+    // Protocol join ran on the resource made for that one frame.
+    const connected = waitForConnection(page);
+    await page.goto(server.baseUrl);
+    await connected;
+    await expect(page.getByTestId('presence-count'))
+      .toHaveText(/\d+ online/, { timeout: 15_000 });
+
+    expect(server.getOutput()).toContain('JOIN');
+    expect(server.getOutput()).not.toContain('is not suspended');
+  });
+
+  test('every Console form field has an id or a name', async ({ page }) => {
+    // Chrome flagged "A form field element should have an id or name
+    // attribute" on every Console page of the 2026-10-16 sweep.
+    await page.goto(server.baseUrl);
+    await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 15_000 });
+    const unnamed = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('input, textarea, select'))
+        .filter((el) => !el.id && !el.getAttribute('name'))
+        .map((el) => el.outerHTML.slice(0, 120)));
+    expect(unnamed).toEqual([]);
+  });
+
   test('no handshake errors persist after connection', async ({ page }) => {
     const connected = waitForConnection(page);
     await page.goto(server.baseUrl);
