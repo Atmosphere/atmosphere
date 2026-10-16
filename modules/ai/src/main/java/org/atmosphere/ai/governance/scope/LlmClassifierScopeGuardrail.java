@@ -74,10 +74,11 @@ import java.util.Objects;
  * An uncertain verdict is {@link ScopeGuardrail.Decision#error}, which
  * {@link ScopePolicy} denies at pre-admission (Correctness Invariant #6). The
  * explicit, non-default opt-out is {@code failOpen}: an instance built by a
- * constructor that does not take it (the ServiceLoader-registered instance is
- * built that way) reads the {@value #FAIL_OPEN_PROPERTY} JVM system property on
- * each uncertain verdict, so setting or clearing the property takes effect on
- * the next request even though {@link ScopeGuardrailResolver} caches the
+ * constructor that does not take it (the per-application instance
+ * {@link ScopeGuardrailResolver} builds with {@link #LlmClassifierScopeGuardrail(AiEnvironment)}
+ * is built that way) reads the {@value #FAIL_OPEN_PROPERTY} JVM system property
+ * on each uncertain verdict, so setting or clearing the property takes effect
+ * on the next request even though {@link ScopeGuardrailResolver} caches the
  * instance. It is a system property only ({@code -D} or
  * {@link System#setProperty}); no Spring Boot or Quarkus configuration key binds
  * to it. In fail-open mode an uncertain verdict admits the request with a WARN

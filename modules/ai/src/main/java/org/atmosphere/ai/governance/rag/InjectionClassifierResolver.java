@@ -103,6 +103,9 @@ public final class InjectionClassifierResolver {
     private static final ConcurrentHashMap<InjectionClassifier.Tier, Optional<InjectionClassifier>> REGISTERED =
             new ConcurrentHashMap<>();
 
+    /** The built-in rule-based classifier: stateless, so one serves the JVM. */
+    private static final InjectionClassifier BUILT_IN_RULE_BASED = new RuleBasedInjectionClassifier();
+
     private InjectionClassifierResolver() { }
 
     /**
@@ -114,6 +117,21 @@ public final class InjectionClassifierResolver {
      */
     public static InjectionClassifier resolve(InjectionClassifier.Tier tier) {
         return resolve(AiEnvironment.current(), tier);
+    }
+
+    /**
+     * The {@link InjectionClassifier.Tier#RULE_BASED} classifier, which uses
+     * no model and so belongs to no application: the registered
+     * {@code RULE_BASED} implementation when there is one, else the built-in
+     * {@link RuleBasedInjectionClassifier}. Reads no {@link AiEnvironment}, so
+     * framework code with no application at hand (the tool-output screen)
+     * calls it instead of {@link #resolve(InjectionClassifier.Tier)}.
+     *
+     * @return the classifier, never {@code null}
+     */
+    public static InjectionClassifier ruleBased() {
+        return REGISTERED.computeIfAbsent(InjectionClassifier.Tier.RULE_BASED,
+                InjectionClassifierResolver::findRegistered).orElse(BUILT_IN_RULE_BASED);
     }
 
     /**

@@ -223,9 +223,8 @@ public final class ToolOutputSafetyScreen {
                     : result;
             var doc = new ContextProvider.Document(
                     scanned, "tool:" + (toolName == null ? "unknown" : toolName), 1.0);
-            var decision = InjectionClassifierResolver
-                    .resolve(InjectionClassifier.Tier.RULE_BASED)
-                    .evaluate(doc);
+            // Rule-based: no model, so no application to resolve it for.
+            var decision = InjectionClassifierResolver.ruleBased().evaluate(doc);
             if (decision.outcome() == InjectionClassifier.Outcome.SAFE) {
                 return result;
             }

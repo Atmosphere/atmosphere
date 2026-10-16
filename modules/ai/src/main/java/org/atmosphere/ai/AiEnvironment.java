@@ -552,11 +552,15 @@ public final class AiEnvironment implements AutoCloseable {
         }
     }
 
-    /** Closes every open environment: test hook behind {@link AiConfig#resetHostConfig()}. */
+    /**
+     * Closes every open environment and re-arms the once-per-JVM warning of
+     * {@link #current()}: test hook behind {@link AiConfig#resetHostConfig()}.
+     */
     static void closeAll() {
         for (var environment : live) {
             environment.close();
         }
+        AMBIGUITY_WARNED.set(false);
     }
 
     /**
