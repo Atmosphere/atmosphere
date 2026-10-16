@@ -89,8 +89,8 @@ public interface AgentRuntime {
     }
 
     /**
-     * Called once when the {@link AiEnvironment} that loaded this instance
-     * closes, and right away on an instance it loaded but does not keep
+     * Called once: when the {@link AiEnvironment} that loaded this instance
+     * closes, or right away on an instance it loaded but does not keep
      * (unavailable, or not the one {@link AiConfig#RUNTIME_PROPERTY} selected).
      * Release only what this instance created, such as a native client it
      * built from the settings ({@link AbstractAgentRuntime} shuts those down

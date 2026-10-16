@@ -53,8 +53,8 @@ public interface EmbeddingRuntime {
     }
 
     /**
-     * Called once when the {@link AiEnvironment} that loaded this instance
-     * closes, and right away on an instance it loaded but does not keep (an
+     * Called once: when the {@link AiEnvironment} that loaded this instance
+     * closes, or right away on an instance it loaded but does not keep (an
      * unavailable one). Release only what this instance created, such as the
      * HTTP client of {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}; a
      * request already sent should be allowed to finish, a later one may fail.
