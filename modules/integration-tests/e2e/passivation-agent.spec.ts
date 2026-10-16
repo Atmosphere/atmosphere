@@ -80,6 +80,30 @@ test.describe('Passivation agent', () => {
     expect(resume.status()).toBe(404);
   });
 
+  test('/ opens a Console that shows Checkpoints and no chat stuck on Connecting', async ({ page, request }) => {
+    // The sample serves no chat endpoint (AI auto-configuration off, REST-driven
+    // runtime). The 2026-10-16 sweep found console info advertising
+    // /atmosphere/ai-chat anyway: the Chat tab sat on "Connecting..." over a 404.
+    const info = await (await request.get(server.baseUrl + '/api/console/info')).json();
+    expect(info.hasChat, 'console info reports no chat endpoint').toBe(false);
+    expect(info.endpoint, 'console info names no chat endpoint').toBeUndefined();
+
+    // Leave a checkpoint for the Checkpoints tab to list.
+    const pause = await request.post(server.baseUrl + '/api/agent/pause', {
+      data: { conversationId: 'conv-e2e-console', pendingMessage: PENDING, reason: 'console check' },
+    });
+    expect(pause.status()).toBe(200);
+
+    await page.goto(server.baseUrl + '/');
+    await expect(page).toHaveURL(/\/atmosphere\/console\/$/);
+    await expect(page.getByTestId('no-chat-notice')).toContainText('no chat endpoint');
+    await expect(page.getByTestId('tab-chat')).toHaveCount(0);
+    await expect(page.getByTestId('atmosphere-connection-status')).toHaveCount(0);
+    await page.getByTestId('tab-checkpoints').click();
+    await expect(page.getByTestId('checkpoints')).toBeVisible();
+    await expect(page.getByTestId('checkpoint-row').first()).toBeVisible();
+  });
+
   test('pause without a pending message is a 400', async ({ request }) => {
     const res = await request.post(server.baseUrl + '/api/agent/pause', {
       data: { conversationId: 'conv-bad', pendingMessage: '' },

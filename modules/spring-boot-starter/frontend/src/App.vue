@@ -42,6 +42,12 @@ const room = ref<string | undefined>(undefined)
 const endpointOptions = ref<Array<{ label: string; endpoint: string }>>([])
 const pickedEndpoint = ref<string | undefined>(undefined)
 const ready = ref(false)
+// False only when the server says it serves no chat endpoint (hasChat:false),
+// e.g. an app with the AI auto-configuration off that drives its runtime from
+// REST. The Console then mounts no chat (which would sit on "Connecting..."
+// against a 404) and opens on the tabs that work. An absent flag (a server
+// predating it) keeps the chat.
+const chatAvailable = ref(true)
 const activeTab = ref<Tab>('chat')
 // The live MCP endpoint, when one is registered — enables the MCP Apps host tab.
 const mcpEndpoint = ref<string | null>(null)
@@ -148,9 +154,8 @@ const workspaceVisible = computed(() =>
   workspaceAvailable.value || livePlan.value !== null)
 
 const tabs = computed(() => {
-  const list: Array<{ id: Tab; label: string; badge?: string }> = [
-    { id: 'chat', label: 'Chat' },
-  ]
+  const list: Array<{ id: Tab; label: string; badge?: string }> =
+    chatAvailable.value ? [{ id: 'chat', label: 'Chat' }] : []
   if (agentsAvailable.value) {
     list.push({ id: 'sessions', label: 'Sessions' })
   }
@@ -226,6 +231,7 @@ onMounted(async () => {
     const data = await readConsoleInfo()
     if (data) {
       if (data.subtitle) subtitle.value = data.subtitle
+      chatAvailable.value = data.hasChat !== false
       if (data.endpoint) endpoint.value = data.endpoint
       if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode
       // Narrow to the known adapter names — the server already validates,
@@ -295,6 +301,9 @@ onMounted(async () => {
   if (harnessPresent && agentsAvailable.value && !workspaceDeclaredAbsent) {
     await probeWorkspace()
   }
+  if (!chatAvailable.value && tabs.value.length > 0) {
+    activeTab.value = tabs.value[0].id
+  }
   ready.value = true
 })
 </script>
@@ -310,7 +319,8 @@ onMounted(async () => {
         </div>
         <span class="header-badge">v4</span>
       </div>
-      <nav v-if="ready && tabs.length > 1" class="tab-nav" data-testid="console-tabs">
+      <!-- Without a chat even a single tab is labelled, so the page says what it shows. -->
+      <nav v-if="ready && tabs.length > (chatAvailable ? 1 : 0)" class="tab-nav" data-testid="console-tabs">
         <button
           v-for="tab in tabs"
           :key="tab.id"
@@ -324,8 +334,13 @@ onMounted(async () => {
       </nav>
     </header>
     <main class="app-main">
+      <p v-if="ready && !chatAvailable" class="no-chat-notice" data-testid="no-chat-notice">
+        This application serves no chat endpoint{{ tabs.length > 0
+          ? ', so the Console shows only the views it does serve.'
+          : ' and no other Console view.' }}
+      </p>
       <!-- Path-templated samples pick their room-endpoint before connecting -->
-      <div v-if="ready && activeTab === 'chat' && endpointOptions.length > 0 && !pickedEndpoint"
+      <div v-if="ready && chatAvailable && activeTab === 'chat' && endpointOptions.length > 0 && !pickedEndpoint"
            class="endpoint-picker" data-testid="endpoint-picker">
         <p class="picker-title">Pick a room</p>
         <div class="picker-cards">
@@ -338,7 +353,7 @@ onMounted(async () => {
       </div>
       <!-- Kept mounted like every other tab: leaving Chat must not close its
            subscription or drop the conversation. -->
-      <ChatContainer v-if="ready && (endpointOptions.length === 0 || pickedEndpoint)"
+      <ChatContainer v-if="ready && chatAvailable && (endpointOptions.length === 0 || pickedEndpoint)"
                      v-show="activeTab === 'chat'"
                      :key="pickedEndpoint ?? endpoint"
                      :endpoint="pickedEndpoint ?? endpoint" :mode="mode" :transport="transport"
@@ -488,6 +503,15 @@ onMounted(async () => {
   flex: 1;
   overflow: hidden;
   position: relative;
+}
+
+.no-chat-notice {
+  margin: 0;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
 }
 
 .endpoint-picker {

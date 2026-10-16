@@ -179,3 +179,48 @@ describe('Console waits for a WebTransport sidecar that is still starting', () =
     wrapper.unmount()
   })
 })
+
+describe('Console on an application that serves no chat endpoint', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    chatLifecycle.mounted = 0
+    chatLifecycle.unmounted = 0
+  })
+
+  // spring-boot-passivation-agent turns the AI auto-configuration off and
+  // serves no chat handler. The Console mounted a chat against the
+  // /atmosphere/ai-chat default anyway and sat on "Connecting..." over a 404.
+  it('shows the tabs that work and says there is no chat, without mounting one', async () => {
+    stubFetch({
+      subtitle: 'No chat endpoint', hasChat: false, hasCheckpoints: true,
+      hasInteractions: false, hasAdmin: false,
+    })
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          ChatContainer: ChatStub,
+          Checkpoints: { props: ['active'], template: '<div data-testid="checkpoints-stub" />' },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="chat-stub"]').exists()).toBe(false)
+    expect(chatLifecycle.mounted).toBe(0)
+    expect(wrapper.find('[data-testid="tab-chat"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="no-chat-notice"]').text()).toContain('no chat endpoint')
+    expect(wrapper.find('[data-testid="tab-checkpoints"]').exists()).toBe(true)
+    expect((wrapper.get('[data-testid="checkpoints-stub"]').element as HTMLElement).style.display)
+      .toBe('')
+    wrapper.unmount()
+  })
+
+  it('keeps the chat when the server predates the hasChat flag', async () => {
+    stubFetch(consoleInfo())
+    const wrapper = mountApp()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="chat-stub"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="no-chat-notice"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

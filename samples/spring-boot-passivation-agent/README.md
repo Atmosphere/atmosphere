@@ -39,6 +39,10 @@ the same way; passivation simply isn't an endpoint you expose.
 ```
 
 The app starts on `http://localhost:8097` (override with `SERVER_PORT`).
+Opening `http://localhost:8097/` lands on the Atmosphere Console. This sample
+serves no chat endpoint, so the Console shows no Chat tab and says so; its
+**Checkpoints** tab lists the snapshots `POST /pause` writes to the
+`CheckpointStore`. The REST calls below drive the flow.
 
 ### 1. Pause a conversation
 
