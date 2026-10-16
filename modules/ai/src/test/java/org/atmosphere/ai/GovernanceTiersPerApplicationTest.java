@@ -39,6 +39,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -66,6 +67,8 @@ import static org.mockito.Mockito.when;
  */
 class GovernanceTiersPerApplicationTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private HttpServer server;
     private final ConcurrentLinkedQueue<String> requests = new ConcurrentLinkedQueue<>();
     private AtmosphereFramework firstFramework;
@@ -81,12 +84,19 @@ class GovernanceTiersPerApplicationTest {
         server.createContext("/", exchange -> {
             var path = exchange.getRequestURI().getPath();
             requests.add(path);
-            exchange.getRequestBody().readAllBytes();
+            var request = exchange.getRequestBody().readAllBytes();
             byte[] body;
             int status;
             if (path.endsWith("/embeddings")) {
+                // One identical vector per input, so every text is in scope and
+                // no document is close to an injection exemplar by accident.
+                var inputs = MAPPER.readTree(request).get("input").size();
+                var data = new StringBuilder("{\"data\":[");
+                for (int i = 0; i < inputs; i++) {
+                    data.append(i == 0 ? "" : ",").append("{\"embedding\":[1.0,0.0,0.0]}");
+                }
                 status = 200;
-                body = "{\"data\":[{\"embedding\":[1.0,0.0,0.0]}]}".getBytes(StandardCharsets.UTF_8);
+                body = data.append("]}").toString().getBytes(StandardCharsets.UTF_8);
             } else {
                 // Any other call (a decision model's chat completion) is
                 // recorded and refused: the test asserts where it went.
@@ -221,12 +231,19 @@ class GovernanceTiersPerApplicationTest {
         requests.clear();
         firstFramework.getAtmosphereConfig().properties().remove(RagSafetyConfig.RUNTIME_STATE_PROPERTY);
         var embedding = new RagSafetyConfig(true, InjectionClassifier.Tier.EMBEDDING_SIMILARITY,
-                SafetyContextProvider.Breach.DROP, false)
+                SafetyContextProvider.Breach.FLAG, false)
                 .apply(List.of(documents), firstFramework, "/rag");
         assertEquals("EMBEDDING_SIMILARITY", ragTier(),
                 "the screen runs the application's embedding runtime, so it reports the embedding tier");
-        embedding.getFirst().retrieve("parcel", 5);
+        var screened = embedding.getFirst().retrieve("parcel", 5);
         assertOnlyFirst("/first/v1/embeddings");
+        // The stub embeds every text to the same vector, so the document
+        // matches an injection exemplar: a verdict the embedding layer can only
+        // reach by comparing the vectors the application's runtime returned.
+        assertEquals(1, screened.size());
+        assertTrue(screened.getFirst().metadata().get(SafetyContextProvider.METADATA_REASON_KEY)
+                        .contains("injection exemplar"),
+                "the embedding layer must have screened the document: " + screened.getFirst().metadata());
     }
 
     @Test
