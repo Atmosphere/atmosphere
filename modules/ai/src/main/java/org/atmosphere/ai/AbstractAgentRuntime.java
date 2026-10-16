@@ -45,7 +45,11 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * {@link #nativeClient} under {@link #clientLock}.
      */
     private volatile boolean nativeClientCreated;
-    /** Guards the creation of {@link #nativeClient} against {@link #close()}. */
+    /**
+     * Guards the installation of {@link #nativeClient} against {@link #close()};
+     * never held while {@link #createNativeClient} runs (it may block on the
+     * network).
+     */
     private final Object clientLock = new Object();
     /** Set once by {@link #close()}, under {@link #clientLock}. */
     private volatile boolean closed;
@@ -186,9 +190,11 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * Release the clients {@link #createNativeClient} built for this instance
      * through {@link #closeNativeClient}, once. A client set with
      * {@link #setNativeClient} or {@link #configureNativeClient} is left
-     * alone. Afterwards this instance builds no new client: a dispatch that
-     * would need one fails with an {@link IllegalStateException}, one that
-     * uses a client set by the application still runs.
+     * alone. Afterwards this instance builds no new client and drops the one
+     * it built: a dispatch that would need one fails with an
+     * {@link IllegalStateException}, one that uses a client set by the
+     * application still runs. A client being built when it runs is closed
+     * once built. It does not wait for that build.
      */
     @Override
     public void close() {
@@ -199,6 +205,10 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             }
             closed = true;
             created = nativeClientCreated ? nativeClient : null;
+            if (created != null) {
+                nativeClient = null;
+                nativeClientCreated = false;
+            }
         }
         for (var agentId : agentClients.keySet()) {
             var removed = agentClients.remove(agentId);
@@ -223,6 +233,13 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         } catch (Exception | LinkageError e) {
             lifecycleLogger.warn("{}: failed to close its native client: {}", name(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * @return whether {@link #close()} ran: this instance builds no new client
+     */
+    protected boolean isRuntimeClosed() {
+        return closed;
     }
 
     private void ensureNotClosed() {
@@ -444,7 +461,9 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     /**
      * Build the native client with {@link #createNativeClient} unless one is
-     * set; {@link #close()} releases a client built here.
+     * set; {@link #close()} releases a client built here. The client is built
+     * outside any lock: when another call installed one first, or
+     * {@link #close()} ran meanwhile, the one built here is closed.
      *
      * @throws IllegalStateException when this instance is closed and has no client
      */
@@ -453,14 +472,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         if (nativeClient != null) {
             return;
         }
+        ensureNotClosed();
+        var created = createNativeClient(settings);
         synchronized (clientLock) {
-            if (nativeClient != null) {
+            if (nativeClient == null && !closed) {
+                nativeClient = created;
+                nativeClientCreated = created != null;
                 return;
             }
+        }
+        closeCreated(created);
+        if (nativeClient == null) {
             ensureNotClosed();
-            var created = createNativeClient(settings);
-            nativeClient = created;
-            nativeClientCreated = created != null;
         }
     }
 

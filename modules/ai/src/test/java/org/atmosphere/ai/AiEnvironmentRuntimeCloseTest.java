@@ -20,11 +20,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Closing an {@link AiEnvironment} closes the {@link AgentRuntime} instances it
@@ -173,6 +179,56 @@ class AiEnvironmentRuntimeCloseTest {
             assertThrows(IllegalStateException.class, () -> a.runtimes().resolveAll(),
                     "a closed application resolves no new runtime");
         } finally {
+            a.close();
+            CloseProbeAgentRuntime.disable(a);
+        }
+    }
+
+    @Test
+    void aClosedRuntimeDropsTheClientItBuiltAndFailsFast() {
+        var a = application();
+        try {
+            var runtime = probe(a);
+            var built = runtime.client();
+
+            a.close();
+
+            assertEquals(1, built.closes());
+            var refused = assertThrows(IllegalStateException.class, runtime::client,
+                    "a dispatch fails fast instead of reaching the closed client");
+            assertEquals("close-probe is closed: its application stopped", refused.getMessage());
+        } finally {
+            a.close();
+            CloseProbeAgentRuntime.disable(a);
+        }
+    }
+
+    @Test
+    void closingDoesNotWaitForAClientBeingBuiltAndClosesItOnceBuilt() throws Exception {
+        var a = application();
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        try {
+            var runtime = probe(a);
+            CloseProbeAgentRuntime.blockCreate(a, entered, release);
+            var building = CompletableFuture.supplyAsync(runtime::client);
+            assertTrue(entered.await(5, TimeUnit.SECONDS), "the client is being built");
+
+            var closing = CompletableFuture.runAsync(a::close);
+            try {
+                closing.get(2, TimeUnit.SECONDS);
+            } finally {
+                release.countDown();
+            }
+
+            var failure = assertThrows(ExecutionException.class, () -> building.get(5, TimeUnit.SECONDS));
+            assertInstanceOf(IllegalStateException.class, failure.getCause(),
+                    "the runtime closed while it built the client");
+            var created = runtime.createdClients();
+            assertEquals(1, created.size());
+            assertEquals(1, created.getFirst().closes(), "the client built after the close is closed");
+        } finally {
+            release.countDown();
             a.close();
             CloseProbeAgentRuntime.disable(a);
         }

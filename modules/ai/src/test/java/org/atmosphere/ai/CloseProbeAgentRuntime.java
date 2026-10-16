@@ -15,9 +15,13 @@
  */
 package org.atmosphere.ai;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -32,6 +36,11 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
     private static final Set<AiEnvironment> ENABLED = ConcurrentHashMap.newKeySet();
     /** What {@link #close()} throws, after releasing its clients, in an environment. */
     private static final Map<AiEnvironment, Throwable> CLOSE_FAILURES = new ConcurrentHashMap<>();
+    /** In an environment, {@link #createNativeClient} counts the first down and waits for the second. */
+    private static final Map<AiEnvironment, CountDownLatch[]> BLOCKED_CREATES = new ConcurrentHashMap<>();
+
+    /** Every client {@link #createNativeClient} built for this instance. */
+    private final List<Client> created = new CopyOnWriteArrayList<>();
 
     /** A native client that records how often it was closed. */
     public static final class Client {
@@ -49,6 +58,15 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
     public static void disable(AiEnvironment environment) {
         ENABLED.remove(environment);
         CLOSE_FAILURES.remove(environment);
+        BLOCKED_CREATES.remove(environment);
+    }
+
+    /**
+     * Make {@link #createNativeClient} in {@code environment} count
+     * {@code entered} down, then wait (up to ten seconds) for {@code release}.
+     */
+    static void blockCreate(AiEnvironment environment, CountDownLatch entered, CountDownLatch release) {
+        BLOCKED_CREATES.put(environment, new CountDownLatch[] {entered, release});
     }
 
     /**
@@ -78,7 +96,23 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
 
     @Override
     protected Client createNativeClient(AiConfig.LlmSettings settings) {
-        return new Client();
+        var blocked = attachedEnvironment().map(BLOCKED_CREATES::get).orElse(null);
+        if (blocked != null) {
+            blocked[0].countDown();
+            try {
+                blocked[1].await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        var client = new Client();
+        created.add(client);
+        return client;
+    }
+
+    /** The clients {@link #createNativeClient} built for this instance. */
+    List<Client> createdClients() {
+        return List.copyOf(created);
     }
 
     @Override

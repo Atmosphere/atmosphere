@@ -137,6 +137,11 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         if (getNativeClient() != null) {
             return true;
         }
+        // Closed with its application: it builds no client any more, so a
+        // reachable sidecar does not make it available.
+        if (isRuntimeClosed()) {
+            return false;
+        }
         var configOpt = CrewAiSidecarConfig.discover();
         if (configOpt.isEmpty()) {
             return false;

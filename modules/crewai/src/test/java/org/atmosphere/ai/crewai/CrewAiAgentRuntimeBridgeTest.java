@@ -93,6 +93,19 @@ class CrewAiAgentRuntimeBridgeTest {
     }
 
     @Test
+    void closedRuntime_isUnavailable_evenWithTheSidecarUp() {
+        sidecar.healthStatus = 200;
+        var runtime = new CrewAiAgentRuntime();
+        runtime.configure(null);
+        assertTrue(runtime.isAvailable());
+
+        runtime.close();
+
+        assertFalse(runtime.isAvailable(),
+                "a closed runtime builds no client, so it must not report itself available");
+    }
+
+    @Test
     void health_isUnavailable_whenSidecarDown() {
         sidecar.healthStatus = 503;
         var runtime = new CrewAiAgentRuntime();
