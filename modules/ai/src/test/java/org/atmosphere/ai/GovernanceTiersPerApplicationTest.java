@@ -384,6 +384,48 @@ class GovernanceTiersPerApplicationTest {
     }
 
     @Test
+    void policyAdmissionGateOfADestroyedFrameworkOpensNoEnvironment() {
+        // A request that arrives late, after its framework was destroyed: the
+        // framework's destroy already ran its shutdown hooks, so an environment
+        // opened for it now would never close and, open next to the others,
+        // would move the static API off them.
+        var framework = new AtmosphereFramework();
+        framework.destroy();
+        var before = AiEnvironment.live();
+        var request = new AiRequest("what is 2 + 2?").withMetadata(
+                Map.of(ScopePolicy.REQUEST_SCOPE_METADATA_KEY, scope(AgentScope.Tier.RULE_BASED)));
+
+        var result = PolicyAdmissionGate.admit(framework, request);
+
+        assertInstanceOf(PolicyAdmissionGate.Result.Admitted.class, result);
+        assertEquals(before, AiEnvironment.live(),
+                "admitting a request of a destroyed framework must open no AI environment");
+        assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty());
+    }
+
+    @Test
+    void aiStreamingSessionOfADestroyedFrameworkOpensNoEnvironment() {
+        // Same late turn on a session: its intent routing resolves the
+        // environment on every turn, scope or not.
+        var framework = new AtmosphereFramework();
+        framework.destroy();
+        var before = AiEnvironment.live();
+        var resource = mock(AtmosphereResource.class);
+        when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
+        when(resource.uuid()).thenReturn("streaming-destroyed-uuid");
+        when(resource.getAtmosphereConfig()).thenReturn(framework.getAtmosphereConfig());
+        var session = new AiStreamingSession(mock(StreamingSession.class), new UnattachedRuntime(),
+                "sys", null, List.of(), resource);
+        session.setIntentRouting(routing());
+
+        session.stream("where is my parcel?");
+
+        assertEquals(before, AiEnvironment.live(),
+                "a turn of a destroyed framework must open no AI environment");
+        assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty());
+    }
+
+    @Test
     void aiStreamingSessionWithoutARequestScopeOpensNoEnvironment() {
         // The framework's own environment is opened for a request scope only,
         // as the gate does: a plain turn on a framework with none opens none.

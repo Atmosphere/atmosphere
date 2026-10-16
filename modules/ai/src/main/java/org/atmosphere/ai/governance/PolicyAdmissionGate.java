@@ -90,8 +90,10 @@ public final class PolicyAdmissionGate {
         // it screens with that application's embedding runtime or decision
         // model. A framework with none yet gets its own (AiEnvironment.of),
         // never the one the static API would read: with one other
-        // application open that is the other application's. Resolved only
-        // when a scope is installed, so a request without one opens nothing.
+        // application open that is the other application's. A destroyed
+        // framework gets the process default and opens nothing, since its
+        // shutdown hooks already ran. Resolved only when a scope is
+        // installed, so a request without one opens nothing.
         var requestScope = mutableMeta.containsKey(ScopePolicy.REQUEST_SCOPE_METADATA_KEY)
                 ? ScopePolicyInstaller.extract(mutableMeta, AiEnvironment.of(config))
                 : null;

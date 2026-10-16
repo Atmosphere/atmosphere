@@ -775,7 +775,10 @@ no-argument constructor, so it cannot know an application. `PolicyAdmissionGate`
 per-request scope, and `AiStreamingSession` a per-request scope and an intent routing, for the
 framework's own environment (the resource's framework for the session), created (`AiEnvironment.of`)
 when the framework has none yet and only when the request needs it, never for another open
-application's; a session whose resource has no framework uses its runtime's application. The tool-output injection screen is
+application's; a session whose resource has no framework uses its runtime's application. A request
+that arrives after its framework was destroyed (shutdown, redeploy) gets the process default and
+creates no environment (`AiEnvironment.of` on a destroyed framework), since the destroy already ran
+the shutdown hooks that would close it. The tool-output injection screen is
 rule-based, uses no model and reads no application (`InjectionClassifierResolver.ruleBased()`).
 
 What still reads the static API (so its application's own only on a bound thread, or with a single

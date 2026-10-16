@@ -968,7 +968,9 @@ public class AiStreamingSession implements StreamingSession {
      * The application this session's turns belong to: that of the resource's
      * framework ({@link AiEnvironment#of(org.atmosphere.cpr.AtmosphereConfig)},
      * created when the framework has none yet, as
-     * {@link org.atmosphere.ai.governance.PolicyAdmissionGate} does), else,
+     * {@link org.atmosphere.ai.governance.PolicyAdmissionGate} does; the
+     * process default, with nothing created, once the framework was
+     * destroyed), else,
      * for a resource with no framework, that of the runtime. Its per-request
      * scope guardrails and intent routing use that application's models, never
      * those of another open application the static API would read.

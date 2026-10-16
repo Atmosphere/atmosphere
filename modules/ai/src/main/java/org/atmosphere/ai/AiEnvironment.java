@@ -286,8 +286,17 @@ public final class AiEnvironment implements AutoCloseable {
      * {@link AiConfig#LLM_API_KEY} and {@link AiConfig#LLM_BASE_URL}, each read
      * from its {@code LLM_*} environment variable, then the init-param.
      *
-     * @param config a framework's configuration; {@code null}, or one that
-     *               belongs to no framework, gives {@link #processDefault()}
+     * <p>A framework that was {@link org.atmosphere.cpr.AtmosphereFramework#isDestroyed() destroyed}
+     * gets {@link #processDefault()}: its destroy already ran the shutdown hooks
+     * that close what it owns, so an environment created for it then would
+     * never close (and, open next to the applications still running, would
+     * move {@link #current()} off them). It never gets another application's
+     * environment. An environment created while the framework is being
+     * destroyed is closed at once.</p>
+     *
+     * @param config a framework's configuration; {@code null}, one that
+     *               belongs to no framework, or one whose framework was
+     *               destroyed gives {@link #processDefault()}
      * @return the environment, never {@code null}
      */
     public static AiEnvironment of(AtmosphereConfig config) {
@@ -297,6 +306,10 @@ public final class AiEnvironment implements AutoCloseable {
         var existing = find(config);
         if (existing.isPresent()) {
             return existing.get();
+        }
+        var framework = config.framework();
+        if (framework.isDestroyed()) {
+            return PROCESS_DEFAULT;
         }
         var created = open(Kind.LAZY, config::getInitParameter);
         created.attachedTo = config;
@@ -310,6 +323,13 @@ public final class AiEnvironment implements AutoCloseable {
             return of(config);
         }
         config.shutdownHook(created::close);
+        // The framework's destroy marks it destroyed before it runs and clears
+        // the shutdown hooks: seen destroyed now, the hook may have been
+        // registered too late to run, so close it here (close is idempotent).
+        if (framework.isDestroyed()) {
+            created.close();
+            return PROCESS_DEFAULT;
+        }
         return created;
     }
 
@@ -350,7 +370,8 @@ public final class AiEnvironment implements AutoCloseable {
      * that of the environment attached to it, else that of {@link #current()}
      * (a framework no {@code @AiEndpoint}, {@code @Agent} or {@code @Coordinator}
      * registered on). Unlike {@link #of(AtmosphereConfig)}, it never creates an
-     * environment, so it is safe to call after the framework was destroyed.
+     * environment, not even for a running framework; like it, it is safe to
+     * call after the framework was destroyed.
      *
      * @param config a framework's configuration, may be {@code null}
      * @return the runtime
