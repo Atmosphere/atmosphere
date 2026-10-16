@@ -487,6 +487,39 @@ public class AiEndpointProcessorTest {
     }
 
     @Test
+    public void testWiredContextProvidersArePublishedForStartupReports() throws Exception {
+        // The rag auto-config's "No ContextProvider configured" warning reads
+        // this count: an endpoint that declares a provider must publish it, so
+        // the warning does not fire while retrieval is wired.
+        var cfg = mock(AtmosphereConfig.class);
+        var properties = new java.util.concurrent.ConcurrentHashMap<String, Object>();
+        when(cfg.properties()).thenReturn(properties);
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new RagSafetyEndpoint());
+        when(framework.newClassInstance(eq(ContextProvider.class), eq(PoisonProvider.class)))
+                .thenReturn(new PoisonProvider());
+
+        processor.handle(framework, (Class) RagSafetyEndpoint.class);
+
+        assertEquals(1, properties.get(AiEndpointProcessor.WIRED_CONTEXT_PROVIDERS_PROPERTY));
+    }
+
+    @Test
+    public void testEndpointWithoutContextProvidersPublishesNoCount() throws Exception {
+        var cfg = mock(AtmosphereConfig.class);
+        var properties = new java.util.concurrent.ConcurrentHashMap<String, Object>();
+        when(cfg.properties()).thenReturn(properties);
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        assertNull(properties.get(AiEndpointProcessor.WIRED_CONTEXT_PROVIDERS_PROPERTY));
+    }
+
+    @Test
     public void testRagSafetyDisabledViaConfigLeavesProviderUnwrapped() throws Exception {
         // atmosphere.ai.rag.safety.enabled=false → providers pass through raw.
         var cfg = mock(AtmosphereConfig.class);

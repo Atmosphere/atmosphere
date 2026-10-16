@@ -52,7 +52,7 @@ appends only the resource path (`/embeddings`, `/chat/completions`).
 
 Confirm retrieval is real rather than plausible-sounding: ask a corpus question and check the
 log for `Loaded N chunks into SimpleVectorStore with embeddings`. If you instead see
-`No ContextProvider configured` or `VectorStore not configured`, the store was not built.
+`VectorStore not configured`, the store was not built.
 
 Set `atmosphere.ai.vector-store.enabled=false` to skip the vector store entirely (the
 knowledge base and `@AiTool` search still work).

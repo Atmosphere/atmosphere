@@ -41,7 +41,8 @@ their auto-configurations contribute **safe in-memory defaults** and log a
 startup `WARN` so the development-grade choice is never mistaken for production:
 
 - **ContextProvider** → an empty `InMemoryContextProvider` (retrieves nothing).
-  WARN: *"No ContextProvider configured — using empty in-memory RAG provider…"*
+  WARN, once the application is ready and only when no `@AiEndpoint` declares
+  `contextProviders` either: *"No ContextProvider configured — using empty in-memory RAG provider…"*
 - **CheckpointStore** → an `InMemoryCheckpointStore` (lost on restart).
   WARN: *"No CheckpointStore configured — using in-memory…"*
 

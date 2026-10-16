@@ -79,6 +79,16 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(AiEndpointProcessor.class);
 
+    /**
+     * Framework property-bag key holding the number of {@link ContextProvider}s
+     * the {@code @AiEndpoint}s of this application actually wired (an
+     * {@link Integer}, absent when none did). Published at endpoint
+     * registration so a startup report can say whether retrieval applies
+     * anywhere instead of guessing from the beans it can see.
+     */
+    public static final String WIRED_CONTEXT_PROVIDERS_PROPERTY =
+            "org.atmosphere.ai.rag.wired-context-providers";
+
     // Handler decorators discovered once from the classpath. The set is stable
     // at runtime (a ServiceLoader over a fixed classpath), so resolve lazily and
     // cache — every @AiEndpoint registration reuses the same immutable list.
@@ -920,8 +930,23 @@ public class AiEndpointProcessor implements Processor<Object> {
         // Agentic A04) before it reaches the LLM. Default-on, fail-closed,
         // rule-based; operators relax via atmosphere.ai.rag.safety.* — see
         // RagSafetyConfig. No-op when no provider is declared (no RAG surface).
-        return RagSafetyConfig.from(framework.getAtmosphereConfig())
+        var applied = RagSafetyConfig.from(framework.getAtmosphereConfig())
                 .apply(List.copyOf(providers), framework, endpointPath);
+        recordWiredContextProviders(framework, applied.size());
+        return applied;
+    }
+
+    /** Adds {@code count} to {@link #WIRED_CONTEXT_PROVIDERS_PROPERTY}; no-op for zero. */
+    private static void recordWiredContextProviders(AtmosphereFramework framework, int count) {
+        if (count == 0) {
+            return;
+        }
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg == null || cfg.properties() == null) {
+            return;
+        }
+        cfg.properties().merge(WIRED_CONTEXT_PROVIDERS_PROPERTY, count,
+                (prior, added) -> (prior instanceof Integer n ? n : 0) + (Integer) added);
     }
 
     private List<BroadcastFilter> instantiateBroadcastFilters(
