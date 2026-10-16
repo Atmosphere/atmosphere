@@ -127,19 +127,25 @@ reason = "wires the documented atmosphere.ai.mode=fake demo mode"
 # AiEnvironment.current()/bound() lookup behind them, read whichever
 # application the calling thread is bound to, else the only one running, else
 # the process default: with two applications in one JVM, on a thread bound to
-# none, that is no one application's (the rule in AGENTS.md, Correctness
-# Invariants #1 and #5).
+# none, that is no one application's, and neither is
+# AiEnvironment.processDefault() read directly (the rule in AGENTS.md,
+# Correctness Invariants #1 and #5).
 #
 # The check scans every modules/**/src/main (Java and Kotlin, nested Quarkus
 # modules included; not the non-shipped modules, not samples, which are user
-# code) in CODE mode: comments, Javadoc and imports other than static imports
-# are not code reads. A static import of these classes is flagged, since it
-# would hide every call behind a bare name.
+# code) in CODE mode, matching across lines: comments, Javadoc and imports
+# other than static imports are not code reads, and a call split over two
+# lines is one. A static import of these classes (the no-argument resolvers
+# included) is flagged, since it would hide every call behind a bare name.
 #
-# Every hit must match an [[ai_application_state.allowed]] entry, file + regex,
-# with a reason. An entry that matches nothing fails the check (stale), so the
-# list can only shrink to what is true. This file is not under modules/, so the
-# check never reads its own allowlist as a consumer.
+# Every hit must match an [[ai_application_state.allowed]] entry: file, a regex
+# tight to the site (the reported text is the trimmed source line), `sites`
+# (how many hits the entry explains) and a reason. An entry that matches
+# nothing fails the check (stale), and so does one that matches more or fewer
+# hits than its sites, so the list can only shrink to what is true and a new
+# read in an allowlisted file is not excused by the reads already there. This
+# file is not under modules/, so the check never reads its own allowlist as a
+# consumer.
 [ai_application_state]
 static_classes = ["AiConfig", "AgentRuntimeResolver"]
 # The statics that read or write an application's AI state. The pure helpers
@@ -158,8 +164,9 @@ static_methods = [
     "reportKnobsNotInEffect",
     "hasExplicitClientBinding", "markExplicitClientBinding"
 ]
-# The thread-binding lookup the statics delegate to.
-ambient_methods = ["current", "bound"]
+# The thread-binding lookup the statics delegate to, and the process default
+# it falls back to, which is no one application's while several run.
+ambient_methods = ["current", "bound", "processDefault"]
 # Resolvers whose no-argument resolve()/resolveAll() read AiEnvironment.current()
 # while an overload takes the application (DecisionModelResolver.resolve(environment),
 # AiEnvironment.embeddings()): only the no-argument calls are flagged.
@@ -169,258 +176,404 @@ no_arg_facades = ["EmbeddingRuntimeResolver", "DecisionModelResolver"]
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AiConfig.java"
 pattern = 'AiEnvironment\.current\(\)'
-reason = "the AiConfig statics are the facade: each reads or writes AiEnvironment.current()"
+sites = 20
+reason = "the AiConfig statics are the facade: each reads or writes AiEnvironment.current(); sites pins how many, so a new one fails"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/AiConfig.java"
+pattern = '^AiEnvironment\.processDefault\(\)\.resetAgent\(agentId\);$'
+sites = 1
+reason = "the static resetAgent also drops the agent settings the static configureForAgent gave the process default with no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/AiConfig.java"
+pattern = '^AiEnvironment\.processDefault\(\)\.runtimes\(\)\.reset\(\);$'
+sites = 2
+reason = "pushing or closing an environment's host configuration changes only what the process default reads, so only its runtime resolution is reset"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/AiConfig.java"
+pattern = '^var processDefault = AiEnvironment\.processDefault\(\);$'
+sites = 1
+reason = "reportKnobsNotInEffectAfterClose: the host-configuration stack is what the process default reads, so its settings are the ones checked"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AgentRuntimeResolver.java"
-pattern = 'AiEnvironment\.current\(\)'
-reason = "the AgentRuntimeResolver statics are the facade over AiEnvironment.current()"
+pattern = '^return AiEnvironment\.current\(\)\.hasExplicitBinding\(\);$'
+sites = 1
+reason = "the static hasExplicitClientBinding() is the facade over AiEnvironment.current()"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/AgentRuntimeResolver.java"
+pattern = '^return AiEnvironment\.current\(\)\.runtimes\(\)\.resolveAll\(\);$'
+sites = 1
+reason = "the static resolveAll() is the facade over AiEnvironment.current()"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/EmbeddingRuntimeResolver.java"
-pattern = 'AiEnvironment\.current\(\)\.embeddings\(\)'
+pattern = '^return AiEnvironment\.current\(\)\.embeddings\(\)\.resolveAll\(\);$'
+sites = 1
 reason = "the EmbeddingRuntimeResolver statics are the facade over AiEnvironment.current()"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/decision/DecisionModelResolver.java"
-pattern = 'resolve\(AiEnvironment\.current\(\)\)'
+pattern = '^return resolve\(AiEnvironment\.current\(\)\);$'
+sites = 1
 reason = "the no-argument DecisionModelResolver.resolve() is the facade; callers holding an application use resolve(environment)"
 
 [[ai_application_state.allowed]]
+file = "org/atmosphere/ai/decision/DecisionModelResolver.java"
+pattern = '^var slot = environment == AiEnvironment\.processDefault\(\)$'
+sites = 1
+reason = "identity check: the process default's resolution has its own slot, outside the per-application map"
+
+[[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AiEnvironment.java"
-pattern = 'orElseGet\(AiEnvironment::current\)'
+pattern = 'return find\(config\)\.orElseGet\(AiEnvironment::current\)\.runtimes\(\)\.resolve\(\);$'
+sites = 1
 reason = "resolveRuntime(config): a framework with no environment attached has no application of its own"
 
 # --- The thread binding (design: bound on the @Prompt thread, the gateway worker and generate's carrier) ---
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AgentRuntime.java"
-pattern = 'AiEnvironment\.bound\(\)'
+pattern = '^var callerEnvironment = AiEnvironment\.bound\(\);$'
+sites = 1
 reason = "generate() carries the caller's binding onto its carrier thread, so an inline and a bounded call read the same application (Mode Parity)"
 
 # --- An instance no environment attached (built by hand, or by the process default) ---
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AbstractAgentRuntime.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)|effectiveModel\(AiEnvironment\.current\(\), context, defaultModel\)'
-reason = "environment() of a runtime no registry attached, and the protected static effectiveModel kept for subclasses; registry-built instances are attached"
+pattern = '^return attached != null \? attached : AiEnvironment\.current\(\);$'
+sites = 1
+reason = "environment() of a runtime no registry attached; registry-built instances are attached"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/AbstractAgentRuntime.java"
+pattern = '^return effectiveModel\(AiEnvironment\.current\(\), context, defaultModel\);$'
+sites = 1
+reason = "the protected static effectiveModel kept for subclasses, which hold no environment"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/RoutingAiSupport.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return attached != null \? attached : AiEnvironment\.current\(\);$'
+sites = 1
 reason = "a routing runtime built by hand, outside a processor, has no application"
 
 [[ai_application_state.allowed]]
+file = "org/atmosphere/ai/processor/AiEndpointProcessor.java"
+pattern = '^if \(aiEnvironment != org\.atmosphere\.ai\.AiEnvironment\.processDefault\(\)\) \{$'
+sites = 1
+reason = "identity check: a routing runtime is attached only to an application's own environment; the process default's runtimes keep reading the static API"
+
+[[ai_application_state.allowed]]
 file = "org/atmosphere/ai/llm/DemoAgentRuntime.java"
-pattern = 'attached != null \? attached : org\.atmosphere\.ai\.AiEnvironment\.current\(\)'
+pattern = '^var aiEnvironment = attached != null \? attached : org\.atmosphere\.ai\.AiEnvironment\.current\(\);$'
+sites = 1
 reason = "availability of a demo runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/llm/BuiltInEmbeddingRuntime.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return attached != null \? attached : AiEnvironment\.current\(\);$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "LangChain4jEmbeddingRuntime.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return \(attached != null \? attached : AiEnvironment\.current\(\)\)$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "SemanticKernelEmbeddingRuntime.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return \(attached != null \? attached : AiEnvironment\.current\(\)\)$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "SpringAiEmbeddingRuntime.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return \(attached != null \? attached : AiEnvironment\.current\(\)\)$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "SpringAiAlibabaEmbeddingRuntime.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return \(attached != null \? attached : AiEnvironment\.current\(\)\)$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "EmbabelEmbeddingRuntime.kt"
-pattern = 'environment \?: AiEnvironment\.current\(\)'
+pattern = '^return \(environment \?: AiEnvironment\.current\(\)\)$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "KoogEmbeddingRuntime.kt"
-pattern = 'environment \?: AiEnvironment\.current\(\)'
+pattern = '^private fun environment\(\): AiEnvironment = environment \?: AiEnvironment\.current\(\)$'
+sites = 1
 reason = "an embedding runtime no registry attached"
 
 [[ai_application_state.allowed]]
 file = "EmbabelAgentRuntime.kt"
-pattern = 'environment \?: AiEnvironment\.current\(\)|resolveAgentFileSystem\(AiEnvironment\.current\(\), session\)'
-reason = "environment() of a runtime no registry attached (it implements AgentRuntime directly), and the internal no-application test seam"
+pattern = '^internal fun environment\(\): AiEnvironment = environment \?: AiEnvironment\.current\(\)$'
+sites = 1
+reason = "environment() of a runtime no registry attached (it implements AgentRuntime directly)"
+
+[[ai_application_state.allowed]]
+file = "EmbabelAgentRuntime.kt"
+pattern = 'resolveAgentFileSystem\(AiEnvironment\.current\(\), session\)$'
+sites = 1
+reason = "the internal no-application test seam; dispatch passes environment()"
 
 [[ai_application_state.allowed]]
 file = "KoogAgentRuntime.kt"
-pattern = 'environment \?: AiEnvironment\.current\(\)|shouldObservePlan\(AiEnvironment\.current\(\), context\)'
-reason = "environment() of a runtime no registry attached (it implements AgentRuntime directly), and the internal no-application test seam"
+pattern = '^internal fun environment\(\): AiEnvironment = environment \?: AiEnvironment\.current\(\)$'
+sites = 1
+reason = "environment() of a runtime no registry attached (it implements AgentRuntime directly)"
+
+[[ai_application_state.allowed]]
+file = "KoogAgentRuntime.kt"
+pattern = '^shouldObservePlan\(AiEnvironment\.current\(\), context\)$'
+sites = 1
+reason = "the internal no-application test seam; dispatch passes environment()"
 
 [[ai_application_state.allowed]]
 file = "LlmResultEvaluator.java"
-pattern = 'attached != null \? attached : AiEnvironment\.current\(\)'
+pattern = '^return attached != null \? attached : AiEnvironment\.current\(\);$'
+sites = 1
 reason = "an evaluator no coordinator attached (ResultEvaluator.attach)"
 
 [[ai_application_state.allowed]]
 file = "AnthropicMessagesClient.java"
-pattern = 'environment != null \? environment : org\.atmosphere\.ai\.AiEnvironment\.current\(\)'
+pattern = '^var aiEnvironment = environment != null \? environment : org\.atmosphere\.ai\.AiEnvironment\.current\(\);$'
+sites = 1
 reason = "a client built by hand, with no runtime that owns it"
 
 [[ai_application_state.allowed]]
 file = "ChannelAiBridge.java"
-pattern = 'aiEnvironment != null \? aiEnvironment : AiEnvironment\.current\(\)'
+pattern = '^var settings = \(aiEnvironment != null \? aiEnvironment : AiEnvironment\.current\(\)\)\.settings\(\);$'
+sites = 1
 reason = "a bridge built without the context's AiEnvironment bean (no Atmosphere starter in the context)"
 
 # --- Package-private test seams of the adapters, whose dispatch path passes environment() ---
 [[ai_application_state.allowed]]
 file = "AdkAgentRuntime.java"
-pattern = 'resolveAgentFileSystem\(AiEnvironment\.current\(\), session\)'
+pattern = '^return resolveAgentFileSystem\(AiEnvironment\.current\(\), session\);$'
+sites = 1
 reason = "package-private test seam; dispatch calls the overload taking environment()"
 
 [[ai_application_state.allowed]]
 file = "AgentScopeAgentRuntime.java"
-pattern = 'provisionPlanNotebook\(AiEnvironment\.current\(\), context, session\)'
+pattern = '^return provisionPlanNotebook\(AiEnvironment\.current\(\), context, session\);$'
+sites = 1
 reason = "package-private test seam; dispatch calls the overload taking environment()"
 
 [[ai_application_state.allowed]]
 file = "SemanticKernelAgentRuntime.java"
-pattern = 'currentGeneration\(AiEnvironment\.current\(\)\)'
+pattern = 'currentGeneration\(AiEnvironment\.current\(\)\)\);$'
+sites = 1
 reason = "package-private test seam; dispatch passes currentGeneration(environment())"
 
 [[ai_application_state.allowed]]
 file = "SpringAiAlibabaAgentRuntime.java"
-pattern = 'provisionPlanSurface\(AiEnvironment\.current\(\), context, session\)'
+pattern = '^return provisionPlanSurface\(AiEnvironment\.current\(\), context, session\);$'
+sites = 1
 reason = "package-private test seam; dispatch calls the overload taking environment()"
 
 # --- Public entry points that take no application (library use, user code) ---
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/LlmReranker.java"
-pattern = 'AiEnvironment\.current\(\)\.runtimes\(\)\.resolve\(\)'
+pattern = '\? runtimeSupplier : \(\) -> AiEnvironment\.current\(\)\.runtimes\(\)\.resolve\(\);$'
+sites = 1
 reason = "a reranker built with no runtime supplier; RagRetrieval.resolve passes the application's"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/LlmSummarizingCompaction.java"
-pattern = 'AiEnvironment\.current\(\)\.runtimes\(\)\.resolve\(\)'
+pattern = '^this\(recentWindowSize, \(\) -> AiEnvironment\.current\(\)\.runtimes\(\)\.resolve\(\)\);$'
+sites = 1
 reason = "the public constructors take no application; CompactionConfig passes the application's runtime"
 
 [[ai_application_state.allowed]]
 file = "SpawnSubagentTool.java"
-pattern = 'AiEnvironment\.current\(\)\.runtimes\(\)\.resolve\(\)'
+pattern = '^this\(policies, \(\) -> AiEnvironment\.current\(\)\.runtimes\(\)\.resolve\(\), null, SPAWN_TIMEOUT\);$'
+sites = 1
 reason = "the one-argument constructor takes no application; the coordinator registers the tool with its own"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/llm/OpenAiCompatibleClient.java"
-pattern = 'AiEnvironment\.current\(\)\.resolve(PromptCacheKeyMode|LogprobsMode)\(\)'
-reason = "a client built directly, with no settings, belongs to no application; settings-built clients get both modes from their application"
+pattern = '^: org\.atmosphere\.ai\.AiEnvironment\.current\(\)\.resolvePromptCacheKeyMode\(\);$'
+sites = 1
+reason = "a client built directly with no prompt-cache-key mode belongs to no application; settings-built clients and the starters' routing-rule clients set the mode from their application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/llm/OpenAiCompatibleClient.java"
+pattern = '^: org\.atmosphere\.ai\.AiEnvironment\.current\(\)\.resolveLogprobsMode\(\);$'
+sites = 1
+reason = "a client built directly with no logprobs mode belongs to no application; settings-built clients and the starters' routing-rule clients set the mode from their application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/workspace/WorkspaceExtensions.java"
-pattern = 'AiEnvironment\.current\(\)\)\.settings\(\)|AiConfig\.configureForAgent\(|AiConfig\.configure\('
-reason = "applyRuntime(def[, agentId]) without an application keeps the static API; the processors call the overload taking their AiEnvironment"
+pattern = '^var current = \(environment != null \? environment : org\.atmosphere\.ai\.AiEnvironment\.current\(\)\)\.settings\(\);$'
+sites = 1
+reason = "applyRuntime(def[, agentId]) without an application reads the static API's settings; the processors call the overload taking their AiEnvironment"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/workspace/WorkspaceExtensions.java"
+pattern = '^AiConfig\.configureForAgent\(agentId, mode, model, apiKey, baseUrl, generation\);$'
+sites = 1
+reason = "applyRuntime without an application writes agent settings through the static API"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/workspace/WorkspaceExtensions.java"
+pattern = '^AiConfig\.configure\(mode, model, apiKey, baseUrl, generation\);$'
+sites = 2
+reason = "applyRuntime without an application writes the settings through the static API"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/workspace/WorkspaceExtensions.java"
+pattern = '^if \(environment == org\.atmosphere\.ai\.AiEnvironment\.processDefault\(\)\) \{$'
+sites = 1
+reason = "identity check: applyRuntime handed the process default applies RUNTIME.md through the static API, as with no application"
 
 [[ai_application_state.allowed]]
 file = "AiRuntimeController.java"
-pattern = 'this\(AiEnvironment::current\)'
+pattern = '^this\(AiEnvironment::current\);$'
+sites = 1
 reason = "the no-argument constructor reports the static API's application; the starters pass their context's"
 
 # --- Hosts and reports on a framework no environment is attached to ---
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/resume/RunReattachSupport.java"
-pattern = 'orElseGet\(org\.atmosphere\.ai\.AiEnvironment::current\)'
+pattern = '^\.orElseGet\(org\.atmosphere\.ai\.AiEnvironment::current\);$'
+sites = 1
 reason = "a resource whose framework has no environment attached"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/memory/LongTermMemories.java"
-pattern = 'AiEnvironment\.current\(\)'
+pattern = '^\? AiEnvironment\.of\(framework\.getAtmosphereConfig\(\)\) : AiEnvironment\.current\(\);$'
+sites = 1
 reason = "long-term memory installed with no framework"
 
 [[ai_application_state.allowed]]
 file = "AtmosphereAdminAutoConfiguration.java"
-pattern = 'AiEnvironment::current|org\.atmosphere\.ai\.AiEnvironment\.current\(\)'
+pattern = '^\.orElseGet\(org\.atmosphere\.ai\.AiEnvironment::current\)\)?;?$'
+sites = 3
 reason = "admin report for a context whose framework has no environment attached (both starters)"
 
 [[ai_application_state.allowed]]
+file = "AtmosphereAdminAutoConfiguration.java"
+pattern = '^: org\.atmosphere\.ai\.AiEnvironment\.current\(\);$'
+sites = 1
+reason = "admin report for a context with no AtmosphereFramework bean"
+
+[[ai_application_state.allowed]]
 file = "AtmosphereConsoleInfoEndpoint.java"
-pattern = 'orElseGet\(AiEnvironment::current\)'
+pattern = '^\.orElseGet\(AiEnvironment::current\);$'
+sites = 2
 reason = "console report for a framework with no environment attached (both starters)"
 
 [[ai_application_state.allowed]]
 file = "InteractionsAutoConfiguration.java"
-pattern = 'getIfAvailable\(org\.atmosphere\.ai\.AiEnvironment::current\)'
+pattern = '^var aiEnvironment = aiEnvironmentProvider\.getIfAvailable\(org\.atmosphere\.ai\.AiEnvironment::current\);$'
+sites = 1
 reason = "a context without the AiEnvironment bean"
 
 [[ai_application_state.allowed]]
 file = "AdminProducer.java"
-pattern = 'orElseGet\(org\.atmosphere\.ai\.AiEnvironment::current\)'
+pattern = '^\.orElseGet\(org\.atmosphere\.ai\.AiEnvironment::current\)\)\);$'
+sites = 1
 reason = "Quarkus admin report for a framework with no environment attached"
 
 [[ai_application_state.allowed]]
 file = "quarkus/runtime/AiKnobBridge.java"
-pattern = 'orElseGet\(AiEnvironment::current\)|verifyRuntimeSelection\(AiEnvironment\.current\(\)\)'
-reason = "startup check of a framework with no environment attached, and the public no-argument AtmosphereBootstrap.verifyAiRuntimeSelection()"
+pattern = '^\.orElseGet\(AiEnvironment::current\)\);$'
+sites = 1
+reason = "startup check of a framework with no environment attached"
+
+[[ai_application_state.allowed]]
+file = "quarkus/runtime/AiKnobBridge.java"
+pattern = '^verifyRuntimeSelection\(AiEnvironment\.current\(\)\);$'
+sites = 1
+reason = "the public no-argument AtmosphereBootstrap.verifyAiRuntimeSelection(), for a caller with no framework"
 
 # --- Still on the static API, listed in modules/ai/README.md ("What still reads the static API") ---
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/cache/SemanticResponseCache.java"
-pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
+pattern = '^this\(EmbeddingRuntimeResolver\.resolve\(\)\.orElse\(null\), DEFAULT_THRESHOLD, DEFAULT_MAX_ENTRIES\);$'
+sites = 1
 reason = "a semantic cache built without an embedding runtime: the constructor holds no application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/rag/EmbeddingInjectionClassifier.java"
-pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
+pattern = '^this\(EmbeddingRuntimeResolver\.resolve\(\)\.orElse\(null\), DEFAULT_EXEMPLARS, DEFAULT_THRESHOLD\);$'
+sites = 1
 reason = "an embedding injection classifier built without an embedding runtime: the constructor holds no application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/scope/EmbeddingScopeGuardrail.java"
-pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
-reason = "an embedding scope guardrail built without an embedding runtime: the constructor holds no application"
+pattern = '^this\(EmbeddingRuntimeResolver\.resolve\(\)\.orElse\(null\)\);$'
+sites = 1
+reason = "the no-argument constructor holds no application, and ScopeGuardrailResolver builds it once per tier for the JVM, also for the @AgentScope an application's processor registers: that endpoint's scope reads the static API (modules/ai/README.md)"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/scope/SemanticIntentScopeGuardrail.java"
-pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
-reason = "a semantic scope guardrail built without an embedding runtime: the constructor holds no application"
+pattern = '^this\(EmbeddingRuntimeResolver\.resolve\(\)\.orElse\(null\), DEFAULT_MARGIN\);$'
+sites = 1
+reason = "the no-argument constructor holds no application, and ScopeGuardrailResolver builds it once per tier for the JVM, also for the @AgentScope an application's processor registers: that endpoint's scope reads the static API (modules/ai/README.md)"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/rag/InjectionClassifierResolver.java"
-pattern = 'EmbeddingRuntimeResolver\.resolve\(\)|DecisionModelResolver\.resolve\(\)'
-reason = "the classifier cache keeps one classifier per tier for the JVM, so it resolves with no application"
+pattern = '^var runtime = EmbeddingRuntimeResolver\.resolve\(\);$'
+sites = 1
+reason = "the classifier cache keeps one embedding classifier per tier for the JVM, so it resolves with no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/rag/InjectionClassifierResolver.java"
+pattern = '^var model = DecisionModelResolver\.resolve\(\);$'
+sites = 1
+reason = "the classifier cache keeps one LLM classifier per tier for the JVM, so it resolves with no application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/rag/LlmClassifierInjectionClassifier.java"
-pattern = 'DecisionModelResolver\.resolve\(\)'
+pattern = '^var effective = model != null \? model : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+sites = 1
 reason = "the LLM injection tier without a decision model of its own resolves with no application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/scope/LlmClassifierScopeGuardrail.java"
-pattern = 'DecisionModelResolver\.resolve\(\)'
+pattern = '^var effective = model != null \? model : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+sites = 1
 reason = "the LLM scope tier without a decision model of its own resolves with no application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/guardrails/LlmModerationDetector.java"
-pattern = 'DecisionModelResolver\.resolve\(\)'
+pattern = '^var effective = model != null \? model : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+sites = 1
 reason = "the LLM moderation tier without a decision model of its own resolves with no application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/intent/IntentRouting.java"
-pattern = 'DecisionModelResolver\.resolve\(\)'
+pattern = '^model = decisionModel != null \? decisionModel : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+sites = 1
 reason = "intent routing without a decision model of its own resolves with no application"
 
 # --- Process-wide by contract (decision D4: static binders stay the fallback through 4.x) ---
 [[ai_application_state.allowed]]
 file = "SpringAiAgentRuntime.java"
-pattern = 'AgentRuntimeResolver\.markExplicitClientBinding\(\)'
+pattern = '^org\.atmosphere\.ai\.AgentRuntimeResolver\.markExplicitClientBinding\(\);$'
+sites = 1
 reason = "the static setChatClient(ChatClient) binds for every application, so it marks every application"
 
 [[ai_application_state.allowed]]
 file = "LangChain4jAgentRuntime.java"
-pattern = 'AgentRuntimeResolver\.markExplicitClientBinding\(\)'
+pattern = '^org\.atmosphere\.ai\.AgentRuntimeResolver\.markExplicitClientBinding\(\);$'
+sites = 1
 reason = "the static setModel(StreamingChatModel) binds for every application, so it marks every application"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/test/AbstractAgentRuntimeContractTest.java"
-pattern = 'AiConfig\.fromEnvironment\(\)'
+pattern = '^runtime\.configure\(org\.atmosphere\.ai\.AiConfig\.fromEnvironment\(\)\);$'
+sites = 1
 reason = "the published contract-test base runs with no application, as a runtime's own unit test does"
 
 # ============================================================================

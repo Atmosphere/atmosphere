@@ -51,7 +51,13 @@ original untouched line so humans read what they wrote, not the projection.
 
 Usage:
     source_scan.py --mode code    --regex 'System\\.out' [--ignore-case]
-                   [--strip-javadoc-tags] [--exclude GLOB] FILE_OR_DIR...
+                   [--strip-javadoc-tags] [--multiline] [--exclude GLOB] FILE_OR_DIR...
+
+``--multiline`` matches the regex against a file's whole projection rather than
+one line at a time, so a call split across lines (``AiEnvironment`` on one line,
+``.current()`` on the next) is still found. A match is reported once, at the line
+it starts on; when it spans lines, ``text`` is those original lines joined by a
+space.
 """
 
 import argparse
@@ -176,6 +182,47 @@ def project(text):
     ]
 
 
+def multiline_hits(rx, rows, mode, strip):
+    """Match ``rx`` across the projected lines of one file.
+
+    Returns ``(first_line_no, text)`` per line a match starts on, ``text`` being
+    the original lines the match spans, stripped and joined by a space. Lines are
+    projected exactly as the per-line scan projects them, then joined by newlines,
+    so ``\\s`` in the regex spans a line break and a comment between two tokens
+    is already gone.
+    """
+    hays = []
+    for _line_no, _original, code, comment in rows:
+        hay = code if mode == "code" else comment
+        if strip:
+            hay = INLINE_TAG.sub(" ", hay)
+        hays.append(hay)
+    starts, offset = [], 0
+    for hay in hays:
+        starts.append(offset)
+        offset += len(hay) + 1
+
+    def row_of(pos):
+        lo, hi = 0, len(starts) - 1
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if starts[mid] <= pos:
+                lo = mid
+            else:
+                hi = mid - 1
+        return lo
+
+    spans = {}
+    for m in rx.finditer("\n".join(hays)):
+        first = row_of(m.start())
+        last = row_of(max(m.start(), m.end() - 1))
+        spans[first] = max(spans.get(first, first), last)
+    return [
+        (rows[first][0], " ".join(rows[i][1].strip() for i in range(first, last + 1)))
+        for first, last in sorted(spans.items())
+    ]
+
+
 def iter_files(roots, excludes):
     seen = set()
     for root in roots:
@@ -263,6 +310,30 @@ SELF_TEST = [
     ),
 ]
 
+# --multiline fixtures: (name, source, regex, expected_start_line_numbers)
+MULTILINE_SELF_TEST = [
+    (
+        "a call split across lines is one hit, at its first line",
+        "Object o = AiEnvironment\n        .current()\n        .settings();\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [1],
+    ),
+    (
+        "a comment between the tokens does not hide the call",
+        "Object o = AiEnvironment // the application's\n        .current();\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [1],
+    ),
+    (
+        "a call named across a javadoc is not code",
+        "/**\n * AiEnvironment\n * .current()\n */\nvoid f() {}\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [],
+    ),
+    (
+        "single-line hits keep their own line numbers",
+        "int a;\nObject o = AiEnvironment.current();\nObject p = AiEnvironment.current();\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [2, 3],
+    ),
+]
+
 
 def self_test():
     failures = []
@@ -280,12 +351,17 @@ def self_test():
         if got != expected:
             failures.append(f"  {name}: expected lines {expected}, got {got}")
 
+    for name, src, regex, expected in MULTILINE_SELF_TEST:
+        got = [line_no for line_no, _text in multiline_hits(re.compile(regex), project(src), "code", False)]
+        if got != expected:
+            failures.append(f"  {name} (--multiline): expected lines {expected}, got {got}")
+
     if failures:
         print("source_scan.py SELF-TEST FAILED:", file=sys.stderr)
         for f in failures:
             print(f, file=sys.stderr)
         return 1
-    print(f"source_scan.py self-test: {len(SELF_TEST)} cases passed")
+    print(f"source_scan.py self-test: {len(SELF_TEST) + len(MULTILINE_SELF_TEST)} cases passed")
     return 0
 
 
@@ -298,6 +374,7 @@ def main():
     ap.add_argument("--regex", required=True)
     ap.add_argument("--ignore-case", action="store_true")
     ap.add_argument("--strip-javadoc-tags", action="store_true")
+    ap.add_argument("--multiline", action="store_true")
     ap.add_argument("--exclude", action="append", default=[])
     ap.add_argument("roots", nargs="+")
     args = ap.parse_args()
@@ -316,6 +393,11 @@ def main():
         except OSError as e:
             print(f"source_scan.py: cannot read {f}: {e}", file=sys.stderr)
             return 2
+        if args.multiline:
+            for line_no, joined in multiline_hits(rx, project(text), args.mode, args.strip_javadoc_tags):
+                print(f"{f}:{line_no}:{joined}")
+                hits += 1
+            continue
         for line_no, original, code, comment in project(text):
             hay = code if args.mode == "code" else comment
             if not hay.strip():

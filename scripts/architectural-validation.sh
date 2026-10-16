@@ -10,8 +10,8 @@
 # 7. ServiceLoader SPIs declared but not wired
 # 8. Current Atmosphere version hardcoded in release/build tooling
 # 9. Framework code reading AI state through the process-wide statics
-#    (AiConfig, AgentRuntimeResolver, AiEnvironment.current()) instead of its
-#    application's AiEnvironment
+#    (AiConfig, AgentRuntimeResolver, AiEnvironment.current(), the process
+#    default) instead of its application's AiEnvironment
 #
 # Configuration: scripts/validation-patterns.toml
 #
@@ -182,7 +182,7 @@ if classes and methods and ambient and no_arg:
                 rf"|\bAiEnvironment\s*\.\s*{amb}\s*\(|\bAiEnvironment\s*::\s*{amb}\b"
                 rf"|\b(?:{'|'.join(no_arg)})\s*\.\s*(?:resolve|resolveAll)\s*\(\s*\)"
                 rf"|\b(?:{'|'.join(no_arg)})\s*::\s*(?:resolve|resolveAll)\b"
-                rf"|\bimport\s+static\s+org\.atmosphere\.ai\.(?:{'|'.join(classes)}|AiEnvironment)\.")
+                rf"|\bimport\s+static\s+org\.atmosphere\.(?:\w+\.)*(?:{'|'.join(classes + no_arg)}|AiEnvironment)\.")
 print(f"AI_STATE_REGEX={shlex.quote(ai_regex)}")
 PYTHON_PARSER
 )"
@@ -1161,9 +1161,14 @@ echo -e "${BLUE}--- AI State Read Through The Application ---${NC}"
 # AiConfig / AgentRuntimeResolver statics, the no-argument
 # EmbeddingRuntimeResolver / DecisionModelResolver resolve(), or the
 # AiEnvironment.current() lookup behind them, which on a thread bound to no application read the process
-# default while two applications run. Each remaining read is allowlisted, file +
-# regex + reason, in [ai_application_state]; an entry that matches nothing fails
-# too, so the allowlist cannot outlive the reads it excuses.
+# default while two applications run, or AiEnvironment.processDefault() itself.
+# Each remaining read is allowlisted, file + regex + site count + reason, in
+# [ai_application_state]; an entry that matches nothing, or a number of reads
+# other than its sites, fails too, so the allowlist cannot outlive the reads it
+# excuses nor excuse a new one in the same file.
+#
+# The scan matches across lines (--multiline), so a call split over two lines
+# (`AiEnvironment` / `.current()`) is a read like any other.
 #
 # Scope: every src/main under modules/, found with `find` because the
 # SRC_DIRS glob (modules/*/src/main/java) misses Kotlin sources and the nested
@@ -1186,14 +1191,15 @@ done < <(find modules -type d -path '*/src/main' -not -path '*/node_modules/*' -
 # An empty root list would make the scan read nothing and pass (see check 3).
 if [ "${#AI_STATE_ROOTS[@]}" -eq 0 ]; then
     fail_validation "AI state check found no modules/**/src/main directory to scan"
-elif ! AI_STATE_SCAN=$(python3 "$SCAN" --mode code --regex "$AI_STATE_REGEX" "${AI_STATE_ROOTS[@]}"; \
+elif ! AI_STATE_SCAN=$(python3 "$SCAN" --mode code --multiline --regex "$AI_STATE_REGEX" "${AI_STATE_ROOTS[@]}"; \
         rc=$?; [ "$rc" -le 1 ] || exit "$rc"); then
     fail_validation "AI state check: the scanner failed (bad regex in [ai_application_state]?)"
 elif ! AI_STATE_HITS=$(printf '%s\n' "$AI_STATE_SCAN" | grep . | python3 "$AI_STATE_FILTER" "$TOML_FILE"); then
     fail_validation "AI state check: [[ai_application_state.allowed]] is malformed"
 else
     AI_STATE_STALE=$(printf '%s\n' "$AI_STATE_HITS" | grep '^STALE-ALLOWLIST ' || true)
-    AI_STATE_READS=$(printf '%s\n' "$AI_STATE_HITS" | grep -v '^STALE-ALLOWLIST ' | grep . || true)
+    AI_STATE_MISCOUNT=$(printf '%s\n' "$AI_STATE_HITS" | grep '^SITES-MISMATCH ' || true)
+    AI_STATE_READS=$(printf '%s\n' "$AI_STATE_HITS" | grep -vE '^(STALE-ALLOWLIST|SITES-MISMATCH) ' | grep . || true)
     AI_STATE_COUNT=$(printf '%s' "$AI_STATE_READS" | grep -c . || true)
     if [ "$AI_STATE_COUNT" -gt 0 ]; then
         fail_validation "Found $AI_STATE_COUNT process-wide AI state read(s) in framework code: read the application's AiEnvironment (AiEnvironment.of(config), environment(), runtimes()) or allowlist the site with a reason"
@@ -1203,7 +1209,11 @@ else
         fail_validation "Stale [[ai_application_state.allowed]] entr(y/ies) matching no AI state read; remove them:"
         echo "$AI_STATE_STALE" | sed 's/^STALE-ALLOWLIST /  /'
     fi
-    if [ "$AI_STATE_COUNT" -eq 0 ] && [ -z "$AI_STATE_STALE" ]; then
+    if [ -n "$AI_STATE_MISCOUNT" ]; then
+        fail_validation "[[ai_application_state.allowed]] entr(y/ies) that match a different number of AI state reads than their sites; read each one, then move it to the application or update the entry:"
+        echo "$AI_STATE_MISCOUNT" | sed 's/^SITES-MISMATCH /  /'
+    fi
+    if [ "$AI_STATE_COUNT" -eq 0 ] && [ -z "$AI_STATE_STALE" ] && [ -z "$AI_STATE_MISCOUNT" ]; then
         pass_validation "AI state read through the application ($(printf '%s' "$AI_STATE_SCAN" | grep -c . || true) allowlisted site(s) in ${#AI_STATE_ROOTS[@]} source root(s))"
     fi
 fi

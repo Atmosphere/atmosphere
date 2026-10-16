@@ -40,8 +40,21 @@ AI_PROC=modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointProcessor
 AI_KT=modules/kotlin/src/main/kotlin/org/atmosphere/kotlin/ai/AgentRegistration.kt
 AI_QUARKUS=modules/quarkus-extension/runtime/src/main/java/org/atmosphere/quarkus/runtime/AtmosphereBootstrap.java
 AI_RERANKER=modules/ai/src/main/java/org/atmosphere/ai/LlmReranker.java
+# An allowlisted file, where a new read must fail although the file has others.
+AI_MEMORY=modules/ai/src/main/java/org/atmosphere/ai/memory/LongTermMemories.java
 
 PASSED=0; FAILED=0; RESULTS=""
+
+# The cases named on the command line; none named runs them all.
+SELECTED=("$@")
+selected() {
+    [ "${#SELECTED[@]}" -eq 0 ] && return 0
+    local s
+    for s in "${SELECTED[@]}"; do
+        [ "$s" = "$1" ] && return 0
+    done
+    return 1
+}
 
 # Fingerprint of the code under test, taken before any case runs.
 scripts_fingerprint() { find scripts -type f -exec shasum {} + 2>/dev/null | shasum | cut -d' ' -f1; }
@@ -63,7 +76,7 @@ PY
 # script under test, so a run silently graded the old code and reported the fix
 # as a no-op. Never let a test harness revert paths it did not write.
 INJECT_TRACKED=("$CPR_CLASS" "$AI_CLASS" "$TEST_CLASS" "$CONTRACT" "$JETTY" .github/workflows/e2e.yml
-                "$AI_PROC" "$AI_KT" "$AI_QUARKUS" "$AI_RERANKER")
+                "$AI_PROC" "$AI_KT" "$AI_QUARKUS" "$AI_RERANKER" "$AI_MEMORY")
 INJECT_CREATED=(
     modules/ai/src/main/java/org/atmosphere/ai/ZzzDeadIface.java
     modules/ai/src/main/resources/META-INF/services/org.atmosphere.ai.ZzzSpi
@@ -94,7 +107,7 @@ restore() {
 # run_case <name> <expected-FAIL-substring> <setup-fn>
 run_case() {
     local name="$1" expect="$2" setup="$3"
-    if [ "$#" -ge 4 ] && [ -n "${SELECTED:-}" ]; then :; fi
+    selected "$name" || return 0
     restore
     "$setup"
     local out
@@ -140,6 +153,7 @@ PY
 # mistaken for a clean result.
 run_clean_case() {
     local name="$1" fail="$2" pass="$3" setup="$4"
+    selected "$name" || return 0
     restore
     "$setup"
     local out
@@ -223,15 +237,34 @@ s_ai_quarkus()  { inject_after_line "$AI_QUARKUS" "$CLASS_DECL" \
                     '    static Object zzzAi() { return org.atmosphere.ai.AgentRuntimeResolver.resolveAll(); }'; }
 s_ai_noarg()    { inject_after_line "$AI_PROC" "$CLASS_DECL" \
                     '    private Object zzzAi() { return org.atmosphere.ai.EmbeddingRuntimeResolver.resolve(); }'; }
-# An allowlisted read that goes away must take its allowlist entry with it.
+# An allowlisted read that goes away must take its allowlist entry with it. The
+# replacement reads nothing the check flags, so only the stale entry can fail.
 s_ai_stale()    { python3 - "$AI_RERANKER" <<'PY'
 import sys
 p = sys.argv[1]; s = open(p).read()
 old = "AiEnvironment.current().runtimes().resolve()"
 assert old in s, "the allowlisted LlmReranker read moved; update s_ai_stale"
-open(p, 'w').write(s.replace(old, "AiEnvironment.processDefault().runtimes().resolve()"))
+open(p, 'w').write(s.replace(old, "zzzRuntimeOfNoApplication()"))
 PY
 }
+# The process default is as process-wide as the statics.
+s_ai_process_default() { inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private Object zzzAi() { return org.atmosphere.ai.AiEnvironment.processDefault().settings(); }'; }
+# A new read in a file that already has allowlisted ones is not excused by them.
+s_ai_allowlisted_file() { inject_after_line "$AI_MEMORY" "$CLASS_DECL" \
+                    '    private static Object zzzAi() { return org.atmosphere.ai.AiEnvironment.current().settings(); }'; }
+# Nor one in the facade, whose entry covers a known number of reads.
+s_ai_facade_extra() { inject_after_line "$AI_CLASS" "$CLASS_DECL" \
+                    '    private static Object zzzAi() { return AiEnvironment.current().settings(); }'; }
+# A read split across lines is still a read.
+s_ai_multiline() { inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private Object zzzAi() { return org.atmosphere.ai.AiEnvironment
+            .current().settings(); }'; }
+# A static import of a no-argument resolver hides every call behind a bare resolve().
+s_ai_import_embedding() { inject_after_line "$AI_PROC" '^package ' \
+                    'import static org.atmosphere.ai.EmbeddingRuntimeResolver.resolve;'; }
+s_ai_import_decision() { inject_after_line "$AI_PROC" '^package ' \
+                    'import static org.atmosphere.ai.decision.DecisionModelResolver.resolve;'; }
 # A comment or Javadoc naming the static API reads nothing, and neither does a
 # resolver overload that is handed the application.
 s_ai_comment()  { inject_after_line "$AI_PROC" "$CLASS_DECL" \
@@ -274,6 +307,12 @@ run_case "ai-state-kotlin"     "process-wide AI state read"                     
 run_case "ai-state-quarkus"    "process-wide AI state read"                          s_ai_quarkus
 run_case "ai-state-no-arg"     "process-wide AI state read"                          s_ai_noarg
 run_case "ai-state-stale"      "Stale [[ai_application_state.allowed]]"              s_ai_stale
+run_case "ai-state-process-default" "process-wide AI state read"                     s_ai_process_default
+run_case "ai-state-allowlisted-file" "process-wide AI state read"                    s_ai_allowlisted_file
+run_case "ai-state-facade-extra" "match a different number of AI state reads"        s_ai_facade_extra
+run_case "ai-state-multiline"  "process-wide AI state read"                          s_ai_multiline
+run_case "ai-state-import-embedding" "process-wide AI state read"                    s_ai_import_embedding
+run_case "ai-state-import-decision" "process-wide AI state read"                     s_ai_import_decision
 run_clean_case "ai-state-comment" "process-wide AI state read" \
                                   "AI state read through the application"            s_ai_comment
 

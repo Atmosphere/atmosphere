@@ -21,17 +21,25 @@ output for the ``[ai_application_state]`` regex) and writes:
 
   * every finding no ``[[ai_application_state.allowed]]`` entry matches, as is;
   * one ``STALE-ALLOWLIST <file> <pattern>`` line per entry that matched no
-    finding at all.
+    finding at all;
+  * one ``SITES-MISMATCH <file> <pattern> sites=<n> found=<m>: <path:line>...``
+    line per entry that matched some findings, but not the number its
+    ``sites`` declares.
 
-An allowlist entry asserts a fact ("this file reads the static API here, for
-this reason"). An entry that no longer matches anything asserts nothing, and
-left in place it would quietly excuse the next violation that happens to match
-it, so the gate fails on it until it is removed.
+An allowlist entry asserts a fact ("this file reads the static API at these
+sites, for this reason"). An entry that no longer matches anything asserts
+nothing, and left in place it would quietly excuse the next violation that
+happens to match it, so the gate fails on it until it is removed.
 
-Entries are file + regex, never file alone: a bare file exclusion would let a
-new static read land in an allowlisted file unnoticed. ``file`` is matched as a
-path suffix, so a basename covers a file of that name in any module (the two
-Spring Boot starters mirror each other).
+Entries are file + regex + site count, never file alone: a bare file exclusion
+would let a new static read land in an allowlisted file unnoticed, and so would
+a regex broad enough to match a second read there (the façade's
+``AiEnvironment\.current\(\)``) or an alternation of several sites, which goes
+stale only when the last of them is gone. ``sites`` pins how many findings the
+entry explains, so a read added to or removed from an allowlisted file fails
+the gate until the entry is updated. ``file`` is matched as a path suffix, so a
+basename covers a file of that name in any module (the two Spring Boot starters
+mirror each other), and ``sites`` then counts both.
 
 It is a file, not a ``python3 - <<'PY'`` heredoc in a pipeline, because the
 heredoc rebinds stdin and the findings would never arrive (see
@@ -60,26 +68,31 @@ def main():
         try:
             if not entry.get("reason", "").strip():
                 raise KeyError("reason")
-            compiled.append((entry["file"], entry["pattern"], re.compile(entry["pattern"])))
-        except (KeyError, re.error) as e:
+            sites = entry["sites"]
+            if not isinstance(sites, int) or isinstance(sites, bool) or sites < 1:
+                raise ValueError("sites must be a positive integer")
+            compiled.append((entry["file"], entry["pattern"], re.compile(entry["pattern"]), sites))
+        except (KeyError, ValueError, re.error) as e:
             print(f"filter_ai_state_sites.py: bad allowed entry {entry!r}: {e}", file=sys.stderr)
             return 2
 
-    used = [False] * len(compiled)
+    matched = [[] for _ in compiled]
     for line in sys.stdin:
         path, _, rest = line.partition(":")
-        _line_no, _, text = rest.partition(":")
+        line_no, _, text = rest.partition(":")
         allowed = False
-        for i, (file, _pattern, rx) in enumerate(compiled):
+        for i, (file, _pattern, rx, _sites) in enumerate(compiled):
             if (path == file or path.endswith("/" + file)) and rx.search(text):
-                used[i] = True
+                matched[i].append(f"{path}:{line_no}")
                 allowed = True
         if not allowed:
             sys.stdout.write(line if line.endswith("\n") else line + "\n")
 
-    for (file, pattern, _rx), hit in zip(compiled, used):
-        if not hit:
+    for (file, pattern, _rx, sites), hits in zip(compiled, matched):
+        if not hits:
             print(f"STALE-ALLOWLIST {file} {pattern}")
+        elif len(hits) != sites:
+            print(f"SITES-MISMATCH {file} {pattern} sites={sites} found={len(hits)}: {' '.join(hits)}")
     return 0
 
 
