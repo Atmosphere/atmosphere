@@ -41,6 +41,7 @@ SpringBootTest
 
 # ── Jakarta CDI / EE ──
 Inject
+Dependent
 Observes
 PostConstruct
 PreDestroy
@@ -63,6 +64,8 @@ Warmup
 Timeout
 
 # ── LangChain4j ──
+# io.quarkiverse.langchain4j.ModelName (quarkus-langchain4j-core): selects a named model.
+ModelName
 RegisterAiService
 SystemMessage
 UserMessage
