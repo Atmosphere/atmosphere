@@ -1241,6 +1241,56 @@ class LongPollingRoomRepliesTest {
         }
     }
 
+    /** A member no poll of which was seen for its time to live left for good: the runs forget it. */
+    @Test
+    void theSweepOfAMemberNoPollOfWhichCameBackMakesTheRunsForgetIt() {
+        params.put(LongPollingReplies.PARKED_TTL_MS_PARAM, "1");
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var registry = new RunRegistry();
+        RunRegistryHolder.install(registry);
+        try {
+            var run = registry.register("agent", "anonymous", "prompter", new ExecutionHandle.Settable(() -> { }));
+            run.replayBuffer().capture("streaming-text", "a");
+            assertEquals(1, run.replayBuffer().claimNew(member.uuid()).size());
+
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (LongPollingRoomReplies.members(room).contains(member.uuid()) && System.nanoTime() < deadline) {
+                LongPollingRoomReplies.sweepExpired();
+            }
+
+            assertFalse(LongPollingRoomReplies.members(room).contains(member.uuid()), "the sweep removed the member");
+            assertEquals(1, run.replayBuffer().claimNew(member.uuid()).size(),
+                    "a member the sweep removed is gone for good: the runs forgot it");
+        } finally {
+            RunRegistryHolder.reset();
+        }
+    }
+
+    /** A room destroyed takes its members with it, for good: the runs forget them. */
+    @Test
+    void aDestroyedRoomsMembersAreForgottenByTheRuns() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var registry = new RunRegistry();
+        RunRegistryHolder.install(registry);
+        try {
+            var run = registry.register("agent", "anonymous", "prompter", new ExecutionHandle.Settable(() -> { }));
+            run.replayBuffer().capture("streaming-text", "a");
+            assertEquals(1, run.replayBuffer().claimNew(member.uuid()).size());
+
+            room.destroy();
+
+            assertTrue(LongPollingRoomReplies.mailboxes(member.uuid()).isEmpty(), "its member left the room");
+            assertEquals(1, run.replayBuffer().claimNew(member.uuid()).size(),
+                    "a member of a destroyed room is gone for good: the runs forgot it");
+        } finally {
+            RunRegistryHolder.reset();
+        }
+    }
+
     /** A streaming reattach of {@code trackingId} on the room carrying {@code runId}, its writes in {@code sink}. */
     private AtmosphereResource streamingReattach(String trackingId, AtmosphereResource.TRANSPORT transport,
                                                  String runId, StringWriter sink) {

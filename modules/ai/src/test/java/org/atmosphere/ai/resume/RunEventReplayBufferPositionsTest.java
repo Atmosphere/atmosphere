@@ -145,6 +145,27 @@ class RunEventReplayBufferPositionsTest {
                 + " a reply is forgotten: it is handed the retained events again");
     }
 
+    /**
+     * Past the bound, the receipt of the consumer served least recently is
+     * forgotten, not the one recorded first: a consumer served again keeps its
+     * receipt.
+     */
+    @Test
+    void aConsumerServedAgainKeepsItsReceiptOverOneServedLongerAgo() {
+        var buffer = new RunEventReplayBuffer(null, 16, 2, 2);
+        buffer.capture("streaming-text", "a");
+        buffer.capture("streaming-text", "b");
+        buffer.capture("streaming-text", "c");
+        buffer.handed("first", 0, 0);
+        buffer.handed("second", 0, 0);
+        buffer.handed("first", 1, 1);
+
+        buffer.handed("third", 0, 0);
+
+        assertEquals(1, buffer.claimNew("first").size(), "the consumer served again is remembered");
+        assertEquals(3, buffer.claimNew("second").size(), "the one served longest ago is forgotten");
+    }
+
     @Test
     void aConsumerGoneForGoodFreesItsPlace() {
         var buffer = new RunEventReplayBuffer(null, 16, 2, 2);

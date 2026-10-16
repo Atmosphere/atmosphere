@@ -402,6 +402,36 @@ class LongPollingRepliesTest {
         assertTrue(take(idle).isEmpty());
     }
 
+    /** A parked reply no poll took within its time to live: its client is gone, and the runs forget it. */
+    @Test
+    void aParkedReplyNoPollTookInTimeMakesTheRunsForgetItsClient() {
+        var registry = new org.atmosphere.ai.resume.RunRegistry();
+        org.atmosphere.ai.resume.RunRegistryHolder.install(registry);
+        try {
+            var idle = newId();
+            var run = registry.register("agent", "anonymous", "someone",
+                    new ExecutionHandle.Settable(() -> { }));
+            run.replayBuffer().capture("streaming-text", "a");
+            assertEquals(1, run.replayBuffer().claimNew(idle).size());
+            var config = mock(AtmosphereConfig.class);
+            when(config.getInitParameter(LongPollingReplies.PARKED_TTL_MS_PARAM)).thenReturn("1");
+            var session = new DefaultStreamingSession("s-" + idle, longPolling(idle, config, List.of()));
+            session.send("nobody polls");
+            session.complete();
+
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (LongPollingReplies.hasParked(idle, owner -> true) && System.nanoTime() < deadline) {
+                LongPollingReplies.sweepExpired();
+            }
+
+            assertFalse(LongPollingReplies.hasParked(idle, owner -> true), "the sweep dropped the expired reply");
+            assertEquals(1, run.replayBuffer().claimNew(idle).size(),
+                    "the client of an expired reply is gone for good: the runs forgot it");
+        } finally {
+            org.atmosphere.ai.resume.RunRegistryHolder.reset();
+        }
+    }
+
     @Test
     void aSessionCleanedUpOrReapedMidReplyReleasesItsBuffer() {
         var before = LongPollingReplies.reservedBytes();

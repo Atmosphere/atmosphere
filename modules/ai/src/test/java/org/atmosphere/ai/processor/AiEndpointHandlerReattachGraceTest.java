@@ -204,6 +204,32 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
+     * A long-polling client that leaves for good frees its replay position in
+     * every run kept, so the runs' bounds count the clients present; one that
+     * only lost its connection may poll again under its tracking id and keeps
+     * it, so it is not handed again what it already received.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void aLongPollingClientLeavingForGoodFreesItsRunPositionsAndALostOneKeepsThem(boolean lost) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime, "long-polling");
+        var other = RunRegistryHolder.get().register("agent", "anonymous", "someone",
+                new ExecutionHandle.Settable(() -> { }));
+        other.replayBuffer().capture("streaming-text", "a");
+        assertEquals(1, other.replayBuffer().claimNew(original.uuid()).size());
+
+        handler.onStateChange(lost ? new AtmosphereResourceEventImpl(original, true, false)
+                : new AtmosphereResourceEventImpl(original, false, false, true, null));
+
+        assertEquals(lost ? 0 : 1, other.replayBuffer().claimNew(original.uuid()).size(),
+                lost ? "a client that lost its connection keeps its replay position"
+                        : "a client gone for good is forgotten by every run");
+        runtime.finish();
+    }
+
+    /**
      * Only a long-polling client's polls and replies record replay positions in
      * runs: the departure for good of a WebSocket client walked every run kept
      * for positions it never held.

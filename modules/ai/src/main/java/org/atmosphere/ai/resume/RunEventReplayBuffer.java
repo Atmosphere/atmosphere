@@ -113,24 +113,30 @@ import java.util.function.Consumer;
  * A remembered consumer costs about one map entry: its tracking id (a
  * {@code String} of up to 128 characters, 36 for the UUID atmosphere.js sends,
  * about 80 bytes), a boxed sequence (16 bytes) and the entry of an ordered map
- * (about 40 bytes, plus its slot), some 150 bytes; a consumer is in one of the
- * two maps at most. The registry keeps the buffers of its live runs and of up to
+ * (about 40 bytes, plus its slot), some 150 bytes. A consumer is in one of the
+ * two maps at most, but each map holds up to the bound
+ * ({@link #maxReplayPositions()}), so a run remembers up to twice the bound in
+ * all: the consumers a claim handed events to, and as many others whose frames
+ * received as a long-polling reply it records. The tracking ids whose reattach
+ * was refused for not owning the run ({@link #firstRefusal}), up to the bound
+ * as well, cost about 120 bytes each. The figures below are that worst case of
+ * the two maps. The registry keeps the buffers of its live runs and of up to
  * {@link RunRegistry#MAX_RETAINED_COMPLETED} (256) finished ones.
  *
  * <ul>
  *   <li>A run whose reply reaches its own client only ({@link #forRun}) is
  *       handed its id by that client alone: its consumers are that tracking id
  *       and the few a reloaded page gives it, so it remembers
- *       {@value #MAX_REPLAY_POSITIONS} by default, some 2.4 KB, about 600 KB for
- *       256 finished runs.</li>
+ *       {@value #MAX_REPLAY_POSITIONS} by default in each map, some 4.8 KB, about
+ *       1.2 MB for 256 finished runs.</li>
  *   <li>Every member of a {@code broadcastReply} room is handed the run id with
  *       the room's reply ({@link #forRoomRun}), and its polls carry it. Such a
  *       run remembers as many consumers as the room takes long-polling members
  *       ({@code LongPollingRoomReplies.memberLimit}, the init parameter
  *       {@code org.atmosphere.ai.longPolling.maxParkedReplies}, 1,024 by
- *       default), so a full room never pushes out its own members: about 150 KB
- *       per run with 1,024 members present, some 38 MB if each of the 256
- *       finished runs kept had a full room. A member that leaves for good frees
+ *       default) in each map, so a full room never pushes out its own members:
+ *       about 300 KB per run with 1,024 members present, some 77 MB if each of
+ *       the 256 finished runs kept had a full room. A member that leaves for good frees
  *       its place, so the bound counts the members present at once, not every
  *       client that ever polled. Clients past the room's members (a long-polling
  *       client the full room did not take, a member that lost its connection and
