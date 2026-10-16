@@ -87,6 +87,13 @@ public class ReactorNettyTransportServer {
     private volatile Channel serverChannel;
     private volatile IoEventLoopGroup group;
     private String certificateHashBase64;
+    /**
+     * Set once {@link #start()} has returned or thrown. Until then the HTTP/3
+     * sidecar is starting: Tomcat serves requests about 1.7 s before the
+     * sidecar binds, and a client that reads "not running" in that window
+     * takes it for "no WebTransport here".
+     */
+    private volatile boolean startFinished;
 
     public ReactorNettyTransportServer(AtmosphereFramework framework,
                                         WebTransportProperties properties) {
@@ -98,6 +105,14 @@ public class ReactorNettyTransportServer {
      * Start the HTTP/3 + WebTransport server on the configured UDP port.
      */
     public void start() {
+        try {
+            startUnchecked();
+        } finally {
+            startFinished = true;
+        }
+    }
+
+    private void startUnchecked() {
         try {
             var sslContext = buildQuicSslContext();
 
@@ -266,6 +281,15 @@ public class ReactorNettyTransportServer {
 
     public boolean isRunning() {
         return serverChannel != null && serverChannel.isActive();
+    }
+
+    /**
+     * Whether the outcome of {@link #start()} is not known yet: it has not been
+     * called, or has not returned. {@code false} once it returned (the server
+     * runs) or threw (it never will).
+     */
+    public boolean isStarting() {
+        return !startFinished;
     }
 
     public int port() {

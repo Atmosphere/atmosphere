@@ -195,6 +195,26 @@ const tabs = computed(() => {
   return list
 })
 
+// The HTTP/3 sidecar binds about 1.7 s after the servlet container answers.
+// Until it has, console info reports webTransport {state: 'starting'} with no
+// port. Reading that as "no WebTransport" kept a page opened in the gap on
+// WebSocket for its whole life, with no fallback marker; wait for the outcome
+// instead, for a bounded time, then go with the last answer.
+const WEB_TRANSPORT_START_POLL_MS = 500
+const WEB_TRANSPORT_START_MAX_POLLS = 20
+
+async function readConsoleInfo(): Promise<Record<string, any> | null> {
+  for (let poll = 0; ; poll++) {
+    const res = await fetch('/api/console/info')
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data?.webTransport?.state !== 'starting' || poll >= WEB_TRANSPORT_START_MAX_POLLS) {
+      return data
+    }
+    await new Promise(resolve => setTimeout(resolve, WEB_TRANSPORT_START_POLL_MS))
+  }
+}
+
 onMounted(async () => {
   // Truthy only when the harness preset genuinely ran on this server — the
   // console-info harness block is runtime state, not config intent. Used to
@@ -203,9 +223,8 @@ onMounted(async () => {
   let adminDeclaredAbsent = false
   let workspaceDeclaredAbsent = false
   try {
-    const res = await fetch('/api/console/info')
-    if (res.ok) {
-      const data = await res.json()
+    const data = await readConsoleInfo()
+    if (data) {
       if (data.subtitle) subtitle.value = data.subtitle
       if (data.endpoint) endpoint.value = data.endpoint
       if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode

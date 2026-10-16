@@ -127,6 +127,31 @@ class ReactorNettyTransportServerTest {
     }
 
     @Test
+    void isStartingUntilStartReturns() {
+        // The console info endpoint reports {"state":"starting"} from this flag,
+        // so a page opened before the sidecar binds waits for it.
+        server = new ReactorNettyTransportServer(framework, properties());
+        assertTrue(server.isStarting(), "a server whose start() has not run is starting");
+
+        server.start();
+
+        assertFalse(server.isStarting(), "start() returned: the outcome is known");
+    }
+
+    @Test
+    void isNotStartingOnceStartFailed() {
+        var props = properties();
+        props.getSsl().setCertificate("/nonexistent/cert.pem");
+        props.getSsl().setPrivateKey("/nonexistent/key.pem");
+        server = new ReactorNettyTransportServer(framework, props);
+
+        assertThrows(IllegalStateException.class, server::start);
+
+        assertFalse(server.isStarting(), "start() threw: the server will not run, it is not starting");
+        assertFalse(server.isRunning());
+    }
+
+    @Test
     void multipleStartStopCyclesDoNotLeak() {
         server = new ReactorNettyTransportServer(framework, properties());
         for (int i = 0; i < 3; i++) {

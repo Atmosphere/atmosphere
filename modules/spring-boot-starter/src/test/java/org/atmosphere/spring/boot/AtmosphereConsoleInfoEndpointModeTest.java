@@ -214,6 +214,57 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void webTransportReportedAsStartingUntilTheSidecarStartFinishes() {
+        // Tomcat answers about 1.7 s before the HTTP/3 sidecar binds. A console
+        // that read info in that gap saw no webTransport block and stayed on
+        // WebSocket for the page's life: the gap must say "starting".
+        var server = mock(org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer.class);
+        when(server.isStarting()).thenReturn(true);
+        when(server.isRunning()).thenReturn(false);
+
+        assertThat(endpointWithWebTransport(server).info())
+                .containsEntry("webTransport", Map.of("state", "starting"));
+    }
+
+    @Test
+    void webTransportOmittedWhenTheSidecarFailedToStart() {
+        var server = mock(org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer.class);
+        when(server.isStarting()).thenReturn(false);
+        when(server.isRunning()).thenReturn(false);
+
+        assertThat(endpointWithWebTransport(server).info()).doesNotContainKey("webTransport");
+    }
+
+    @Test
+    void webTransportReportsTheBoundPortOnceRunning() {
+        var server = mock(org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer.class);
+        when(server.isStarting()).thenReturn(false);
+        when(server.isRunning()).thenReturn(true);
+        when(server.port()).thenReturn(4443);
+        when(server.certificateHash()).thenReturn("aGFzaA==");
+
+        assertThat(endpointWithWebTransport(server).info())
+                .containsEntry("webTransport", Map.of("enabled", true, "state", "running",
+                        "port", 4443, "certificateHash", "aGFzaA=="));
+    }
+
+    @SuppressWarnings("unchecked")
+    private AtmosphereConsoleInfoEndpoint endpointWithWebTransport(
+            org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer server) {
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereHandlers()).thenReturn(Map.of());
+        var context = mock(ApplicationContext.class);
+        when(context.getClassLoader()).thenReturn(getClass().getClassLoader());
+        when(context.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean()))
+                .thenReturn(new String[0]);
+        var provider = mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(server);
+        when(context.getBeanProvider(org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer.class))
+                .thenReturn(provider);
+        return new AtmosphereConsoleInfoEndpoint(new AtmosphereProperties(), framework, context);
+    }
+
+    @Test
     void capabilityFlagsEmittedAsBooleansDefaultFalse() {
         // The frontend gates the Interactions/Validation tabs on these flags
         // instead of probing (which 404s on samples without those modules).

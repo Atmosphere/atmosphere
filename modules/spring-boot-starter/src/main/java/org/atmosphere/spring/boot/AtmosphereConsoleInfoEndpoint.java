@@ -92,10 +92,14 @@ public class AtmosphereConsoleInfoEndpoint {
         // adapter. Validated against the known set — an unrecognized value is
         // reported as "atmosphere" rather than echoed back (Runtime Truth #5).
         result.put("transport", detectTransport());
-        // WebTransport sidecar (HTTP/3): reported only when the server genuinely
-        // bound (Runtime Truth — Invariant #5), so the console's Atmosphere
-        // transport prefers WT with WS fallback exactly like the former bespoke
-        // sample UIs — and never probes /api/webtransport-info into a 404.
+        // WebTransport sidecar (HTTP/3): its coordinates are reported only when
+        // the server genuinely bound (Runtime Truth — Invariant #5), so the
+        // console's Atmosphere transport prefers WT with WS fallback exactly like
+        // the former bespoke sample UIs — and never probes /api/webtransport-info
+        // into a 404. While the sidecar is still starting the block says so
+        // ({"state":"starting"}, no port), so the console waits for the outcome
+        // instead of reading the gap as "no WebTransport" and staying on
+        // WebSocket for the page's life.
         var webTransport = detectWebTransport();
         if (webTransport != null) {
             result.put("webTransport", webTransport);
@@ -512,18 +516,27 @@ public class AtmosphereConsoleInfoEndpoint {
      * with the actually-bound port and the self-signed certificate hash the
      * browser needs for {@code serverCertificateHashes}. Bean-provider based so
      * samples without the sidecar (or with startup failure) simply omit the
-     * block — the console then connects over plain WebSocket.
+     * block — the console then connects over plain WebSocket. A sidecar whose
+     * start has not finished reports {@code {"state":"starting"}} and nothing
+     * else: no port is confirmed yet.
      */
     private Map<String, Object> detectWebTransport() {
         try {
             var provider = context.getBeanProvider(
                     org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer.class);
             var server = provider.getIfAvailable();
-            if (server == null || !server.isRunning()) {
+            if (server == null) {
+                return null;
+            }
+            if (server.isStarting()) {
+                return Map.of("state", "starting");
+            }
+            if (!server.isRunning()) {
                 return null;
             }
             var map = new LinkedHashMap<String, Object>();
             map.put("enabled", true);
+            map.put("state", "running");
             map.put("port", server.port());
             var hash = server.certificateHash();
             if (hash != null) {

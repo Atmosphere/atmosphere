@@ -101,3 +101,81 @@ describe('Console Chat tab survives a tab switch', () => {
     wrapper.unmount()
   })
 })
+
+const WebTransportChatStub = defineComponent({
+  props: ['endpoint', 'webTransport'],
+  setup(props) {
+    return () => h('div', { 'data-testid': 'chat-stub' },
+      props.webTransport ? `wt:${props.webTransport.port}` : 'ws')
+  },
+})
+
+function stubFetchSequence(infos: Array<Record<string, unknown>>) {
+  let call = 0
+  const fetchMock = vi.fn(async (url: string) => {
+    if (url === '/api/console/info') {
+      const info = infos[Math.min(call++, infos.length - 1)]
+      return new Response(JSON.stringify(info), { status: 200 })
+    }
+    return new Response('[]', { status: 200 })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return () => fetchMock.mock.calls.filter(([url]) => url === '/api/console/info').length
+}
+
+describe('Console waits for a WebTransport sidecar that is still starting', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  function mountWithWebTransportChat() {
+    return mount(App, { global: { stubs: { ChatContainer: WebTransportChatStub } } })
+  }
+
+  it('re-reads console info until the sidecar is up, then connects WebTransport-first', async () => {
+    vi.useFakeTimers()
+    const infoReads = stubFetchSequence([
+      consoleInfo({ webTransport: { state: 'starting' } }),
+      consoleInfo({ webTransport: { state: 'starting' } }),
+      consoleInfo({ webTransport: { enabled: true, state: 'running', port: 4443, certificateHash: 'aGFzaA==' } }),
+    ])
+    const wrapper = mountWithWebTransportChat()
+    await flushPromises()
+    // No chat yet: connecting now would pick WebSocket for the page's life.
+    expect(wrapper.find('[data-testid="chat-stub"]').exists()).toBe(false)
+
+    for (let i = 0; i < 2; i++) {
+      await vi.advanceTimersByTimeAsync(500)
+      await flushPromises()
+    }
+
+    expect(infoReads()).toBe(3)
+    expect(wrapper.get('[data-testid="chat-stub"]').text()).toBe('wt:4443')
+    wrapper.unmount()
+  })
+
+  it('goes with WebSocket when the sidecar never comes up, after a bounded wait', async () => {
+    vi.useFakeTimers()
+    const infoReads = stubFetchSequence([consoleInfo({ webTransport: { state: 'starting' } })])
+    const wrapper = mountWithWebTransportChat()
+    for (let i = 0; i < 40; i++) {
+      await vi.advanceTimersByTimeAsync(500)
+      await flushPromises()
+    }
+
+    expect(infoReads()).toBe(21)
+    expect(wrapper.get('[data-testid="chat-stub"]').text()).toBe('ws')
+    wrapper.unmount()
+  })
+
+  it('reads console info once when the server reports no sidecar', async () => {
+    const infoReads = stubFetchSequence([consoleInfo()])
+    const wrapper = mountWithWebTransportChat()
+    await flushPromises()
+
+    expect(infoReads()).toBe(1)
+    expect(wrapper.get('[data-testid="chat-stub"]').text()).toBe('ws')
+    wrapper.unmount()
+  })
+})
