@@ -27,17 +27,20 @@ import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.ai.resume.RunDisconnectGrace;
+import org.atmosphere.ai.resume.RunReattachSupport;
 import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -48,6 +51,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,15 +65,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The run of an {@code @AiEndpoint(broadcastReply = true)} turn owns the
  * session that broadcasts its reply to the room. The prompter's connection
  * going away closed that session with it, so the room's members that never
  * left stopped receiving the reply, and a run cut short never told the room it
- * ended.
+ * ended. And a prompter that reloads its page in an authenticated room, which
+ * atmosphere.js reconnects under a new tracking id, is the run's own client by
+ * its identity: its reattach within the grace keeps the run going.
  */
 // Real AtmosphereResourceImpl subscribers through the deprecated 6-arg constructor,
 // as AiEndpointHandlerBroadcastReplyTest does: no non-deprecated public constructor
@@ -163,6 +173,57 @@ class AiEndpointHandlerRoomRunTest {
                 "the run's end closed the session that broadcast it to the room");
     }
 
+    /**
+     * atmosphere.js holds its tracking id in memory only, so a reloaded page
+     * reconnects under a new one. In an authenticated room the run's owner is
+     * known by its identity: the reloaded prompter's reattach within the grace
+     * holds the grace off, where the tracking id alone made it a bystander
+     * whose run was cancelled when the grace ended.
+     */
+    @Test
+    void aReloadedPromptersReattachInAnAuthenticatedRoomKeepsTheRunGoing() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "1s");
+        var runtime = new HeldRuntime();
+        var member = subscriber("bob");
+        var prompter = startRun(runtime, "alice");
+
+        lose(prompter);
+        var out = new StringWriter();
+        reconnect("reloaded-" + UUID.randomUUID(), "alice", out);
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "the reloaded prompter's reattach rescinds the grace");
+        assertFalse(runtime.cancelled.await(2_500, TimeUnit.MILLISECONDS),
+                "a run its owner came back to is not cancelled when the grace would have ended");
+
+        runtime.finish();
+        awaitTerminal(member);
+        assertEquals(List.of("streaming-text:partial "), describe(lines(out)),
+                "the reloaded page is replayed what it missed; the room delivers it the rest");
+        assertEquals(List.of("streaming-text:partial ", "streaming-text:rest", "complete"), text(member));
+    }
+
+    /**
+     * Documented: in an anonymous room nothing but the tracking id tells the
+     * prompter from any other member, so a reloaded page, under a new tracking
+     * id, is replayed what it missed but does not keep the run going: the run
+     * is cancelled when the grace ends.
+     */
+    @Test
+    void aReloadedPromptersReattachInAnAnonymousRoomIsReplayedButTheRunEndsWithTheGrace() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var member = subscriber(null);
+        var prompter = startRun(runtime, null);
+
+        lose(prompter);
+        var out = new StringWriter();
+        reconnect("reloaded-" + UUID.randomUUID(), null, out);
+        assertEquals(List.of("streaming-text:partial "), describe(lines(out)), "the reloaded page gets the replay");
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "an anonymous room's run is cancelled when the grace ends, a reloaded prompter or not");
+        awaitTerminal(member);
+        assertEquals(List.of("streaming-text:partial ", "cancelled:disconnect"), text(member));
+    }
+
     private void lose(AtmosphereResourceImpl prompter) throws Exception {
         handler.onStateChange(new AtmosphereResourceEventImpl(prompter, true, false));
         room.removeAtmosphereResource(prompter);
@@ -195,6 +256,30 @@ class AiEndpointHandlerRoomRunTest {
                 mock(BlockingIOCometSupport.class), new Recorder());
         room.addAtmosphereResource(r);
         return r;
+    }
+
+    /**
+     * The prompter's reloaded page connecting over WebSocket under the new
+     * tracking id {@code uuid}, authenticated as {@code user}, with the run id:
+     * driven through the handler's connect path.
+     */
+    private void reconnect(String uuid, String user, StringWriter out) throws Exception {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        when(resource.uuid()).thenReturn(uuid);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getResponse()).thenReturn(response);
+        when(response.getWriter()).thenReturn(new PrintWriter(out));
+        when(resource.getAtmosphereConfig()).thenReturn(config);
+        when(resource.getBroadcaster()).thenReturn(room);
+        when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        when(resource.isSuspended()).thenReturn(true);
+        when(resource.addEventListener(any())).thenReturn(resource);
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getAttribute("ai.userId")).thenReturn(user);
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(RUN_ID.get());
+        handler.onRequest(resource);
     }
 
     /** Records what the broadcaster writes to each subscriber. */
@@ -244,6 +329,16 @@ class AiEndpointHandlerRoomRunTest {
             Thread.sleep(20);
         }
         throw new AssertionError("no terminal frame for " + r.uuid() + ": " + written.get(r.uuid()));
+    }
+
+    private static List<String> lines(StringWriter out) {
+        var lines = new ArrayList<String>();
+        for (var line : out.toString().split("\n")) {
+            if (!line.isBlank()) {
+                lines.add(line);
+            }
+        }
+        return lines;
     }
 
     private static List<String> describe(List<String> json) {

@@ -115,9 +115,13 @@ own long-polling client in a `broadcastReply` room waits on the run too, but is
 written the room's frames, which reach its polls already, not the run's), else for a
 reply or its suspend timeout. Every member of a `broadcastReply` room is handed
 the run id with the room's reply; a member other than the prompter (its tracking
-id is not the one that sent the prompt) that reattaches with it, on any
+id is not the one that sent the prompt and, when the run has an authenticated
+owner, it is not authenticated as that user) that reattaches with it, on any
 transport, is sent what it missed, but neither restarts nor holds off the run's
-reattach grace, and does not wait on the run. A run that already
+reattach grace, and does not wait on the run. A reloaded page, which
+atmosphere.js gives a new tracking id, is still the prompter in an
+authenticated room; in an anonymous `broadcastReply` room it is not: it gets
+the replay, but the run is cancelled when the grace ends. A run that already
 finished stays replayable for the
 registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
 kept). The events are the text and terminal frame the client received,

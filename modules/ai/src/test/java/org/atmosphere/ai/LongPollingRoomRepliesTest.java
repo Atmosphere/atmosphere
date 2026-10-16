@@ -853,6 +853,51 @@ class LongPollingRoomRepliesTest {
     }
 
     /**
+     * atmosphere.js keeps its tracking id in memory only: a reloaded page polls
+     * under a new one. In an authenticated room the poll of the run owner's
+     * reloaded page, carrying the run id, is the run's own client: it waits on
+     * the run and holds the grace off, where the tracking id alone made it a
+     * bystander and its run was cancelled when the grace ended.
+     */
+    @Test
+    void aReloadedPromptersPollInAnAuthenticatedRoomHoldsItsGraceOff() throws InterruptedException {
+        LongPollingRoomReplies.install(room);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "alice", "prompter-" + UUID.randomUUID(),
+                new ExecutionHandle.Settable(() -> { }), RunEventReplayBuffer.forRoomRun(null, config, room.getID()),
+                null);
+        var buffer = run.replayBuffer();
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), buffer);
+        session.send("one.");
+        awaitFrames(socket, 1);
+
+        var grace = Duration.ofMillis(300);
+        var cancelled = new AtomicBoolean();
+        System.setProperty(AiConfig.REATTACH_GRACE_PROPERTY, grace.toMillis() + "ms");
+        try {
+            assertTrue(RunDisconnectGrace.detach(run.runId(), grace, () -> cancelled.set(true),
+                    () -> buffer.subscriberCount() > 0));
+            var sink = new StringWriter();
+            var poll = suspendedPoll("reloaded-" + UUID.randomUUID(), run.runId(), sink, new ArrayList<>());
+            when(poll.getRequest().getAttribute("ai.userId")).thenReturn("alice");
+            assertEquals(1, RunReattachSupport.replayPendingRun(poll, registry), "the reloaded page gets the replay");
+            assertTrue(sink.toString().contains("one."), sink.toString());
+
+            var next = suspendedPoll(poll.uuid(), run.runId(), new StringWriter(), new ArrayList<>());
+            when(next.getRequest().getAttribute("ai.userId")).thenReturn("alice");
+            assertEquals(0, RunReattachSupport.replayPendingRun(next, registry));
+            assertEquals(1, buffer.subscriberCount(), "the owner's next poll waits on the run");
+            Thread.sleep(grace.toMillis() * 3);
+            assertFalse(cancelled.get(), "the run its owner came back to is not cancelled when the grace ends");
+        } finally {
+            System.clearProperty(AiConfig.REATTACH_GRACE_PROPERTY);
+            RunDisconnectGrace.runEnded(run.runId());
+            session.complete();
+        }
+    }
+
+    /**
      * A WebSocket or SSE member of a {@code broadcastReply} room that reconnects
      * with the run id is subscribed to the room's broadcaster again, which
      * delivers it the rest of the run. Its reattach also forwarded it every later

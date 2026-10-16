@@ -80,7 +80,11 @@ import org.slf4j.LoggerFactory;
  * restarts or holds off the grace: in a {@code broadcastReply} room every
  * member is handed the run id, and a member other than the prompter that
  * reattaches with it, on any transport, is replayed what it missed and nothing
- * more.</p>
+ * more. The prompter is its tracking id, or, in a room whose run has an
+ * authenticated owner, any connection of that user, so a reloaded page, which
+ * atmosphere.js gives a new tracking id, still keeps its run going; in an
+ * anonymous room a reloaded page is replayed what it missed, but its run is
+ * cancelled when the grace ends.</p>
  */
 public final class RunReattachSupport {
 
@@ -166,16 +170,26 @@ public final class RunReattachSupport {
      * that owns the run ({@code callerOwnsRun}) for a run whose reply reaches its
      * own client only, since nobody else is handed its id; for a run whose reply
      * is broadcast to a room ({@link RunEventReplayBuffer#forRoomRun}), whose
-     * every member is handed its id, only the tracking id that sent the prompt
-     * ({@link AgentResumeHandle#sessionId()}). Another member reattaching with
-     * the run id is a bystander: it is replayed what it missed, but neither
-     * restarts the grace nor listens to the run, so the run of a prompter that
-     * left for good is cancelled when the grace ends, whatever transport the
-     * room's other members use. A prompter that comes back under another
-     * tracking id (a reloaded page) is a bystander of its own room run too.
+     * every member is handed its id, the tracking id that sent the prompt
+     * ({@link AgentResumeHandle#sessionId()}) and, when the run has an
+     * authenticated owner, any caller authenticated as that user
+     * ({@code callerOwnsRun}, which refuses every other user before this is
+     * asked): atmosphere.js keeps its tracking id in memory only, so a reloaded
+     * page comes back under a new one. Another member reattaching with the run
+     * id is a bystander: it is replayed what it missed, but neither restarts the
+     * grace nor listens to the run, so the run of a prompter that left for good
+     * is cancelled when the grace ends, whatever transport the room's other
+     * members use. In an anonymous room (no identity) only the tracking id tells
+     * the prompter apart, so a prompter whose reloaded page comes back under
+     * another tracking id is a bystander of its own room run.
      */
     static boolean ownClient(AtmosphereResource resource, AgentResumeHandle handle) {
-        return handle.replayBuffer().roomId() == null || handle.sessionId().equals(resource.uuid());
+        if (handle.replayBuffer().roomId() == null || handle.sessionId().equals(resource.uuid())) {
+            return true;
+        }
+        var owner = handle.userId();
+        return owner != null && !owner.isBlank() && !ANONYMOUS.equals(owner) && !UNRESOLVED.equals(owner)
+                && resource.getRequest() != null && callerOwnsRun(resource.getRequest(), owner);
     }
 
     /**
