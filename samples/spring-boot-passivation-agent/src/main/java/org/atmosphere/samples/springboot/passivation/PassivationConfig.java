@@ -19,6 +19,8 @@ import org.atmosphere.checkpoint.CheckpointStore;
 import org.atmosphere.checkpoint.InMemoryCheckpointStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Wires the durable snapshot store and the deterministic runtime the sample
@@ -32,7 +34,17 @@ import org.springframework.context.annotation.Configuration;
  * {@link PassivationService}.</p>
  */
 @Configuration
-public class PassivationConfig {
+public class PassivationConfig implements WebMvcConfigurer {
+
+    /**
+     * {@code GET /} opens the Console. The starter's own root redirect lives in
+     * its AI auto-configuration, which this key-free sample turns off
+     * ({@code atmosphere.ai.enabled=false}), so the sample declares it itself.
+     */
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addRedirectViewController("/", "/atmosphere/console/");
+    }
 
     /**
      * The checkpoint store. {@code stop()} is the destroy method so Spring

@@ -13,7 +13,10 @@ sample is the honest proof behind that blog claim: a real application driving
 
 It runs **fully offline** — no LLM key required. A deterministic
 `DemoContinuationRuntime` stands in for the model, and the default store is the
-in-memory `CheckpointStore`.
+in-memory `CheckpointStore`. The runtime is handed straight to
+`AgentPassivation`, so `application.yml` turns the starter's AI auto-configuration
+off (`atmosphere.ai.enabled: false`): the app configures no LLM settings and logs
+no missing-API-key warning at startup.
 
 ## Why a REST controller and not `@AiEndpoint`
 

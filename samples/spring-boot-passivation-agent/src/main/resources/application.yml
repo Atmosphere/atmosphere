@@ -7,6 +7,11 @@ spring:
 
 atmosphere:
   packages: org.atmosphere.samples.springboot.passivation
+  # DemoContinuationRuntime is handed straight to AgentPassivation; nothing here
+  # uses the framework's LLM settings, so the starter's AI auto-configuration
+  # (LLM settings, API-key check, AI endpoints) stays off. No key is needed.
+  ai:
+    enabled: false
 
 logging:
   level:
