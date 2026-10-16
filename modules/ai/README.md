@@ -699,7 +699,11 @@ model the application bound or offered is never closed, nor is a runtime instanc
 created itself. The other applications are untouched. The hook is source- and binary-compatible with
 a runtime or embedding-runtime implementation written before it: that implementation inherits the
 no-op, and a `close()` it declares itself, with any `throws` clause (an `AutoCloseable` or
-`Closeable` one), compiles unchanged and is never called by the environment.
+`Closeable` one), compiles unchanged and is never called by the environment. A subclass of
+`AbstractAgentRuntime` also inherits two new protected methods, `closeNativeClient(C)` and
+`isRuntimeClosed()`: one compiled before them still links, but its source fails to compile if it
+declares a private method with either signature, and a protected or public one it declares now
+overrides the base method (its `closeNativeClient(C)` is then called at environment close).
 Framework code reads it with
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 

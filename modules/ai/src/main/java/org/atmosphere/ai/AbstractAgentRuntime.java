@@ -31,6 +31,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * availability detection, lazy client initialization, and a template method
  * ({@link #doExecute}) for framework-specific execution.
  *
+ * <p>The environment-close support added {@link #closeNativeClient} and
+ * {@link #isRuntimeClosed()}, both protected and overridable. A subclass
+ * compiled before them still links and runs unchanged (a private method does
+ * not override). Its source may not compile unchanged: one that declares a
+ * private method with either signature fails (weaker access than the
+ * inherited protected one), and one that declares a protected or public
+ * method with either signature now overrides it, so its own
+ * {@code closeNativeClient(C)} is called by {@link #onEnvironmentClose()}.
+ * Rename such a method, or make it release the client this instance built.</p>
+ *
  * @param <C> the native client type (e.g. {@code ChatClient}, {@code StreamingChatModel})
  */
 public abstract class AbstractAgentRuntime<C> implements AgentRuntime {

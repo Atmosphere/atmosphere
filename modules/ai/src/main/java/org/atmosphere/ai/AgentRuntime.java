@@ -109,7 +109,9 @@ public interface AgentRuntime {
      * it declares, with any {@code throws} clause (an implementation that is
      * also {@link AutoCloseable} or {@link java.io.Closeable}), compiles
      * unchanged and is never called by the environment: it stays the
-     * application's to call.</p>
+     * application's to call. A subclass of {@link AbstractAgentRuntime} also
+     * inherits two new protected methods; its class documentation says what
+     * that changes for a subclass written before them.</p>
      */
     default void onEnvironmentClose() {
     }
