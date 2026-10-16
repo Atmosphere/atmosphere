@@ -123,6 +123,14 @@
                 <spring-boot.version>3.5.15</spring-boot.version>
                 <netty.version>4.1.137.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
+                <!-- The root POM pins only tomcat-embed-core, on its Tomcat 11 line for
+                     the Spring Boot 4 baseline; under Spring Boot 3.5 that core is skewed
+                     against the BOM's tomcat-embed-websocket 10.1.x, and the mismatched
+                     SocketWrapperBase throws NoSuchMethodError(getLock) when Tomcat answers
+                     a WebSocket close, so the close never reaches Atmosphere. Same pin, and
+                     the same rule for bumping it, as the spring-boot3 profile of
+                     samples/spring-boot-chat/pom.xml. -->
+                <tomcat-version>10.1.60</tomcat-version>
             </properties>
         </profile>
     </profiles>
