@@ -20,13 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * The {@link AgentRuntime}s of one {@link AiEnvironment}: its own instances,
@@ -47,8 +44,9 @@ import java.util.WeakHashMap;
  * (unavailable, or not the one the knob selects) gets
  * {@link AgentRuntime#onEnvironmentClose()} right away, and every instance it
  * handed out, including the ones a {@link #reset()} dropped that are still in
- * use, gets it when the environment closes, once. A {@code close()} an
- * implementation declares itself is never called.</p>
+ * use, gets it when the environment closes, once. Instances are told apart by
+ * identity: one that {@code equals} another still gets its own call. A
+ * {@code close()} an implementation declares itself is never called.</p>
  */
 public final class AgentRuntimeRegistry {
 
@@ -62,10 +60,13 @@ public final class AgentRuntimeRegistry {
     /**
      * The instances this registry handed out and has not closed yet, held
      * weakly: one a {@link #reset()} dropped and nobody uses any more is
-     * collected with its resources instead of waiting for the close. Bounded
-     * by the instances still referenced; guarded by {@code this}.
+     * collected with its resources instead of waiting for the close. Told
+     * apart by identity, so an instance equal to another one handed out (an
+     * implementation that overrides {@code equals}) is still told of the
+     * close. Bounded by the instances still referenced; guarded by
+     * {@code this}.
      */
-    private final Set<AgentRuntime> handedOut = Collections.newSetFromMap(new WeakHashMap<>());
+    private final WeakIdentityInstances<AgentRuntime> handedOut = new WeakIdentityInstances<>();
 
     AgentRuntimeRegistry(AiEnvironment environment, boolean attach) {
         this.environment = environment;
@@ -217,8 +218,7 @@ public final class AgentRuntimeRegistry {
         List<AgentRuntime> toClose;
         synchronized (this) {
             cached = null;
-            toClose = List.copyOf(handedOut);
-            handedOut.clear();
+            toClose = handedOut.drain();
         }
         // A failed hook is logged; an Error still lets the others run.
         Error failure = null;

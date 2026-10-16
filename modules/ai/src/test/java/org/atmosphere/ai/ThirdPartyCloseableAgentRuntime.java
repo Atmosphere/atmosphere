@@ -26,7 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * An {@link AgentRuntime} written the way a third party may have written one:
  * it is also {@link AutoCloseable}, with its own {@code close() throws
- * Exception}, a release the application calls when it decides to. Registered
+ * Exception}, a release the application calls when it decides to, and it is
+ * equal to every other instance of its class (equality by {@link #name()}),
+ * as a value-typed implementation may be. Registered
  * with {@code ServiceLoader} for the tests only; available only in the
  * environments a test {@link #enable enables}, and recorded only in the ones it
  * {@link #watch watches}.
@@ -102,6 +104,17 @@ public final class ThirdPartyCloseableAgentRuntime implements AgentRuntime, Auto
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
         session.complete();
+    }
+
+    /** Equal by {@link #name()}: two instances loaded apart are equal. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof ThirdPartyCloseableAgentRuntime runtime && name().equals(runtime.name());
+    }
+
+    @Override
+    public int hashCode() {
+        return name().hashCode();
     }
 
     /** The third party's own release, for the application to call. */

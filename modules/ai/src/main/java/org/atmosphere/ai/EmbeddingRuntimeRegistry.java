@@ -19,14 +19,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * The {@link EmbeddingRuntime}s of one {@link AiEnvironment}: its own
@@ -38,8 +35,10 @@ import java.util.WeakHashMap;
  * <p>The registry owns the instances it loads: an instance it does not keep
  * (unavailable) gets {@link EmbeddingRuntime#onEnvironmentClose()} right away,
  * and every instance it handed out, including the ones a {@link #reset()}
- * dropped that are still in use, gets it when the environment closes, once. A
- * {@code close()} an implementation declares itself is never called. Once the
+ * dropped that are still in use, gets it when the environment closes, once.
+ * Instances are told apart by identity: one that {@code equals} another still
+ * gets its own call. A {@code close()} an implementation declares itself is
+ * never called. Once the
  * environment is closed, nothing is loaded any more.</p>
  */
 public final class EmbeddingRuntimeRegistry {
@@ -52,10 +51,13 @@ public final class EmbeddingRuntimeRegistry {
     /**
      * The instances this registry handed out and has not closed yet, held
      * weakly: one a {@link #reset()} dropped and nobody uses any more is
-     * collected with its resources instead of waiting for the close. Bounded
-     * by the instances still referenced; guarded by {@code this}.
+     * collected with its resources instead of waiting for the close. Told
+     * apart by identity, so an instance equal to another one handed out (an
+     * implementation that overrides {@code equals}) is still told of the
+     * close. Bounded by the instances still referenced; guarded by
+     * {@code this}.
      */
-    private final Set<EmbeddingRuntime> handedOut = Collections.newSetFromMap(new WeakHashMap<>());
+    private final WeakIdentityInstances<EmbeddingRuntime> handedOut = new WeakIdentityInstances<>();
 
     EmbeddingRuntimeRegistry(AiEnvironment environment, boolean attach) {
         this.environment = environment;
@@ -156,8 +158,7 @@ public final class EmbeddingRuntimeRegistry {
         List<EmbeddingRuntime> toClose;
         synchronized (this) {
             cached = null;
-            toClose = List.copyOf(handedOut);
-            handedOut.clear();
+            toClose = handedOut.drain();
         }
         // A failed hook is logged; an Error still lets the others run.
         Error failure = null;

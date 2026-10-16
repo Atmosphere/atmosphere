@@ -23,6 +23,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 /**
  * The environment-close hook of the {@link AgentRuntime} and
@@ -95,6 +96,30 @@ class ThirdPartyRuntimeCloseCompatibilityTest {
         assertEquals(1, embedding.closes());
         assertEquals(1, agent.environmentCloses(), "its own close() does not call the hook");
         assertEquals(1, embedding.environmentCloses(), "its own close() does not call the hook");
+    }
+
+    @Test
+    void everyInstanceHandedOutGetsTheHookEvenWhenItEqualsAnotherOne() {
+        ThirdPartyCloseableAgentRuntime.enable(application);
+        ThirdPartyCloseableEmbeddingRuntime.enable(application);
+        var firstAgent = agentRuntime();
+        var firstEmbedding = embeddingRuntime();
+        application.runtimes().reset();
+        application.embeddings().reset();
+        var secondAgent = agentRuntime();
+        var secondEmbedding = embeddingRuntime();
+        assertNotSame(firstAgent, secondAgent, "a reset loads a new agent runtime instance");
+        assertEquals(firstAgent, secondAgent, "the two agent runtime instances are equal by value");
+        assertNotSame(firstEmbedding, secondEmbedding, "a reset loads a new embedding runtime instance");
+        assertEquals(firstEmbedding, secondEmbedding, "the two embedding runtime instances are equal by value");
+
+        application.close();
+
+        assertEquals(1, firstAgent.environmentCloses(), "the agent runtime a reset dropped gets the hook");
+        assertEquals(1, secondAgent.environmentCloses(), "an equal agent runtime handed out later gets it too");
+        assertEquals(1, firstEmbedding.environmentCloses(), "the embedding runtime a reset dropped gets the hook");
+        assertEquals(1, secondEmbedding.environmentCloses(),
+                "an equal embedding runtime handed out later gets it too");
     }
 
     @Test
