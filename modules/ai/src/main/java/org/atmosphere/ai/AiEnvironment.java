@@ -612,7 +612,11 @@ public final class AiEnvironment implements AutoCloseable {
      * request already sent finish. A runtime instance the application created
      * itself is not. A runtime whose hook fails is logged and does not stop
      * the others or the steps after it; an {@link Error} is rethrown once every
-     * step ran. The process default is never closed.
+     * step ran. A step that throws anything else, even a checked exception
+     * thrown from code that does not declare it, does not stop the steps after
+     * it either: the first failure is rethrown once every step ran, a checked
+     * one wrapped in an {@link IllegalStateException}. The process default is
+     * never closed.
      */
     @Override
     public void close() {
@@ -690,11 +694,17 @@ public final class AiEnvironment implements AutoCloseable {
         if (failure instanceof RuntimeException runtimeException) {
             throw runtimeException;
         }
+        if (failure != null) {
+            throw new IllegalStateException("AI environment " + name + ": a close step failed", failure);
+        }
     }
 
     /**
      * Run one step of {@link #close()}, keeping the first failure (later ones
-     * are added to it as suppressed) so the next steps still run.
+     * are added to it as suppressed) so the next steps still run. Any
+     * {@link Throwable} is kept: code written in a language without checked
+     * exceptions (Kotlin) may throw a checked one from a method that declares
+     * none.
      *
      * @return the failure to rethrow once every step ran, {@code null} if none
      */
@@ -702,7 +712,7 @@ public final class AiEnvironment implements AutoCloseable {
         try {
             step.run();
             return failure;
-        } catch (RuntimeException | Error e) {
+        } catch (Throwable e) {
             logger.warn("AI environment {}: a close step failed: {}", name, e.toString(), e);
             if (failure == null) {
                 return e;

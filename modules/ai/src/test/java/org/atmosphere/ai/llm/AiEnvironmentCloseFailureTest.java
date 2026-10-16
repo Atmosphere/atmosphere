@@ -106,6 +106,18 @@ class AiEnvironmentCloseFailureTest {
     }
 
     @Test
+    void aThrowableThatIsNeitherAnExceptionNorAnErrorDoesNotStopTheClose() throws Exception {
+        var failure = new Throwable("a raw Throwable thrown from a runtime hook");
+        var built = application(failure);
+
+        var thrown = assertThrows(IllegalStateException.class, application::close,
+                "a failure that is neither unchecked nor an Error is rethrown wrapped");
+
+        assertSame(failure, thrown.getCause());
+        assertEveryStepRan(built);
+    }
+
+    @Test
     void anErrorFromARuntimeHookIsRethrownOnceEveryStepRan() throws Exception {
         var failure = new Error("runtime hook failed");
         var built = application(failure);
