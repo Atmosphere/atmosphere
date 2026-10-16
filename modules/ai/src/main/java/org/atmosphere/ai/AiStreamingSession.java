@@ -965,13 +965,18 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
-     * The application this session's turns belong to: the one attached to the
-     * resource's framework, else that of the runtime. Its per-request scope
-     * guardrails and intent routing use that application's models.
+     * The application this session's turns belong to: that of the resource's
+     * framework ({@link AiEnvironment#of(org.atmosphere.cpr.AtmosphereConfig)},
+     * created when the framework has none yet, as
+     * {@link org.atmosphere.ai.governance.PolicyAdmissionGate} does), else,
+     * for a resource with no framework, that of the runtime. Its per-request
+     * scope guardrails and intent routing use that application's models, never
+     * those of another open application the static API would read.
      */
     private AiEnvironment environment() {
         var config = resource != null ? resource.getAtmosphereConfig() : null;
-        return AiEnvironment.find(config).orElseGet(() -> AiEnvironment.of(runtime));
+        return config != null && config.framework() != null
+                ? AiEnvironment.of(config) : AiEnvironment.of(runtime);
     }
 
     /** Scope decisions taken on a turn's inbound message by {@link #admitScope(String)}. */
@@ -1100,8 +1105,11 @@ public class AiStreamingSession implements StreamingSession {
         List<AiGuardrail> effectiveGuardrails = guardrails;
         var mutableMeta = new java.util.HashMap<String, Object>(
                 request.metadata() != null ? request.metadata() : Map.of());
-        var requestScopePolicy =
-                org.atmosphere.ai.governance.scope.ScopePolicyInstaller.extract(mutableMeta, environment());
+        // Resolved only when a scope is installed, so a turn without one opens
+        // no environment for a framework that has none.
+        var requestScopePolicy = mutableMeta.containsKey(ScopePolicy.REQUEST_SCOPE_METADATA_KEY)
+                ? org.atmosphere.ai.governance.scope.ScopePolicyInstaller.extract(mutableMeta, environment())
+                : null;
         if (requestScopePolicy != null) {
             request = new AiRequest(request.message(), request.systemPrompt(),
                     request.model(), request.userId(), request.sessionId(),

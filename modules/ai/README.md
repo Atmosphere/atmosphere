@@ -772,8 +772,10 @@ starters build the LLM moderation detector with the context's environment
 (`new LlmModerationDetector(environment)`). A guardrail or classifier registered through
 `META-INF/services` (other than the built-in ones) is built once per tier for the JVM by its
 no-argument constructor, so it cannot know an application. `PolicyAdmissionGate` resolves a
-per-request scope for the framework's own environment, created (`AiEnvironment.of`) when the
-framework has none yet, never for another open application's. The tool-output injection screen is
+per-request scope, and `AiStreamingSession` a per-request scope and an intent routing, for the
+framework's own environment (the resource's framework for the session), created (`AiEnvironment.of`)
+when the framework has none yet and only when the request needs it, never for another open
+application's; a session whose resource has no framework uses its runtime's application. The tool-output injection screen is
 rule-based, uses no model and reads no application (`InjectionClassifierResolver.ruleBased()`).
 
 What still reads the static API (so its application's own only on a bound thread, or with a single

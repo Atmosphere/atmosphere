@@ -350,6 +350,62 @@ class GovernanceTiersPerApplicationTest {
     }
 
     @Test
+    void aiStreamingSessionOfAFrameworkWithNoEnvironmentNeverUsesAnotherApplicationsRuntime() {
+        // Same setting as the gate's test, on a session built by hand over a
+        // runtime attached to no application: the turn is the resource's
+        // framework's, so its scope must not embed with the one other
+        // application the static API reads, exactly as the gate admits it.
+        second.close();
+        second = null;
+        var framework = new AtmosphereFramework();
+        try {
+            var resource = mock(AtmosphereResource.class);
+            when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
+            when(resource.uuid()).thenReturn("streaming-no-env-uuid");
+            when(resource.getAtmosphereConfig()).thenReturn(framework.getAtmosphereConfig());
+            var scope = scope(AgentScope.Tier.EMBEDDING_SIMILARITY);
+            AiInterceptor installsScope = new AiInterceptor() {
+                @Override
+                public AiRequest preProcess(AiRequest request, AtmosphereResource r) {
+                    return request.withMetadata(Map.of(ScopePolicy.REQUEST_SCOPE_METADATA_KEY, scope));
+                }
+            };
+            var session = new AiStreamingSession(mock(StreamingSession.class), new UnattachedRuntime(),
+                    "sys", null, List.of(installsScope), resource);
+
+            session.stream("what is 2 + 2?");
+
+            assertTrue(requests.stream().noneMatch(p -> p.startsWith("/first/")),
+                    "a framework's streaming request scope must not embed with another application's runtime, saw "
+                            + List.copyOf(requests));
+        } finally {
+            AiEnvironment.find(framework.getAtmosphereConfig()).ifPresent(AiEnvironment::close);
+        }
+    }
+
+    @Test
+    void aiStreamingSessionWithoutARequestScopeOpensNoEnvironment() {
+        // The framework's own environment is opened for a request scope only,
+        // as the gate does: a plain turn on a framework with none opens none.
+        var framework = new AtmosphereFramework();
+        try {
+            var resource = mock(AtmosphereResource.class);
+            when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
+            when(resource.uuid()).thenReturn("streaming-plain-uuid");
+            when(resource.getAtmosphereConfig()).thenReturn(framework.getAtmosphereConfig());
+            var session = new AiStreamingSession(mock(StreamingSession.class), new UnattachedRuntime(),
+                    "sys", null, List.of(), resource);
+
+            session.stream("what is 2 + 2?");
+
+            assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty(),
+                    "a turn without a request scope must not open an AI environment for the framework");
+        } finally {
+            AiEnvironment.find(framework.getAtmosphereConfig()).ifPresent(AiEnvironment::close);
+        }
+    }
+
+    @Test
     void toolOutputScreenReadsNoApplication() {
         // The tool-output screen is rule-based and needs no model, so with two
         // applications open and the thread bound to neither it must not read
@@ -414,6 +470,22 @@ class GovernanceTiersPerApplicationTest {
     private static ScopeConfig scope(AgentScope.Tier tier) {
         return new ScopeConfig("Mathematics tutoring — arithmetic and algebra", List.of(),
                 AgentScope.Breach.DENY, "", tier, 0.45, false, false, "");
+    }
+
+    /** A runtime that answers locally and is attached to no application. */
+    private static final class UnattachedRuntime implements AgentRuntime {
+
+        @Override public String name() { return "unattached"; }
+        @Override public boolean isAvailable() { return true; }
+        @Override public int priority() { return 0; }
+        @Override public void configure(AiConfig.LlmSettings settings) { }
+        @Override public Set<AiCapability> capabilities() { return Set.of(AiCapability.TEXT_STREAMING); }
+
+        @Override
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            session.send("4");
+            session.complete();
+        }
     }
 
     /** A runtime that answers locally and belongs to one application. */
