@@ -31,9 +31,11 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * The cost guardrail is bridged after the {@code atmosphere.ai.*} knobs were
  * installed as the AI host configuration: when bridging it fails the startup,
- * the framework is destroyed, so its shutdown hook uninstalls that host
+ * the failed start shuts the CDI container down, which disposes the
+ * application's {@code AiEnvironment} bean and so uninstalls that host
  * configuration instead of leaving it installed in a JVM that, in dev mode,
- * outlives the failed start.
+ * outlives the failed start. (The framework is destroyed too, but its shutdown
+ * hook closes the environment only when there is no {@code AiEnvironment} bean.)
  */
 // Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
 // or an adapter's process-wide binder): deprecated for framework code, kept for

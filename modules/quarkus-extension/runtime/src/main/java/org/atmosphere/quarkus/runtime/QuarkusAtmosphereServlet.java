@@ -94,7 +94,10 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
         // runs framework.init().
         configureFramework(sc, false);
         // Bridged inside initFramework, so a failure once the knobs are
-        // installed destroys the framework, whose shutdown hook uninstalls them.
+        // installed destroys the framework and fails the start. The knobs are
+        // then uninstalled by whoever owns the environment that holds them: the
+        // CDI container, which disposes the AiEnvironment bean when the failed
+        // start shuts it down, or, without that bean, the framework's shutdown hook.
         AtmosphereBootstrap.initFramework(framework(), () -> {
             AtmosphereBootstrap.bridgeAiKnobs(framework());
             AtmosphereBootstrap.bridgeAiCostGuardrail(framework());

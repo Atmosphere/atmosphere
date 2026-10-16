@@ -75,7 +75,10 @@ public final class VertxAtmosphereContainer {
         // Seed the AI knobs and the cost guardrail before init freezes each
         // @AiEndpoint's runtime and chain, exactly as QuarkusAtmosphereServlet does,
         // inside initFramework so a failure once the knobs are installed destroys
-        // the framework, whose shutdown hook uninstalls them.
+        // the framework and fails the start. The owner of the environment holding
+        // the knobs uninstalls them: the CDI container, which disposes the
+        // AiEnvironment bean when the failed start shuts it down, or, without
+        // that bean, the framework's shutdown hook.
         AtmosphereBootstrap.initFramework(framework, () -> {
             AtmosphereBootstrap.bridgeAiKnobs(framework);
             AtmosphereBootstrap.bridgeAiCostGuardrail(framework);
