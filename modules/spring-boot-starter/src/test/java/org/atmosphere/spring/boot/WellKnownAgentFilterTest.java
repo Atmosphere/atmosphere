@@ -169,6 +169,47 @@ class WellKnownAgentFilterTest {
     }
 
     /**
+     * A2A v1.0.0 requires an absolute interface URL; the processors build the
+     * card with the endpoint path only, so the filter resolves it against the
+     * request it serves.
+     */
+    @Test
+    void relativeInterfaceUrlIsServedAbsolute() throws Exception {
+        when(request.getScheme()).thenReturn("http");
+        when(request.getServerName()).thenReturn("localhost");
+        when(request.getServerPort()).thenReturn(9117);
+        when(request.getContextPath()).thenReturn("");
+        var config = mock(AtmosphereConfig.class);
+        var card = new AgentCard("assistant", "Test",
+                List.of(new org.atmosphere.a2a.types.AgentInterface("/atmosphere/a2a",
+                        org.atmosphere.a2a.types.AgentInterface.JSONRPC, "1.0")),
+                null, "1.0", null,
+                new org.atmosphere.a2a.types.AgentCapabilities(true, false, null, false),
+                null, null, null, null, List.of(), null, null);
+        var handler = new A2aHandler(new A2aProtocolHandler(
+                mock(A2aRegistry.class), mock(TaskManager.class), card));
+        var map = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
+        map.put("/atmosphere/a2a", new AtmosphereHandlerWrapper(null, handler, "/atmosphere/a2a", config));
+        when(framework.getAtmosphereHandlers()).thenReturn(map);
+
+        new AtmosphereAutoConfiguration.WellKnownAgentFilter(framework).doFilter(request, response, chain);
+
+        assertThat(responseBody.toString())
+                .contains("\"url\":\"http://localhost:9117/atmosphere/a2a\"");
+    }
+
+    @Test
+    void originOmitsTheDefaultPortAndKeepsTheContextPath() {
+        when(request.getScheme()).thenReturn("https");
+        when(request.getServerName()).thenReturn("agents.example.com");
+        when(request.getServerPort()).thenReturn(443);
+        when(request.getContextPath()).thenReturn("/app");
+
+        assertThat(AtmosphereAutoConfiguration.WellKnownAgentFilter.origin(request))
+                .isEqualTo("https://agents.example.com/app");
+    }
+
+    /**
      * Creates a handler map with A2A handlers that return agent cards.
      */
     private ConcurrentHashMap<String, AtmosphereHandlerWrapper> buildA2aHandlerMap(

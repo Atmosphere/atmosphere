@@ -133,9 +133,29 @@ public final class A2aProtocolHandler {
 
     /** Returns the agent card serialized as JSON. Used by the well-known filter. */
     public String agentCardJson() {
+        return agentCardJson(null);
+    }
+
+    /**
+     * The agent card as served from {@code origin}: relative interface URLs made
+     * absolute ({@link AgentCard#withAbsoluteInterfaceUrls(String)}).
+     *
+     * @param origin scheme, host, port and context path of the serving request,
+     *               or {@code null} to serve the card as built
+     */
+    public AgentCard agentCard(String origin) {
+        return agentCard == null ? null : agentCard.withAbsoluteInterfaceUrls(origin);
+    }
+
+    /**
+     * {@link #agentCard(String)} serialized as JSON. Used by the well-known
+     * filter, which resolves the origin from its request.
+     */
+    public String agentCardJson(String origin) {
         try {
-            return mapper.writeValueAsString(agentCard);
+            return mapper.writeValueAsString(agentCard(origin));
         } catch (Exception e) {
+            logger.warn("Could not serialize the agent card", e);
             return null;
         }
     }

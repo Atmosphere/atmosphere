@@ -3,7 +3,8 @@
 Agent-to-Agent (A2A) protocol support for Atmosphere `@Agent`s. When
 `atmosphere-a2a` is on the classpath, every `@Agent` automatically exposes an
 A2A JSON-RPC endpoint (default `{basePath}/a2a`) and serves a discovery
-**AgentCard** at `/.well-known/agent.json`. A2A clients can then call
+**AgentCard** at `/.well-known/agent-card.json` (the A2A v1.0.0 well-known path)
+and at the pre-1.0 `/.well-known/agent.json`. A2A clients can then call
 `SendMessage` / `SendStreamingMessage` to invoke the agent, and
 `GetExtendedAgentCard` to enumerate its skills. The pre-1.0 slash names
 (`message/send`, `tasks/get`, `agent/authenticatedExtendedCard`, ...) are still
@@ -11,6 +12,16 @@ accepted as aliases, with a deprecation `WARN` the first time each one is seen.
 
 The implementation targets A2A **v1.0.0** (typed `securitySchemes`, structured
 `AgentProvider`, `signatures`, `supportedInterfaces`).
+
+The card is built with the endpoint path (`supportedInterfaces[].url` such as
+`/atmosphere/a2a`); when it is served, a relative URL is made absolute against
+the request's scheme, host, port and context path, since v1.0.0 requires an
+absolute interface URL. Behind a TLS-terminating proxy, have the container honor
+the forwarded headers (Spring Boot: `server.forward-headers-strategy`) or the
+URL carries the proxy-to-app scheme and host. A card signed with
+`org.atmosphere.a2a.signCards` is served exactly as signed, because rewriting its
+URLs would break the signature; give such an agent an absolute
+`@Agent(endpoint = ...)` if its clients need an absolute URL.
 
 ## ⚠️ Security: the A2A endpoint is unauthenticated by default
 

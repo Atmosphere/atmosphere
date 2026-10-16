@@ -123,7 +123,7 @@ class AtmosphereAutoConfigurationTest {
                     (FilterRegistrationBean<jakarta.servlet.Filter>)
                             context.getBean("atmosphereWellKnownFilter");
             assertThat(registration.getUrlPatterns())
-                    .containsExactly("/.well-known/agent.json");
+                    .containsExactly("/.well-known/agent-card.json", "/.well-known/agent.json");
             assertThat(registration.getOrder()).isEqualTo(-1);
         });
     }

@@ -123,12 +123,12 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         var response = resource.getResponse();
 
         var path = request.getRequestURI();
-        if (path != null && (path.endsWith("/agent.json")
-                || path.contains("/.well-known/agent.json"))) {
+        if (isAgentCardPath(path)) {
             response.setStatus(200);
             response.setContentType(APPLICATION_JSON);
             response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(mapper.writeValueAsString(protocolHandler.agentCard()));
+            response.getWriter().write(mapper.writeValueAsString(
+                    protocolHandler.agentCard(origin(request))));
             response.getWriter().flush();
             return;
         }
@@ -158,6 +158,40 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         if (session != null) {
             replayPending(session, response);
         }
+    }
+
+    /**
+     * The agent card is served at the A2A v1.0.0 well-known name
+     * {@code agent-card.json} and at the pre-1.0 {@code agent.json}.
+     */
+    static boolean isAgentCardPath(String path) {
+        return path != null && (path.endsWith("/agent-card.json") || path.endsWith("/agent.json"));
+    }
+
+    /**
+     * Scheme, host, non-default port and context path of {@code request}, the
+     * origin a relative interface URL of the served card is resolved against.
+     * Behind a TLS-terminating proxy the container reports what the proxy
+     * forwarded, so the deployment must have the container honor
+     * {@code X-Forwarded-*} / {@code Forwarded} (for Spring Boot,
+     * {@code server.forward-headers-strategy}).
+     */
+    public static String origin(jakarta.servlet.http.HttpServletRequest request) {
+        var scheme = request.getScheme();
+        var host = request.getServerName();
+        if (scheme == null || host == null || host.isBlank()) {
+            return null;
+        }
+        if (host.indexOf(':') >= 0 && !host.startsWith("[")) {
+            host = "[" + host + "]";
+        }
+        var port = request.getServerPort();
+        var defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80)
+                || ("https".equalsIgnoreCase(scheme) && port == 443);
+        var contextPath = request.getContextPath();
+        return scheme.toLowerCase(java.util.Locale.ROOT) + "://" + host
+                + (port <= 0 || defaultPort ? "" : ":" + port)
+                + (contextPath == null ? "" : contextPath);
     }
 
     @Override

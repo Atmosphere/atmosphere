@@ -21,7 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Public agent descriptor served at {@code /.well-known/agent.json}. Aligned
+ * Public agent descriptor served at {@code /.well-known/agent-card.json} (the
+ * A2A v1.0.0 well-known path) and at the pre-1.0 {@code /.well-known/agent.json}. Aligned
  * with A2A v1.0.0: the pre-1.0 single top-level {@code url} string is replaced
  * by the {@link #supportedInterfaces} list (so an agent can advertise multiple
  * protocol bindings — e.g. JSON-RPC and HTTP+JSON — at distinct URLs);
@@ -75,6 +76,46 @@ public record AgentCard(
         return new AgentCard(name, description, supportedInterfaces, provider, version,
                 documentationUrl, capabilities, securitySchemes, securityRequirements,
                 defaultInputModes, defaultOutputModes, skills, newSignatures, iconUrl);
+    }
+
+    /**
+     * A copy of this card whose relative {@link AgentInterface#url()}s (a path
+     * such as {@code /atmosphere/a2a}, which is what the processors know when
+     * they build the card) are made absolute against {@code origin}, the
+     * scheme, host, port and context path the card is being served from. A2A
+     * v1.0.0 requires an interface URL to be an absolute URL.
+     *
+     * <p>A signed card is returned unchanged: its signature covers the URLs it
+     * was signed with, and rewriting them would make it fail verification. An
+     * agent that signs its card and needs absolute URLs declares an absolute
+     * endpoint. Absolute URLs, and a blank {@code origin}, leave the card as is.</p>
+     *
+     * @param origin for example {@code https://agents.example.com} or
+     *               {@code http://localhost:8080/app}, without a trailing slash
+     */
+    public AgentCard withAbsoluteInterfaceUrls(String origin) {
+        if (origin == null || origin.isBlank()
+                || (signatures != null && !signatures.isEmpty())) {
+            return this;
+        }
+        var changed = false;
+        var resolved = new java.util.ArrayList<AgentInterface>(supportedInterfaces.size());
+        for (var anInterface : supportedInterfaces) {
+            var url = anInterface.url();
+            if (url != null && url.startsWith("/") && !url.startsWith("//")) {
+                resolved.add(new AgentInterface(origin + url, anInterface.protocolBinding(),
+                        anInterface.tenant(), anInterface.protocolVersion()));
+                changed = true;
+            } else {
+                resolved.add(anInterface);
+            }
+        }
+        if (!changed) {
+            return this;
+        }
+        return new AgentCard(name, description, resolved, provider, version,
+                documentationUrl, capabilities, securitySchemes, securityRequirements,
+                defaultInputModes, defaultOutputModes, skills, signatures, iconUrl);
     }
 
     /**

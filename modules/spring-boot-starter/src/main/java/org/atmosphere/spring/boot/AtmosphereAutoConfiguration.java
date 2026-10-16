@@ -113,8 +113,9 @@ public class AtmosphereAutoConfiguration {
     }
 
     /**
-     * Serves {@code /.well-known/agent.json} with an array of all registered
-     * A2A agent cards. Enables standard agent discovery per the A2A protocol.
+     * Serves the registered A2A agent cards at {@code /.well-known/agent-card.json},
+     * the well-known path of A2A v1.0.0 (specification section 8.2), and at the
+     * pre-1.0 {@code /.well-known/agent.json} for existing clients.
      */
     @Bean
     @ConditionalOnMissingBean(name = "atmosphereWellKnownFilter")
@@ -122,7 +123,7 @@ public class AtmosphereAutoConfiguration {
             AtmosphereFramework framework) {
         var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
                 new WellKnownAgentFilter(framework));
-        registration.addUrlPatterns("/.well-known/agent.json");
+        registration.addUrlPatterns("/.well-known/agent-card.json", "/.well-known/agent.json");
         registration.setOrder(-1);
         return registration;
     }
@@ -437,8 +438,10 @@ public class AtmosphereAutoConfiguration {
     }
 
     /**
-     * Serves {@code /.well-known/agent.json} by scanning the framework's handler
-     * registry for A2A handlers and returning an array of their agent cards.
+     * Serves {@code /.well-known/agent-card.json} and {@code /.well-known/agent.json}
+     * by scanning the framework's handler registry for A2A handlers and returning
+     * their agent cards, with relative interface URLs made absolute against the
+     * request (A2A v1.0.0 requires an absolute interface URL).
      */
     static class WellKnownAgentFilter implements jakarta.servlet.Filter {
 
@@ -476,8 +479,9 @@ public class AtmosphereAutoConfiguration {
                     var phField = handler.getClass().getDeclaredField("protocolHandler");
                     phField.setAccessible(true);
                     var protocolHandler = phField.get(handler);
-                    var cardMethod = protocolHandler.getClass().getMethod("agentCardJson");
-                    var json = (String) cardMethod.invoke(protocolHandler);
+                    var cardMethod = protocolHandler.getClass()
+                            .getMethod("agentCardJson", String.class);
+                    var json = (String) cardMethod.invoke(protocolHandler, origin(httpReq));
                     if (json != null) {
                         cardJsonList.add(json);
                     }
@@ -499,6 +503,30 @@ public class AtmosphereAutoConfiguration {
                 httpRes.getWriter().write("[" + String.join(",", cardJsonList) + "]");
             }
             httpRes.getWriter().flush();
+        }
+
+        /**
+         * Scheme, host, non-default port and context path of the request — the
+         * same origin {@code A2aHandler.origin} computes, repeated here because
+         * atmosphere-a2a is an optional dependency this filter reaches only
+         * reflectively.
+         */
+        static String origin(jakarta.servlet.http.HttpServletRequest request) {
+            var scheme = request.getScheme();
+            var host = request.getServerName();
+            if (scheme == null || host == null || host.isBlank()) {
+                return null;
+            }
+            if (host.indexOf(':') >= 0 && !host.startsWith("[")) {
+                host = "[" + host + "]";
+            }
+            var port = request.getServerPort();
+            var defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80)
+                    || ("https".equalsIgnoreCase(scheme) && port == 443);
+            var contextPath = request.getContextPath();
+            return scheme.toLowerCase(java.util.Locale.ROOT) + "://" + host
+                    + (port <= 0 || defaultPort ? "" : ":" + port)
+                    + (contextPath == null ? "" : contextPath);
         }
     }
 

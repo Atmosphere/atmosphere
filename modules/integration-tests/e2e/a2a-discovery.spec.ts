@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 
 /**
- * Verifies the /.well-known/agent.json A2A discovery endpoint.
+ * Verifies the A2A discovery endpoint: /.well-known/agent-card.json (A2A
+ * v1.0.0) and the pre-1.0 /.well-known/agent.json.
  *
  * Covers Gist 2, Fix 2:
  * - Samples WITHOUT A2A should return 404 (filter delegates to chain)
@@ -76,6 +77,18 @@ test.describe('A2A Discovery — spring-boot-a2a-agent', () => {
     const res = await fetch(`${server.baseUrl}/.well-known/agent.json`);
     const contentType = res.headers.get('content-type') ?? '';
     expect(contentType).toContain('application/json');
+  });
+
+  // A2A v1.0.0 §8.2 names /.well-known/agent-card.json; agent.json stays for
+  // pre-1.0 clients. AgentInterface.url must be absolute, so the served card
+  // resolves the endpoint path against the request.
+  test('serves the card at the v1.0 agent-card.json path with an absolute interface url', async () => {
+    const res = await fetch(`${server.baseUrl}/.well-known/agent-card.json`);
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.name).toBe('atmosphere-assistant');
+    expect(body.supportedInterfaces[0].url).toBe(`${server.baseUrl}/atmosphere/a2a`);
   });
 });
 
