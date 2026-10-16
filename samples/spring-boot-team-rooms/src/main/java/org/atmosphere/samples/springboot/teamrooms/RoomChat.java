@@ -75,7 +75,10 @@ public class RoomChat {
             org.atmosphere.samples.springboot.teamrooms.Message message) {
         // The client never decides which room it posted to — the path did.
         org.atmosphere.samples.springboot.teamrooms.Message stamped = message.stamped(room);
-        logger.info("[{}] {}: {}", stamped.room(), stamped.author(), stamped.text());
+        // Not the text: this runs before RedactingFilter, so the body here is the raw
+        // client input, secrets included. The log records who posted where, not what.
+        logger.info("[{}] {} posted {} chars", stamped.room(), stamped.author(),
+                stamped.text() == null ? 0 : stamped.text().length());
         return stamped;
     }
 
