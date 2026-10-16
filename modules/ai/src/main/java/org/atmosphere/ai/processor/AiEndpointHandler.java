@@ -1219,11 +1219,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
         session.setRunId(handle.runId());
-        if (roomBroadcast) {
-            // The room session belongs to the run: the run's end ends it too.
-            runExecutionHandle.whenDone().whenComplete((ignored, failure) ->
-                    endRoomSession(session, replayBuffer, failure));
-        }
         // Late-bind the tape run to the registry-minted identity so the taped
         // run joins the RunRegistry / EffectJournal runId (provenance). The
         // setRunId metadata frame above buffered pre-bind and is re-keyed here.
@@ -1271,8 +1266,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 } else {
                     session.stream(promptText);
                 }
-                runExecutionHandle.complete();
                 durableSuccess[0] = true;
+                endRunWithItsSession(session, replayBuffer, runExecutionHandle);
             } catch (Throwable t) {
                 // Throwable, not Exception: an Error the @Prompt path throws
                 // without reflection wrapping it must end the run too, or its
@@ -1336,56 +1331,27 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * The run of a {@code broadcastReply} turn ended (its {@code @Prompt}
-     * method returned or failed, or the run was cancelled): the session that
-     * broadcast it to the room is ended with the terminal frame the run's
-     * replay records, so the room and a reattached client see the same end.
-     * A session its turn already ended is left as it is, and so is one a
-     * model call still streams on (an {@code @Prompt} method that returned
-     * while a call it started on a thread of its own goes on): that call's
-     * terminal frame ends it. Without either, a room session is reaped by the
-     * idle sweep only.
+     * The {@code @Prompt} method returned: the run ends with its session. A
+     * session that already sent its terminal frame ends the run now, as
+     * before. One still open — the method returned leaving the reply to a
+     * model call streaming on a thread of its own, or to the callbacks of an
+     * asynchronous client — keeps the run going, live in the registry, until
+     * the session's own terminal frame: its replay records the frames the
+     * session still sends and ends with the one it ends with, and the run's
+     * prompter keeps its reattach grace meanwhile. The prompter gone for good
+     * (a leave, an expired grace), an operator's cancel or the idle sweep of
+     * the session ends it with the {@code cancelled} frame
+     * ({@link AiStreamingSession#promptReturnedOpen()}), so the run never
+     * outlives its prompter.
      */
-    private static void endRoomSession(AiStreamingSession session,
-                                       org.atmosphere.ai.resume.RunEventReplayBuffer replay,
-                                       Throwable failure) {
-        try {
-            if (session.isClosed() || session.isStreaming()) {
-                return;
-            }
-            // The registry records the run's end in the replay as well; whichever
-            // comes first is the end both carry, as the replay keeps the first.
-            var end = replay.terminal();
-            if (end.isEmpty()) {
-                if (failure == null) {
-                    session.complete();
-                } else {
-                    var cause = failure instanceof java.util.concurrent.CompletionException
-                            && failure.getCause() != null ? failure.getCause() : failure;
-                    session.error(org.atmosphere.ai.RunCancelledException.reasonOf(cause)
-                            .<Throwable>map(org.atmosphere.ai.RunCancelledException::new)
-                            .orElse(cause));
-                }
-                return;
-            }
-            var type = end.get().type();
-            var payload = end.get().payload();
-            if ("complete".equals(type)) {
-                if (payload == null || payload.isEmpty()) {
-                    session.complete();
-                } else {
-                    session.complete(payload);
-                }
-            } else if (org.atmosphere.ai.RunCancelledException.FRAME_TYPE.equals(type)) {
-                session.error(new org.atmosphere.ai.RunCancelledException(
-                        org.atmosphere.ai.RunCancelledException.Reason.fromWire(payload)
-                                .orElse(org.atmosphere.ai.RunCancelledException.Reason.CALLER)));
-            } else {
-                session.error(new org.atmosphere.ai.AiException(payload != null ? payload : "error"));
-            }
-        } catch (RuntimeException e) {
-            logger.warn("Could not end the room session {} with its run: {}", session.sessionId(), e.toString(), e);
+    private static void endRunWithItsSession(AiStreamingSession session,
+                                             org.atmosphere.ai.resume.RunEventReplayBuffer replay,
+                                             org.atmosphere.ai.ExecutionHandle.Settable run) {
+        if (!replay.isTerminated()) {
+            session.promptReturnedOpen();
         }
+        // The replay already holds the end, so the run's end records nothing more.
+        replay.whenTerminated().thenRun(run::complete);
     }
 
     /**

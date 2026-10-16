@@ -133,6 +133,56 @@ class RunEventCapturingSessionTest {
     }
 
     /**
+     * Two terminal calls racing (a disconnect ending a room run while its
+     * {@code @Prompt} completes it) are decided once, by the run: the frame
+     * the client is written is the end the replay recorded, whichever call
+     * recorded it, so the room and a reattached client see the same end.
+     */
+    @Test
+    void aTerminalCallThatLostTheRunsEndWritesTheEndTheRunRecorded() {
+        var buffer = new RunEventReplayBuffer();
+        var delegate = new CollectingSession();
+        var session = new RunEventCapturingSession(delegate, buffer);
+
+        session.send("partial");
+        buffer.terminate(org.atmosphere.ai.RunCancelledException.FRAME_TYPE,
+                org.atmosphere.ai.RunCancelledException.Reason.DISCONNECT.wire());
+        session.complete();
+
+        assertTrue(delegate.failure() instanceof org.atmosphere.ai.RunCancelledException cancelled
+                        && cancelled.reason() == org.atmosphere.ai.RunCancelledException.Reason.DISCONNECT,
+                "the client is written the cancelled end the run recorded, not complete: " + delegate.failure());
+        assertEquals("cancelled", buffer.snapshot().get(buffer.snapshot().size() - 1).type());
+    }
+
+    /** Only the first terminal call writes a terminal frame; a later one is dropped. */
+    @Test
+    void onlyTheFirstTerminalCallWritesATerminalFrame() {
+        var buffer = new RunEventReplayBuffer();
+        var writes = new java.util.concurrent.atomic.AtomicInteger();
+        var delegate = new CollectingSession();
+        var session = new RunEventCapturingSession(new org.atmosphere.ai.DelegatingStreamingSession(delegate) {
+            @Override
+            public void complete() {
+                writes.incrementAndGet();
+                super.complete();
+            }
+
+            @Override
+            public void error(Throwable t) {
+                writes.incrementAndGet();
+                super.error(t);
+            }
+        }, buffer);
+
+        session.error(new org.atmosphere.ai.RunCancelledException(
+                org.atmosphere.ai.RunCancelledException.Reason.DISCONNECT));
+        session.complete();
+
+        assertEquals(1, writes.get(), "one terminal frame reaches the delegate");
+    }
+
+    /**
      * Regression for the {@code handoff()} forwarding hotfix. The
      * default {@link org.atmosphere.ai.StreamingSession#handoff}
      * implementation throws {@code UnsupportedOperationException}; a

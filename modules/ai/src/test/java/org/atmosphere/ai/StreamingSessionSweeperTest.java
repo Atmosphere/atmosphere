@@ -241,6 +241,41 @@ class StreamingSessionSweeperTest {
         AiStreamingSession.removeAllForResource("ai-uuid-shared");
     }
 
+    /**
+     * A turn whose {@code @Prompt} method returned leaving its reply to other
+     * threads, which never end it, is ended by the idle sweep with the
+     * cancelled frame: its client receives it and the run's replay ends with
+     * it, rather than the streaming session being closed silently under it.
+     */
+    @Test
+    void theIdleSweepEndsATurnItsPromptLeftOpenWithTheCancelledFrame() {
+        System.setProperty(StreamingSessionSweeper.TTL_PROPERTY, String.valueOf(TTL_MS));
+        var resource = resource("ai-uuid-left-open");
+        var frames = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        when(resource.getBroadcaster().broadcast(any(), anySet())).thenAnswer(inv -> {
+            frames.add(String.valueOf(((org.atmosphere.cpr.RawMessage) inv.getArgument(0)).message()));
+            return null;
+        });
+        var leaf = new DefaultStreamingSession("sweep-left-open-" + System.nanoTime(), resource);
+        var replay = new org.atmosphere.ai.resume.RunEventReplayBuffer();
+        var session = new AiStreamingSession(
+                new org.atmosphere.ai.resume.RunEventCapturingSession(leaf, replay),
+                mock(AgentRuntime.class), "", null, List.of(), resource);
+        AiStreamingSession.registerActive(session);
+        session.send("partial");
+        session.promptReturnedOpen();
+
+        session.lastActivityMillis = System.currentTimeMillis() - (TTL_MS + 5_000L);
+        leaf.lastActivityMillis = System.currentTimeMillis() - (TTL_MS + 5_000L);
+        StreamingSessionSweeper.sweep();
+
+        var last = org.atmosphere.ai.filter.AiStreamMessage.parse(frames.get(frames.size() - 1));
+        assertTrue(last.isCancelled() && "sweep".equals(last.data()),
+                "the client is sent the cancelled frame of the sweep: " + frames);
+        assertEquals("cancelled", replay.terminal().orElseThrow().type(), "the run's replay ends with it");
+        assertEquals("sweep", replay.terminal().orElseThrow().payload());
+    }
+
     // ── Sweeper lifecycle + configuration ───────────────────────────────
 
     @Test

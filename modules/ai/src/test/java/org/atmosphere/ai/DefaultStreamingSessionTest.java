@@ -193,6 +193,17 @@ public class DefaultStreamingSessionTest {
         return new Terminal(frames, List.copyOf(appender.list));
     }
 
+    /** An error that comes after the session already completed did not end it, so the session has not errored. */
+    @Test
+    public void anErrorAfterTheSessionCompletedDoesNotMarkItErrored() {
+        var session = createSession("late-error-" + System.nanoTime());
+
+        session.complete();
+        session.error(new RunCancelledException(RunCancelledException.Reason.DISCONNECT));
+
+        assertFalse(session.hasErrored(), "the session ended with complete; the late error lost the close");
+    }
+
     @Test
     public void testResourceForSessionReturnsEmptyForUnknown() {
         assertTrue(DefaultStreamingSession.resourceForSession("nonexistent").isEmpty());

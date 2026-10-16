@@ -93,13 +93,14 @@ public final class DefaultStreamingSession implements StreamingSession {
     private final AtmosphereResource resource;
     private final boolean broadcastToRoom;
     /**
-     * The room a room session broadcasts to, read once when the session starts;
+     * The room a room session broadcasts to, read when the session starts and
+     * replaced by the room live under the same id once it is destroyed;
      * {@code null} for any other session, or when it could not be read. Held
      * rather than read from the resource on each frame: the resource recreates
      * a destroyed broadcaster under the same id when asked for it, and a
      * session that outlives its room must not bring the room back.
      */
-    private final Broadcaster room;
+    private volatile Broadcaster room;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
@@ -281,10 +282,11 @@ public final class DefaultStreamingSession implements StreamingSession {
      * {@code @AiEndpoint(broadcastReply = true)} turn, the run), and is closed
      * by its own terminal frame ({@code complete}, {@code error}, or the
      * {@code cancelled} frame of a run cut short, which a prompter that left
-     * or whose reattach grace expired gets), by the end of its run, which
-     * sends it the end the run's replay records, or, when neither comes, by
-     * the idle sweep ({@link #sweepExpired}). A room destroyed meanwhile is
-     * not recreated by it: its frames are dropped.</p>
+     * or whose reattach grace expired gets, its {@code @Prompt} method
+     * returned or not), or, when none comes, by the idle sweep
+     * ({@link #sweepExpired}). A room destroyed meanwhile is not recreated by
+     * it: its frames go to a room created again under the same id, and are
+     * dropped while there is none.</p>
      *
      * @param resourceUuid the atmosphere resource UUID (may be null; no-op)
      */
@@ -398,8 +400,10 @@ public final class DefaultStreamingSession implements StreamingSession {
 
     @Override
     public void error(Throwable t) {
-        errored.set(true);
         if (closed.compareAndSet(false, true)) {
+            // Only an error that ends the session marks it errored: one that
+            // comes after its end (a complete that won the close) did not.
+            errored.set(true);
             if (t instanceof RunCancelledException cancelled) {
                 // A cut-short run is not a failure: its one terminal frame is
                 // the cancelled frame naming why.
@@ -549,6 +553,33 @@ public final class DefaultStreamingSession implements StreamingSession {
             SESSION_RESOURCES.remove(sessionId);
             SESSION_INSTANCES.remove(sessionId);
         }
+    }
+
+    /**
+     * The room this session broadcasts to: the one it started with while it
+     * lives, else the room live under the same id (destroyed by an empty- or
+     * idle-destroy lifecycle policy and created again by a member joining),
+     * looked up without creating one; {@code null} when there is none.
+     */
+    private Broadcaster liveRoom() {
+        var current = room;
+        if (current == null || !current.isDestroyed()) {
+            return current;
+        }
+        Broadcaster replacement;
+        try {
+            var factory = resource.getAtmosphereConfig().getBroadcasterFactory();
+            replacement = factory != null ? factory.lookup(current.getID(), false) : null;
+        } catch (RuntimeException e) {
+            logger.debug("Unable to look up the room {} of session {}", current.getID(), sessionId, e);
+            return null;
+        }
+        if (replacement == null || replacement.isDestroyed()) {
+            return null;
+        }
+        room = replacement;
+        installRoom(replacement, resource);
+        return replacement;
     }
 
     private static Broadcaster roomOf(AtmosphereResource resource) {
@@ -737,15 +768,17 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // to one @Prompt handler upstream, so the model ran exactly once.
                 // A frame of a run carries the place of its run event in the run,
                 // for the long-polling members the room keeps it for.
-                if (room == null || room.isDestroyed()) {
-                    // The room is gone (destroyed once empty): nobody is left to
-                    // receive the frame, and asking the resource for its
-                    // broadcaster would recreate the room under the same id.
+                var target = liveRoom();
+                if (target == null) {
+                    // The room is gone (destroyed once empty) and none was
+                    // created again under its id: nobody is left to receive the
+                    // frame, and asking the resource for its broadcaster would
+                    // recreate the room under the same id.
                     logger.debug("Dropping a frame of room session {}: its room is gone", sessionId);
                     return;
                 }
                 var position = org.atmosphere.ai.resume.RunEventCapturingSession.positionOfFrameBeingWritten(this);
-                room.broadcast(position != null
+                target.broadcast(position != null
                         ? new LongPollingRoomReplies.RunFrame(json, position)
                         : new RawMessage(json));
             } else {

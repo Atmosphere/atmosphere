@@ -233,9 +233,12 @@ public class AiStreamingSession implements StreamingSession {
     private final java.util.concurrent.atomic.AtomicBoolean cancelPending =
             new java.util.concurrent.atomic.AtomicBoolean();
 
-    /** Number of {@link #stream(String, List)} calls in progress on this session. */
-    private final java.util.concurrent.atomic.AtomicInteger streamsInProgress =
-            new java.util.concurrent.atomic.AtomicInteger();
+    /**
+     * Set once the {@code @Prompt} method of this session's turn returned with
+     * the session still open, its reply left to other threads
+     * ({@link #promptReturnedOpen()}).
+     */
+    private volatile boolean promptReturnedOpen;
 
     /** Message of a client that disconnected while its model call was in flight. */
     public static final String CANCELLED_BY_DISCONNECT = RunCancelledException.Reason.DISCONNECT.message();
@@ -583,15 +586,20 @@ public class AiStreamingSession implements StreamingSession {
      * {@code complete} the runtime sends on a cancel. A call that already
      * finished is not cut short, and its turn ends as it did.
      *
-     * <p>A session that broadcasts its turn to a room
-     * ({@link StreamingSessions#startRoomBroadcast}) whose prompter is gone
+     * <p>With no model call in flight, as when the {@code @Prompt} method
+     * writes the reply itself or returned leaving it to other threads, the
+     * turn is ended here with that {@code cancelled} frame when nothing else
+     * would end it: for a session that broadcasts its turn to a room
+     * ({@link StreamingSessions#startRoomBroadcast}), and for any session
+     * whose {@code @Prompt} method returned with the session still open
+     * ({@link #promptReturnedOpen()}), when its prompter is gone
      * ({@link RunCancelledException.Reason#DISCONNECT}: it left, or its grace
-     * expired) with no model call in flight, as when the {@code @Prompt}
-     * method writes the reply itself, is ended here with that
-     * {@code cancelled} frame: the room and the run's replay are told the run
-     * was cut short, the session is closed, and what the {@code @Prompt}
-     * method sends after it is dropped. A model call in flight ends the turn
-     * with that frame itself.</p>
+     * expired), an operator cancelled the turn
+     * ({@link RunCancelledException.Reason#OPERATOR}), or the idle sweep reaps
+     * the session ({@link RunCancelledException.Reason#SWEEP}). The room, the
+     * client and the run's replay are told the run was cut short, the session
+     * is closed, and what is sent on it after that is dropped. A model call in
+     * flight ends the turn with that frame itself.</p>
      *
      * @param reason why the call is cancelled
      */
@@ -616,31 +624,60 @@ public class AiStreamingSession implements StreamingSession {
             logger.debug("Disconnect cancelled {} pending approval(s) for resource {}",
                     cancelledApprovals, resource != null ? resource.uuid() : "null");
         }
-        if (!inFlight && reason == RunCancelledException.Reason.DISCONNECT && broadcastsToRoom() && !isClosed()) {
-            // No model call to end the turn: the room run of a prompter that
-            // is gone ends here, as the call's cancel would have ended it.
-            error(new RunCancelledException(reason));
+        if (!inFlight && endsTurnOnCancel(reason) && (promptReturnedOpen || broadcastsToRoom())) {
+            endCancelledTurn(reason);
         }
+    }
+
+    /**
+     * End a turn no model call is left to end with the {@code cancelled} frame
+     * of {@code reason}, unless it already ended or the cancel is the caller's
+     * own ({@link RunCancelledException.Reason#CALLER}, which only cuts a call
+     * short). The reason is recorded first, so a {@code complete()} racing
+     * this on the {@code @Prompt}'s thread ends the turn as cancelled too; the
+     * run's capture writes one terminal frame either way.
+     */
+    private void endCancelledTurn(RunCancelledException.Reason reason) {
+        if (!endsTurnOnCancel(reason)) {
+            return;
+        }
+        cancelledReason.compareAndSet(null, reason);
+        error(new RunCancelledException(reason));
+    }
+
+    /** Whether a cancel for {@code reason} ends a turn no model call is left to end. */
+    private boolean endsTurnOnCancel(RunCancelledException.Reason reason) {
+        return reason != null && reason != RunCancelledException.Reason.CALLER && !terminated.get();
     }
 
     /** Whether this session's turn is broadcast to a room rather than to its prompter only. */
     private boolean broadcastsToRoom() {
-        return DefaultStreamingSession.deliveryForSession(sessionId())
+        var id = sessionId();
+        return id != null && DefaultStreamingSession.deliveryForSession(id)
                 .map(DefaultStreamingSession.Delivery::toRoom)
                 .orElse(false);
     }
 
     /**
-     * Whether a {@link #stream(String)} call is in progress on this session: a
-     * model call it started has not ended yet. The {@code @AiEndpoint} handler
-     * leaves the session of a room run whose {@code @Prompt} method returned
-     * while one streams on (on a thread of its own) to that call's terminal
-     * frame.
-     *
-     * @return {@code true} while a stream call runs
+     * The {@code @AiEndpoint} handler reports that the {@code @Prompt} method
+     * of this session's turn returned with the session still open: what it
+     * started on other threads (a model call streaming on a thread of its own,
+     * the callbacks of an asynchronous client) writes the rest of the reply,
+     * and the run goes on until the session's own terminal frame. A
+     * {@link #cancelInflight(RunCancelledException.Reason)} for the prompter
+     * gone, an operator or the idle sweep that finds no model call in flight
+     * then ends the turn with the {@code cancelled} frame, so the run does not
+     * outlive its prompter.
      */
-    public boolean isStreaming() {
-        return streamsInProgress.get() > 0;
+    public void promptReturnedOpen() {
+        promptReturnedOpen = true;
+        // A prompter that went for good, an operator or the sweep while the
+        // method still ran (a turn not broadcast to a room is not ended then)
+        // ends it now: nothing would call for its end again.
+        var current = this.currentHandle;
+        if (cancelPending.get() && (current == null || current.isDone())) {
+            endCancelledTurn(pendingCancelReason.get());
+        }
     }
 
     /**
@@ -1054,15 +1091,6 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void stream(String message, List<Content> inputParts) {
-        streamsInProgress.incrementAndGet();
-        try {
-            streamTurn(message, inputParts);
-        } finally {
-            streamsInProgress.decrementAndGet();
-        }
-    }
-
-    private void streamTurn(String message, List<Content> inputParts) {
         // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
         // By the time stream() is called, all coordinator/agent work is done.
         var hook = preStreamHook.getAndSet(null);

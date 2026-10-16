@@ -246,9 +246,12 @@ public final class RunRegistry {
     /**
      * Close the replay buffer of a run whose execution ended, so a reattached
      * client waiting on its live subscription gets a terminal frame even when
-     * the run never emitted one: an {@code @Prompt} that returned without
-     * completing ends in {@code complete}, one that failed in {@code error},
-     * one that was cancelled in {@code cancelled}.
+     * the run never emitted one: an execution that ended normally ends in
+     * {@code complete}, one that failed in {@code error}, one that was
+     * cancelled in {@code cancelled}. The {@code @AiEndpoint} handler ends a
+     * run only once its session sent its terminal frame, which the replay
+     * already holds, so this records nothing more for it: the replay ends with
+     * the frame the session ended with.
      */
     private static void endRun(AgentResumeHandle handle, Throwable failure) {
         if (failure == null) {

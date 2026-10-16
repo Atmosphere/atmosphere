@@ -111,8 +111,11 @@ public final class StreamingSessionSweeper {
     static void sweep() {
         try {
             var ttl = ttlMs();
-            var reaped = DefaultStreamingSession.sweepExpired(ttl)
-                    + AiStreamingSession.sweepExpired(ttl);
+            // The AI sessions first: a reaped turn the idle sweep ends with
+            // its cancelled frame still reaches its client, and the room of a
+            // room run, through the streaming session it closes.
+            var reaped = AiStreamingSession.sweepExpired(ttl)
+                    + DefaultStreamingSession.sweepExpired(ttl);
             LongPollingReplies.sweepExpired();
             if (reaped > 0) {
                 logger.info("Reaped {} expired AI streaming session(s) idle longer than {} ms", reaped, ttl);

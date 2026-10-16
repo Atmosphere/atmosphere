@@ -92,11 +92,11 @@ public final class StreamingSessions {
      * the room, so the prompter's connection going away does not close it. It
      * ends at its terminal frame ({@code complete}, {@code error}, or the
      * {@code cancelled} frame of a run cut short, as when its prompter left or
-     * did not come back within the reattach grace), at the end of the
-     * {@code @AiEndpoint} run it broadcasts, which sends it the end the run's
-     * replay records, or, when neither comes, at the idle sweep. A room
-     * destroyed before then is not recreated by the session; its frames are
-     * dropped.</p>
+     * did not come back within the reattach grace, also after the
+     * {@code @Prompt} method returned leaving the session open), or, when none
+     * comes, at the idle sweep. A room destroyed before then is not recreated
+     * by the session: its frames go to a room created again under the same id,
+     * and are dropped while there is none.</p>
      *
      * @param resource the originating atmosphere resource; its broadcaster is
      *                 the room the reply fans out to

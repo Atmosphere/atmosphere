@@ -67,11 +67,13 @@ import java.util.function.Consumer;
  * delivered twice. Listeners are notified outside the lock, are dropped when
  * they throw, and are released once a terminal {@code complete} /
  * {@code error} / {@code cancelled} event is captured. A run that ends without capturing one (its
- * {@code @Prompt} returned without completing, threw an {@link Error}, timed
- * out after its client left, or was removed from the {@link RunRegistry}) is
- * closed by {@link #terminate}, which the registry calls on each of those
- * paths, so every live listener receives a terminal frame and is released
- * (Correctness Invariant #2). At most {@link #MAX_SUBSCRIBERS} are held per run
+ * execution threw an {@link Error}, timed out after its client left, or was
+ * removed from the {@link RunRegistry}) is closed by {@link #terminate},
+ * which the registry calls on each of those paths, so every live listener
+ * receives a terminal frame and is released (Correctness Invariant #2). An
+ * {@code @AiEndpoint} run whose {@code @Prompt} method returned with its
+ * session still open is not ended then: it ends with the terminal frame its
+ * session sends ({@link #whenTerminated}). At most {@link #MAX_SUBSCRIBERS} are held per run
  * (Correctness Invariant #3).
  *
  * <p>A long-polling poll waiting for the run's next event listens through
@@ -267,6 +269,8 @@ public final class RunEventReplayBuffer {
     private boolean terminated;
     /** Guarded by {@code buffer}: the terminal event that ended the run, or {@code null} while it runs. */
     private RunEvent terminal;
+    /** Completed with the terminal event once the run ended, after its listeners were handed it. */
+    private final java.util.concurrent.CompletableFuture<RunEvent> ended = new java.util.concurrent.CompletableFuture<>();
     /**
      * Guarded by {@code buffer}: consumer -> sequence of the last event handed
      * to it, for the consumers a {@link #claimNew} or {@link #claim} handed
@@ -538,6 +542,18 @@ public final class RunEventReplayBuffer {
         }
     }
 
+    /**
+     * Completes with the terminal event that ended the run, once its live
+     * listeners were handed it; already complete when the run ended. Takes
+     * none of the {@link #MAX_SUBSCRIBERS} places, and a run that ends
+     * releases what was chained on it.
+     *
+     * @return a stage completed with the run's terminal event
+     */
+    public java.util.concurrent.CompletionStage<RunEvent> whenTerminated() {
+        return ended.minimalCompletionStage();
+    }
+
     private RunEvent append(String type, String payload, boolean onlyIfOpen) {
         RunEvent event;
         List<Consumer<RunEvent>> listeners;
@@ -557,7 +573,9 @@ public final class RunEventReplayBuffer {
             listeners = listeners();
             if (isTerminal(type)) {
                 terminated = true;
-                terminal = event;
+                if (terminal == null) {
+                    terminal = event;
+                }
                 subscribers.clear();
                 waitingPolls.clear();
             }
@@ -573,6 +591,10 @@ public final class RunEventReplayBuffer {
                         event.sequence(), describe(), e.toString());
                 unsubscribe(listener);
             }
+        }
+        if (isTerminal(type)) {
+            // The first terminal event is the run's end; a later one changes nothing.
+            ended.complete(terminal().orElse(event));
         }
         return event;
     }
@@ -684,7 +706,9 @@ public final class RunEventReplayBuffer {
                 maxSeq = Math.max(maxSeq, event.sequence());
                 if (isTerminal(event.type())) {
                     terminated = true;
-                    terminal = event;
+                    if (terminal == null) {
+                        terminal = event;
+                    }
                 }
             }
             while (buffer.size() > capacity) {
@@ -692,6 +716,7 @@ public final class RunEventReplayBuffer {
             }
             nextSequence.set(maxSeq + 1);
         }
+        terminal().ifPresent(ended::complete);
     }
 
     private void mirrorToJournal(RunEvent event) {

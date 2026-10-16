@@ -16,12 +16,14 @@
 package org.atmosphere.ai.resume;
 
 import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.AiException;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.DelegatingStreamingSession;
 import org.atmosphere.ai.RunCancelledException;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -48,6 +50,14 @@ import java.util.function.Consumer;
  * can reconstruct the complete dialog state, including terminal
  * markers.</p>
  *
+ * <p>The run's end is decided once, by the replay buffer: the first terminal
+ * event it records is the run's end, and the delegate is written exactly one
+ * terminal frame, the one standing for that end. A terminal call made after
+ * the run already ended (a timeout recorded its end first, or a disconnect
+ * ending the run raced the {@code @Prompt} completing it) writes the end the
+ * run recorded, so the client and a reattached client see the same end;
+ * every later terminal call is dropped.</p>
+ *
  * <p>While the delegate writes the frame of a captured event, the event's
  * place in the run is {@link #positionOfFrameBeingWritten(StreamingSession)}
  * for the delegate, on the writing thread: a long-polling reply records the
@@ -72,6 +82,8 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
     }
 
     private final RunEventReplayBuffer buffer;
+    /** Set by the terminal call that writes the delegate its one terminal frame. */
+    private final AtomicBoolean terminalWritten = new AtomicBoolean();
 
     public RunEventCapturingSession(StreamingSession delegate, RunEventReplayBuffer buffer) {
         super(delegate);
@@ -123,10 +135,14 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
                     return;
                 }
             }
-            case AiEvent.Complete complete ->
-                    position = terminate("complete", complete.summary() != null ? complete.summary() : "");
-            case AiEvent.Error error ->
-                    position = terminate("error", error.message() != null ? error.message() : "error");
+            case AiEvent.Complete complete -> {
+                end("complete", complete.summary() != null ? complete.summary() : "", s -> s.emit(event));
+                return;
+            }
+            case AiEvent.Error error -> {
+                end("error", error.message() != null ? error.message() : "error", s -> s.emit(event));
+                return;
+            }
             default -> {
                 // Not a text or terminal frame: forwarded, not captured.
             }
@@ -159,14 +175,45 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
     }
 
     /**
-     * End the run with a terminal event unless it already ended; either way, the
-     * place in the run of the end the client's terminal frame stands for.
+     * End the run with the terminal event {@code type} unless it already ended,
+     * and write the delegate the run's one terminal frame unless it was written
+     * already: {@code frame} when this call ended the run, or when the run
+     * recorded an end of the same type; otherwise the frame of the end the run
+     * recorded, so the client is written the end its replay ends with.
      */
-    private RunEventReplayBuffer.Position terminate(String type, String payload) {
+    private void end(String type, String payload, Consumer<StreamingSession> frame) {
         var event = buffer.terminateEvent(type, payload);
-        // Already ended (a timeout recorded its end first): the frame written now stands for that end.
-        var sequence = event != null ? event.sequence() : buffer.lastSequence();
-        return sequence >= 0 ? new RunEventReplayBuffer.Position(buffer, sequence) : null;
+        if (!terminalWritten.compareAndSet(false, true)) {
+            // A terminal frame was written already: the session ended once.
+            return;
+        }
+        if (event != null) {
+            writing(new RunEventReplayBuffer.Position(buffer, event.sequence()), frame);
+            return;
+        }
+        // Already ended (a timeout recorded its end first, or a racing terminal call did).
+        var recorded = buffer.terminal().orElse(null);
+        if (recorded == null) {
+            var sequence = buffer.lastSequence();
+            writing(sequence >= 0 ? new RunEventReplayBuffer.Position(buffer, sequence) : null, frame);
+            return;
+        }
+        writing(new RunEventReplayBuffer.Position(buffer, recorded.sequence()),
+                type.equals(recorded.type()) ? frame : frameOf(recorded));
+    }
+
+    /** The terminal frame standing for the run's recorded end {@code end}. */
+    private static Consumer<StreamingSession> frameOf(RunEvent end) {
+        var payload = end.payload();
+        if ("complete".equals(end.type())) {
+            return payload == null || payload.isEmpty() ? StreamingSession::complete : s -> s.complete(payload);
+        }
+        if (RunCancelledException.FRAME_TYPE.equals(end.type())) {
+            var reason = RunCancelledException.Reason.fromWire(payload).orElse(RunCancelledException.Reason.CALLER);
+            return s -> s.error(new RunCancelledException(reason));
+        }
+        var message = payload != null && !payload.isEmpty() ? payload : "error";
+        return s -> s.error(new AiException(message));
     }
 
     /**
@@ -181,8 +228,8 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      * session would only log a WARN per remaining chunk.</p>
      *
      * <p>A text sent after the run ended (a {@code @Prompt} that writes on
-     * after its room run was cancelled) is not recorded: the replay ends with
-     * the terminal frame its clients were sent.</p>
+     * after its run was cancelled) is not recorded: the replay ends with the
+     * terminal frame its clients were sent.</p>
      *
      * @return the captured event's place in the run, or {@code null} for an
      * empty text or a run that already ended
@@ -195,30 +242,29 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         return null;
     }
 
-    // Terminal events go through terminate: the first one ends the run, so a
-    // run that already timed out or completed does not record a second.
+    // Terminal events go through end: the first one ends the run, so a run
+    // that already timed out or completed does not record a second, and the
+    // delegate is written one terminal frame, the one of the run's end.
 
     @Override
     public void complete() {
-        writing(terminate("complete", ""), StreamingSession::complete);
+        end("complete", "", StreamingSession::complete);
     }
 
     @Override
     public void complete(String summary) {
-        writing(terminate("complete", summary != null ? summary : ""), s -> s.complete(summary));
+        end("complete", summary != null ? summary : "", s -> s.complete(summary));
     }
 
     @Override
     public void error(Throwable t) {
-        RunEventReplayBuffer.Position position;
         if (t instanceof RunCancelledException cancelled) {
             // The run was cut short: a reattached client gets the same
             // cancelled frame the live client got.
-            position = terminate(RunCancelledException.FRAME_TYPE, cancelled.reason().wire());
+            end(RunCancelledException.FRAME_TYPE, cancelled.reason().wire(), s -> s.error(t));
         } else {
-            position = terminate("error", t == null ? "error"
-                    : t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
+            end("error", t == null ? "error"
+                    : t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName(), s -> s.error(t));
         }
-        writing(position, s -> s.error(t));
     }
 }
