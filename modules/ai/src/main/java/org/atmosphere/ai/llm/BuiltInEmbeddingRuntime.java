@@ -189,11 +189,12 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
     }
 
     /**
-     * Shut down the HTTP client this instance built: a request already sent
+     * Shut down the HTTP client this instance built when the
+     * {@link AiEnvironment} that loaded it closes: a request already sent
      * completes, a later one fails. Idempotent.
      */
     @Override
-    public void close() {
+    public void onEnvironmentClose() {
         HttpClient client;
         synchronized (clientLock) {
             if (closed) {
@@ -210,7 +211,7 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
     /**
      * The HTTP client of this instance, built on first use.
      *
-     * @throws IllegalStateException once {@link #close()} ran
+     * @throws IllegalStateException once {@link #onEnvironmentClose()} ran
      */
     HttpClient httpClient() {
         synchronized (clientLock) {

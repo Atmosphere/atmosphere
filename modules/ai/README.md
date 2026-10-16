@@ -689,19 +689,17 @@ framework's destroy closes it. Closing
 one drops its runtime instances and shuts down the HTTP clients of the LLM settings it built itself,
 also once a client was installed over them (the starters' routing client wraps the built one), but not
 a client the application installed or gave it, nor one the process default still reaches. It also
-closes (`AgentRuntime.close()`, `EmbeddingRuntime.close()`, no-ops by default) the runtime and
-embedding-runtime instances it loaded, including ones a reset dropped that are still in use: the
-built-in embedding runtime shuts down its HTTP client, and the Anthropic, Cohere and CrewAI runtimes
-the HTTP client of the native client they built from the settings. A request already sent finishes;
-a later one fails. A native client or embedding model the application bound or offered is never
-closed, nor is a runtime instance the application created itself. The other applications are
-untouched. A runtime or embedding-runtime implementation written before `close()` was on those
-interfaces: one with its own `public void close()` is now called by every environment's registry,
-the process default's included, right away on each instance it loads and does not keep (unavailable,
-or, for an agent runtime, not the one `atmosphere.ai.runtime` selects) and, for each instance it
-handed out, when the environment closes, so a `close()` that releases a static or shared resource
-must stop doing so; one declaring `close() throws Exception` (also `AutoCloseable`) must drop the
-`throws` clause to compile.
+calls `onEnvironmentClose()` (`AgentRuntime`, `EmbeddingRuntime`, a no-op by default), once, on the
+runtime and embedding-runtime instances it loaded, including ones a reset dropped that are still in
+use, and right away on an instance it loads and does not keep (unavailable, or, for an agent runtime,
+not the one `atmosphere.ai.runtime` selects): the built-in embedding runtime shuts down its HTTP
+client, and the Anthropic, Cohere and CrewAI runtimes the HTTP client of the native client they built
+from the settings. A request already sent finishes; a later one fails. A native client or embedding
+model the application bound or offered is never closed, nor is a runtime instance the application
+created itself. The other applications are untouched. The hook is source- and binary-compatible with
+a runtime or embedding-runtime implementation written before it: that implementation inherits the
+no-op, and a `close()` it declares itself, with any `throws` clause (an `AutoCloseable` or
+`Closeable` one), compiles unchanged and is never called by the environment.
 Framework code reads it with
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 

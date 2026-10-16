@@ -39,8 +39,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Closing an {@link AiEnvironment} finishes every step even when a runtime's
  * close fails (Correctness Invariant 2): the environment is marked closed
  * before the first step, so a close that stopped half way could never be
- * retried. A runtime compiled before {@code AgentRuntime.close()} existed may
- * throw a checked exception from it, and any close may throw an {@link Error}.
+ * retried. A runtime written in a language without checked exceptions
+ * (Kotlin) may throw a checked one from {@code AgentRuntime.onEnvironmentClose()},
+ * and any runtime may throw an {@link Error}.
  */
 // Resets the static AI facade (AiConfig) between tests: deprecated for
 // framework code, kept for code that runs with no application.
@@ -96,17 +97,17 @@ class AiEnvironmentCloseFailureTest {
     }
 
     @Test
-    void aCheckedExceptionFromARuntimeCloseDoesNotStopTheClose() throws Exception {
-        var built = application(new IOException("old SPI close() throws Exception"));
+    void aCheckedExceptionFromARuntimeHookDoesNotStopTheClose() throws Exception {
+        var built = application(new IOException("a Kotlin onEnvironmentClose() throws a checked exception"));
 
-        assertDoesNotThrow(application::close, "a failed runtime close is logged");
+        assertDoesNotThrow(application::close, "a failed runtime hook is logged");
 
         assertEveryStepRan(built);
     }
 
     @Test
-    void anErrorFromARuntimeCloseIsRethrownOnceEveryStepRan() throws Exception {
-        var failure = new Error("runtime close failed");
+    void anErrorFromARuntimeHookIsRethrownOnceEveryStepRan() throws Exception {
+        var failure = new Error("runtime hook failed");
         var built = application(failure);
 
         var thrown = assertThrows(Error.class, application::close);

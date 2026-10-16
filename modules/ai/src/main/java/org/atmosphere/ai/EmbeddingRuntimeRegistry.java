@@ -36,9 +36,10 @@ import java.util.WeakHashMap;
  * was not ready yet (no settings) is looked for again on the next call.
  *
  * <p>The registry owns the instances it loads: an instance it does not keep
- * (unavailable) is {@link EmbeddingRuntime#close() closed} right away, and
- * every instance it handed out, including the ones a {@link #reset()} dropped
- * that are still in use, is closed when the environment closes. Once the
+ * (unavailable) gets {@link EmbeddingRuntime#onEnvironmentClose()} right away,
+ * and every instance it handed out, including the ones a {@link #reset()}
+ * dropped that are still in use, gets it when the environment closes, once. A
+ * {@code close()} an implementation declares itself is never called. Once the
  * environment is closed, nothing is loaded any more.</p>
  */
 public final class EmbeddingRuntimeRegistry {
@@ -120,12 +121,12 @@ public final class EmbeddingRuntimeRegistry {
                         logger.debug("EmbeddingRuntime discovered: {} (priority {})",
                                 runtime.name(), runtime.priority());
                     } else {
-                        close(runtime);
+                        notifyEnvironmentClose(runtime);
                     }
                 } catch (Exception e) {
                     logger.warn("EmbeddingRuntime failed availability check: {}",
                             e.getMessage());
-                    close(runtime);
+                    notifyEnvironmentClose(runtime);
                 }
             }
         } catch (ServiceConfigurationError e) {
@@ -145,10 +146,11 @@ public final class EmbeddingRuntimeRegistry {
     }
 
     /**
-     * Drops the instances when the environment closes and closes every one
-     * this registry handed out, once. Runs after the environment is marked
-     * closed, so a resolution racing with it either finished first (and its
-     * instances are closed here) or loads nothing.
+     * Drops the instances when the environment closes and calls
+     * {@link EmbeddingRuntime#onEnvironmentClose()} on every one this registry
+     * handed out, once. Runs after the environment is marked closed, so a
+     * resolution racing with it either finished first (and its instances are
+     * notified here) or loads nothing.
      */
     void clear() {
         List<EmbeddingRuntime> toClose;
@@ -157,11 +159,11 @@ public final class EmbeddingRuntimeRegistry {
             toClose = List.copyOf(handedOut);
             handedOut.clear();
         }
-        // close() logs a failed close; an Error still lets the others close.
+        // A failed hook is logged; an Error still lets the others run.
         Error failure = null;
         for (var runtime : toClose) {
             try {
-                close(runtime);
+                notifyEnvironmentClose(runtime);
             } catch (Error e) {
                 if (failure == null) {
                     failure = e;
@@ -175,14 +177,16 @@ public final class EmbeddingRuntimeRegistry {
         }
     }
 
-    private static void close(EmbeddingRuntime runtime) {
+    private static void notifyEnvironmentClose(EmbeddingRuntime runtime) {
         try {
-            runtime.close();
+            runtime.onEnvironmentClose();
         } catch (Exception | LinkageError e) {
-            // Exception: a runtime compiled before close() was on the SPI may
-            // throw a checked one from its own close(); LinkageError: one
-            // compiled against another version of a class close() needs.
-            logger.warn("EmbeddingRuntime {} failed to close: {}", runtime.name(), e.getMessage(), e);
+            // Exception: an implementation in a language without checked
+            // exceptions (Kotlin) may throw a checked one from the hook;
+            // LinkageError: one compiled against another version of a class
+            // the hook needs.
+            logger.warn("EmbeddingRuntime {} failed to release its resources on environment close: {}",
+                    runtime.name(), e.getMessage(), e);
         }
     }
 }

@@ -40,18 +40,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     private volatile C nativeClient;
     /**
      * Whether {@link #nativeClient} is the one {@link #configure} had
-     * {@link #createNativeClient} build, which {@link #close()} releases,
-     * rather than one handed to {@link #setNativeClient}. Written with
+     * {@link #createNativeClient} build, which {@link #onEnvironmentClose()}
+     * releases, rather than one handed to {@link #setNativeClient}. Written with
      * {@link #nativeClient} under {@link #clientLock}.
      */
     private volatile boolean nativeClientCreated;
     /**
-     * Guards the installation of {@link #nativeClient} against {@link #close()};
-     * never held while {@link #createNativeClient} runs (it may block on the
-     * network).
+     * Guards the installation of {@link #nativeClient} against
+     * {@link #onEnvironmentClose()}; never held while
+     * {@link #createNativeClient} runs (it may block on the network).
      */
     private final Object clientLock = new Object();
-    /** Set once by {@link #close()}, under {@link #clientLock}. */
+    /** Set once by {@link #onEnvironmentClose()}, under {@link #clientLock}. */
     private volatile boolean closed;
     /**
      * Per-agent clients for agents with {@link AiConfig#agentScoped scoped}
@@ -111,7 +111,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     /**
      * Sets the native client instance. A client set here is the caller's:
-     * {@link #close()} does not release it.
+     * {@link #onEnvironmentClose()} does not release it.
      */
     protected void setNativeClient(C client) {
         synchronized (clientLock) {
@@ -174,9 +174,10 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     /**
      * Release a client {@link #createNativeClient} returned to this instance
      * ({@link #configure}, or an agent's scoped settings), called once for
-     * each by {@link #close()}. Override it when {@code createNativeClient}
-     * builds the client and the client holds resources (an HTTP client, a
-     * connection pool), letting a request already sent finish. A runtime
+     * each by {@link #onEnvironmentClose()}. Override it when
+     * {@code createNativeClient} builds the client and the client holds
+     * resources (an HTTP client, a connection pool), letting a request
+     * already sent finish. A runtime
      * whose {@code createNativeClient} returns a client the application bound
      * keeps the default, which does nothing: that client is the application's.
      * A failure is logged and does not stop the other clients from closing.
@@ -187,17 +188,20 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
-     * Release the clients {@link #createNativeClient} built for this instance
-     * through {@link #closeNativeClient}, once. A client set with
+     * Called when the {@link AiEnvironment} that loaded this instance closes
+     * (or right away when it does not keep it): release the clients
+     * {@link #createNativeClient} built for this instance through
+     * {@link #closeNativeClient}, once. A client set with
      * {@link #setNativeClient} or {@link #configureNativeClient} is left
      * alone. Afterwards this instance builds no new client and drops the one
      * it built: a dispatch that would need one fails with an
      * {@link IllegalStateException}, one that uses a client set by the
      * application still runs. A client being built when it runs is closed
-     * once built. It does not wait for that build.
+     * once built. It does not wait for that build. A subclass overriding it
+     * calls {@code super.onEnvironmentClose()}.
      */
     @Override
-    public void close() {
+    public void onEnvironmentClose() {
         C created;
         synchronized (clientLock) {
             if (closed) {
@@ -236,7 +240,8 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
-     * @return whether {@link #close()} ran: this instance builds no new client
+     * @return whether {@link #onEnvironmentClose()} ran: this instance builds no
+     *         new client
      */
     protected boolean isRuntimeClosed() {
         return closed;
@@ -461,9 +466,10 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     /**
      * Build the native client with {@link #createNativeClient} unless one is
-     * set; {@link #close()} releases a client built here. The client is built
-     * outside any lock: when another call installed one first, or
-     * {@link #close()} ran meanwhile, the one built here is closed.
+     * set; {@link #onEnvironmentClose()} releases a client built here. The
+     * client is built outside any lock: when another call installed one
+     * first, or {@link #onEnvironmentClose()} ran meanwhile, the one built
+     * here is closed.
      *
      * @throws IllegalStateException when this instance is closed and has no client
      */
@@ -604,7 +610,8 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                     existing != null && existing.settings() == scopedSettings
                             ? existing
                             : new ScopedClient(scopedSettings, createNativeClient(scopedSettings)));
-            // close() ran while the client was built: it may have missed it.
+            // onEnvironmentClose() ran while the client was built: it may have
+            // missed it.
             if (closed) {
                 if (agentClients.remove(agentId, scoped)) {
                     closeCreated(scoped.client());

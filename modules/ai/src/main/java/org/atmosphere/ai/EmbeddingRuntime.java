@@ -53,32 +53,26 @@ public interface EmbeddingRuntime {
     }
 
     /**
-     * Release what this instance created for itself, such as the HTTP client
-     * of {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}. The
-     * {@link AiEnvironment} that loaded the instance calls it when it closes,
-     * and right away on an instance it loaded but does not keep (an unavailable
-     * one). A request already sent should be allowed to finish; a later one
-     * may fail. It must leave alone what the instance did not create: an
-     * embedding model the application bound ({@link AiEnvironment#bindClient})
-     * or offered, and anything shared with another instance. A provider that
-     * hands the same instance to several {@code ServiceLoader} lookups keeps
-     * the default, which does nothing. Calling it again does nothing.
+     * Called once when the {@link AiEnvironment} that loaded this instance
+     * closes, and right away on an instance it loaded but does not keep (an
+     * unavailable one). Release only what this instance created, such as the
+     * HTTP client of {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}; a
+     * request already sent should be allowed to finish, a later one may fail.
+     * Leave alone what the instance did not create: an embedding model the
+     * application bound ({@link AiEnvironment#bindClient}) or offered, and
+     * anything shared with another instance. A provider that hands the same
+     * instance to several {@code ServiceLoader} lookups keeps the default,
+     * which does nothing. A runtime instance the application created itself
+     * is never called.
      *
-     * <p>Compatibility with an implementation written before this method
-     * existed: one that declares its own {@code public void close()} (to
-     * release its resources itself, say) is now called by the environment
-     * without asking, on every resolution of every environment, the process
-     * default included, for each instance loaded and not kept, and on
-     * environment close for each instance handed out. A {@code close()} that
-     * releases something static or shared with other instances must move that
-     * release out of {@code close()}. One that declares
-     * {@code close() throws Exception} (an implementation that is also
-     * {@link AutoCloseable}) no longer compiles against this interface until
-     * the {@code throws} clause is dropped; already compiled, a checked
-     * exception it throws is logged and does not stop the close of the
-     * others.</p>
+     * <p>Source- and binary-compatible with an implementation written before
+     * this hook existed: it inherits the no-op default, and a {@code close()}
+     * it declares, with any {@code throws} clause (an implementation that is
+     * also {@link AutoCloseable} or {@link java.io.Closeable}), compiles
+     * unchanged and is never called by the environment: it stays the
+     * application's to call.</p>
      */
-    default void close() {
+    default void onEnvironmentClose() {
     }
 
     /**

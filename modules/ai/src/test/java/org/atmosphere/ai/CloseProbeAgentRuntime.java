@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProbeAgentRuntime.Client> {
 
     private static final Set<AiEnvironment> ENABLED = ConcurrentHashMap.newKeySet();
-    /** What {@link #close()} throws, after releasing its clients, in an environment. */
+    /** What {@link #onEnvironmentClose()} throws, after releasing its clients, in an environment. */
     private static final Map<AiEnvironment, Throwable> CLOSE_FAILURES = new ConcurrentHashMap<>();
     /** In an environment, {@link #createNativeClient} counts the first down and waits for the second. */
     private static final Map<AiEnvironment, CountDownLatch[]> BLOCKED_CREATES = new ConcurrentHashMap<>();
@@ -70,10 +70,9 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
     }
 
     /**
-     * Make {@link #close()} throw {@code failure} in {@code environment}, even
-     * a checked exception, as a runtime compiled against the SPI before
-     * {@link AgentRuntime#close()} existed may ({@code implements AgentRuntime,
-     * AutoCloseable} with {@code close() throws Exception}).
+     * Make {@link #onEnvironmentClose()} throw {@code failure} in
+     * {@code environment}, even a checked exception, as an implementation
+     * written in a language without checked exceptions (Kotlin) may.
      */
     public static void failClose(AiEnvironment environment, Throwable failure) {
         CLOSE_FAILURES.put(environment, failure);
@@ -130,8 +129,8 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
     }
 
     @Override
-    public void close() {
-        super.close();
+    public void onEnvironmentClose() {
+        super.onEnvironmentClose();
         var failure = attachedEnvironment().map(CLOSE_FAILURES::get).orElse(null);
         if (failure != null) {
             throw CloseProbeAgentRuntime.<RuntimeException>sneakyThrow(failure);

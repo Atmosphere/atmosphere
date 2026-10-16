@@ -44,10 +44,11 @@ import java.util.WeakHashMap;
  * before keep working, the next resolution loads new ones.</p>
  *
  * <p>The registry owns the instances it loads: an instance it does not keep
- * (unavailable, or not the one the knob selects) is
- * {@link AgentRuntime#close() closed} right away, and every instance it handed
- * out, including the ones a {@link #reset()} dropped that are still in use,
- * is closed when the environment closes.</p>
+ * (unavailable, or not the one the knob selects) gets
+ * {@link AgentRuntime#onEnvironmentClose()} right away, and every instance it
+ * handed out, including the ones a {@link #reset()} dropped that are still in
+ * use, gets it when the environment closes, once. A {@code close()} an
+ * implementation declares itself is never called.</p>
  */
 public final class AgentRuntimeRegistry {
 
@@ -107,21 +108,21 @@ public final class AgentRuntimeRegistry {
         try {
             result = load(loaded);
         } catch (RuntimeException e) {
-            loaded.forEach(AgentRuntimeRegistry::close);
+            loaded.forEach(AgentRuntimeRegistry::notifyEnvironmentClose);
             throw e;
         } finally {
             binding.close();
         }
         for (var runtime : loaded) {
             if (!containsInstance(result, runtime)) {
-                close(runtime);
+                notifyEnvironmentClose(runtime);
             }
         }
         synchronized (this) {
             // The environment closed while this resolution loaded: clear()
-            // ran before these instances were handed out, so close them here.
+            // ran before these instances were handed out, so notify them here.
             if (environment.isClosed()) {
-                result.forEach(AgentRuntimeRegistry::close);
+                result.forEach(AgentRuntimeRegistry::notifyEnvironmentClose);
                 throw new IllegalStateException("AI environment " + environment.name()
                         + " is closed: its application stopped");
             }
@@ -133,7 +134,7 @@ public final class AgentRuntimeRegistry {
 
     /**
      * @param loaded receives every instance created, kept or not, so the
-     *               caller closes the ones it does not hand out
+     *               caller notifies the ones it does not hand out
      */
     private List<AgentRuntime> load(List<AgentRuntime> loaded) {
         var all = new ArrayList<AgentRuntime>();
@@ -206,10 +207,11 @@ public final class AgentRuntimeRegistry {
     }
 
     /**
-     * Drops the instances when the environment closes and closes every one
-     * this registry handed out, once. Runs after the environment is marked
-     * closed, so a resolution racing with it either handed its instances out
-     * first (and they are closed here) or closes them itself.
+     * Drops the instances when the environment closes and calls
+     * {@link AgentRuntime#onEnvironmentClose()} on every one this registry
+     * handed out, once. Runs after the environment is marked closed, so a
+     * resolution racing with it either handed its instances out first (and
+     * they are notified here) or notifies them itself.
      */
     void clear() {
         List<AgentRuntime> toClose;
@@ -218,11 +220,11 @@ public final class AgentRuntimeRegistry {
             toClose = List.copyOf(handedOut);
             handedOut.clear();
         }
-        // close() logs a failed close; an Error still lets the others close.
+        // A failed hook is logged; an Error still lets the others run.
         Error failure = null;
         for (var runtime : toClose) {
             try {
-                close(runtime);
+                notifyEnvironmentClose(runtime);
             } catch (Error e) {
                 if (failure == null) {
                     failure = e;
@@ -245,14 +247,16 @@ public final class AgentRuntimeRegistry {
         return false;
     }
 
-    private static void close(AgentRuntime runtime) {
+    private static void notifyEnvironmentClose(AgentRuntime runtime) {
         try {
-            runtime.close();
+            runtime.onEnvironmentClose();
         } catch (Exception | LinkageError e) {
-            // Exception: a runtime compiled before close() was on the SPI may
-            // throw a checked one from its own close(); LinkageError: one
-            // compiled against another version of a class close() needs.
-            logger.warn("AgentRuntime {} failed to close: {}", runtime.name(), e.getMessage(), e);
+            // Exception: an implementation in a language without checked
+            // exceptions (Kotlin) may throw a checked one from the hook;
+            // LinkageError: one compiled against another version of a class
+            // the hook needs.
+            logger.warn("AgentRuntime {} failed to release its resources on environment close: {}",
+                    runtime.name(), e.getMessage(), e);
         }
     }
 

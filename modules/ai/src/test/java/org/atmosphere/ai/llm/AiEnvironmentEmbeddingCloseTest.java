@@ -179,7 +179,7 @@ class AiEnvironmentEmbeddingCloseTest {
                     "a runtime the application created is the application's to close");
         } finally {
             a.close();
-            own.close();
+            own.onEnvironmentClose();
         }
     }
 }

@@ -99,7 +99,7 @@ class CrewAiAgentRuntimeBridgeTest {
         runtime.configure(null);
         assertTrue(runtime.isAvailable());
 
-        runtime.close();
+        runtime.onEnvironmentClose();
 
         assertFalse(runtime.isAvailable(),
                 "a closed runtime builds no client, so it must not report itself available");

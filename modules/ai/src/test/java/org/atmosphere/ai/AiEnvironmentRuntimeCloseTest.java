@@ -161,7 +161,7 @@ class AiEnvironmentRuntimeCloseTest {
             assertSame(client, own.client(), "it keeps its client");
         } finally {
             a.close();
-            own.close();
+            own.onEnvironmentClose();
             CloseProbeAgentRuntime.disable(a);
         }
     }

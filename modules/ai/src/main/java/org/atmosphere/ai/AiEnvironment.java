@@ -603,12 +603,14 @@ public final class AiEnvironment implements AutoCloseable {
      * {@code AiConfig} mutator built) and native clients bound by the
      * application are not: they belong to the caller. The runtime and
      * embedding-runtime instances this environment loaded, including ones a
-     * reset dropped that are still in use, are closed
-     * ({@link AgentRuntime#close()}, {@link EmbeddingRuntime#close()}): each
-     * releases what it created itself, such as the HTTP client of
+     * reset dropped that are still in use, are told, once
+     * ({@link AgentRuntime#onEnvironmentClose()},
+     * {@link EmbeddingRuntime#onEnvironmentClose()}; a {@code close()} they
+     * declare themselves is never called): each releases what it created
+     * itself, such as the HTTP client of
      * {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}, letting a
      * request already sent finish. A runtime instance the application created
-     * itself is not. A runtime whose close fails is logged and does not stop
+     * itself is not. A runtime whose hook fails is logged and does not stop
      * the others or the steps after it; an {@link Error} is rethrown once every
      * step ran. The process default is never closed.
      */
