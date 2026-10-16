@@ -260,7 +260,9 @@ public final class RunEventReplayBuffer {
      *                           registered run, which {@link RunRegistry} names
      *                           when it registers the run
      * @param capacity           the events it retains
-     * @param maxReplayPositions the consumers whose replay position it remembers
+     * @param maxReplayPositions the consumers whose replay position it remembers,
+     *                           and, apart from them, those whose frames received
+     *                           as a long-polling reply it remembers
      * @param maxWaitingPolls    the consumers whose poll may wait for its next event
      * @throws IllegalArgumentException when a bound is not positive
      */
