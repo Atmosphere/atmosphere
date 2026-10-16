@@ -46,12 +46,13 @@ import org.slf4j.LoggerFactory;
  * that instance already built.</p>
  *
  * <p>It is a {@link Singleton} ({@link AiEnvironment} is final, so it cannot
- * have a client proxy) and a {@link DefaultBean}: an {@code AiEnvironment} bean
- * of the application's own replaces it, and the framework attaches that one.
+ * have a client proxy) and a {@link DefaultBean}: a {@code @Singleton}
+ * {@code AiEnvironment} bean of the application's own replaces it, and the
+ * framework attaches that one.
  * This producer created the environment and {@link #dispose disposes} it when
- * the CDI container shuts down (Ownership, Correctness Invariant #1), which a
- * dev-mode live reload and a failed start both do; the framework's destroy
- * leaves it alone.</p>
+ * the CDI container shuts down (Ownership, Correctness Invariant #1): when the
+ * application stops, which a dev-mode live reload does, and when its start
+ * fails. The framework's destroy leaves it alone.</p>
  *
  * <p>References {@code atmosphere-ai} types, an optional dependency: the
  * deployment processor registers it only when that module is on the

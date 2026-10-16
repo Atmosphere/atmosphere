@@ -96,9 +96,10 @@ not bridged on Quarkus: they come from the `LLM_MODE` / `LLM_MODEL` / `LLM_API_K
 With `atmosphere-ai` on the classpath, the extension produces the application's `AiEnvironment` as a
 `@Singleton` CDI bean (`AtmosphereAiEnvironmentProducer`): the one the framework attaches, holding
 the knobs above. It is created the first time a bean injects it, or at the latest when the framework
-initializes, and the CDI container closes it when it shuts down — on a normal stop, on a dev-mode
-live reload (the next application gets a new one) and on a failed start. It is a `@DefaultBean`: an
-`AiEnvironment` bean of the application's own replaces it, and the framework attaches that one.
+initializes, and the CDI container closes it when it shuts down: when the application stops (a
+dev-mode live reload stops it; the next application gets a new one) and when its start fails. It is
+a `@DefaultBean`: a `@Singleton` `AiEnvironment` bean of the application's own replaces it, and the
+framework attaches that one (`AiEnvironment` is final, so it cannot be a normal-scoped bean).
 
 Once the framework has attached it, the extension fires it as a synchronous CDI event, before any
 `@AiEndpoint`, `@Agent` or `@Coordinator` registers and resolves its `AgentRuntime`. The framework

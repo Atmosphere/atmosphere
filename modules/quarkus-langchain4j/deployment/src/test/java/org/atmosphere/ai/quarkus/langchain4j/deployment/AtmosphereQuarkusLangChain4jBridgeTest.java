@@ -32,8 +32,11 @@ import org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
@@ -41,7 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * LangChain4j {@link StreamingChatModel} to the application's
  * {@link AiEnvironment}, not to the JVM: the model is there before the
  * framework initializes and its {@code @AiEndpoint} registers, and no
- * process-wide binding is made. The provider is the real
+ * process-wide binding is made, so a second application in the JVM does not
+ * use it. The provider is the real
  * {@code quarkus-langchain4j-openai} one; no request is sent.
  */
 public class AtmosphereQuarkusLangChain4jBridgeTest {
@@ -110,5 +114,9 @@ public class AtmosphereQuarkusLangChain4jBridgeTest {
                 "... which is before the framework initialized and the @AiEndpoint registered");
         assertFalse(AiEnvironment.processDefault().hasExplicitBinding(),
                 "the model is bound for this application, not for every application in the JVM");
+        try (var other = AiEnvironment.create(Map.<String, String>of()::get)) {
+            assertFalse(other.hasExplicitBinding(), "a second application in the JVM does not inherit the model");
+            assertNull(other.client(LangChain4jAgentRuntime.class, StreamingChatModel.class, null));
+        }
     }
 }
