@@ -1461,76 +1461,89 @@ public class AtmosphereAiAutoConfiguration {
         var builder = org.atmosphere.ai.routing.RoutingLlmClient.builder(
                 baseSettings.client(), defaultModel);
         var aiEnvironment = attachment.environment();
+        // Every client a rule or option builds for its own endpoint is owned
+        // here: the installer shuts each down on destroy, and a failure before
+        // the router is installed shuts down those built so far (Invariants #1
+        // and #2).
+        var ruleClients = new java.util.ArrayList<org.atmosphere.ai.llm.OpenAiCompatibleClient>();
         java.util.function.BiFunction<String, String, org.atmosphere.ai.llm.LlmClient> resolver =
-                (baseUrl, apiKey) -> resolveRuleTarget(baseUrl, apiKey, baseSettings, aiEnvironment);
+                (baseUrl, apiKey) -> resolveRuleTarget(baseUrl, apiKey, baseSettings, aiEnvironment, ruleClients);
         int ruleCount = 0;
-
-        // 1. content rules — most specific (matches on the user message body).
-        for (var rule : routing.getContentRules()) {
-            if (rule.getModel() == null || rule.getModel().isBlank()
-                    || rule.getKeywords() == null || rule.getKeywords().isEmpty()) {
-                logger.warn("Skipping content routing rule with no model or no keywords: model={}, keywords={}",
-                        rule.getModel(), rule.getKeywords());
-                continue;
+        org.atmosphere.ai.routing.RoutingLlmClient router;
+        try {
+            // 1. content rules — most specific (matches on the user message body).
+            for (var rule : routing.getContentRules()) {
+                if (rule.getModel() == null || rule.getModel().isBlank()
+                        || rule.getKeywords() == null || rule.getKeywords().isEmpty()) {
+                    logger.warn("Skipping content routing rule with no model or no keywords: model={}, keywords={}",
+                            rule.getModel(), rule.getKeywords());
+                    continue;
+                }
+                var keywords = java.util.List.copyOf(rule.getKeywords());
+                var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings, aiEnvironment,
+                        ruleClients);
+                builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.contentBased(
+                        msg -> keywordsMatchCaseInsensitive(msg, keywords),
+                        target, rule.getModel()));
+                ruleCount++;
             }
-            var keywords = java.util.List.copyOf(rule.getKeywords());
-            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings, aiEnvironment);
-            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.contentBased(
-                    msg -> keywordsMatchCaseInsensitive(msg, keywords),
-                    target, rule.getModel()));
-            ruleCount++;
-        }
 
-        // 2. model rules — literal case-insensitive equals on request.model().
-        for (var rule : routing.getModelRules()) {
-            if (rule.getModelPattern() == null || rule.getModelPattern().isBlank()) {
-                logger.warn("Skipping model routing rule with blank model-pattern");
-                continue;
+            // 2. model rules — literal case-insensitive equals on request.model().
+            for (var rule : routing.getModelRules()) {
+                if (rule.getModelPattern() == null || rule.getModelPattern().isBlank()) {
+                    logger.warn("Skipping model routing rule with blank model-pattern");
+                    continue;
+                }
+                var pattern = rule.getModelPattern();
+                var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings, aiEnvironment,
+                        ruleClients);
+                builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.modelBased(
+                        m -> m != null && m.equalsIgnoreCase(pattern), target));
+                ruleCount++;
             }
-            var pattern = rule.getModelPattern();
-            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings, aiEnvironment);
-            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.modelBased(
-                    m -> m != null && m.equalsIgnoreCase(pattern), target));
-            ruleCount++;
-        }
 
-        // 3. cost rules — highest-capability model within the cost budget.
-        for (var rule : routing.getCostRules()) {
-            if (rule.getMaxCost() == null || rule.getModels() == null || rule.getModels().isEmpty()) {
-                logger.warn("Skipping cost routing rule with null max-cost or empty models: maxCost={}",
-                        rule.getMaxCost());
-                continue;
+            // 3. cost rules — highest-capability model within the cost budget.
+            for (var rule : routing.getCostRules()) {
+                if (rule.getMaxCost() == null || rule.getModels() == null || rule.getModels().isEmpty()) {
+                    logger.warn("Skipping cost routing rule with null max-cost or empty models: maxCost={}",
+                            rule.getMaxCost());
+                    continue;
+                }
+                var options = rule.getModels().stream()
+                        .map(o -> o.toModelOption(resolver))
+                        .toList();
+                builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.costBased(
+                        rule.getMaxCost(), options));
+                ruleCount++;
             }
-            var options = rule.getModels().stream()
-                    .map(o -> o.toModelOption(resolver))
-                    .toList();
-            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.costBased(
-                    rule.getMaxCost(), options));
-            ruleCount++;
-        }
 
-        // 4. latency rules — highest-capability model within the latency budget.
-        for (var rule : routing.getLatencyRules()) {
-            if (rule.getMaxLatencyMs() == null || rule.getModels() == null || rule.getModels().isEmpty()) {
-                logger.warn("Skipping latency routing rule with null max-latency-ms or empty models: maxLatencyMs={}",
-                        rule.getMaxLatencyMs());
-                continue;
+            // 4. latency rules — highest-capability model within the latency budget.
+            for (var rule : routing.getLatencyRules()) {
+                if (rule.getMaxLatencyMs() == null || rule.getModels() == null || rule.getModels().isEmpty()) {
+                    logger.warn("Skipping latency routing rule with null max-latency-ms or empty models: maxLatencyMs={}",
+                            rule.getMaxLatencyMs());
+                    continue;
+                }
+                var options = rule.getModels().stream()
+                        .map(o -> o.toModelOption(resolver))
+                        .toList();
+                builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.latencyBased(
+                        rule.getMaxLatencyMs(), options));
+                ruleCount++;
             }
-            var options = rule.getModels().stream()
-                    .map(o -> o.toModelOption(resolver))
-                    .toList();
-            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.latencyBased(
-                    rule.getMaxLatencyMs(), options));
-            ruleCount++;
-        }
 
-        var router = builder.build();
-        aiEnvironment.installClient(router);
+            router = builder.build();
+            aiEnvironment.installClient(router);
+        } catch (RuntimeException e) {
+            shutdownAll(ruleClients);
+            throw e;
+        }
         logger.info("Atmosphere AI routing enabled: wrapped resolved client in RoutingLlmClient with "
                 + "{} rule(s) [content={}, model={}, cost={}, latency={}], defaultModel={}",
                 ruleCount, routing.getContentRules().size(), routing.getModelRules().size(),
                 routing.getCostRules().size(), routing.getLatencyRules().size(), defaultModel);
-        return new RoutingClientInstaller(aiEnvironment, router, baseSettings.client(), ruleCount);
+        return new RoutingClientInstaller(aiEnvironment, router, baseSettings.client(), ruleCount,
+                java.util.List.copyOf(ruleClients));
     }
 
     /**
@@ -1542,11 +1555,12 @@ public class AtmosphereAiAutoConfiguration {
      * reuses the framework-resolved client so the rule only changes the model
      * name. A dedicated client takes the prompt-cache-key and logprobs modes of
      * the context's application, as the resolved client did, rather than the
-     * modes the static API reads while it is built.
+     * modes the static API reads while it is built, and is added to
+     * {@code built}, whose owner shuts it down.
      */
     private static org.atmosphere.ai.llm.LlmClient resolveRuleTarget(
             String ruleBaseUrl, String ruleApiKey, AiConfig.LlmSettings baseSettings,
-            AiEnvironment aiEnvironment) {
+            AiEnvironment aiEnvironment, java.util.List<org.atmosphere.ai.llm.OpenAiCompatibleClient> built) {
         var hasBaseUrl = ruleBaseUrl != null && !ruleBaseUrl.isBlank();
         var hasApiKey = ruleApiKey != null && !ruleApiKey.isBlank();
         if (!hasBaseUrl && !hasApiKey) {
@@ -1560,7 +1574,16 @@ public class AtmosphereAiAutoConfiguration {
         if (key != null && !key.isBlank()) {
             clientBuilder.apiKey(key);
         }
-        return clientBuilder.build();
+        var client = clientBuilder.build();
+        built.add(client);
+        return client;
+    }
+
+    /** Shut down the HTTP client of each rule client the routing installer built. */
+    private static void shutdownAll(java.util.List<org.atmosphere.ai.llm.OpenAiCompatibleClient> clients) {
+        for (var client : clients) {
+            client.shutdown();
+        }
     }
 
     /**
@@ -1586,7 +1609,9 @@ public class AtmosphereAiAutoConfiguration {
      * Marker bean recording the installed {@link org.atmosphere.ai.routing.RoutingLlmClient}
      * and the un-wrapped resolved client it decorates. Restores the resolved
      * client into the application's {@link AiEnvironment} on shutdown
-     * (Correctness Invariant #1 — every install has a symmetric uninstall).
+     * (Correctness Invariant #1 — every install has a symmetric uninstall), and
+     * shuts down the clients it built for rules with their own endpoint, which
+     * nothing else owns: the environment shuts down only the client it built.
      */
     static final class RoutingClientInstaller
             implements org.springframework.beans.factory.DisposableBean {
@@ -1595,28 +1620,36 @@ public class AtmosphereAiAutoConfiguration {
         private final org.atmosphere.ai.routing.RoutingLlmClient router;
         private final org.atmosphere.ai.llm.LlmClient resolvedClient;
         private final int ruleCount;
+        private final java.util.List<org.atmosphere.ai.llm.OpenAiCompatibleClient> ruleClients;
 
         RoutingClientInstaller(AiEnvironment aiEnvironment,
                 org.atmosphere.ai.routing.RoutingLlmClient router,
-                org.atmosphere.ai.llm.LlmClient resolvedClient, int ruleCount) {
+                org.atmosphere.ai.llm.LlmClient resolvedClient, int ruleCount,
+                java.util.List<org.atmosphere.ai.llm.OpenAiCompatibleClient> ruleClients) {
             this.aiEnvironment = aiEnvironment;
             this.router = router;
             this.resolvedClient = resolvedClient;
             this.ruleCount = ruleCount;
+            this.ruleClients = ruleClients;
         }
 
         @Override
         public void destroy() {
             // Only restore if our router is still the installed client — a
             // later install (another decorator) takes precedence and must not
-            // be clobbered on our shutdown.
-            if (aiEnvironment.isClosed()) {
-                return;
-            }
-            var current = aiEnvironment.settings();
-            if (current != null && current.client() == router) {
-                aiEnvironment.installClient(resolvedClient);
-                logger.info("Restored un-wrapped resolved client on routing installer shutdown");
+            // be clobbered on our shutdown. The rule clients are ours whatever
+            // the environment's state, so they are shut down on every path.
+            try {
+                if (aiEnvironment.isClosed()) {
+                    return;
+                }
+                var current = aiEnvironment.settings();
+                if (current != null && current.client() == router) {
+                    aiEnvironment.installClient(resolvedClient);
+                    logger.info("Restored un-wrapped resolved client on routing installer shutdown");
+                }
+            } finally {
+                shutdownAll(ruleClients);
             }
         }
 
@@ -1628,6 +1661,11 @@ public class AtmosphereAiAutoConfiguration {
         /** Exposed so tests can assert the rule count. */
         int ruleCount() {
             return ruleCount;
+        }
+
+        /** Exposed so tests can assert the clients built for rules with their own endpoint. */
+        java.util.List<org.atmosphere.ai.llm.OpenAiCompatibleClient> ruleClients() {
+            return ruleClients;
         }
     }
 

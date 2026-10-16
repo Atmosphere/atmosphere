@@ -329,6 +329,64 @@ class AtmosphereRoutingAutoConfigurationTest {
                 });
     }
 
+    /**
+     * A client built for a rule or a cost option with its own endpoint belongs
+     * to the routing installer, which shuts it down when the context closes.
+     * The environment shuts down only the client it built, so without the
+     * installer each rule client's HttpClient would outlive every context that
+     * built one (Ownership, Terminal Path Completeness).
+     */
+    @Test
+    void ruleClientsOfTheirOwnAreShutDownWhenTheContextCloses() {
+        var httpClients = new java.util.ArrayList<java.net.http.HttpClient>();
+        contextRunner
+                .withPropertyValues(
+                        "atmosphere.ai.routing.enabled=true",
+                        "atmosphere.ai.routing.content-rules[0].keywords[0]=code",
+                        "atmosphere.ai.routing.content-rules[0].model=gpt-4o",
+                        "atmosphere.ai.routing.content-rules[0].base-url=http://127.0.0.1:1/v1",
+                        "atmosphere.ai.routing.cost-rules[0].max-cost=5.0",
+                        "atmosphere.ai.routing.cost-rules[0].models[0].model=cheap",
+                        "atmosphere.ai.routing.cost-rules[0].models[0].cost-per-streaming-text=0.001",
+                        "atmosphere.ai.routing.cost-rules[0].models[0].capability=5",
+                        "atmosphere.ai.routing.cost-rules[0].models[0].base-url=http://127.0.0.1:2/v1")
+                .run(context -> {
+                    var installer = context.getBean(
+                            AtmosphereAiAutoConfiguration.RoutingClientInstaller.class);
+                    var rule = (RoutingLlmClient.RoutingRule.ContentBased) rulesOf(installer.router()).get(0);
+                    assertThat(installer.ruleClients())
+                            .as("the content rule's client and the cost option's client")
+                            .hasSize(2)
+                            .contains((OpenAiCompatibleClient) rule.target());
+                    for (var client : installer.ruleClients()) {
+                        var httpClient = httpClientOf(client);
+                        assertThat(httpClient.awaitTermination(java.time.Duration.ofMillis(50)))
+                                .as("a rule client stays open while its context runs")
+                                .isFalse();
+                        httpClients.add(httpClient);
+                    }
+                });
+
+        assertThat(httpClients).hasSize(2);
+        for (var httpClient : httpClients) {
+            try {
+                assertThat(httpClient.awaitTermination(java.time.Duration.ofSeconds(5)))
+                        .as("closing the context shuts down each rule client's HttpClient")
+                        .isTrue();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
+    }
+
+    private static java.net.http.HttpClient httpClientOf(OpenAiCompatibleClient client)
+            throws ReflectiveOperationException {
+        var field = OpenAiCompatibleClient.class.getDeclaredField("httpClient");
+        field.setAccessible(true);
+        return (java.net.http.HttpClient) field.get(client);
+    }
+
     private static java.util.List<?> rulesOf(RoutingLlmClient router) throws ReflectiveOperationException {
         var field = RoutingLlmClient.class.getDeclaredField("rules");
         field.setAccessible(true);
