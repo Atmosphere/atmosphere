@@ -1220,6 +1220,27 @@ class LongPollingRoomRepliesTest {
         }
     }
 
+    /**
+     * A long-polling room member leaving for good forgets its replay positions
+     * as it leaves its room; its departure walked every run kept a second time.
+     */
+    @Test
+    void aRoomMemberLeavingForGoodWalksTheRunsOnce() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var registry = org.mockito.Mockito.spy(new RunRegistry());
+        RunRegistryHolder.install(registry);
+        try {
+            LongPollingReplies.discard(member.uuid(), true, true);
+
+            org.mockito.Mockito.verify(registry, org.mockito.Mockito.times(1)).forgetConsumer(member.uuid());
+            assertFalse(LongPollingRoomReplies.members(room).contains(member.uuid()), "it left its room");
+        } finally {
+            RunRegistryHolder.reset();
+        }
+    }
+
     /** A streaming reattach of {@code trackingId} on the room carrying {@code runId}, its writes in {@code sink}. */
     private AtmosphereResource streamingReattach(String trackingId, AtmosphereResource.TRANSPORT transport,
                                                  String runId, StringWriter sink) {

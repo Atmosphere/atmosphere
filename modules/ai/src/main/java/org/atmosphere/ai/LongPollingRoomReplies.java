@@ -254,17 +254,24 @@ public final class LongPollingRoomReplies {
      * what was kept for it is dropped. When it {@code departed} for good, rather
      * than lost a connection it may come back on under the same id, the runs
      * forget their replay positions of it too ({@link RunEventReplayBuffer#forget}).
+     *
+     * @return whether the runs forgot its replay positions: it {@code departed}
+     *         and was a member of a room
      */
-    static void forget(String trackingId, boolean departed) {
+    static boolean forget(String trackingId, boolean departed) {
         if (trackingId == null) {
-            return;
+            return false;
         }
+        var forgotten = false;
         for (var room : ROOMS.values()) {
             var member = room.members.remove(trackingId);
             if (member != null) {
-                member.leave(departed);
+                // Once: the runs forgot its positions when it left its first room.
+                member.leave(departed && !forgotten);
+                forgotten |= departed;
             }
         }
+        return forgotten;
     }
 
     /**

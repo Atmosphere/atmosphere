@@ -653,11 +653,25 @@ public final class LongPollingReplies {
      * then hand it what it missed and nothing more.
      */
     public static void discard(String trackingId, boolean departed) {
+        discard(trackingId, departed, true);
+    }
+
+    /**
+     * {@link #discard(String, boolean)}, for a client that {@code heldPositions}:
+     * only a long-polling client's polls and replies record replay positions in
+     * runs, so the departure for good of any other client (a WebSocket, SSE or
+     * streaming connection) does not walk every run kept to forget positions it
+     * never held. A room member leaving for good forgets its positions as it
+     * leaves, so they are not forgotten twice.
+     *
+     * @param heldPositions whether the client long-polled, or may have
+     */
+    public static void discard(String trackingId, boolean departed, boolean heldPositions) {
         if (trackingId == null) {
             return;
         }
-        LongPollingRoomReplies.forget(trackingId, departed);
-        if (departed) {
+        var forgotten = LongPollingRoomReplies.forget(trackingId, departed);
+        if (departed && heldPositions && !forgotten) {
             forgetRunPositions(trackingId);
         }
         var entry = PARKED.get(trackingId);

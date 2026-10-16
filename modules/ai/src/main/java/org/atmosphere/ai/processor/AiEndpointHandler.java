@@ -1509,8 +1509,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         + "state for uuid {} (event.isClosedByClient={}, isCancelled={})",
                         uuid, event.isClosedByClient(), event.isCancelled());
                 if (!replacedUnderItsId(null, event, uuid)) {
+                    // Its transport is gone with it: it may have long-polled.
                     cleanupDisconnected(recallRunOwner(uuid), uuid,
-                            org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
+                            org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event), true);
                 }
             }
             lifecycle.onDisconnect(target, event);
@@ -1522,7 +1523,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 ownerAtDisconnect = recallRunOwner(resource.uuid());
             }
             cleanupDisconnected(ownerAtDisconnect, resource.uuid(),
-                    org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
+                    org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event),
+                    resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING);
         }
         lifecycle.onDisconnect(target, event);
         logger.info(logMessage, resource.uuid());
@@ -1590,8 +1592,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * within the grace would otherwise record its turn after the release. A
      * connection back under the same tracking id by then owns that state, and
      * it is released when that connection goes instead.</p>
+     *
+     * @param longPolling whether the departing connection long-polled, or may have
+     *                    (its transport is unknown): only such a client holds replay
+     *                    positions in runs, which a departure for good frees
      */
-    private void cleanupDisconnected(String userIdStr, String uuid, boolean transportLoss) {
+    private void cleanupDisconnected(String userIdStr, String uuid, boolean transportLoss, boolean longPolling) {
         // A closed or cancelled connection does not poll again: until a connection
         // of its id is suspended again, a prompt naming the id is refused at once
         // instead of waiting for it.
@@ -1604,7 +1610,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // A client that left on purpose is gone for good: its runs forget its
         // replay positions too. One that lost its connection may poll again
         // under the id, and is then handed what it missed and nothing more.
-        LongPollingReplies.discard(uuid, !transportLoss);
+        // Only a long-polling client is remembered by runs (its polls and replies
+        // are what record a replay position), so only its departure walks them.
+        LongPollingReplies.discard(uuid, !transportLoss, longPolling);
         // Cancels every model call still in flight on the connection — at once
         // for a client that left, after the reattach grace for one whose
         // connection was lost; a call it cuts short ends in a cancelled frame,

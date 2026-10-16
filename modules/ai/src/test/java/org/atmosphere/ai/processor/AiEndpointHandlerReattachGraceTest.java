@@ -27,6 +27,7 @@ import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.resume.RunDisconnectGrace;
 import org.atmosphere.ai.resume.RunReattachSupport;
+import org.atmosphere.ai.resume.RunRegistry;
 import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -79,6 +80,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -197,6 +201,27 @@ class AiEndpointHandlerReattachGraceTest {
         awaitRunEnd();
         var events = RunRegistryHolder.get().lookupReplayable(RUN_ID.get()).orElseThrow().replayableEvents();
         assertEquals("cancelled", events.get(events.size() - 1).type(), events.toString());
+    }
+
+    /**
+     * Only a long-polling client's polls and replies record replay positions in
+     * runs: the departure for good of a WebSocket client walked every run kept
+     * for positions it never held.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"websocket", "long-polling"})
+    void onlyALongPollingClientLeavingForGoodWalksTheRuns(String transport) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var registry = spy(new RunRegistry());
+        RunRegistryHolder.install(registry);
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime, transport);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, false, false, true, null)
+                .webSocketCloseCode(1000));
+
+        verify(registry, times("long-polling".equals(transport) ? 1 : 0)).forgetConsumer(original.uuid());
+        runtime.finish();
     }
 
     @Test
