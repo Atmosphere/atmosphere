@@ -16,6 +16,7 @@
 package org.atmosphere.ai.memory;
 
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
@@ -67,8 +68,11 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
         // persisted and later re-injected into the system prompt. The framework
         // resolves the policy at startup via MemorySafetyConfig.installDefault;
         // it begins fail-closed-on, so memory is screened even before the
-        // Spring / Quarkus bridge runs. No-op when already screened.
-        this.memory = MemorySafetyConfig.installedDefault().wrap(memory);
+        // Spring / Quarkus bridge runs. No-op when already screened. The
+        // classifier is that of the extraction runtime's application, so its
+        // higher tiers screen with that application's models.
+        this.memory = MemorySafetyConfig.installedDefault().wrap(memory,
+                AiEnvironment.of(extractionRuntime));
         this.strategy = strategy;
         this.extractionRuntime = extractionRuntime;
         this.maxFactsToInject = maxFactsToInject;

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance.rag;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -107,9 +108,14 @@ public record RagSafetyConfig(
      * configured policy. Returns the list unchanged when disabled or empty, and
      * never double-wraps a provider that is already a {@link SafetyContextProvider}.
      * Publishes runtime truth into the framework property bag when it wraps.
+     * The higher tiers screen with the embedding runtime or decision model of
+     * the framework's application ({@link AiEnvironment#find}); a framework
+     * with no AI environment, or none, resolves them for
+     * {@link AiEnvironment#current()}.
      *
      * @param providers    the resolved context providers for one endpoint
-     * @param framework    the owning framework (for the runtime-state property bag)
+     * @param framework    the owning framework (for the runtime-state property bag
+     *                     and the application whose models the classifier uses)
      * @param endpointPath the endpoint path, for the activation log line
      * @return the (possibly decorated) provider list
      */
@@ -122,6 +128,8 @@ public record RagSafetyConfig(
         if (!enabled) {
             return providers;
         }
+        var environment = framework != null
+                ? AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null) : null;
         var wrapped = new ArrayList<ContextProvider>(providers.size());
         var effectiveTier = tier;
         var newlyWrapped = 0;
@@ -132,6 +140,7 @@ public record RagSafetyConfig(
             }
             var safe = SafetyContextProvider.wrapping(p)
                     .tier(tier)
+                    .environment(environment)
                     .onBreach(onBreach)
                     .failOpen(failOpen)
                     .build();

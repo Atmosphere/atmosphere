@@ -766,7 +766,7 @@ public class AtmosphereAiAutoConfiguration {
      *       cheap enough for {@link org.atmosphere.ai.guardrails.ModerationGuardrail.Scope#BOTH}.</li>
      *   <li>{@code llm} — one boolean decision per category
      *       ({@link org.atmosphere.ai.guardrails.LlmModerationDetector}) through the
-     *       resolved {@code DecisionModel}; pinned to
+     *       {@code DecisionModel} of this context's {@link AiEnvironment}; pinned to
      *       {@link org.atmosphere.ai.guardrails.ModerationGuardrail.Scope#REQUEST}
      *       so the model is consulted once per turn, not on every streamed chunk.</li>
      * </ul>
@@ -783,11 +783,14 @@ public class AtmosphereAiAutoConfiguration {
             @org.springframework.beans.factory.annotation.Value(
                     "${atmosphere.ai.guardrails.moderation.detector:rule}") String detector,
             @org.springframework.beans.factory.annotation.Value(
-                    "${atmosphere.ai.guardrails.moderation.fail-open:false}") boolean failOpen) {
+                    "${atmosphere.ai.guardrails.moderation.fail-open:false}") boolean failOpen,
+            AiKnobBridge aiKnobBridge) {
         var llm = "llm".equalsIgnoreCase(detector);
+        // The LLM detector asks this context's decision model, not whichever
+        // application the JVM-wide static API resolves when several run.
         var guardrail = llm
                 ? new org.atmosphere.ai.guardrails.ModerationGuardrail(
-                        new org.atmosphere.ai.guardrails.LlmModerationDetector())
+                        new org.atmosphere.ai.guardrails.LlmModerationDetector(aiKnobBridge.aiEnvironment()))
                         .scope(org.atmosphere.ai.guardrails.ModerationGuardrail.Scope.REQUEST)
                 : new org.atmosphere.ai.guardrails.ModerationGuardrail();
         if (failOpen) {

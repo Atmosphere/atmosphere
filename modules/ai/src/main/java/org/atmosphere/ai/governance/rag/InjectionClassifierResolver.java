@@ -15,13 +15,18 @@
  */
 package org.atmosphere.ai.governance.rag;
 
-import org.atmosphere.ai.EmbeddingRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
+import org.atmosphere.ai.EmbeddingRuntime;
 import org.atmosphere.ai.decision.DecisionModelResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -35,28 +40,37 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@link InjectionClassifier.Tier#EMBEDDING_SIMILARITY} resolves an
  *       {@link EmbeddingInjectionClassifier} (running on a
  *       {@link RuleBasedInjectionClassifier} floor via
- *       {@link CompositeInjectionClassifier}) bound to the installed
- *       {@link org.atmosphere.ai.EmbeddingRuntime}. When no runtime is
- *       present the resolver downgrades to rule-based and logs a warning.</li>
+ *       {@link CompositeInjectionClassifier}) bound to the application's
+ *       {@link org.atmosphere.ai.EmbeddingRuntime}. When it has none the
+ *       resolver downgrades to rule-based and logs a warning.</li>
  *   <li>{@link InjectionClassifier.Tier#LLM_CLASSIFIER} resolves a
  *       {@link LlmClassifierInjectionClassifier} on the same rule-based floor,
  *       bound to the {@link org.atmosphere.ai.decision.DecisionModel} that
- *       {@link DecisionModelResolver} returns. When none can answer (only the
- *       demo runtime is installed, and no registered DecisionModel is available
- *       at that moment) the resolver downgrades to rule-based and logs a
- *       warning.</li>
+ *       {@link DecisionModelResolver#resolve(AiEnvironment)} returns for the
+ *       application. When none can answer (only the demo runtime is installed,
+ *       and no registered DecisionModel is available at that moment) the
+ *       resolver downgrades to rule-based and logs a warning.</li>
  * </ul>
  *
- * <p>Each tier's result, a downgrade included, is cached until {@link #reset()}.
- * A downgraded {@code LLM_CLASSIFIER} therefore stays {@code RULE_BASED} even if
- * a registered DecisionModel (an external endpoint that was down at boot, say)
- * becomes available later and {@link DecisionModelResolver} starts returning it.
- * That is deliberate: the consumers ({@code SafetyContextProvider},
- * {@code MemorySafetyConfig}) keep the classifier they were built with, and
- * {@code MemorySafetyConfig.publishActive} resolves again to report the tier in
- * force, so a resolver that upgraded behind them would report a tier nothing
- * runs (Correctness Invariant #5). Call {@link #reset()} and rebuild the
- * consumers to pick the model up.</p>
+ * <h2>Per application</h2>
+ * Each application resolves its own classifiers ({@link #resolve(AiEnvironment, InjectionClassifier.Tier)}),
+ * over its own embedding runtime and decision model, so two applications in
+ * one JVM never screen with each other's model. They are cached per
+ * application and tier, and an application's are dropped when its
+ * {@link AiEnvironment} closes, so the cache is bounded by the open
+ * applications times the three tiers. {@link #resolve(InjectionClassifier.Tier)}
+ * resolves for {@link AiEnvironment#current()}: code with no application.
+ *
+ * <p>Each result, a downgrade included, is cached until {@link #reset()} or the
+ * application closes. A downgraded {@code LLM_CLASSIFIER} therefore stays
+ * {@code RULE_BASED} even if a registered DecisionModel (an external endpoint
+ * that was down at boot, say) becomes available later and
+ * {@link DecisionModelResolver} starts returning it. That is deliberate: the
+ * consumers ({@code SafetyContextProvider}, {@code MemorySafetyConfig}) keep the
+ * classifier they were built with, and {@code MemorySafetyConfig.publishActive}
+ * resolves again to report the tier in force, so a resolver that upgraded
+ * behind them would report a tier nothing runs (Correctness Invariant #5).
+ * Call {@link #reset()} and rebuild the consumers to pick the model up.</p>
  *
  * <p>The rule-based floor under the higher tiers is what keeps the screen from
  * silently failing open: the cheap probes always catch the canonical injection
@@ -65,13 +79,28 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Custom implementations can be registered via
  * {@code META-INF/services/org.atmosphere.ai.governance.rag.InjectionClassifier}
- * and take precedence over the built-in resolver for their declared tier.</p>
+ * and take precedence over the built-in resolver for their declared tier. Such
+ * an implementation is built by its no-argument constructor, so it cannot know
+ * an application: one instance per tier serves the whole JVM.</p>
  */
 public final class InjectionClassifierResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(InjectionClassifierResolver.class);
 
-    private static final ConcurrentHashMap<InjectionClassifier.Tier, InjectionClassifier> CACHE =
+    /** The built-in classifiers: built per application, never through {@link ServiceLoader}. */
+    private static final Set<Class<?>> BUILT_IN = Set.of(RuleBasedInjectionClassifier.class,
+            EmbeddingInjectionClassifier.class, LlmClassifierInjectionClassifier.class,
+            CompositeInjectionClassifier.class);
+
+    /**
+     * One classifier per tier for each application that resolved one; an
+     * application's entry is removed when its environment closes.
+     */
+    private static final ConcurrentHashMap<AiEnvironment, Map<InjectionClassifier.Tier, InjectionClassifier>>
+            CACHES = new ConcurrentHashMap<>();
+
+    /** The registered classifier other than a built-in one, per tier, for the JVM; empty when none. */
+    private static final ConcurrentHashMap<InjectionClassifier.Tier, Optional<InjectionClassifier>> REGISTERED =
             new ConcurrentHashMap<>();
 
     private InjectionClassifierResolver() { }
@@ -80,21 +109,55 @@ public final class InjectionClassifierResolver {
      * Returns the configured classifier for the given tier. Higher tiers
      * fall through to rule-based when their runtime dependency is absent;
      * this degrades gracefully so RAG keeps working on a bare-JVM setup.
+     * Resolves for {@link AiEnvironment#current()}; code that holds an
+     * application calls {@link #resolve(AiEnvironment, InjectionClassifier.Tier)}.
      */
     public static InjectionClassifier resolve(InjectionClassifier.Tier tier) {
-        if (tier == null) {
-            tier = InjectionClassifier.Tier.EMBEDDING_SIMILARITY;
-        }
-        var effectiveTier = tier;
-        return CACHE.computeIfAbsent(tier, t -> findOrFallback(effectiveTier));
+        return resolve(AiEnvironment.current(), tier);
     }
 
-    private static InjectionClassifier findOrFallback(InjectionClassifier.Tier requested) {
-        // ServiceLoader-registered impls take precedence for their declared tier.
-        for (var candidate : ServiceLoader.load(InjectionClassifier.class)) {
-            if (candidate.tier() == requested) {
-                return candidate;
-            }
+    /**
+     * The classifier of one application for the given tier ({@code null} means
+     * {@link InjectionClassifier.Tier#EMBEDDING_SIMILARITY}), cached per
+     * application and tier until {@link #reset()} or the application closes.
+     * A closed application gets a classifier that is not cached, built
+     * without its runtimes (so rule-based).
+     *
+     * @param environment the application's environment
+     * @param tier        the tier
+     * @return the classifier, never {@code null}
+     */
+    public static InjectionClassifier resolve(AiEnvironment environment, InjectionClassifier.Tier tier) {
+        Objects.requireNonNull(environment, "environment");
+        var effectiveTier = tier == null ? InjectionClassifier.Tier.EMBEDDING_SIMILARITY : tier;
+        return cacheOf(environment).computeIfAbsent(effectiveTier, t -> findOrFallback(environment, t));
+    }
+
+    /**
+     * The application's cache. The close action registered with a new one
+     * removes it; on an environment already closed it runs at once, so a
+     * closed application's cache is never kept.
+     */
+    private static Map<InjectionClassifier.Tier, InjectionClassifier> cacheOf(AiEnvironment environment) {
+        var cache = CACHES.get(environment);
+        if (cache != null) {
+            return cache;
+        }
+        var created = new ConcurrentHashMap<InjectionClassifier.Tier, InjectionClassifier>();
+        cache = CACHES.putIfAbsent(environment, created);
+        if (cache != null) {
+            return cache;
+        }
+        environment.onClose(() -> CACHES.remove(environment, created));
+        return created;
+    }
+
+    private static InjectionClassifier findOrFallback(AiEnvironment environment,
+                                                      InjectionClassifier.Tier requested) {
+        // Registered impls (other than the built-ins) take precedence for their declared tier.
+        var registered = REGISTERED.computeIfAbsent(requested, InjectionClassifierResolver::findRegistered);
+        if (registered.isPresent()) {
+            return registered.get();
         }
         // Higher tiers consume a runtime SPI. Two fail-closed guarantees:
         //   1. When the runtime is genuinely absent (no EmbeddingRuntime), the
@@ -109,7 +172,9 @@ public final class InjectionClassifierResolver {
         return switch (requested) {
             case RULE_BASED -> new RuleBasedInjectionClassifier();
             case EMBEDDING_SIMILARITY -> {
-                var runtime = EmbeddingRuntimeResolver.resolve();
+                var runtime = environment.isClosed()
+                        ? Optional.<EmbeddingRuntime>empty()
+                        : environment.embeddings().resolve();
                 if (runtime.isPresent()) {
                     yield new CompositeInjectionClassifier(List.of(
                             new RuleBasedInjectionClassifier(),
@@ -125,15 +190,15 @@ public final class InjectionClassifierResolver {
                 // The LLM tier asks a DecisionModel one boolean question per
                 // document. DecisionModelResolver returns a model only when one
                 // can genuinely answer: a registered DecisionModel, or a
-                // RuntimeDecisionModel over a runtime that is not the demo
-                // fallback (a keyless local model counts). The demo runtime
-                // answers every prompt with a canned script, so with only it
-                // installed there is no LLM layer to add — the tier downgrades
+                // RuntimeDecisionModel over the application's runtime when it is
+                // not the demo fallback (a keyless local model counts). The demo
+                // runtime answers every prompt with a canned script, so with only
+                // it installed there is no LLM layer to add — the tier downgrades
                 // and reports RULE_BASED instead of advertising a composite whose
                 // LLM layer cannot clear a document (Correctness Invariant #5).
                 // When a model is present it still runs on the rule-based floor:
                 // adversarial text can move any model's answer.
-                var model = DecisionModelResolver.resolve();
+                var model = DecisionModelResolver.resolve(environment);
                 if (model.isPresent()) {
                     yield new CompositeInjectionClassifier(List.of(
                             new RuleBasedInjectionClassifier(),
@@ -155,6 +220,22 @@ public final class InjectionClassifierResolver {
         };
     }
 
+    /** The first registered classifier of {@code tier} that is not a built-in one; the built-ins are not instantiated. */
+    private static Optional<InjectionClassifier> findRegistered(InjectionClassifier.Tier tier) {
+        var providers = ServiceLoader.load(InjectionClassifier.class).stream().iterator();
+        while (providers.hasNext()) {
+            var provider = providers.next();
+            if (BUILT_IN.contains(provider.type())) {
+                continue;
+            }
+            var candidate = provider.get();
+            if (candidate.tier() == tier) {
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
+    }
+
     /** True when a dedicated impl exists for this tier (not the rule-based fallback). */
     public static boolean hasNativeImpl(InjectionClassifier.Tier tier) {
         if (tier == InjectionClassifier.Tier.RULE_BASED) return true;
@@ -164,9 +245,19 @@ public final class InjectionClassifierResolver {
         return false;
     }
 
-    /** Testing / reload hook — clears the cache so a new tier impl can be picked up. */
+    /** Whether {@code environment} has cached classifiers: test hook for the release on close. */
+    static boolean caches(AiEnvironment environment) {
+        return CACHES.containsKey(environment);
+    }
+
+    /**
+     * Testing / reload hook — clears the cache so a new tier impl can be
+     * picked up: every application's classifiers, the registered impls and
+     * the {@link DecisionModelResolver} cache.
+     */
     public static void reset() {
-        CACHE.clear();
+        CACHES.values().forEach(Map::clear);
+        REGISTERED.clear();
         DecisionModelResolver.reset();
     }
 }

@@ -185,6 +185,12 @@ public final class AiEnvironment implements AutoCloseable {
     /** The workspace whose {@code RUNTIME.md} seeded this environment's settings, if any. */
     private final AtomicReference<String> settingsOwner = new AtomicReference<>();
     private final AtomicBoolean closed = new AtomicBoolean();
+    /**
+     * What {@link #onClose} registered, run once by {@link #close()}; written
+     * under {@link #lock}. Bounded by the per-application caches that register
+     * (one action each), not by traffic.
+     */
+    private final List<Runnable> closeActions = new ArrayList<>();
     private volatile AtmosphereConfig attachedTo;
     /** This environment's values on the legacy host-configuration stack. */
     private volatile AiConfig.HostConfig pushed;
@@ -637,7 +643,56 @@ public final class AiEnvironment implements AutoCloseable {
                 client.shutdown();
             }
         }
+        runCloseActions();
         logger.debug("AI environment {} closed", name);
+    }
+
+    /**
+     * Run {@code action} when this environment closes, once, after its
+     * runtimes and settings are dropped: how a cache that keeps something per
+     * application (the governance tiers' guardrails and classifiers) drops this
+     * application's entry. Register once per cache, not per call: the action is
+     * kept until the environment closes. On an environment already closed it
+     * runs now, on the calling thread. The process default never closes, so an
+     * action registered on it is not kept.
+     *
+     * @param action what to run; an exception it throws is logged
+     */
+    public void onClose(Runnable action) {
+        Objects.requireNonNull(action, "action");
+        if (kind == Kind.PROCESS_DEFAULT) {
+            return;
+        }
+        lock.lock();
+        try {
+            if (!isClosed()) {
+                closeActions.add(action);
+                return;
+            }
+        } finally {
+            lock.unlock();
+        }
+        run(action);
+    }
+
+    private void runCloseActions() {
+        List<Runnable> actions;
+        lock.lock();
+        try {
+            actions = List.copyOf(closeActions);
+            closeActions.clear();
+        } finally {
+            lock.unlock();
+        }
+        actions.forEach(this::run);
+    }
+
+    private void run(Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException e) {
+            logger.warn("A close action of AI environment {} failed", name, e);
+        }
     }
 
     /**

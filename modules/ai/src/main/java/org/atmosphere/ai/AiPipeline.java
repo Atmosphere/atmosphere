@@ -672,7 +672,10 @@ public class AiPipeline {
         // provider request payload, then compose the transient policy ahead
         // of the endpoint-level chain so the scope-hardening preamble and the
         // pre/post-admission seams all observe it.
-        var requestScopePolicy = ScopePolicyInstaller.extract(baseMetadata);
+        // The guardrail is the pipeline's application's, so its embedding
+        // runtime or decision model is that application's own.
+        var environment = AiEnvironment.of(runtime);
+        var requestScopePolicy = ScopePolicyInstaller.extract(baseMetadata, environment);
         var effectivePolicies = ScopePolicyInstaller.compose(requestScopePolicy, policies);
 
         // System-prompt hardening — ScopePolicy in the policy chain triggers
@@ -807,7 +810,8 @@ public class AiPipeline {
             // pipeline runs no watchdog, so a confirmation waits confirmTimeout.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(intentRouting,
                     request.message(), message, request, session, memory, clientId,
-                    intentConfirmationAvailable ? approvalRegistry : null, () -> false, null));
+                    intentConfirmationAvailable ? approvalRegistry : null, () -> false, null,
+                    environment));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 return;
             }

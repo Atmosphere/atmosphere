@@ -964,6 +964,16 @@ public class AiStreamingSession implements StreamingSession {
         complete();
     }
 
+    /**
+     * The application this session's turns belong to: the one attached to the
+     * resource's framework, else that of the runtime. Its per-request scope
+     * guardrails and intent routing use that application's models.
+     */
+    private AiEnvironment environment() {
+        var config = resource != null ? resource.getAtmosphereConfig() : null;
+        return AiEnvironment.find(config).orElseGet(() -> AiEnvironment.of(runtime));
+    }
+
     /** Scope decisions taken on a turn's inbound message by {@link #admitScope(String)}. */
     private record ScopeAdmission(String message, boolean admitted,
                                   Map<AiGuardrail, AiGuardrail.GuardrailResult> decisions) {
@@ -1091,7 +1101,7 @@ public class AiStreamingSession implements StreamingSession {
         var mutableMeta = new java.util.HashMap<String, Object>(
                 request.metadata() != null ? request.metadata() : Map.of());
         var requestScopePolicy =
-                org.atmosphere.ai.governance.scope.ScopePolicyInstaller.extract(mutableMeta);
+                org.atmosphere.ai.governance.scope.ScopePolicyInstaller.extract(mutableMeta, environment());
         if (requestScopePolicy != null) {
             request = new AiRequest(request.message(), request.systemPrompt(),
                     request.model(), request.userId(), request.sessionId(),
@@ -1193,7 +1203,7 @@ public class AiStreamingSession implements StreamingSession {
             // context providers run inside the runtime after routing.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(routing,
                     request.message(), message, request, this, memory, resource.uuid(),
-                    approvalRegistry, cancelPending::get, turnDeadline));
+                    approvalRegistry, cancelPending::get, turnDeadline, environment()));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 postProcess(request);
                 return;

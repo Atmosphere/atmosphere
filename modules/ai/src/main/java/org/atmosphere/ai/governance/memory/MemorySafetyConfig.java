@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance.memory;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.governance.rag.InjectionClassifier;
 import org.atmosphere.ai.governance.rag.InjectionClassifierResolver;
 import org.atmosphere.ai.governance.rag.SafetyContextProvider.Breach;
@@ -123,7 +124,9 @@ public record MemorySafetyConfig(
     /**
      * Wrap {@code memory} with a {@link ScreenedLongTermMemory} per this policy.
      * Returns the argument unchanged when disabled, null, or already screened
-     * (never double-wraps).
+     * (never double-wraps). The classifier is resolved for
+     * {@link AiEnvironment#current()}; code that holds an application calls
+     * {@link #wrap(LongTermMemory, AiEnvironment)}.
      */
     public LongTermMemory wrap(LongTermMemory memory) {
         if (!enabled || memory == null || memory instanceof ScreenedLongTermMemory) {
@@ -131,6 +134,28 @@ public record MemorySafetyConfig(
         }
         return new ScreenedLongTermMemory(
                 memory, InjectionClassifierResolver.resolve(tier), onBreach, failOpen);
+    }
+
+    /**
+     * {@link #wrap(LongTermMemory)} with the classifier of one application
+     * ({@link InjectionClassifierResolver#resolve(AiEnvironment, InjectionClassifier.Tier)}):
+     * the higher tiers screen with that application's embedding runtime or
+     * decision model.
+     *
+     * @param memory      the store, may be {@code null}
+     * @param environment the application's environment; {@code null} resolves
+     *                    for {@link AiEnvironment#current()}
+     * @return the screened store, or {@code memory} unchanged
+     */
+    public LongTermMemory wrap(LongTermMemory memory, AiEnvironment environment) {
+        if (environment == null) {
+            return wrap(memory);
+        }
+        if (!enabled || memory == null || memory instanceof ScreenedLongTermMemory) {
+            return memory;
+        }
+        return new ScreenedLongTermMemory(
+                memory, InjectionClassifierResolver.resolve(environment, tier), onBreach, failOpen);
     }
 
     /**
@@ -154,7 +179,9 @@ public record MemorySafetyConfig(
      * the console reports confirmed runtime state — symmetric to {@code RagSafetyConfig},
      * which publishes only once a {@code ContextProvider} is actually wrapped. The
      * effective tier reflects any runtime-absent downgrade performed by
-     * {@link InjectionClassifierResolver}. No-op when disabled.
+     * {@link InjectionClassifierResolver} for the framework's application
+     * ({@link AiEnvironment#find}; {@link AiEnvironment#current()} when it has
+     * none). No-op when disabled.
      */
     public void publishActive(AtmosphereFramework framework) {
         if (!enabled || framework == null) {
@@ -164,7 +191,10 @@ public record MemorySafetyConfig(
         if (cfg == null) {
             return;
         }
-        var effectiveTier = InjectionClassifierResolver.resolve(tier).tier();
+        var environment = AiEnvironment.find(cfg);
+        var effectiveTier = (environment.isPresent()
+                ? InjectionClassifierResolver.resolve(environment.get(), tier)
+                : InjectionClassifierResolver.resolve(tier)).tier();
         var state = new MemorySafetyRuntimeState(true, effectiveTier.name(), onBreach.name());
         if (cfg.properties().putIfAbsent(RUNTIME_STATE_PROPERTY, state) == null) {
             logger.info("Long-term-memory injection-safety active: tier={}, onBreach={}, failOpen={}",

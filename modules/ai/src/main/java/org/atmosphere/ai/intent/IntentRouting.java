@@ -16,6 +16,7 @@
 package org.atmosphere.ai.intent;
 
 import org.atmosphere.ai.AiConfidence;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ConfidenceRoute;
 import org.atmosphere.ai.ConfidenceRouting;
 import org.atmosphere.ai.decision.Answer;
@@ -109,7 +110,9 @@ import java.util.function.Consumer;
  * @param confirmTimeout how long a CONFIRM-tier request waits for the requester, at
  *                       most {@link #MAX_CONFIRM_TIMEOUT}
  * @param decisionModel  the model to ask; {@code null} resolves one through
- *                       {@link DecisionModelResolver} on every request
+ *                       {@link DecisionModelResolver} on every request, that of
+ *                       the application whose {@code @AiEndpoint} or
+ *                       {@link org.atmosphere.ai.AiPipeline} dispatches it
  * @param onDecision     receives every decision, or {@code null}; called on the
  *                       dispatching thread before the route runs, so it must not
  *                       block, and a handler that throws is logged and ignored
@@ -265,6 +268,13 @@ public record IntentRouting(String instructions, List<IntentRoute> routes, Confi
         throw new IllegalStateException("validated in the constructor");
     }
 
+    /** The decision model of {@code environment}, else of the current application; {@code null} when none can answer. */
+    private static DecisionModel resolveModel(AiEnvironment environment) {
+        var resolved = environment != null
+                ? DecisionModelResolver.resolve(environment) : DecisionModelResolver.resolve();
+        return resolved.orElse(null);
+    }
+
     /** The question asked: one choice over the route names, described by the route descriptions. */
     public Question.Choice question() {
         var options = new LinkedHashMap<String, String>();
@@ -277,15 +287,32 @@ public record IntentRouting(String instructions, List<IntentRoute> routes, Confi
     /**
      * What the decision model said about {@code message}, and the tier of its
      * confidence. Never throws: every failure is an unanswered classification
-     * at {@link ConfidenceRoute#ESCALATE}.
+     * at {@link ConfidenceRoute#ESCALATE}. Without a {@link #decisionModel()}
+     * of its own, it asks the decision model of {@link AiEnvironment#current()};
+     * a dispatch path that holds an application calls
+     * {@link #classify(String, AiEnvironment)}.
      *
      * @param message the text to classify
      * @return the classification
      */
     public Classification classify(String message) {
+        return classify(message, null);
+    }
+
+    /**
+     * {@link #classify(String)} for one application: without a
+     * {@link #decisionModel()} of its own, the routing asks that application's
+     * decision model ({@link DecisionModelResolver#resolve(AiEnvironment)}).
+     *
+     * @param message     the text to classify
+     * @param environment the application's environment; {@code null} resolves
+     *                    for {@link AiEnvironment#current()}
+     * @return the classification
+     */
+    public Classification classify(String message, AiEnvironment environment) {
         DecisionModel model;
         try {
-            model = decisionModel != null ? decisionModel : DecisionModelResolver.resolve().orElse(null);
+            model = decisionModel != null ? decisionModel : resolveModel(environment);
         } catch (RuntimeException e) {
             return Classification.unanswered("decision model resolution failed: " + e);
         }

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance.scope;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +61,23 @@ public final class ScopePolicyInstaller {
      *         no per-request scope to install
      */
     public static ScopePolicy extract(Map<String, Object> metadata) {
+        return extract(metadata, null);
+    }
+
+    /**
+     * {@link #extract(Map)} with the guardrail of one application
+     * ({@link ScopeGuardrailResolver#resolve(AiEnvironment, org.atmosphere.ai.annotation.AgentScope.Tier)}),
+     * so the per-request scope screens with that application's embedding
+     * runtime or decision model. The dispatch paths ({@code AiPipeline},
+     * {@code AiStreamingSession}, {@code PolicyAdmissionGate}) pass theirs.
+     *
+     * @param metadata    request metadata, as for {@link #extract(Map)}
+     * @param environment the application's environment; {@code null} resolves
+     *                    the guardrail for {@link AiEnvironment#current()}
+     * @return a transient policy to prepend, or {@code null} when there is
+     *         no per-request scope to install
+     */
+    public static ScopePolicy extract(Map<String, Object> metadata, AiEnvironment environment) {
         if (metadata == null || metadata.isEmpty()) {
             return null;
         }
@@ -75,7 +93,9 @@ public final class ScopePolicyInstaller {
         if (config.unrestricted()) {
             return null;
         }
-        var guardrail = ScopeGuardrailResolver.resolve(config.tier());
+        var guardrail = environment != null
+                ? ScopeGuardrailResolver.resolve(environment, config.tier())
+                : ScopeGuardrailResolver.resolve(config.tier());
         // Name encodes the purpose so /api/admin/governance/decisions can
         // disambiguate transient per-request policies from permanent
         // endpoint-level policies with the same class.

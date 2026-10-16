@@ -236,6 +236,18 @@ sites = 1
 reason = "identity check: the process default's resolution has its own slot, outside the per-application map"
 
 [[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/scope/ScopeGuardrailResolver.java"
+pattern = '^return resolve\(AiEnvironment\.current\(\), tier\);$'
+sites = 1
+reason = "the no-application ScopeGuardrailResolver.resolve(tier) is the facade; the processors, the dispatch paths and ScopePolicyBuilder/ScopePolicyInstaller callers holding an application use resolve(environment, tier)"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/rag/InjectionClassifierResolver.java"
+pattern = '^return resolve\(AiEnvironment\.current\(\), tier\);$'
+sites = 1
+reason = "the no-application InjectionClassifierResolver.resolve(tier) is the facade; RagSafetyConfig, MemorySafetyConfig and SafetyContextProvider with an environment use resolve(environment, tier)"
+
+[[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AiEnvironment.java"
 pattern = 'return find\(config\)\.orElseGet\(AiEnvironment::current\)\.runtimes\(\)\.resolve\(\);$'
 sites = 1
@@ -521,49 +533,37 @@ reason = "an embedding injection classifier built without an embedding runtime: 
 file = "org/atmosphere/ai/governance/scope/EmbeddingScopeGuardrail.java"
 pattern = '^this\(EmbeddingRuntimeResolver\.resolve\(\)\.orElse\(null\)\);$'
 sites = 1
-reason = "the no-argument constructor holds no application, and ScopeGuardrailResolver builds it once per tier for the JVM, also for the @AgentScope an application's processor registers: that endpoint's scope reads the static API (modules/ai/README.md)"
+reason = "the public no-argument constructor holds no application (user code, a ServiceLoader instantiation); ScopeGuardrailResolver builds the built-in per application over its embedding runtime instead"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/scope/SemanticIntentScopeGuardrail.java"
 pattern = '^this\(EmbeddingRuntimeResolver\.resolve\(\)\.orElse\(null\), DEFAULT_MARGIN\);$'
 sites = 1
-reason = "the no-argument constructor holds no application, and ScopeGuardrailResolver builds it once per tier for the JVM, also for the @AgentScope an application's processor registers: that endpoint's scope reads the static API (modules/ai/README.md)"
-
-[[ai_application_state.allowed]]
-file = "org/atmosphere/ai/governance/rag/InjectionClassifierResolver.java"
-pattern = '^var runtime = EmbeddingRuntimeResolver\.resolve\(\);$'
-sites = 1
-reason = "the classifier cache keeps one embedding classifier per tier for the JVM, so it resolves with no application"
-
-[[ai_application_state.allowed]]
-file = "org/atmosphere/ai/governance/rag/InjectionClassifierResolver.java"
-pattern = '^var model = DecisionModelResolver\.resolve\(\);$'
-sites = 1
-reason = "the classifier cache keeps one LLM classifier per tier for the JVM, so it resolves with no application"
+reason = "the public no-argument constructor holds no application (user code, a ServiceLoader instantiation); ScopeGuardrailResolver builds the built-in per application over its embedding runtime instead"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/rag/LlmClassifierInjectionClassifier.java"
-pattern = '^var effective = model != null \? model : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+pattern = '^\? DecisionModelResolver\.resolve\(environment\) : DecisionModelResolver\.resolve\(\);$'
 sites = 1
-reason = "the LLM injection tier without a decision model of its own resolves with no application"
+reason = "the LLM injection tier built with neither a decision model nor an application (its no-argument and runtime-null constructors) resolves for the current one; InjectionClassifierResolver passes the application's model"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/governance/scope/LlmClassifierScopeGuardrail.java"
-pattern = '^var effective = model != null \? model : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+pattern = '^\? DecisionModelResolver\.resolve\(environment\) : DecisionModelResolver\.resolve\(\);$'
 sites = 1
-reason = "the LLM scope tier without a decision model of its own resolves with no application"
+reason = "the LLM scope tier built with neither a decision model nor an application (its no-argument constructor, the ServiceLoader instance) resolves for the current one; ScopeGuardrailResolver builds it with the application's environment"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/guardrails/LlmModerationDetector.java"
-pattern = '^var effective = model != null \? model : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+pattern = '^\? DecisionModelResolver\.resolve\(environment\) : DecisionModelResolver\.resolve\(\);$'
 sites = 1
-reason = "the LLM moderation tier without a decision model of its own resolves with no application"
+reason = "the LLM moderation tier built with neither a decision model nor an application resolves for the current one; the Spring starters build it with the context's environment"
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/intent/IntentRouting.java"
-pattern = '^model = decisionModel != null \? decisionModel : DecisionModelResolver\.resolve\(\)\.orElse\(null\);$'
+pattern = '^\? DecisionModelResolver\.resolve\(environment\) : DecisionModelResolver\.resolve\(\);$'
 sites = 1
-reason = "intent routing without a decision model of its own resolves with no application"
+reason = "intent routing without a decision model classified with no application (classify(message)) resolves for the current one; AiPipeline and AiStreamingSession pass theirs to classify(message, environment)"
 
 # --- Process-wide by contract (decision D4: static binders stay the fallback through 4.x) ---
 [[ai_application_state.allowed]]

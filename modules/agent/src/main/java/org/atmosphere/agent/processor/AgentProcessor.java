@@ -394,7 +394,8 @@ public class AgentProcessor implements Processor<Object> {
             SkillFileParser skillFile, Class<?> agentClass, String agentName,
             String agentDescription) {
         var guardrails = new ArrayList<org.atmosphere.ai.AiGuardrail>();
-        var scopePolicy = resolveScopePolicy(skillFile, agentClass, agentName, agentDescription);
+        var scopePolicy = resolveScopePolicy(environmentOf(framework), skillFile, agentClass, agentName,
+                agentDescription);
         if (scopePolicy != null) {
             // Scope first — cheapest rejection, before any framework policy.
             guardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(scopePolicy));
@@ -419,8 +420,28 @@ public class AgentProcessor implements Processor<Object> {
      */
     ScopePolicy resolveScopePolicy(SkillFileParser skillFile, Class<?> agentClass,
                                    String agentName, String agentDescription) {
-        return ScopePolicyResolver.resolve(skillFile, agentClass, agentName,
+        return resolveScopePolicy(null, skillFile, agentClass, agentName, agentDescription);
+    }
+
+    /**
+     * {@link #resolveScopePolicy(SkillFileParser, Class, String, String)} with
+     * the scope guardrails of the agent's application, so the policy screens
+     * with that application's embedding runtime or decision model.
+     *
+     * @param environment the application's environment; {@code null} resolves
+     *                    for {@link org.atmosphere.ai.AiEnvironment#current()}
+     */
+    ScopePolicy resolveScopePolicy(org.atmosphere.ai.AiEnvironment environment, SkillFileParser skillFile,
+                                   Class<?> agentClass, String agentName, String agentDescription) {
+        return ScopePolicyResolver.resolve(environment, skillFile, agentClass, agentName,
                 agentDescription, "/atmosphere/agent/" + agentName);
+    }
+
+    /** The AI environment attached to {@code framework}, or {@code null} when it has none. */
+    private static org.atmosphere.ai.AiEnvironment environmentOf(AtmosphereFramework framework) {
+        return framework != null
+                ? org.atmosphere.ai.AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null)
+                : null;
     }
 
     /**
@@ -441,7 +462,8 @@ public class AgentProcessor implements Processor<Object> {
             AiConversationMemory memory, ToolRegistry toolRegistry, AiMetrics metrics) {
         List<org.atmosphere.ai.governance.GovernancePolicy> policies =
                 org.atmosphere.ai.governance.GovernancePolicies.installed(framework);
-        var scopePolicy = resolveScopePolicy(skillFile, agentClass, agentName, agentDescription);
+        var scopePolicy = resolveScopePolicy(environmentOf(framework), skillFile, agentClass, agentName,
+                agentDescription);
         if (scopePolicy != null) {
             var extended = new ArrayList<org.atmosphere.ai.governance.GovernancePolicy>(
                     policies.size() + 1);

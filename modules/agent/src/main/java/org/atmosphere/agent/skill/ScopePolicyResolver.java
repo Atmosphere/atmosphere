@@ -15,6 +15,7 @@
  */
 package org.atmosphere.agent.skill;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.governance.scope.ScopeConfig;
 import org.atmosphere.ai.governance.scope.ScopePolicy;
@@ -165,6 +166,30 @@ public final class ScopePolicyResolver {
     public static ScopePolicy resolve(SkillFileParser skillFile, Class<?> agentClass,
                                       String agentName, String agentDescription,
                                       String annotationPath) {
+        return resolve(null, skillFile, agentClass, agentName, agentDescription, annotationPath);
+    }
+
+    /**
+     * {@link #resolve(SkillFileParser, Class, String, String, String)} with the
+     * scope guardrails of one application
+     * ({@link ScopePolicyBuilder#build(AiEnvironment, ScopeConfig, String, String)}),
+     * so the policy screens with that application's embedding runtime or
+     * decision model. The {@code @Agent} and {@code @Coordinator} processors
+     * pass theirs.
+     *
+     * @param environment      the application's environment; {@code null}
+     *                         resolves the guardrails for {@link AiEnvironment#current()}
+     * @param skillFile        the parsed skill file, or {@code null}
+     * @param agentClass       the annotated class, consulted for {@link AgentScope}
+     * @param agentName        agent name, used in policy naming and log lines
+     * @param agentDescription description used as the scope purpose when the
+     *                         skill frontmatter declares none
+     * @param annotationPath   registration path for the annotation fallback
+     * @return the enforced policy, or {@code null} when the class declares no scope
+     */
+    public static ScopePolicy resolve(AiEnvironment environment, SkillFileParser skillFile,
+                                      Class<?> agentClass, String agentName,
+                                      String agentDescription, String annotationPath) {
         var scopeAnnotation = agentClass == null
                 ? null : agentClass.getAnnotation(AgentScope.class);
         if (skillFile != null) {
@@ -174,7 +199,7 @@ public final class ScopePolicyResolver {
                 // restrictive annotation beats it and is enforced as written.
                 var annotationConfig = restrictiveConfig(scopeAnnotation);
                 return annotationConfig == null
-                        ? null : annotationPolicy(annotationConfig, agentClass);
+                        ? null : annotationPolicy(environment, annotationConfig, agentClass);
             }
             var guardrails = skillFile.listItems("Guardrails");
             if (!guardrails.isEmpty()) {
@@ -182,11 +207,11 @@ public final class ScopePolicyResolver {
                     // Two explicit declarations: the stricter wins, leg by leg.
                     var merge = merge(skillFile, scopeAnnotation, agentDescription);
                     if (merge != null) {
-                        return ScopePolicyBuilder.build(merge.legs(), "scope::" + agentName,
+                        return ScopePolicyBuilder.build(environment, merge.legs(), "scope::" + agentName,
                                 "skill-guardrails:" + agentName
                                         + "+annotation:" + agentClass.getName());
                     }
-                    return fromSkillGuardrails(skillFile, agentName, agentDescription,
+                    return fromSkillGuardrails(environment, skillFile, agentName, agentDescription,
                             isRestrictive(scopeAnnotation)
                                     ? List.of(scopeAnnotation.forbiddenTopics()) : List.of());
                 }
@@ -197,22 +222,23 @@ public final class ScopePolicyResolver {
                     var annotationConfig = restrictiveConfig(scopeAnnotation);
                     if (annotationConfig != null) {
                         // explicit annotation beats a derived scope
-                        return annotationPolicy(withForbiddenTopics(annotationConfig,
+                        return annotationPolicy(environment, withForbiddenTopics(annotationConfig,
                                 union(annotationConfig.forbiddenTopics(),
                                         forbiddenTopicsFrom(guardrails))), agentClass);
                     }
                     // An invalid annotation fails closed to the derived scope,
                     // which still takes its topic bans (they can only narrow).
-                    return fromSkillGuardrails(skillFile, agentName, agentDescription,
+                    return fromSkillGuardrails(environment, skillFile, agentName, agentDescription,
                             List.of(scopeAnnotation.forbiddenTopics()));
                 }
-                return fromSkillGuardrails(skillFile, agentName, agentDescription);
+                return fromSkillGuardrails(environment, skillFile, agentName, agentDescription,
+                        List.of());
             }
         }
         if (scopeAnnotation == null) {
             return null;
         }
-        return ScopePolicyBuilder.build(scopeAnnotation, agentClass, annotationPath)
+        return ScopePolicyBuilder.build(environment, scopeAnnotation, agentClass, annotationPath)
                 .orElse(null);
     }
 
@@ -241,8 +267,9 @@ public final class ScopePolicyResolver {
     }
 
     /** The policy a valid restrictive {@link AgentScope} declares, named after the class. */
-    private static ScopePolicy annotationPolicy(ScopeConfig config, Class<?> agentClass) {
-        return ScopePolicyBuilder.build(config,
+    private static ScopePolicy annotationPolicy(AiEnvironment environment, ScopeConfig config,
+                                                Class<?> agentClass) {
+        return ScopePolicyBuilder.build(environment, config,
                 "scope::" + agentClass.getSimpleName(), "annotation:" + agentClass.getName());
     }
 
@@ -575,7 +602,25 @@ public final class ScopePolicyResolver {
      */
     public static ScopePolicy fromSkillGuardrails(SkillFileParser skillFile, String agentName,
                                                   String agentDescription) {
-        return fromSkillGuardrails(skillFile, agentName, agentDescription, List.of());
+        return fromSkillGuardrails(null, skillFile, agentName, agentDescription, List.of());
+    }
+
+    /**
+     * {@link #fromSkillGuardrails(SkillFileParser, String, String)} with the
+     * scope guardrail of one application.
+     *
+     * @param environment      the application's environment; {@code null}
+     *                         resolves the guardrail for {@link AiEnvironment#current()}
+     * @param skillFile        the parsed skill file
+     * @param agentName        agent name, used in policy naming
+     * @param agentDescription description used as the scope purpose when the
+     *                         skill frontmatter declares none
+     * @return the enforced policy, or {@code null} when the skill declares no
+     *         {@code ## Guardrails} or opts out
+     */
+    public static ScopePolicy fromSkillGuardrails(AiEnvironment environment, SkillFileParser skillFile,
+                                                  String agentName, String agentDescription) {
+        return fromSkillGuardrails(environment, skillFile, agentName, agentDescription, List.of());
     }
 
     /**
@@ -583,8 +628,8 @@ public final class ScopePolicyResolver {
      * {@code annotationTopics} — a restrictive {@link AgentScope}'s forbidden
      * topics — unioned after the skill's own.
      */
-    private static ScopePolicy fromSkillGuardrails(SkillFileParser skillFile, String agentName,
-                                                   String agentDescription,
+    private static ScopePolicy fromSkillGuardrails(AiEnvironment environment, SkillFileParser skillFile,
+                                                   String agentName, String agentDescription,
                                                    List<String> annotationTopics) {
         var guardrails = skillFile.listItems("Guardrails");
         if (guardrails.isEmpty()) {
@@ -596,7 +641,7 @@ public final class ScopePolicyResolver {
                     + "prompt-only, no admission scope policy installed", agentName, tierHint);
             return null;
         }
-        return ScopePolicyBuilder.build(
+        return ScopePolicyBuilder.build(environment,
                 skillScope(skillFile, agentDescription, annotationTopics).config(),
                 "scope::" + agentName, "skill-guardrails:" + agentName);
     }

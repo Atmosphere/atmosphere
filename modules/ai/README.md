@@ -361,7 +361,9 @@ A multi-leg policy prepends one confinement block to the system prompt that
 lists every distinct purpose and says a request must fall within all of them;
 a single-leg policy's block is unchanged.
 
-There are four tiers, each resolved by `ScopeGuardrailResolver`:
+There are four tiers, each resolved by `ScopeGuardrailResolver`, per application: an endpoint's or
+agent's scope uses its own application's embedding runtime and decision model, even with several
+applications in one JVM (see *One `AiEnvironment` per application*):
 
 | Tier | Guardrail | Backing | When the backing is missing or fails |
 |------|-----------|---------|--------------------------------------|
@@ -755,20 +757,36 @@ coordinator's `ResultEvaluator`s (`ResultEvaluator.attach`) and the channels bri
 `DecisionModelResolver.resolve(environment)` keeps one decision model per application, its fallback on
 that application's runtime.
 
+The governance tiers are per application too. `ScopeGuardrailResolver.resolve(environment, tier)` and
+`InjectionClassifierResolver.resolve(environment, tier)` keep one scope guardrail and one injection
+classifier per tier for each application, built over that application's embedding runtime and asking
+its decision model, and drop them when the application's environment closes (`AiEnvironment.onClose`).
+The `@AiEndpoint`, `@Agent` and `@Coordinator` processors build their `@AgentScope` and skill scopes
+with the application (`ScopePolicyBuilder.build(environment, ...)`); `AiPipeline`,
+`AiStreamingSession` and `PolicyAdmissionGate` resolve a per-request scope
+(`ScopePolicyInstaller.extract(metadata, environment)`) and an intent routing without a decision model
+of its own (`IntentRouting.classify(message, environment)`) for the application they serve; the RAG
+screen resolves its classifier for the framework's application, the long-term-memory screen for the
+application of its extraction runtime (and reports the tier of the framework's); and the Spring Boot
+starters build the LLM moderation detector with the context's environment
+(`new LlmModerationDetector(environment)`). A guardrail or classifier registered through
+`META-INF/services` (other than the built-in ones) is built once per tier for the JVM by its
+no-argument constructor, so it cannot know an application.
+
 What still reads the static API (so its application's own only on a bound thread, or with a single
-application): `DecisionModelResolver.resolve()` and its callers that hold no application (the LLM
-injection, scope and moderation tiers, `IntentRouting` without a decision model of its own), the
-`InjectionClassifierResolver` cache, which keeps one classifier per tier for the JVM, the semantic
+application): the no-application overloads `DecisionModelResolver.resolve()`,
+`ScopeGuardrailResolver.resolve(tier)` and `InjectionClassifierResolver.resolve(tier)`, and the code
+that calls them because it holds no application: the LLM injection, scope and moderation tiers built
+with neither a decision model nor an `AiEnvironment` (their no-argument constructors),
+`IntentRouting.classify(message)`, and `ScopePolicyBuilder.build`, `ScopePolicyInstaller.extract`,
+`SafetyContextProvider` and `MemorySafetyConfig.wrap` called without an environment; the semantic
 response cache, embedding scope guardrails and embedding injection classifier built without an
-embedding runtime. Of these, the scope guardrails reach every `@AgentScope`
-endpoint or agent: `ScopeGuardrailResolver` keeps one built-in guardrail per tier for the JVM, built
-without an embedding runtime the first time a scope of that tier is resolved (an endpoint or agent
-registering, on a thread bound to no application), so it resolves the embedding runtime through the
-static API. With one application that is its own. With two running, it is the process default's:
-`EMBEDDING_SIMILARITY` and `SEMANTIC_INTENT` scopes degrade to rule-based enforcement (unless the
-semantic-intent tier is set to fail open) when the process default has no embedding runtime, even if
-the application bound one, and every application then shares the guardrail that first resolution
-built. Adapter configuration statics that are not native clients
+embedding runtime; and the Quarkus LangChain4j bridge when the Atmosphere Quarkus extension is absent
+(no application `AiEnvironment`), which then binds through the deprecated static
+`LangChain4jAgentRuntime.setModel(model)`. The long-term-memory screen's policy
+(`MemorySafetyConfig.installedDefault()`: enabled, tier, breach, fail-open) is one for the JVM, the one
+the last `installDefault` / `installedFrom` set; each application's screen still runs its own models.
+Adapter configuration statics that are not native clients
 (`AdkAgentRuntime.setDefaults` / `setCacheConfig` / `setMaxSteps`, `EmbabelAgentRuntime.setAgentName`,
 `LangChain4jAgentRuntime.registerChatModelListener`, `DemoAgentRuntime.setResponseStrategy`) apply to
 every application.

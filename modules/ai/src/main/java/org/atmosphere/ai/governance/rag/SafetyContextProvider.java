@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance.rag;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.governance.AuditEntry;
 import org.atmosphere.ai.governance.GovernanceDecisionLog;
@@ -89,9 +90,13 @@ public final class SafetyContextProvider implements ContextProvider {
             throw new IllegalArgumentException("delegate ContextProvider must not be null");
         }
         this.delegate = b.delegate;
-        this.classifier = b.classifier != null
-                ? b.classifier
-                : InjectionClassifierResolver.resolve(b.tier);
+        if (b.classifier != null) {
+            this.classifier = b.classifier;
+        } else if (b.environment != null) {
+            this.classifier = InjectionClassifierResolver.resolve(b.environment, b.tier);
+        } else {
+            this.classifier = InjectionClassifierResolver.resolve(b.tier);
+        }
         this.onBreach = b.onBreach;
         this.failOpen = b.failOpen;
         this.policyName = b.policyName != null ? b.policyName : "rag-safety";
@@ -275,6 +280,7 @@ public final class SafetyContextProvider implements ContextProvider {
         private ContextProvider delegate;
         private InjectionClassifier classifier;
         private InjectionClassifier.Tier tier = InjectionClassifier.Tier.RULE_BASED;
+        private AiEnvironment environment;
         private Breach onBreach = Breach.DROP;
         private boolean failOpen = false;
         private String policyName;
@@ -296,6 +302,18 @@ public final class SafetyContextProvider implements ContextProvider {
          */
         public Builder tier(InjectionClassifier.Tier tier) {
             this.tier = tier;
+            return this;
+        }
+
+        /**
+         * The application whose classifier the {@link #tier} resolves to
+         * ({@link InjectionClassifierResolver#resolve(AiEnvironment, InjectionClassifier.Tier)}):
+         * the higher tiers then run over that application's embedding runtime
+         * or decision model. Unset, or {@code null}, resolves for
+         * {@link AiEnvironment#current()}. Ignored if {@link #classifier} is set.
+         */
+        public Builder environment(AiEnvironment environment) {
+            this.environment = environment;
             return this;
         }
 

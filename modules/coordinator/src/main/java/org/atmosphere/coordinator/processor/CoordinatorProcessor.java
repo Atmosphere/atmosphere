@@ -497,7 +497,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                              String systemPrompt, String model, AiConversationMemory memory,
                              ToolRegistry toolRegistry, AiMetrics metrics) {
         var policies = GovernancePolicies.installed(framework);
-        var scopePolicy = resolveScopePolicy(annotatedClass, skillFile, path);
+        var scopePolicy = resolveScopePolicy(framework, annotatedClass, skillFile, path);
         if (scopePolicy != null) {
             var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);
             extended.add(scopePolicy);      // scope runs first — cheapest rejection
@@ -520,15 +520,20 @@ public class CoordinatorProcessor implements Processor<Object> {
      * Resolve the coordinator's admission scope with the shared precedence
      * ({@link ScopePolicyResolver#resolve}). The coordinator name (falling back to the
      * registration path) keys the policy; the annotation description seeds the
-     * scope purpose when the skill frontmatter declares none.
+     * scope purpose when the skill frontmatter declares none. The scope
+     * guardrails are those of the framework's application, so the policy
+     * screens with that application's embedding runtime or decision model.
      */
-    private ScopePolicy resolveScopePolicy(Class<?> annotatedClass,
+    private ScopePolicy resolveScopePolicy(AtmosphereFramework framework, Class<?> annotatedClass,
                                            SkillFileParser skillFile, String path) {
         var annotation = annotatedClass.getAnnotation(Coordinator.class);
         var name = annotation != null && !annotation.name().isBlank()
                 ? annotation.name() : path;
         var description = annotation != null ? annotation.description() : "";
-        return ScopePolicyResolver.resolve(skillFile, annotatedClass, name, description, path);
+        var environment = framework != null
+                ? org.atmosphere.ai.AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null)
+                : null;
+        return ScopePolicyResolver.resolve(environment, skillFile, annotatedClass, name, description, path);
     }
 
     /**
@@ -548,7 +553,7 @@ public class CoordinatorProcessor implements Processor<Object> {
     List<AiGuardrail> buildWebGuardrails(AtmosphereFramework framework,
                                          Class<?> annotatedClass, SkillFileParser skillFile,
                                          String path) {
-        var scopePolicy = resolveScopePolicy(annotatedClass, skillFile, path);
+        var scopePolicy = resolveScopePolicy(framework, annotatedClass, skillFile, path);
         var guardrails = new ArrayList<AiGuardrail>();
         if (scopePolicy != null) {
             // Scope first — cheapest rejection, before any framework policy.

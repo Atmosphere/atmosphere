@@ -16,6 +16,7 @@
 package org.atmosphere.ai.governance.scope;
 
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.decision.Answer;
@@ -29,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Objects;
 
 /**
  * Opt-in scope classifier for high-stakes scopes where false-negatives cost
@@ -100,14 +102,32 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     static final String QUESTION_ID = "off_topic";
 
     private final DecisionModel model;
+    /** The application whose decision model is resolved when {@link #model} is {@code null}; {@code null} for the current one. */
+    private final AiEnvironment environment;
     private final Duration timeout;
     private final NoulGate gate;
     /** The explicit fail policy, or {@code null} to read {@link #FAIL_OPEN_PROPERTY} per verdict. */
     private final Boolean failOpen;
 
-    /** Resolves the decision model through {@link DecisionModelResolver} on each call. */
+    /**
+     * Resolves the decision model through {@link DecisionModelResolver} on each
+     * call, for {@link AiEnvironment#current()}: code with no application.
+     */
     public LlmClassifierScopeGuardrail() {
         this((AgentRuntime) null, DEFAULT_TIMEOUT);
+    }
+
+    /**
+     * Resolves the decision model of one application on each call
+     * ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the default
+     * timeout and thresholds; an uncertain verdict reads
+     * {@value #FAIL_OPEN_PROPERTY}, as the no-argument constructor does.
+     *
+     * @param environment the application's environment
+     */
+    public LlmClassifierScopeGuardrail(AiEnvironment environment) {
+        this(null, Objects.requireNonNull(environment, "environment"), DEFAULT_TIMEOUT,
+                NoulGate.DEFAULTS, null);
     }
 
     /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
@@ -139,7 +159,13 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     }
 
     private LlmClassifierScopeGuardrail(DecisionModel model, Duration timeout, NoulGate gate, Boolean failOpen) {
+        this(model, null, timeout, gate, failOpen);
+    }
+
+    private LlmClassifierScopeGuardrail(DecisionModel model, AiEnvironment environment, Duration timeout,
+                                        NoulGate gate, Boolean failOpen) {
         this.model = model;
+        this.environment = environment;
         this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
         this.gate = gate == null ? NoulGate.DEFAULTS : gate;
         this.failOpen = failOpen;
@@ -158,7 +184,7 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
         if (request == null || request.message() == null || request.message().isBlank()) {
             return Decision.inScope(Double.NaN);
         }
-        var effective = model != null ? model : DecisionModelResolver.resolve().orElse(null);
+        var effective = model != null ? model : resolveModel();
         if (effective == null) {
             logger.warn("No DecisionModel can answer (only the demo runtime is available); "
                     + "the LLM scope classifier cannot clear the request");
@@ -185,6 +211,13 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
             case CLEAR -> Decision.inScope(Double.NaN);
             case UNCERTAIN -> uncertain(verdict.reason());
         };
+    }
+
+    /** The decision model of {@link #environment}, else of the current application; {@code null} when none can answer. */
+    private DecisionModel resolveModel() {
+        var resolved = environment != null
+                ? DecisionModelResolver.resolve(environment) : DecisionModelResolver.resolve();
+        return resolved.orElse(null);
     }
 
     private Decision uncertain(String reason) {

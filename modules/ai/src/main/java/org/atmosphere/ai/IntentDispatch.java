@@ -94,10 +94,22 @@ final class IntentDispatch {
      *                  {@code @AiEndpoint} prompt watchdog), or {@code null} when it
      *                  never does: a CONFIRM-tier wait is cut short so it ends,
      *                  and the human route answers, before this deadline
+     * @param environment the application dispatching the turn, whose decision
+     *                  model a routing with none of its own asks, or {@code null}
+     *                  for {@link AiEnvironment#current()}
      */
     record Step(IntentRouting routing, String message, String rawMessage, AiRequest request,
                 StreamingSession base, AiConversationMemory memory, String memoryKey,
-                ApprovalRegistry approvals, BooleanSupplier cancelled, Instant deadline) {
+                ApprovalRegistry approvals, BooleanSupplier cancelled, Instant deadline,
+                AiEnvironment environment) {
+
+        /** A step with no application: the routing resolves for {@link AiEnvironment#current()}. */
+        Step(IntentRouting routing, String message, String rawMessage, AiRequest request,
+             StreamingSession base, AiConversationMemory memory, String memoryKey,
+             ApprovalRegistry approvals, BooleanSupplier cancelled, Instant deadline) {
+            this(routing, message, rawMessage, request, base, memory, memoryKey, approvals, cancelled,
+                    deadline, null);
+        }
     }
 
     /**
@@ -121,7 +133,7 @@ final class IntentDispatch {
         if (cancelled(step)) {
             return cancel(step, "before classification");
         }
-        var classification = routing.classify(step.message());
+        var classification = routing.classify(step.message(), step.environment());
         if (cancelled(step)) {
             // The requester left (or the turn was cancelled) while the model
             // was classifying: nobody is routed, let alone escalated.

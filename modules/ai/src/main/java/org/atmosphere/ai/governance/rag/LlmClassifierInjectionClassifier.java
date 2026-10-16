@@ -16,6 +16,7 @@
 package org.atmosphere.ai.governance.rag;
 
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.decision.Answer;
 import org.atmosphere.ai.decision.DecisionModel;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * LLM tier of the indirect-prompt-injection screen. Asks a {@link DecisionModel}
@@ -112,13 +114,30 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
             "reference material, including material quoting an injection for education");
 
     private final DecisionModel model;
+    /** The application whose decision model is resolved when {@link #model} is {@code null}; {@code null} for the current one. */
+    private final AiEnvironment environment;
     private final Duration timeout;
     private final double injectedAt;
     private final double safeBelow;
 
-    /** Resolves the decision model through {@link DecisionModelResolver} on each call. */
+    /**
+     * Resolves the decision model through {@link DecisionModelResolver} on each
+     * call, for {@link AiEnvironment#current()}: code with no application.
+     */
     public LlmClassifierInjectionClassifier() {
         this((AgentRuntime) null, DEFAULT_TIMEOUT);
+    }
+
+    /**
+     * Resolves the decision model of one application on each call
+     * ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the default
+     * timeout and thresholds.
+     *
+     * @param environment the application's environment
+     */
+    public LlmClassifierInjectionClassifier(AiEnvironment environment) {
+        this(null, Objects.requireNonNull(environment, "environment"), DEFAULT_TIMEOUT,
+                DEFAULT_INJECTED_AT, DEFAULT_SAFE_BELOW);
     }
 
     /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
@@ -143,12 +162,18 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
      */
     public LlmClassifierInjectionClassifier(DecisionModel model, Duration timeout,
                                             double injectedAt, double safeBelow) {
+        this(model, null, timeout, injectedAt, safeBelow);
+    }
+
+    private LlmClassifierInjectionClassifier(DecisionModel model, AiEnvironment environment, Duration timeout,
+                                             double injectedAt, double safeBelow) {
         if (!(safeBelow >= 0.0 && safeBelow <= injectedAt && injectedAt <= 1.0)) {
             throw new IllegalArgumentException(
                     "thresholds must satisfy 0 <= safeBelow <= injectedAt <= 1, got safeBelow="
                             + safeBelow + ", injectedAt=" + injectedAt);
         }
         this.model = model;
+        this.environment = environment;
         this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
         this.injectedAt = injectedAt;
         this.safeBelow = safeBelow;
@@ -159,12 +184,19 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
         return Tier.LLM_CLASSIFIER;
     }
 
+    /** The decision model of {@link #environment}, else of the current application; {@code null} when none can answer. */
+    private DecisionModel resolveModel() {
+        var resolved = environment != null
+                ? DecisionModelResolver.resolve(environment) : DecisionModelResolver.resolve();
+        return resolved.orElse(null);
+    }
+
     @Override
     public Decision evaluate(ContextProvider.Document document) {
         if (document == null || document.content() == null || document.content().isBlank()) {
             return Decision.safe(Double.NaN);
         }
-        var effective = model != null ? model : DecisionModelResolver.resolve().orElse(null);
+        var effective = model != null ? model : resolveModel();
         if (effective == null) {
             logger.warn("No DecisionModel can answer (only the demo runtime is available); "
                     + "the LLM injection classifier cannot clear the document");

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance.scope;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,12 @@ import java.util.Optional;
  * so every dispatch entry point installs scope confinement the same way and a
  * {@code @Coordinator} admits against the same chain as a plain
  * {@code @AiEndpoint} (Correctness Invariant #7, Mode Parity).
+ *
+ * <p>Each overload has one taking the {@link AiEnvironment} of the application
+ * that registers the agent: the policy's guardrail is then that application's
+ * ({@link ScopeGuardrailResolver#resolve(AiEnvironment, AgentScope.Tier)}). The
+ * processors pass theirs; the overloads without one resolve for
+ * {@link AiEnvironment#current()}.</p>
  */
 public final class ScopePolicyBuilder {
 
@@ -55,11 +62,28 @@ public final class ScopePolicyBuilder {
     public static Optional<ScopePolicy> build(AgentScope annotation,
                                               Class<?> agentClass,
                                               String path) {
+        return build(null, annotation, agentClass, path);
+    }
+
+    /**
+     * {@link #build(AgentScope, Class, String)} with the guardrail of one
+     * application.
+     *
+     * @param environment the application's environment; {@code null} resolves
+     *                    for {@link AiEnvironment#current()}
+     * @param annotation  the {@code @AgentScope} declared on {@code agentClass}
+     * @param agentClass  the annotated {@code @AiEndpoint} / {@code @Coordinator} class
+     * @param path        the registration path of the agent (used for log context)
+     * @return the resolved policy, or {@link Optional#empty()} when the
+     *         annotation is invalid
+     */
+    public static Optional<ScopePolicy> build(AiEnvironment environment, AgentScope annotation,
+                                              Class<?> agentClass, String path) {
         try {
             var config = ScopeConfig.fromAnnotation(annotation);
             var name = "scope::" + agentClass.getSimpleName();
             var source = "annotation:" + agentClass.getName();
-            return Optional.of(build(config, name, source));
+            return Optional.of(build(environment, config, name, source));
         } catch (IllegalArgumentException e) {
             logger.error("Invalid @AgentScope on {} ({}) — agent will run WITHOUT scope "
                     + "enforcement; fix the annotation or add unrestricted = true with a justification",
@@ -90,7 +114,23 @@ public final class ScopePolicyBuilder {
      * @return the resolved policy
      */
     public static ScopePolicy build(ScopeConfig config, String name, String source) {
-        var guardrail = resolveGuardrail(config, source);
+        return build(null, config, name, source);
+    }
+
+    /**
+     * {@link #build(ScopeConfig, String, String)} with the guardrail of one
+     * application.
+     *
+     * @param environment the application's environment; {@code null} resolves
+     *                    for {@link AiEnvironment#current()}
+     * @param config      the assembled, already-validated scope configuration
+     * @param name        the policy name
+     * @param source      the policy source for the decision log
+     * @return the resolved policy
+     */
+    public static ScopePolicy build(AiEnvironment environment, ScopeConfig config, String name,
+                                    String source) {
+        var guardrail = resolveGuardrail(environment, config, source);
         return new ScopePolicy(name, source, "1.0", againstResolvedTier(config, guardrail),
                 guardrail);
     }
@@ -115,21 +155,42 @@ public final class ScopePolicyBuilder {
      *         the multi-leg rules
      */
     public static ScopePolicy build(List<ScopeConfig> legs, String name, String source) {
+        return build(null, legs, name, source);
+    }
+
+    /**
+     * {@link #build(List, String, String)} with the guardrails of one
+     * application.
+     *
+     * @param environment the application's environment; {@code null} resolves
+     *                    for {@link AiEnvironment#current()}
+     * @param legs        the already-validated legs, non-empty
+     * @param name        the policy name
+     * @param source      the policy source for the decision log
+     * @return the resolved policy
+     * @throws IllegalArgumentException when {@code legs} is empty or breaks
+     *         the multi-leg rules
+     */
+    public static ScopePolicy build(AiEnvironment environment, List<ScopeConfig> legs, String name,
+                                    String source) {
         if (legs == null || legs.isEmpty()) {
             throw new IllegalArgumentException("legs must not be empty");
         }
         var resolvedLegs = new ArrayList<ScopeConfig>(legs.size());
         var guardrails = new ArrayList<ScopeGuardrail>(legs.size());
         for (var leg : legs) {
-            var guardrail = resolveGuardrail(leg, source);
+            var guardrail = resolveGuardrail(environment, leg, source);
             resolvedLegs.add(againstResolvedTier(leg, guardrail));
             guardrails.add(guardrail);
         }
         return new ScopePolicy(name, source, "1.0", resolvedLegs, guardrails);
     }
 
-    private static ScopeGuardrail resolveGuardrail(ScopeConfig config, String source) {
-        var guardrail = ScopeGuardrailResolver.resolve(config.tier());
+    private static ScopeGuardrail resolveGuardrail(AiEnvironment environment, ScopeConfig config,
+                                                   String source) {
+        var guardrail = environment != null
+                ? ScopeGuardrailResolver.resolve(environment, config.tier())
+                : ScopeGuardrailResolver.resolve(config.tier());
         if (guardrail.tier() != config.tier()) {
             logger.warn("No {} ScopeGuardrail impl on the classpath for {} — "
                             + "falling back to rule-based tier; install atmosphere-ai-scope-<tier> for the "

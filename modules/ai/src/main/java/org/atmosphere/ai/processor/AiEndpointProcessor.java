@@ -253,7 +253,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             // unrestricted = true.
             var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
             if (scopeAnnotation != null) {
-                var scopePolicy = ScopePolicyBuilder.build(
+                var scopePolicy = ScopePolicyBuilder.build(aiEnvironment,
                         scopeAnnotation, annotatedClass, annotation.path()).orElse(null);
                 if (scopePolicy != null) {
                     var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);

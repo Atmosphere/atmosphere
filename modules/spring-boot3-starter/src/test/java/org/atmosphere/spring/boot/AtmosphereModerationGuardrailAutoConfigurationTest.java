@@ -19,6 +19,7 @@ import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.decision.DecisionModelResolver;
+import org.atmosphere.ai.guardrails.LlmModerationDetector;
 import org.atmosphere.ai.guardrails.ModerationGuardrail;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -76,6 +77,29 @@ class AtmosphereModerationGuardrailAutoConfigurationTest {
         } finally {
             forgetResolvedModels();
         }
+    }
+
+    /**
+     * The LLM detector asks the decision model of this context's
+     * {@code AiEnvironment}, not whichever application the JVM-wide static API
+     * resolves when several run in one JVM.
+     */
+    @Test
+    void llmDetectorAsksTheContextsOwnApplication() {
+        contextRunner.run(context -> {
+                    var guardrail = context.getBean(ModerationGuardrail.class);
+                    var detector = field(guardrail, "detector");
+                    assertThat(detector).isInstanceOf(LlmModerationDetector.class);
+                    assertThat(field(detector, "environment"))
+                            .as("the detector must be bound to the context's AiEnvironment")
+                            .isSameAs(context.getBean(AtmosphereAiAutoConfiguration.AI_ENVIRONMENT_BEAN));
+                });
+    }
+
+    private static Object field(Object target, String name) throws ReflectiveOperationException {
+        var field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
     }
 
     /**

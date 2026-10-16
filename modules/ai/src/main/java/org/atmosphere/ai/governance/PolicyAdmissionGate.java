@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.scope.ScopePolicyInstaller;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -84,7 +85,10 @@ public final class PolicyAdmissionGate {
         var current = request;
         var mutableMeta = new java.util.HashMap<String, Object>(
                 current.metadata() != null ? current.metadata() : Map.of());
-        var requestScope = ScopePolicyInstaller.extract(mutableMeta);
+        // The request scope's guardrail is the framework's application's, so
+        // it screens with that application's embedding runtime or decision model.
+        var requestScope = ScopePolicyInstaller.extract(mutableMeta,
+                AiEnvironment.find(config).orElse(null));
         if (requestScope != null) {
             current = new AiRequest(current.message(), current.systemPrompt(),
                     current.model(), current.userId(), current.sessionId(),
