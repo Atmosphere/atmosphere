@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
@@ -57,6 +58,41 @@ class CostMeteringInterceptorDeliveryTest {
 
     @Test
     void routingMetadataReachesTheWireBeforeTheCompleteFrame() {
+        var frames = framesFor("gpt-4o");
+
+        var completeIdx = indexOfFrame(frames, "\"type\":\"complete\"");
+        assertTrue(completeIdx >= 0, "terminal complete frame missing; frames: " + frames);
+        for (var key : List.of("routing.model", "routing.cost", "routing.streamingTexts")) {
+            var idx = indexOfFrame(frames, "\"" + key + "\"");
+            assertTrue(idx >= 0, key + " metadata must reach the wire; frames: " + frames);
+            assertTrue(idx < completeIdx, key + " must precede the terminal complete frame "
+                    + "(the Console snapshots routing state at complete); frames: " + frames);
+        }
+        assertTrue(indexOfFrame(frames, "\"value\":\"gpt-4o\"") >= 0,
+                "routing.model must carry the estimated model; frames: " + frames);
+    }
+
+    /**
+     * A model with no known rate — a local Ollama model, or any id the rate
+     * table does not list — reports no cost. The sweep saw "$0.001065" for a
+     * free local qwen2.5:7b because unknown models were priced at a default
+     * $3 per million input tokens.
+     */
+    @Test
+    void aLocalOrUnknownModelReportsNoCost() {
+        for (var model : List.of("qwen2.5:7b-instruct-q4_K_M", "demo-model")) {
+            var frames = framesFor(model);
+
+            assertTrue(indexOfFrame(frames, "\"type\":\"complete\"") >= 0,
+                    "terminal complete frame missing; frames: " + frames);
+            assertTrue(indexOfFrame(frames, "\"routing.model\"") >= 0,
+                    "the model is still reported; frames: " + frames);
+            assertEquals(-1, indexOfFrame(frames, "\"routing.cost\""),
+                    model + " has no known rate, so no cost may be shown; frames: " + frames);
+        }
+    }
+
+    private static List<String> framesFor(String model) {
         var frames = new CopyOnWriteArrayList<String>();
         var attributes = new HashMap<String, Object>();
 
@@ -111,21 +147,12 @@ class CostMeteringInterceptorDeliveryTest {
 
         var session = new AiStreamingSession(
                 StreamingSessions.start("cost-metering-session", resource), runtime,
-                "You are a helpful assistant.", "demo-model",
+                "You are a helpful assistant.", model,
                 List.of(new CostMeteringInterceptor()), resource);
 
         session.stream("What is the weather in Paris?");
 
-        var completeIdx = indexOfFrame(frames, "\"type\":\"complete\"");
-        assertTrue(completeIdx >= 0, "terminal complete frame missing; frames: " + frames);
-        for (var key : List.of("routing.model", "routing.cost", "routing.streamingTexts")) {
-            var idx = indexOfFrame(frames, "\"" + key + "\"");
-            assertTrue(idx >= 0, key + " metadata must reach the wire; frames: " + frames);
-            assertTrue(idx < completeIdx, key + " must precede the terminal complete frame "
-                    + "(the Console snapshots routing state at complete); frames: " + frames);
-        }
-        assertTrue(indexOfFrame(frames, "\"value\":\"demo-model\"") >= 0,
-                "routing.model must carry the estimated model; frames: " + frames);
+        return frames;
     }
 
     private static int indexOfFrame(List<String> frames, String token) {

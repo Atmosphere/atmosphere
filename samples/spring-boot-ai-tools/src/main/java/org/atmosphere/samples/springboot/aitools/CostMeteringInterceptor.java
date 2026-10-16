@@ -30,7 +30,9 @@ import java.util.Map;
  * Demonstrates cost metering as an {@link AiInterceptor}.
  *
  * <p>{@code preProcess} estimates input streaming texts from text length (roughly 1 streaming text
- * per 4 characters) and calculates an estimated input cost using per-model pricing.
+ * per 4 characters) and calculates an estimated input cost using per-model pricing. A model
+ * the rate table does not list (a local Ollama model, for one) gets no cost at all, not a
+ * default rate.
  * {@code beforeCompletion} sends the {@code routing.*} metadata (model / cost /
  * streaming-text count / latency) to the client while the session still accepts
  * frames — immediately before the terminal {@code complete} frame — so the
@@ -69,8 +71,6 @@ public class CostMeteringInterceptor implements AiInterceptor {
             Map.entry("gemini-3", 1.25)
     );
 
-    private static final double DEFAULT_PRICE_PER_MILLION = 3.0;
-
     @Override
     public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
         int totalChars = request.systemPrompt().length() + request.message().length();
@@ -82,24 +82,28 @@ public class CostMeteringInterceptor implements AiInterceptor {
         var model = request.model() != null ? request.model() : "default";
         var modelLower = model.toLowerCase();
 
-        // Match using contains() to handle prefixes like "copilot:claude-sonnet-4.6"
-        double pricePerMillion = INPUT_PRICE_PER_MILLION.entrySet().stream()
+        // Match using contains() to handle prefixes like "copilot:claude-sonnet-4.6".
+        // A model the table does not list (a local Ollama model, a demo model,
+        // a provider this sample does not know) has no price: it reports no
+        // cost rather than a guessed one.
+        var pricePerMillion = INPUT_PRICE_PER_MILLION.entrySet().stream()
                 .filter(e -> modelLower.contains(e.getKey()))
                 .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(DEFAULT_PRICE_PER_MILLION);
+                .findFirst();
 
-        double estimatedCost = estimatedStreamingTexts * pricePerMillion / 1_000_000.0;
-
-        logger.info("[Cost] model={}, est_input_streaming_texts=~{}, est_input_cost=${}", model, estimatedStreamingTexts,
-                String.format("%.6f", estimatedCost));
-
-        // Store for postProcess to send as metadata
         var req = resource.getRequest();
         req.setAttribute(START_TIME_ATTR, System.nanoTime());
         req.setAttribute(EST_STREAMING_TEXTS_ATTR, estimatedStreamingTexts);
-        req.setAttribute(EST_COST_ATTR, estimatedCost);
         req.setAttribute(MODEL_ATTR, model);
+        if (pricePerMillion.isPresent()) {
+            double estimatedCost = estimatedStreamingTexts * pricePerMillion.get() / 1_000_000.0;
+            logger.info("[Cost] model={}, est_input_streaming_texts=~{}, est_input_cost=${}", model,
+                    estimatedStreamingTexts, String.format("%.6f", estimatedCost));
+            req.setAttribute(EST_COST_ATTR, estimatedCost);
+        } else {
+            logger.info("[Cost] model={}, est_input_streaming_texts=~{}, no known rate "
+                    + "(local or unpriced model) — no cost reported", model, estimatedStreamingTexts);
+        }
 
         return request;
     }
