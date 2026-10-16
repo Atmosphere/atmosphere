@@ -34,7 +34,10 @@
 #   * Kills by PID only, never pkill. Every started JVM is recorded in a
 #     pidfile so `stop` / `stop-all` are exact.
 #   * Readiness = TCP listen + an HTTP probe with a hard timeout on a path
-#     you choose. Never probe a suspended long-poll endpoint.
+#     you choose. Never probe a suspended long-poll endpoint. A Spring Boot
+#     sample with atmosphere.web-transport.enabled=true is ready only once its
+#     log says "HTTP/3 + WebTransport server started" (same --timeout); a
+#     "WebTransport server failed to start" line fails the boot at once.
 #
 # Usage:
 #   sweep-sample.sh start <sample> [--port N] [--ready-path /p] [--env K=V]...
@@ -269,6 +272,73 @@ http_ready() {
     [[ "$code" != "000" && "$code" -lt 500 ]]
 }
 
+# The Spring Boot WebTransport sidecar binds its HTTP/3 port about 1.7 s after
+# Tomcat answers. Declaring a WebTransport sample ready at Tomcat-up let the
+# 2026-10-16 sweep open the Console in that gap: console info had no
+# webTransport block yet and the page ran on WebSocket for its whole life.
+WT_STARTED_LINE='HTTP/3 + WebTransport server started on'
+WT_FAILED_LINE='WebTransport server failed to start'
+
+# webtransport_enabled <sample> [jvm-arg...] — 0 when the sample boots the
+# WebTransport sidecar: an explicit -Datmosphere.web-transport.enabled wins,
+# otherwise the sample's own application.yml / application.properties decides.
+webtransport_enabled() {
+    local sample="$1"; shift
+    local a
+    for a in "$@"; do
+        case "$a" in
+            -Datmosphere.web-transport.enabled=true) return 0 ;;
+            -Datmosphere.web-transport.enabled=*) return 1 ;;
+        esac
+    done
+    local res="$ROOT/samples/$sample/src/main/resources" f
+    if [[ -f "$res/application.properties" ]] && grep -qE \
+            '^[[:space:]]*atmosphere\.web-transport\.enabled[[:space:]]*[=:][[:space:]]*true' \
+            "$res/application.properties"; then
+        return 0
+    fi
+    for f in "$res/application.yml" "$res/application.yaml"; do
+        [[ -f "$f" ]] || continue
+        # enabled: true inside the web-transport: block (the block ends at the
+        # next line indented no deeper than its key).
+        awk '
+            /^[[:space:]]*web-transport:[[:space:]]*$/ { match($0, /^[[:space:]]*/); depth = RLENGTH; inblock = 1; next }
+            inblock && /^[[:space:]]*[^[:space:]#]/ {
+                match($0, /^[[:space:]]*/)
+                if (RLENGTH <= depth) { inblock = 0; next }
+                if ($0 ~ /^[[:space:]]*enabled:[[:space:]]*true[[:space:]]*(#.*)?$/) { found = 1; exit }
+            }
+            END { exit found ? 0 : 1 }
+        ' "$f" && return 0
+    done
+    return 1
+}
+
+# wait_for_webtransport <log> <pid> <deadline> — 0 once the log says the
+# sidecar bound; 1 (with the reason on stderr) when it failed to start, the
+# process died, or SECONDS reached <deadline> first.
+wait_for_webtransport() {
+    local log="$1" pid="$2" deadline="$3"
+    while :; do
+        if grep -aqF "$WT_STARTED_LINE" "$log" 2>/dev/null; then
+            return 0
+        fi
+        if grep -aqF "$WT_FAILED_LINE" "$log" 2>/dev/null; then
+            echo "WebTransport did not start: $(grep -aF "$WT_FAILED_LINE" "$log" | head -1)" >&2
+            return 1
+        fi
+        if ! kill -0 "$pid" 2>/dev/null; then
+            echo "the sample exited before its WebTransport server started" >&2
+            return 1
+        fi
+        if ((SECONDS >= deadline)); then
+            echo "no '$WT_STARTED_LINE' line in the log before the timeout" >&2
+            return 1
+        fi
+        sleep 1
+    done
+}
+
 cmd_start() {
     local sample="${1:-}"; shift || true
     [[ -n "$sample" ]] || die "usage: $0 start <sample> [--port N] ..."
@@ -403,6 +473,18 @@ cmd_start() {
             die "$sample exited before becoming ready (see $log)"
         fi
         if port_answers "$port" && http_ready "http://127.0.0.1:$port$ready_path"; then
+            # A WebTransport sample is ready once its HTTP/3 sidecar is: a page
+            # opened before that runs on WebSocket for its whole life.
+            if [[ "$kind" == spring-boot ]] \
+                    && webtransport_enabled "$sample" ${jvm_args[@]+"${jvm_args[@]}"}; then
+                info "$sample: HTTP up, waiting for the WebTransport server"
+                if ! wait_for_webtransport "$log" "$pid" "$deadline"; then
+                    echo "--- last 60 log lines ---" >&2; tail -60 "$log" >&2 || true
+                    cmd_stop "$sample" --port "$port" >/dev/null 2>&1 || true
+                    die "$sample: WebTransport is enabled but its server did not start (see $log)"
+                fi
+                info "$sample: WebTransport server started"
+            fi
             info "$sample ready — http://localhost:$port$ready_path (PID $pid)"
             echo "$pid"
             return 0

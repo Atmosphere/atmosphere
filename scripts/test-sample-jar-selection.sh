@@ -475,6 +475,13 @@ for a in "\$@"; do
 done
 env >"$fake/env.\$port"
 printf '%s\n' "\$@" >"$fake/args.\$port"
+# FAKE_WT=<started|failed>:<seconds> logs the WebTransport sidecar's outcome
+# that long after HTTP is up, as the Spring Boot starter does about 1.7 s after
+# Tomcat; FAKE_WT=never logs nothing.
+case "\${FAKE_WT:-}" in
+    started:*) ( sleep "\${FAKE_WT#started:}"; echo "INFO ReactorNettyTransportServer -- Atmosphere HTTP/3 + WebTransport server started on 127.0.0.1:\$port (ENABLE_CONNECT_PROTOCOL=true)" ) & ;;
+    failed:*)  ( sleep "\${FAKE_WT#failed:}"; echo "WARN AtmosphereWebTransportAutoConfiguration -- WebTransport server failed to start (app continues without HTTP/3): Address already in use" ) & ;;
+esac
 exec python3 -m http.server "\$port" --bind 127.0.0.1
 EOF
     chmod +x "$fake/bin/java"
@@ -591,11 +598,75 @@ case_two_lanes_same_sample() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# CASE [BITES] — a WebTransport sample is ready once its HTTP/3 sidecar is.
+# The launcher declared ready at Tomcat-up, about 1.7 s before the sidecar
+# binds; the 2026-10-16 sweep opened the Console in that gap and the page ran
+# on WebSocket for its whole life. `start` must return only after the
+# "WebTransport server started" line, fail fast on "failed to start", and give
+# up at --timeout when the line never comes.
+# ---------------------------------------------------------------------------
+case_webtransport_ready() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        fail "webtransport_ready" "python3 is required for the boot fixture"
+        return
+    fi
+    local fake port out started
+    fake="$(boot_fixture webtransport_ready)"
+    mkdir -p "$fake/samples/boot/src/main/resources"
+    printf 'atmosphere:\n  web-transport:\n    enabled: true\n    port: 4443\n' \
+        >"$fake/samples/boot/src/main/resources/application.yml"
+    local log_of; log_of() { echo "$fake/target/sweep/boot-$1.log"; }
+
+    port="$(free_port)" || { fail "webtransport_ready" "no free port"; return; }
+    out="$(sweep_cli "$fake" start boot --port "$port" --timeout 30 --env FAKE_WT=started:4)"
+    started=0
+    grep -qF 'HTTP/3 + WebTransport server started on' "$(log_of "$port")" 2>/dev/null && started=1
+    sweep_cli "$fake" stop boot --port "$port" >/dev/null
+    if [[ "$out" == *"boot ready"* && "$started" == 1 ]]; then
+        pass "webtransport_ready: start returned only after the WebTransport server started"
+    else
+        fail "webtransport_ready" "start returned before the WebTransport line (logged=$started): $(tail -3 <<<"$out")"
+    fi
+
+    port="$(free_port)" || { fail "webtransport_ready(failed)" "no free port"; return; }
+    local t0=$SECONDS
+    out="$(sweep_cli "$fake" start boot --port "$port" --timeout 60 --env FAKE_WT=failed:1)"
+    local took=$((SECONDS - t0))
+    sweep_cli "$fake" stop boot --port "$port" >/dev/null 2>&1
+    if [[ "$out" == *"WebTransport is enabled but its server did not start"* \
+          && "$out" == *"failed to start"* && "$took" -lt 30 ]]; then
+        pass "webtransport_ready: a sidecar that failed to start fails the boot at once (${took}s)"
+    else
+        fail "webtransport_ready(failed)" "expected a fast WebTransport failure, got (${took}s): $(tail -3 <<<"$out")"
+    fi
+
+    port="$(free_port)" || { fail "webtransport_ready(never)" "no free port"; return; }
+    out="$(sweep_cli "$fake" start boot --port "$port" --timeout 6 --env FAKE_WT=never)"
+    sweep_cli "$fake" stop boot --port "$port" >/dev/null 2>&1
+    if [[ "$out" == *"WebTransport is enabled but its server did not start"* \
+          && "$out" == *"before the timeout"* ]]; then
+        pass "webtransport_ready: no started line by --timeout fails the boot"
+    else
+        fail "webtransport_ready(never)" "expected a WebTransport timeout, got: $(tail -3 <<<"$out")"
+    fi
+
+    # A sample without WebTransport is ready at HTTP-up, as before.
+    port="$(free_port)" || { fail "webtransport_ready(off)" "no free port"; return; }
+    out="$(sweep_cli "$fake" start chan --port "$port" --timeout 30)"
+    sweep_cli "$fake" stop chan --port "$port" >/dev/null 2>&1
+    if [[ "$out" == *"chan ready"* && "$out" != *"WebTransport"* ]]; then
+        pass "webtransport_ready: a sample without WebTransport does not wait for it"
+    else
+        fail "webtransport_ready(off)" "unexpected: $(tail -3 <<<"$out")"
+    fi
+}
+
 CASES=(case_lexicographic case_stale_only case_original_excluded
        case_quarkus_stale case_smoke_selector case_unversioned_exec
        case_no_version_blind_glob case_playwright_fixture
        case_fixture_boots_artifact case_channel_env_scrubbed
-       case_two_lanes_same_sample)
+       case_two_lanes_same_sample case_webtransport_ready)
 
 echo "Sample artifact selection — stale-jar regression"
 echo "==============================================="

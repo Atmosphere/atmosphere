@@ -155,6 +155,10 @@ Work through `references/sample-matrix.md` in order. For each sample:
     --port <9101+n> --ready-path <path> --env LLM_MODE=local --env LLM_MODEL=qwen2.5:3b
 ```
 
+   For a WebTransport sample the helper reports ready only after the
+   `HTTP/3 + WebTransport server started` log line, not at Tomcat-up: a page
+   opened in the gap between the two used to stay on WebSocket for its life.
+
 2. **Fresh browser page per sample** — `new_page` on the drive URL. Never reuse
    the previous sample's page: stale state and leftover console noise both
    corrupt the evidence.
