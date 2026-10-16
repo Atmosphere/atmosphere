@@ -483,6 +483,28 @@ class LongPollingRepliesTest {
     }
 
     @Test
+    void aPieceOfAReplyThatExpiredStaysReplayableAfterALaterPieceReachedTheClient() throws Exception {
+        var uuid = newId();
+        var config = mock(AtmosphereConfig.class);
+        when(config.getInitParameter(LongPollingReplies.PARKED_TTL_MS_PARAM)).thenReturn("1");
+        var run = new RunEventReplayBuffer();
+        var session = new RunEventCapturingSession(
+                new DefaultStreamingSession("s-" + uuid, longPolling(uuid, config, List.of())), run);
+
+        session.send("lost-prefix");
+        session.emit(new AiEvent.ApprovalRequired("ap-4", "book", Map.of(), "Book it?", 60));
+        Thread.sleep(5);
+        assertTrue(LongPollingReplies.sweepExpired() >= 1, "no poll took the first piece in time");
+        session.send("tail");
+        session.complete();
+        assertEquals(List.of("tail"), texts(take(uuid)), "the next poll receives the second piece only");
+
+        assertEquals(List.of("lost-prefix", "tail", ""), replayed(run, uuid),
+                "the first piece never reached the client: its replay hands it over, with what followed it");
+        LongPollingReplies.discard(uuid);
+    }
+
+    @Test
     void aReplyThatNeverReachedItsClientStaysReplayable() {
         var dropped = newId();
         var run = new RunEventReplayBuffer();

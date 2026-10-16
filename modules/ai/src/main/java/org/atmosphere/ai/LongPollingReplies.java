@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,9 +62,12 @@ import java.util.function.Predicate;
  *
  * <p>The frames of a run ({@link org.atmosphere.ai.resume.RunEventCapturingSession})
  * a poll wrote count as handed to the poll's tracking id in that run's replay
- * ({@link RunEventReplayBuffer#handedUpTo}): a later poll of the client carrying
- * the run id is not handed them again. Frames a poll did not write (a failed
- * write, a reply dropped or expired) do not count.</p>
+ * ({@link RunEventReplayBuffer#handed}) when they follow on, without a gap,
+ * from what the client was handed of the run before: a later poll of the client
+ * carrying the run id is not handed them again. Frames a poll did not write (a
+ * failed write, a reply dropped or expired) do not count, and neither do the
+ * frames written after them: a later poll carrying the run id is handed the
+ * frames the client missed, and those after them again.</p>
  *
  * <p>Bounds (Correctness Invariant #3), read from the init parameters of the
  * framework the session's connection belongs to:</p>
@@ -198,14 +202,13 @@ public final class LongPollingReplies {
     }
 
     /**
-     * Frames handed over at once, with the bytes they hold reserved, and the
-     * places in their runs of the run events the frames stand for, the last
-     * one per run.
+     * Frames handed over at once, with the bytes they hold reserved, and, per
+     * run, a span of the run events the frames stand for, every one of them.
      */
-    record Batch(List<String> frames, long bytes, List<RunEventReplayBuffer.Position> positions) {
+    record Batch(List<String> frames, long bytes, List<RunEventReplayBuffer.Span> spans) {
 
         Batch {
-            positions = List.copyOf(positions);
+            spans = List.copyOf(spans);
         }
 
         Batch(List<String> frames, long bytes) {
@@ -213,25 +216,42 @@ public final class LongPollingReplies {
         }
     }
 
-    /** Records {@code position}, after the places {@code positions} holds, keeping the last one per run. */
-    private static void advance(Map<RunEventReplayBuffer, Long> positions, RunEventReplayBuffer.Position position) {
-        positions.merge(position.run(), position.sequence(), Math::max);
+    /**
+     * Records that the frames of the events {@code first} to {@code last} of
+     * {@code run} are among those {@code spans} holds, one span per run, each
+     * made only of events whose frames are there: a span next to or over the
+     * run's span joins it; across a gap the span starting first stays, the one
+     * that may follow on from what the client was handed before.
+     */
+    static void advance(Map<RunEventReplayBuffer, long[]> spans, RunEventReplayBuffer run, long first, long last) {
+        var span = spans.get(run);
+        if (span == null) {
+            spans.put(run, new long[] {first, last});
+        } else if (first <= span[1] + 1 && last >= span[0] - 1) {
+            span[0] = Math.min(span[0], first);
+            span[1] = Math.max(span[1], last);
+        } else if (first < span[0]) {
+            spans.put(run, new long[] {first, last});
+        }
     }
 
-    private static List<RunEventReplayBuffer.Position> positionsOf(Map<RunEventReplayBuffer, Long> positions) {
-        if (positions.isEmpty()) {
+    static List<RunEventReplayBuffer.Span> spansOf(Map<RunEventReplayBuffer, long[]> spans) {
+        if (spans.isEmpty()) {
             return List.of();
         }
-        var out = new ArrayList<RunEventReplayBuffer.Position>(positions.size());
-        positions.forEach((run, sequence) -> out.add(new RunEventReplayBuffer.Position(run, sequence)));
+        var out = new ArrayList<RunEventReplayBuffer.Span>(spans.size());
+        spans.forEach((run, span) -> out.add(new RunEventReplayBuffer.Span(run, span[0], span[1])));
         return List.copyOf(out);
     }
 
-    /** {@code trackingId}'s client received the frames of {@code positions}; see {@link RunEventReplayBuffer#handedUpTo}. */
-    private static void received(List<RunEventReplayBuffer.Position> positions, String trackingId) {
-        for (var position : positions) {
+    /** {@code trackingId}'s client received the frames of {@code spans}; see {@link RunEventReplayBuffer#handed}. */
+    private static void received(List<RunEventReplayBuffer.Span> spans, String trackingId) {
+        // In the order of their first event: a span of a run may follow on from an earlier one of it.
+        var ordered = new ArrayList<>(spans);
+        ordered.sort(Comparator.comparingLong(RunEventReplayBuffer.Span::first));
+        for (var span : ordered) {
             try {
-                position.reachedBy(trackingId);
+                span.reachedBy(trackingId);
             } catch (RuntimeException e) {
                 // Its next poll carrying the run id may then be handed these frames again.
                 logger.debug("Unable to record what {} received of a run", trackingId, e);
@@ -249,8 +269,8 @@ public final class LongPollingReplies {
         private final String trackingId;
         private final Limits limits;
         private final ArrayList<String> frames = new ArrayList<>();
-        /** Run -> the sequence of the last of its events whose frame was added; at most one run per session. */
-        private final Map<RunEventReplayBuffer, Long> positions = new IdentityHashMap<>();
+        /** Run -> the span of its events whose frames were added; at most one run per session. */
+        private final Map<RunEventReplayBuffer, long[]> spans = new IdentityHashMap<>();
         private final AtomicBoolean closed = new AtomicBoolean();
         private long bytes;
 
@@ -287,21 +307,22 @@ public final class LongPollingReplies {
         }
 
         /**
-         * The frames added so far include those of the run events up to
-         * {@code position}: the client that receives them was handed the run up
-         * to there. Ignored once the buffer was closed.
+         * The frames added so far include the frame of the run event at
+         * {@code position} (or the event's frame was filtered out): the client
+         * that receives them was handed that event. Ignored once the buffer was
+         * closed.
          */
         synchronized void reached(RunEventReplayBuffer.Position position) {
             if (!closed.get()) {
-                advance(positions, position);
+                advance(spans, position.run(), position.sequence(), position.sequence());
             }
         }
 
         /** Takes the frames added so far; their bytes stay reserved by the batch. */
         synchronized Batch drain() {
-            var batch = new Batch(List.copyOf(frames), bytes, positionsOf(positions));
+            var batch = new Batch(List.copyOf(frames), bytes, spansOf(spans));
             frames.clear();
-            positions.clear();
+            spans.clear();
             bytes = 0;
             return batch;
         }
@@ -309,7 +330,7 @@ public final class LongPollingReplies {
         /** Drops the frames added so far and releases their bytes. */
         synchronized void discardFrames() {
             frames.clear();
-            positions.clear();
+            spans.clear();
             RESERVED.addAndGet(-bytes);
             bytes = 0;
         }
@@ -335,10 +356,10 @@ public final class LongPollingReplies {
         private final long ttlNanos;
         private final ArrayList<String> frames = new ArrayList<>();
         /**
-         * Run -> the last of its events the parked frames stand for; one entry per
-         * run whose frames are parked, so bounded like the frames.
+         * Run -> the span of its events the parked frames stand for; one entry
+         * per run whose frames are parked, so bounded like the frames.
          */
-        private final Map<RunEventReplayBuffer, Long> positions = new IdentityHashMap<>();
+        private final Map<RunEventReplayBuffer, long[]> spans = new IdentityHashMap<>();
         private long bytes;
         private volatile long touchedNanos = System.nanoTime();
         /** Set, under the lock, once the entry left the map; a hand-over then parks in a new one. */
@@ -412,8 +433,8 @@ public final class LongPollingReplies {
                     return false;
                 }
                 entry.frames.addAll(batch.frames());
-                for (var position : batch.positions()) {
-                    advance(entry.positions, position);
+                for (var span : batch.spans()) {
+                    advance(entry.spans, span.run(), span.first(), span.last());
                 }
                 entry.bytes += batch.bytes();
                 entry.touchedNanos = System.nanoTime();
@@ -470,8 +491,8 @@ public final class LongPollingReplies {
      * write. The write holds up only this client's own polls and hand-overs,
      * never the room's broadcaster: the room frames kept for the client while it
      * runs wait for its next poll. The frames of a run written count as handed
-     * to the poll's tracking id in the run's replay
-     * ({@link RunEventReplayBuffer#handedUpTo}).
+     * to the poll's tracking id in the run's replay when they follow on from
+     * what it was handed before without a gap ({@link RunEventReplayBuffer#handed}).
      *
      * @return whether a reply was written; the poll is then answered with it
      * instead of being suspended
@@ -494,7 +515,7 @@ public final class LongPollingReplies {
         var locked = 0;
         var taken = new ArrayList<LongPollingRoomReplies.Member>();
         var written = false;
-        var reached = new ArrayList<RunEventReplayBuffer.Position>();
+        var reached = new ArrayList<RunEventReplayBuffer.Span>();
         try {
             for (var mailbox : mailboxes) {
                 mailbox.lockDelivery();
@@ -549,8 +570,8 @@ public final class LongPollingReplies {
             if (takeParked) {
                 RESERVED.addAndGet(-entry.bytes);
                 entry.frames.clear();
-                reached.addAll(positionsOf(entry.positions));
-                entry.positions.clear();
+                reached.addAll(spansOf(entry.spans));
+                entry.spans.clear();
                 entry.bytes = 0;
                 entry.dead = true;
                 PARKED.remove(trackingId, entry);
@@ -660,7 +681,7 @@ public final class LongPollingReplies {
             }
             RESERVED.addAndGet(-entry.bytes);
             entry.frames.clear();
-            entry.positions.clear();
+            entry.spans.clear();
             entry.bytes = 0;
             entry.dead = true;
             PARKED.remove(trackingId, entry);

@@ -627,6 +627,33 @@ class LongPollingRoomRepliesTest {
                 "a client that did not receive them through a long-polling poll is handed every retained event");
     }
 
+    @Test
+    void theRunFramesNotKeptForALongPollingMemberStayReplayableAfterALaterFrameReachedIt() {
+        params.put(LongPollingReplies.MAX_ROOM_REPLIES_PER_MEMBER_PARAM, "1");
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var runA = new RunEventReplayBuffer();
+        var runB = new RunEventReplayBuffer();
+
+        var a = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), runA);
+        var b = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), runB);
+        a.send("a1.");
+        b.send("b1.");
+        a.complete();
+        b.complete();
+        awaitTerminals(socket, 2);
+
+        var received = bySession(nextPollRaw(member));
+        assertEquals(List.of("streaming-text:a1.", "complete"), received.get(a.sessionId()));
+        assertEquals(List.of("complete"), received.get(b.sessionId()),
+                "following one reply at most, the member is not kept b1. while it follows the other");
+        assertTrue(runA.claimNew(member.uuid()).isEmpty(), "the member received all of run a");
+        assertEquals(List.of("b1.", ""), runB.claimNew(member.uuid()).stream().map(e -> e.payload()).toList(),
+                "b1. never reached the member: its replay hands it over, with what followed it");
+    }
+
     /** The listeners of the rooms registered on the factory. */
     private List<BroadcasterListener> roomListeners() {
         return factory.broadcasterListeners().stream()

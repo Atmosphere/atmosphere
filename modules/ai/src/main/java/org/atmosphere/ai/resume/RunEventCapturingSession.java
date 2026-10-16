@@ -50,9 +50,11 @@ import java.util.function.Consumer;
  *
  * <p>While the delegate writes the frame of a captured event, the event's
  * place in the run is {@link #positionOfFrameBeingWritten(StreamingSession)}
- * for the delegate, on the writing thread: a long-polling reply records it as
- * its client's replay position once a poll wrote the frame, so a later poll of
- * that client carrying the run id is not handed the event again.</p>
+ * for the delegate, on the writing thread: a long-polling reply records the
+ * event as handed to its client once a poll wrote the frame
+ * ({@link RunEventReplayBuffer#handed}), so a later poll of that client carrying
+ * the run id is not handed the event again, unless an earlier event of the run
+ * never reached the client.</p>
  *
  * <p>Extends {@link DelegatingStreamingSession} so every interface
  * method that this decorator does not explicitly override is forwarded

@@ -56,8 +56,9 @@ import org.slf4j.LoggerFactory;
  * ({@link RunEventReplayBuffer#claimNew}), so a client that re-sends the run id
  * on every poll, as atmosphere.js does until it reads a terminal frame, is not
  * answered with the same replay over and over; the frames of the run a poll of
- * it received as a long-polling reply count as handed to it too
- * ({@link RunEventReplayBuffer#handedUpTo}).</p>
+ * it received as a long-polling reply count as handed to it too, when they
+ * follow on from what it was handed before without a gap
+ * ({@link RunEventReplayBuffer#handed}).</p>
  *
  * <p>The events are what {@link RunEventCapturingSession} captures: the text
  * and the terminal frame the client received, whether the {@code @Prompt}

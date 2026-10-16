@@ -92,8 +92,11 @@ import java.util.function.Consumer;
  * recently used forgotten first. A forgotten consumer is handed the retained
  * events again. The frames a client received through a long-polling poll as a
  * reply ({@code org.atmosphere.ai.LongPollingReplies}) count as handed to it
- * too ({@link #handedUpTo}), so a later poll of it carrying the run id is not
- * handed them again.
+ * too ({@link #handed}), so a later poll of it carrying the run id is not
+ * handed them again, as long as they follow on from what it was handed before
+ * without a gap: frames that never reached it (dropped, expired, or sent only
+ * while no poll of it waited) and every frame after them are handed to it
+ * again, so it may receive some of these twice, but loses none.
  *
  * <p>Both bounds are {@value #MAX_REPLAY_POSITIONS} by default; {@link #forRun}
  * reads them from the init parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
@@ -137,9 +140,8 @@ public final class RunEventReplayBuffer {
     public static final String MAX_WAITING_POLLS_PARAM = "org.atmosphere.ai.longPolling.maxWaitingPollsPerRun";
 
     /**
-     * Where a run event is in its run, as a replay position: once a client
-     * received the event's frame, {@link #reachedBy} records that it was handed
-     * every event of the run up to this one.
+     * Where a run event is in its run: the frame being written stands for the
+     * event {@code sequence} of {@code run}.
      *
      * @param run      the run's buffer
      * @param sequence the event's sequence
@@ -149,10 +151,28 @@ public final class RunEventReplayBuffer {
         public Position {
             Objects.requireNonNull(run, "run");
         }
+    }
 
-        /** {@code consumer} received the run's frames up to this event; see {@link RunEventReplayBuffer#handedUpTo}. */
+    /**
+     * Run events {@code first} to {@code last} of a run, every one of whose
+     * frames a client received.
+     *
+     * @param run   the run's buffer
+     * @param first the sequence of the first event
+     * @param last  the sequence of the last event, not below {@code first}
+     */
+    public record Span(RunEventReplayBuffer run, long first, long last) {
+
+        public Span {
+            Objects.requireNonNull(run, "run");
+            if (last < first) {
+                throw new IllegalArgumentException("last " + last + " < first " + first);
+            }
+        }
+
+        /** {@code consumer} received the frames of this span; see {@link RunEventReplayBuffer#handed}. */
         public void reachedBy(String consumer) {
-            run.handedUpTo(consumer, sequence);
+            run.handed(consumer, first, last);
         }
     }
 
@@ -620,15 +640,28 @@ public final class RunEventReplayBuffer {
     }
 
     /**
-     * {@code consumer} received the run's frames up to the event
-     * {@code sequence} some other way than a replay (a long-polling reply): no
-     * {@link #claimNew} or {@link #claim} hands it those events. A position
-     * already past {@code sequence} stays.
+     * {@code consumer} received the frames of the run's events {@code first} to
+     * {@code last}, every one of them, some other way than a replay (a
+     * long-polling reply). When they follow on from what it was handed before
+     * without a gap, no {@link #claimNew} or {@link #claim} hands it those
+     * events. Otherwise nothing changes: the events between what it was handed
+     * and {@code first} never reached it, so a replay hands them to it, and
+     * these events after them again. Events no longer retained leave no gap:
+     * no replay can hand them. A position already past {@code last} stays.
+     * Callers record the spans of one consumer in the order of their
+     * {@code first}, so that one may follow on from another.
      */
-    public void handedUpTo(String consumer, long sequence) {
+    public void handed(String consumer, long first, long last) {
         Objects.requireNonNull(consumer, "consumer");
+        if (last < first) {
+            return;
+        }
         synchronized (buffer) {
-            positions.merge(consumer, sequence, Math::max);
+            var current = positions.getOrDefault(consumer, -1L);
+            var from = buffer.isEmpty() ? current : Math.max(current, buffer.get(0).sequence() - 1);
+            if (first <= from + 1 && last > current) {
+                positions.put(consumer, last);
+            }
         }
     }
 

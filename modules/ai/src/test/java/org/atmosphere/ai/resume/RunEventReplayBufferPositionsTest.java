@@ -83,6 +83,34 @@ class RunEventReplayBufferPositionsTest {
         assertTrue(buffer.claimNew("poll-" + RunEventReplayBuffer.MAX_REPLAY_POSITIONS).isEmpty());
     }
 
+    @Test
+    void framesReceivedAfterAGapDoNotHideTheEventsTheConsumerMissed() {
+        var buffer = new RunEventReplayBuffer();
+        buffer.capture("streaming-text", "a");
+        buffer.capture("streaming-text", "b");
+        buffer.capture("streaming-text", "c");
+        buffer.capture("complete", "");
+
+        buffer.handed("poll-1", 2, 3);
+        assertEquals(List.of("a", "b", "c", ""), payloads(buffer.claimNew("poll-1")),
+                "a and b never reached poll-1: it is handed them, and what followed them again");
+
+        buffer.handed("poll-2", 0, 1);
+        buffer.handed("poll-2", 2, 3);
+        assertTrue(buffer.claimNew("poll-2").isEmpty(), "spans that follow on from each other count whole");
+    }
+
+    @Test
+    void eventsNoLongerRetainedLeaveNoGap() {
+        var buffer = new RunEventReplayBuffer(2);
+        buffer.capture("streaming-text", "evicted");
+        buffer.capture("streaming-text", "b");
+        buffer.capture("streaming-text", "c");
+
+        buffer.handed("poll-1", 1, 2);
+        assertTrue(buffer.claimNew("poll-1").isEmpty(), "no replay can hand the evicted event anyway");
+    }
+
     private static List<String> payloads(List<RunEvent> events) {
         return events.stream().map(RunEvent::payload).toList();
     }

@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -107,7 +108,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * included.</p>
  *
  * <p>The frames of a run a member's poll wrote count as handed to the member in
- * that run's replay, as for a reply of its own ({@link LongPollingReplies}).</p>
+ * that run's replay, as for a reply of its own ({@link LongPollingReplies}),
+ * when they follow on, without a gap, from what the member was handed of the
+ * run before: a frame that was not kept for the member (one that reached it only
+ * while a poll of it waited, or not at all) leaves a gap, so a later poll of it
+ * carrying the run id is handed that frame and those after it again.</p>
  */
 public final class LongPollingRoomReplies {
 
@@ -294,7 +299,7 @@ public final class LongPollingRoomReplies {
     /**
      * A frame of a room reply that stands for a run event, with the event's
      * place in its run: a long-polling member whose poll writes the frame was
-     * handed the run up to there ({@link RunEventReplayBuffer#handedUpTo}). The
+     * handed that event ({@link RunEventReplayBuffer#handed}). The
      * room reads it from the message its session broadcast, before any filter
      * ran; to the broadcaster, its filters and its subscribers it is the
      * {@link RawMessage} of the frame.
@@ -865,17 +870,23 @@ public final class LongPollingRoomReplies {
          * mailbox, and the frames kept while it wrote stay for the next poll.
          * Called holding {@link #lockDelivery}.
          *
-         * @return the places in their runs of the run events the written frames
-         *         stand for, the last one per run: this member was handed them
+         * @return per run, a span of the run events the written frames stand
+         *         for, every one of them: this member was handed them
          */
-        List<RunEventReplayBuffer.Position> taken() {
+        List<RunEventReplayBuffer.Span> taken() {
             var written = Collections.newSetFromMap(new IdentityHashMap<Kept, Boolean>());
             written.addAll(taking);
-            var positions = new IdentityHashMap<RunEventReplayBuffer, Long>();
+            var positions = new ArrayList<RunEventReplayBuffer.Position>();
             for (var k : taking) {
                 if (k.position != null) {
-                    positions.merge(k.position.run(), k.position.sequence(), Math::max);
+                    positions.add(k.position);
                 }
+            }
+            // In the order of their events: with out-of-order broadcast a mailbox may hold them in another.
+            positions.sort(Comparator.comparingLong(RunEventReplayBuffer.Position::sequence));
+            var spans = new IdentityHashMap<RunEventReplayBuffer, long[]>();
+            for (var position : positions) {
+                LongPollingReplies.advance(spans, position.run(), position.sequence(), position.sequence());
             }
             taking = List.of();
             uncounted = List.of();
@@ -894,9 +905,7 @@ public final class LongPollingRoomReplies {
             } finally {
                 lock.unlock();
             }
-            var reached = new ArrayList<RunEventReplayBuffer.Position>(positions.size());
-            positions.forEach((run, sequence) -> reached.add(new RunEventReplayBuffer.Position(run, sequence)));
-            return reached;
+            return LongPollingReplies.spansOf(spans);
         }
 
         /**
