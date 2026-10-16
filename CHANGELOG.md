@@ -7,6 +7,240 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.74] - 2026-10-16
+
+### Added
+
+- deprecate the static AI readers and binders; samples read their own AiEnvironment
+- give each application its own native clients in every runtime adapter
+- give each application its own AI knobs, settings and runtime instances
+- enforce both an explicit skill scopeTier and a restrictive @AgentScope, stricter wins
+- let one ScopePolicy enforce several scope legs that a request must all pass
+- mark the pagehide close beacon going-away, keep close() a leave
+- give a page reload over SSE, long-polling or streaming the reattach grace
+- mark the disconnect of a close message whose page is going away
+- let an annotation processor fail the framework init instead of being skipped
+- keep a run going for a reattach grace after its client loses the connection
+- end a run cut short with one cancelled frame naming why, on every path and bridge
+- honour atmosphere.ai.* knobs from Spring and Quarkus config and select the runtime by name
+
+### Fixed
+
+- shut down the clients routing rules build for their own endpoint
+- count each AI-state read and flag Kotlin imports, not constant imports
+- build a routing rule's own client with its context's cache-key and logprobs modes
+- shut down an environment's built client after a client was installed over it
+- flag the process default, split-line reads and resolver static imports in the AI-state gate
+- summarize, rerank and spawn subagents on the runtime of their own application
+- offer the auto-configured executor and model so an executor the application sets wins
+- keep a runtime instance with its application after that application resets its resolution
+- have AgentRuntimeResolver.hasExplicitClientBinding read the calling application
+- report each application's own runtime in console, admin and interactions
+- resolve decision models, memory, caches and evaluators per application
+- shut down the HTTP clients of the settings an AI environment built when it closes
+- bind a runtime's application to the calling thread in execute as executeWithHandle does
+- resolve the running application's embedding runtimes through EmbeddingRuntimeResolver
+- stop the LLM_* environment fallback from replacing settings or publishing them per request
+- keep a workspace RUNTIME.md's generation values on its own settings
+- keep the prompt-cache-key and logprobs modes an OpenAI-compatible client was built with
+- stop counting the room frames a poll is writing against their reply's bounds
+- keep a room frame off a member's waiting poll under out-of-order broadcast
+- a long-polling member's blocked poll write no longer stalls the room
+- resume a room member's poll outside its mailbox lock
+- keep room frames in per-member mailboxes, counted once and bounded per reply
+- deliver a room reply whole to every long-polling member of the room
+- deliver a stream-end frame a second filter defers again, instead of dropping it
+- run @Ready once when a long-polling client re-polls over a suspended poll
+- keep long-polling polls waiting on a run out of the streaming reattach slots
+- read each frame of a multi-frame message when capturing the run id
+- forget long-polling clients that stopped polling; run @Ready once for racing polls
+- answer a long-polling run-id poll only with what its tracking id was not sent
+- run @Ready once per long-polling client, not on every poll
+- answer a long-polling reattach poll with its run's replay at once
+- read request attributes from the Atmosphere request once the container recycled it
+- a long-polling poll unregisters only itself, atomically, also on a failed write
+- keep a long-polling client's next poll when a write fails on the poll it replaced
+- keep a long-polling client's next poll subscribed when a write hits the returned one
+- keep request attribute writes on the Atmosphere request once the container recycled it
+- start a command answer's session before the command runs
+- answer a slash command on the sender's connection over SSE and long-polling
+- say no skill scope runs when an unknown scopeTier has no Guardrails
+- track long-polling polls as live from before the suspend; a stale poll's loss keeps state
+- let an identity-stamping AiInterceptor run before the endpoint's guardrails and policies
+- send a scope breach's redirect message verbatim instead of having the model render it
+- record a same-id reconnect as live as soon as it is suspended, not once set up
+- stop tracking a WebSocket or SSE connection as live once its suspend times out
+- warn when a closed host configuration leaves its generation knobs in the settings
+- destroy the framework when the cost guardrail bridge or Vert.x setup fails
+- keep the init failure reported when destroying the framework throws an Error
+- throw an annotation processor's init failure from the no-argument init()
+- report a judge that never judged as skipped, not as a passing score
+- attribute a dispatch journaled before its coordination start to its coordinator
+- warn when an explicit base URL sends an llm.mode=local run to a remote endpoint
+- fall back to no-op metrics when micrometer is absent, as the other processors do
+- admit the user's message against the scope before A2A and AG-UI run @Prompt
+- mark a going-away close message before it reports the client's close
+- warn when a skill scopeTier discards or narrows the class's restrictive @AgentScope
+- report an invalid @AgentScope once per registration, not once per resolved path
+- let the startup-team CEO admit questions about no-code and AI programming markets
+- an explicit restrictive @AgentScope beats a scope derived from skill Guardrails
+- release the open JAR and pending streams when a processor stops the annotation scan
+- destroy the framework when its init or the AI runtime check fails at startup
+- warn at startup when the LLM settings in use predate the configured generation knobs
+- install the atmosphere.ai.* knobs before the application's own beans are created
+- fail a plain servlet init when atmosphere.ai.runtime names no available runtime
+- name atmosphere.ai.runtime, not missing JARs, when a fallbackStrategy has one runtime
+- give a still-running host its AI knobs back when a later host configuration closes
+- leave a tracking id's state to the connection that replaced a late-noticed lost one
+- judge an injected proxy by when it was written into its field, not when it was created
+- keep a lost connection's conversation when its client is back under the same tracking id
+- run no reattach grace while a reattached client listens, restart it on each long-poll
+- fall back to LLM_MODE/LLM_MODEL/LLM_BASE_URL and drop the stale runtime cache
+- save the state of a poll replaced by one answered from the cache
+- keep a stored injected resource on its own client and equal to its resource
+- resolve injected resource, request and response fields per calling thread
+- keep a polling client's session when its re-poll is answered from the cache
+- console discovers the registered endpoint in the same order as Spring Boot 4
+- startup-team fleet dispatches in-process so it works when Spring picks the port
+- console info reports mode, path-template endpoints included
+- explicit unrestricted @AgentScope overrides a scope derived from skill Guardrails
+- label the stats footer in streamed chunks, not tokens
+- let ms-governance-chat's legal-escalation policy answer legal language
+- admit the user's message against the endpoint scope before @Prompt runs
+- keep a resource whole until a @Disconnect another thread claimed has returned
+- cancel delayed broadcast tasks on destroy and complete on-resume futures
+- dispatch @Disconnect for an idle eviction under a close think time
+- keep a container's own going-away WebSocket close cancelled
+- report a dropped WebTransport session as abnormal, not closed by the client
+- bind an injected event to its client outside the callback that injected it
+- keep a server-initiated 1000/1001 WebSocket close cancelled
+- classify a path-template console endpoint before any client connects
+- cancel the futures of on-resume and delayed broadcasts a destroyed broadcaster drops
+- release a broadcast future's whole count when its delivery reaches no resource
+- close the WebSocket with 1000 on disconnect so the server reports the client leaving
+- mark a model call cancelled when the cancel lands before its handle is published
+- end a model call the admin cancel or idle sweep cuts short in a cancelled error
+- send the prompting client a terminal error frame when an Error escapes @Prompt
+- capture a run's replay frames below AiStreamingSession so streamed tokens replay
+- name the local Built-in embedding model with LLM_EMBEDDING_MODEL
+- end a run the disconnect cancelled in error and document what reattach replays
+- end a reattached client's stream on every run terminal path, not only a captured complete
+- run cache records the commit a branch ref resolved to and rebuilds when the branch moves
+- single-jar fleets dispatch in-process so they work when Spring picks the port
+- grpc-chat exec plugin reads exec.mainClass so -Dexec.mainClass starts the client
+- useStreamingRN ends an in-flight turn and drops its open status when backgrounded
+- write AgUiStreamingSession frames to the container response past the SSE interceptor
+- prune connection and lock state, keep one session per polling client
+- frame live SSE deliveries once whatever the Accept list, keep WebSocket JSON unframed
+- write self-framed SSE events past the SSE interceptor for A2A and MCP
+- end the run on an emitted Complete and stream AG-UI sessions through the pipeline
+- make RUN_ERROR terminal on every path and close-once with the wrapped session
+- emit AG-UI schema field names for tool, step, error, reasoning and snapshot events
+- keep launcher state per sample and port so parallel lanes can boot one sample
+- scrub the operator's messaging-channel credentials from booted samples
+- expo client takes SafeAreaView from react-native-safe-area-context
+- low-level raw ops feed refuses POST broadcasts from outside the on-call rota
+- grpc-chat puts logback-core on its run classpath so the server logs again
+- ship the Atmosphere favicon in the samples that run without a Boot starter
+- embedded-jetty chat frames its handshake and heartbeats inside Jetty's idle timeout
+- ai-classroom reads each resource's room instead of a shared @PathParam field
+- team-rooms reads the Console envelope and replies with a message field
+- document gemini-2.5-flash as the sample LLM_MODEL default
+- print checkpoint list progress on stderr so its stdout is pure JSON
+- checksum a cached Quarkus app tree and rebuild it when it is modified or missing
+- suggest the closest sample names when run or info is given an unknown sample
+- key the run cache on an explicit source ref and verify the ref a cached jar was built from
+- refresh the dashboard tiles when its event socket opens
+- show a refused journal or audit read as access denied, not as an empty list
+- say metrics are not exposed instead of asking for traffic on health-only hosts
+- keep the Chat tab mounted so leaving it keeps the conversation and subscription
+- update the Interactions history row when the detail pane sees a new status
+- serialize array and object tool arguments in the tool card preview
+- send A2A v1.0.0 method names from the a2a transport and sample docs
+- log retried transport failures at info and keep error for the terminal one
+- make useStreamingRN suspend, close or keep the stream on AppState changes
+- clear the streaming hooks' connection error when the transport opens or reopens
+- make composed fleet agents reachable from the coordinator
+- resolve the SMT checker once instead of per call
+- activate a channel only when its credential is non-blank
+- send snapshots, patches and custom values as JSON structures
+- emit spec-valid SSE events for message/stream
+- attribute a checkpoint approval to the approver agent
+- warn when atmosphere.ai.runtime names a runtime that is not running
+- read skill-file tool names with the grammar atmosphere import uses
+- forward the rest of a run to a client that reattaches mid-stream
+- extract long-term memory facts only under the identity recall reads
+- count every endpoint's sessions in the atmosphere.ai.active_sessions gauge
+- stop the embedding scope guardrail logging an ERROR on every local-mode turn
+- classify a path-template console endpoint before any client connects
+- keep one durable session per WebSocket across message frames
+- resolve an injected AtmosphereResourceEvent per calling thread
+- report a 1000/1001 WebSocket close as closed by the client
+- complete a broadcast future when its resource leaves mid-delivery
+- deliver the Koog coordinator's final answer and show its journal in admin
+
+### Changed
+
+- give the ADK tests a Gemini key so the per-request runner test runs without a host key
+- check the gate self-test paths of push and pull_request apart
+- say which reads stay on the static API, what is deprecated, why Quarkus binds JVM-wide
+- deprecate AiConfig.installHostConfig in favour of the host's own AiEnvironment
+- run the gate self-test when a file one of its cases injects into changes
+- say which static AI reads framework code still makes and why each is allowed
+- allow Spring's @Primary in the doc-symbol gate, as the starter README cites it
+- make AI state belong to the application that owns the request a blocking invariant
+- also flag the no-argument EmbeddingRuntimeResolver and DecisionModelResolver reads
+- fail the build when framework code reads AI state through the process-wide statics
+- read a hand-built client's, a workspace's and Quarkus's AI state via AiEnvironment
+- pin how the adapter auto-configurations hand their clients to the context's application
+- pin that a runtime instance belongs to the application that resolved it
+- say which AI state is per application and what still reads the static API
+- let the settings and workspace-ownership test hooks reset every open AI environment
+- pin that a closing application hands the process default's settings to a survivor
+- close the AI environment the extension creates on a failed start and on destroy
+- resolve AI settings, knobs and runtimes through an AiEnvironment model
+- wait for every frame of the out-of-order room test, not just both terminals
+- say a reply past the 64 a room member follows is kept once one of them ends
+- say how replay frames number per transport and when a waiting run-id poll returns
+- say which long-polling clients run @Ready more than once
+- answer every slash command over the Console's long-polling fallback
+- pin that an invalid @AgentScope's own topics join an explicit skill scopeTier policy
+- let the reattach-timeout test's prompt timeout fire after the reattach on a loaded machine
+- say which hooks a redirected or denied turn skips for a before-admission interceptor
+- send the durable-chat readiness message once instead of every 500ms
+- wait for broadcast delivery in the session-token-expiry spec too
+- wait until a durable-sessions chat socket receives broadcasts before using it
+- a same-id reconnect's own answer streams on past the late loss, on WebSocket and SSE
+- wait for the browser-agent boot lines instead of reading the log once
+- name the transports whose page reload gets the reattach grace
+- send the close message as a query string, the shape the pagehide beacon has
+- read the close reason of a beacon whose parameters ride in the query string
+- drive the going-away close message over a real SSE, long-polling and streaming connection
+- pin the startup-team CEO admission scope to its @AgentScope
+- keep the failing-processor test out of the packages other framework tests scan
+- prove the poll a cached answer replaced saves the state itself
+- describe the reattach grace for a late-noticed loss, long-polling and a same-id reconnect
+- wait for the reattached client's terminal frame, not only its released subscription
+- pin that a bean resolving the runtime at creation gets the named one
+- name the filesystem routes key AgentFileSystemProvider actually reads
+- a poll resumed by a broadcast is not saved when the next one takes over
+- pin the derived scope purpose for a skill reference on @Coordinator
+- annotation Javadoc states the unrestricted-override scope precedence
+- registering an unrestricted @Agent or @Coordinator over skill Guardrails logs one WARN
+- ignore JDK class-loading pins in the probe pinning test
+- boot the channel samples with placeholder tokens and assert the channels actually running
+- give the repoll recency test a window a loaded build cannot overrun
+- drop the stale capture position from unwrap and note the admin cancel's error frame
+- say what a run-id reconnect replays, apart from the UUID broadcaster cache
+- pin the anonymous memory owner through a real prompt dispatch
+- match matrix rows 11, 13, 16 and 25 to the samples they drive
+- drive the Expo client's input with Maestro on Xcode 27, keep idb for reads
+- move the expo client to Expo SDK 57 so current Expo Go opens it
+- ms-governance README quotes the shipped policy file and live admin answers
+- pin one @Disconnect for a client reconnected to a restarted server
+- read the JFR pinnedReason as Object, not char[]
+- log the gRPC client-transport claim on async-io.live
+
 ## [4.0.73] - 2026-10-14
 
 ### Added
