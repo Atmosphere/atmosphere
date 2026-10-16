@@ -92,7 +92,10 @@ SSE and streaming, a reattach to a run still in flight also receives the
 run's later events through its terminal frame; a long-polling poll gets the
 buffered events its tracking id was not sent yet — as a replay, or in a
 long-polling reply of its own; after an event that does not count as sent
-(one it never received, or a `broadcastReply` room frame not kept for it),
+(one it never received, a `broadcastReply` room frame not kept for it, or a
+reply received once the run already remembers the replies of 64 other tracking
+ids, init-param `org.atmosphere.ai.longPolling.maxReplayPositionsPerRun`, which
+never push out what a poll carrying the run id was sent),
 every later event counts as not sent — in one reply, at once, and a
 later poll with nothing new waits: for the run's next event while the run is
 going (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (64) tracking

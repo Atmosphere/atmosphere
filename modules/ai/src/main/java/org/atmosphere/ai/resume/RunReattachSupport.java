@@ -58,7 +58,9 @@ import org.slf4j.LoggerFactory;
  * answered with the same replay over and over; the frames of the run a poll of
  * it received as a long-polling reply count as handed to it too, when they
  * follow on from what it was handed before without a gap
- * ({@link RunEventReplayBuffer#handed}).</p>
+ * ({@link RunEventReplayBuffer#handed}), for at most
+ * {@link RunEventReplayBuffer#maxReplayPositions()} tracking ids, apart from
+ * the ones a poll carrying the run id was handed events to.</p>
  *
  * <p>The events are what {@link RunEventCapturingSession} captures: the text
  * and the terminal frame the client received, whether the {@code @Prompt}

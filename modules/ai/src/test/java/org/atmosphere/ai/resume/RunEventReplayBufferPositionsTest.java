@@ -111,6 +111,73 @@ class RunEventReplayBufferPositionsTest {
         assertTrue(buffer.claimNew("poll-1").isEmpty(), "no replay can hand the evicted event anyway");
     }
 
+    @Test
+    void framesOthersReceivedNeverPushOutThePositionOfAConsumerThatClaimed() {
+        var buffer = new RunEventReplayBuffer();
+        buffer.capture("streaming-text", "a");
+        buffer.capture("streaming-text", "b");
+        buffer.capture("complete", "");
+        assertEquals(3, buffer.claimNew("owner").size());
+
+        for (int i = 0; i < RunEventReplayBuffer.MAX_REPLAY_POSITIONS; i++) {
+            buffer.handed("member-" + i, 0, 2);
+        }
+
+        assertTrue(buffer.claimNew("owner").isEmpty(), "the members that received the run's frames as a reply"
+                + " must not make the run forget what it handed the owner");
+    }
+
+    @Test
+    void framesOthersReceivedNeverPushOutTheFramesAConsumerReceivedFirst() {
+        var buffer = new RunEventReplayBuffer();
+        buffer.capture("streaming-text", "a");
+        buffer.capture("streaming-text", "b");
+        buffer.capture("complete", "");
+        buffer.handed("owner", 0, 2);
+
+        for (int i = 0; i < RunEventReplayBuffer.MAX_REPLAY_POSITIONS; i++) {
+            buffer.handed("member-" + i, 0, 2);
+        }
+
+        assertTrue(buffer.claimNew("owner").isEmpty(), "the owner received every frame of the run");
+        assertEquals(3, buffer.claimNew("member-" + (RunEventReplayBuffer.MAX_REPLAY_POSITIONS - 1)).size(),
+                "past the bound, what a consumer received only as a reply is not remembered: it is handed"
+                        + " the retained events again");
+    }
+
+    @Test
+    void aClaimAfterFramesOthersReceivedPushesOutNoConsumerThatClaimed() {
+        var buffer = new RunEventReplayBuffer();
+        buffer.capture("streaming-text", "a");
+        buffer.capture("complete", "");
+        assertEquals(2, buffer.claimNew("owner").size());
+        for (int i = 0; i < RunEventReplayBuffer.MAX_REPLAY_POSITIONS; i++) {
+            buffer.handed("member-" + i, 0, 1);
+        }
+
+        assertTrue(buffer.claimNew("member-0").isEmpty(), "member-0 received the run as a reply");
+        assertEquals(2, buffer.claimNew("late").size(), "a consumer that received nothing is handed everything");
+
+        assertTrue(buffer.claimNew("owner").isEmpty(), "two consumers claimed, far below the bound: neither the"
+                + " members' frames nor their claims may make the run forget the owner");
+    }
+
+    @Test
+    void framesReceivedAfterAClaimMoveTheConsumersPosition() {
+        var buffer = new RunEventReplayBuffer();
+        buffer.capture("streaming-text", "a");
+        assertEquals(1, buffer.claimNew("owner").size());
+        for (int i = 0; i < RunEventReplayBuffer.MAX_REPLAY_POSITIONS; i++) {
+            buffer.handed("member-" + i, 0, 0);
+        }
+        buffer.capture("streaming-text", "b");
+        buffer.capture("complete", "");
+
+        buffer.handed("owner", 1, 2);
+
+        assertTrue(buffer.claimNew("owner").isEmpty(), "the owner received the rest of the run as a reply");
+    }
+
     private static List<String> payloads(List<RunEvent> events) {
         return events.stream().map(RunEvent::payload).toList();
     }

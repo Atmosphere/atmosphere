@@ -656,6 +656,36 @@ class LongPollingRoomRepliesTest {
     }
 
     @Test
+    void theRoomMembersPollsDoNotMakeTheRunForgetWhatItHandedAClientPollingWithItsId() {
+        LongPollingRoomReplies.install(room);
+        var owner = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(owner);
+        var others = new ArrayList<AtmosphereResourceImpl>();
+        for (int i = 0; i < RunEventReplayBuffer.MAX_REPLAY_POSITIONS; i++) {
+            var other = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+            room.removeAtmosphereResource(other);
+            others.add(other);
+        }
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var run = new RunEventReplayBuffer();
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), run);
+        session.send("one. ");
+        session.send("two.");
+        session.complete();
+        awaitComplete(socket);
+        // The owner's poll carrying the run id is handed the run before the room delivers it.
+        assertEquals(3, run.claimNew(owner.uuid()).size());
+
+        for (var other : others) {
+            assertEquals(List.of("streaming-text:one. ", "streaming-text:two.", "complete"), nextPoll(other));
+        }
+
+        assertTrue(run.claimNew(owner.uuid()).isEmpty(), "the room's members received the run from their"
+                + " mailboxes: that must not make the run hand the owner every frame again");
+    }
+
+    @Test
     void aBroadcasterAlreadyDestroyedIsNotMadeARoom() {
         room.destroy();
 

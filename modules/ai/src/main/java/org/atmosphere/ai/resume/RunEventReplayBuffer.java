@@ -97,7 +97,13 @@ import java.util.function.Consumer;
  * without a gap: frames that do not count as handed to it (a reply dropped or
  * expired before a poll took it, a room frame not kept for it, which reached it
  * only if a poll of it waited) and every frame after them are handed to it
- * again, so it may receive some of these twice, but loses none.
+ * again, so it may receive some of these twice, but loses none. What a consumer
+ * received that way takes none of the places of the consumers {@link #claimNew}
+ * or {@link #claim} handed events to, so the members of a room receiving a reply
+ * never make the run forget one of those: the run remembers it for at most
+ * {@link #maxReplayPositions()} other consumers, the first ones, and what a
+ * consumer past them received does not count as handed to it: a claim hands
+ * it the retained events again.
  *
  * <p>Both bounds are {@value #MAX_REPLAY_POSITIONS} by default; {@link #forRun}
  * reads them from the init parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
@@ -132,8 +138,9 @@ public final class RunEventReplayBuffer {
 
     /**
      * Init parameter: the consumers (long-polling tracking ids) whose replay
-     * position one run remembers; a positive integer, {@value #MAX_REPLAY_POSITIONS}
-     * by default.
+     * position one run remembers, and, apart from them, those whose frames
+     * received as a long-polling reply it remembers ({@link #handed}); a
+     * positive integer, {@value #MAX_REPLAY_POSITIONS} by default.
      */
     public static final String MAX_REPLAY_POSITIONS_PARAM = "org.atmosphere.ai.longPolling.maxReplayPositionsPerRun";
 
@@ -206,13 +213,26 @@ public final class RunEventReplayBuffer {
     private final Map<String, Consumer<RunEvent>> waitingPolls = new LinkedHashMap<>();
     /** Guarded by {@code buffer}: a terminal event was captured. */
     private boolean terminated;
-    /** Guarded by {@code buffer}: consumer -> sequence of the last event handed to it, least recently used first. */
+    /**
+     * Guarded by {@code buffer}: consumer -> sequence of the last event handed
+     * to it, for the consumers a {@link #claimNew} or {@link #claim} handed
+     * events to, least recently used first. Only a claim takes a place here,
+     * so the frames other clients received never push a consumer out.
+     */
     private final Map<String, Long> positions = new LinkedHashMap<>(16, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
             return size() > maxReplayPositions;
         }
     };
+    /**
+     * Guarded by {@code buffer}: consumer -> sequence of the last event whose
+     * frame it received ({@link #handed}), for the consumers not in
+     * {@link #positions}; at most {@link #maxReplayPositions} of them, the first
+     * ones kept: one past them is not remembered. A claim moves the consumer to
+     * {@link #positions}.
+     */
+    private final Map<String, Long> receipts = new LinkedHashMap<>();
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -614,7 +634,7 @@ public final class RunEventReplayBuffer {
     public List<RunEvent> claimNew(String consumer) {
         Objects.requireNonNull(consumer, "consumer");
         synchronized (buffer) {
-            var last = positions.getOrDefault(consumer, -1L);
+            var last = position(consumer);
             var out = new ArrayList<RunEvent>();
             for (var event : buffer) {
                 if (event.sequence() > last) {
@@ -622,7 +642,7 @@ public final class RunEventReplayBuffer {
                 }
             }
             if (!out.isEmpty()) {
-                positions.put(consumer, out.get(out.size() - 1).sequence());
+                claimed(consumer, out.get(out.size() - 1).sequence());
             }
             return List.copyOf(out);
         }
@@ -636,10 +656,10 @@ public final class RunEventReplayBuffer {
         Objects.requireNonNull(consumer, "consumer");
         Objects.requireNonNull(event, "event");
         synchronized (buffer) {
-            if (event.sequence() <= positions.getOrDefault(consumer, -1L)) {
+            if (event.sequence() <= position(consumer)) {
                 return false;
             }
-            positions.put(consumer, event.sequence());
+            claimed(consumer, event.sequence());
             return true;
         }
     }
@@ -654,7 +674,10 @@ public final class RunEventReplayBuffer {
      * these events after them again. Events no longer retained leave no gap:
      * no replay can hand them. A position already past {@code last} stays.
      * Callers record the spans of one consumer in the order of their
-     * {@code first}, so that one may follow on from another.
+     * {@code first}, so that one may follow on from another. For a consumer
+     * no claim handed events to, this is remembered only while fewer than
+     * {@link #maxReplayPositions()} other such consumers are, so it never
+     * makes the run forget a consumer a claim handed events to.
      */
     public void handed(String consumer, long first, long last) {
         Objects.requireNonNull(consumer, "consumer");
@@ -662,12 +685,38 @@ public final class RunEventReplayBuffer {
             return;
         }
         synchronized (buffer) {
-            var current = positions.getOrDefault(consumer, -1L);
+            var current = position(consumer);
             var from = buffer.isEmpty() ? current : Math.max(current, buffer.get(0).sequence() - 1);
-            if (first <= from + 1 && last > current) {
+            if (first > from + 1 || last <= current) {
+                return;
+            }
+            if (positions.containsKey(consumer)) {
                 positions.put(consumer, last);
+            } else if (receipts.containsKey(consumer) || receipts.size() < maxReplayPositions) {
+                receipts.put(consumer, last);
+            } else {
+                logger.trace("{} remembers what {} consumers received already; not what {} received",
+                        describe(), maxReplayPositions, consumer);
             }
         }
+    }
+
+    /**
+     * Guarded by {@code buffer}: the sequence of the last event handed to
+     * {@code consumer}, or {@code -1} when it is not remembered.
+     */
+    private long position(String consumer) {
+        var claimed = positions.get(consumer);
+        if (claimed != null) {
+            return claimed;
+        }
+        return receipts.getOrDefault(consumer, -1L);
+    }
+
+    /** Guarded by {@code buffer}: events up to {@code sequence} were claimed by {@code consumer}. */
+    private void claimed(String consumer, long sequence) {
+        receipts.remove(consumer);
+        positions.put(consumer, sequence);
     }
 
     /**
@@ -678,9 +727,8 @@ public final class RunEventReplayBuffer {
     public void unclaim(String consumer, long sequence) {
         Objects.requireNonNull(consumer, "consumer");
         synchronized (buffer) {
-            var last = positions.get(consumer);
-            if (last != null && last >= sequence) {
-                positions.put(consumer, sequence - 1);
+            if (position(consumer) >= sequence) {
+                claimed(consumer, sequence - 1);
             }
         }
     }
@@ -689,7 +737,11 @@ public final class RunEventReplayBuffer {
         return capacity;
     }
 
-    /** The consumers whose replay position this run remembers at most. */
+    /**
+     * The consumers a claim handed events to whose replay position this run
+     * remembers at most, and, apart from them, the consumers whose frames
+     * received as a long-polling reply it remembers at most.
+     */
     public int maxReplayPositions() {
         return maxReplayPositions;
     }

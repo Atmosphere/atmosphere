@@ -67,7 +67,11 @@ import java.util.function.Predicate;
  * carrying the run id is not handed them again. Frames a poll did not write (a
  * failed write, a reply dropped or expired) do not count, and neither do the
  * frames written after them: a later poll carrying the run id is handed the
- * frames the client missed, and those after them again.</p>
+ * frames the client missed, and those after them again. A run remembers what
+ * it wrote that way to at most
+ * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} clients, the first
+ * ones, apart from the clients a poll carrying the run id was handed events
+ * to, which these never make it forget.</p>
  *
  * <p>Bounds (Correctness Invariant #3), read from the init parameters of the
  * framework the session's connection belongs to:</p>

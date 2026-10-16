@@ -112,7 +112,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * when they follow on, without a gap, from what the member was handed of the
  * run before: a frame that was not kept for the member (one that reached it only
  * while a poll of it waited, or not at all) leaves a gap, so a later poll of it
- * carrying the run id is handed that frame and those after it again.</p>
+ * carrying the run id is handed that frame and those after it again. The run
+ * remembers this for at most
+ * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} members, the first
+ * ones, apart from the clients a poll carrying the run id was handed events to:
+ * however many members a room has, their polls never make the run forget one of
+ * those clients.</p>
  */
 public final class LongPollingRoomReplies {
 
