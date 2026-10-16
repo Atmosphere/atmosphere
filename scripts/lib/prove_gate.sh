@@ -316,6 +316,44 @@ run_case "ai-state-import-decision" "process-wide AI state read"                
 run_clean_case "ai-state-comment" "process-wide AI state read" \
                                   "AI state read through the application"            s_ai_comment
 
+# The workflow that runs this proof must run when a file a case injects into
+# changes: a refactor of one (LlmReranker losing the read s_ai_stale rewrites,
+# the sample losing the line s_jetty removes) can turn its case into a NO-OP,
+# and with a path filter on scripts/** alone nobody would find out until the
+# next change to the gate.
+if selected "selftest-path-filter"; then
+    if UNWATCHED=$(python3 - .github/workflows/gate-selftest.yml "${INJECT_TRACKED[@]}" <<'PY'
+import re, sys
+workflow, files = sys.argv[1], sys.argv[2:]
+text = open(workflow).read()
+globs = set(re.findall(r"^\s*-\s*'([^']+)'\s*$", text, re.M))
+
+def to_regex(glob):
+    out, i = "", 0
+    while i < len(glob):
+        if glob.startswith("**", i):
+            out += ".*"; i += 2
+        elif glob[i] == "*":
+            out += "[^/]*"; i += 1
+        else:
+            out += re.escape(glob[i]); i += 1
+    return re.compile(out + r"\Z")
+
+patterns = [to_regex(g) for g in globs]
+missing = [f for f in files if not any(p.match(f) for p in patterns)]
+print("\n".join(missing))
+sys.exit(1 if missing else 0)
+PY
+    ); then
+        PASSED=$((PASSED+1))
+        RESULTS="${RESULTS}$(printf "${GREEN}  WATCHED${NC} %s" "selftest-path-filter")\n"
+    else
+        FAILED=$((FAILED+1))
+        RESULTS="${RESULTS}$(printf "${RED}  UNWATCHED${NC} %s\n            gate-selftest.yml does not run on a change to: %s" \
+            "selftest-path-filter" "$(echo "$UNWATCHED" | tr '\n' ' ')")\n"
+    fi
+fi
+
 echo ""
 echo "==== Gate bite-proof ===="
 printf "%b" "$RESULTS"

@@ -9,9 +9,12 @@ name: "CI: Gate Self-Test"
 # from a pipeline, and two regexes whose word boundaries could never match the
 # spellings their own extractors targeted). Every one printed PASS.
 #
-# Path-filtered to the gate itself: the suite injects ~25 violations and runs
-# the full gate for each (~15 min), which is only worth paying when the gate or
-# its config changes.
+# Path-filtered to the gate itself and to every file a case injects into
+# (INJECT_TRACKED in scripts/lib/prove_gate.sh, which fails when one is missing
+# here): the suite runs the full gate once per case, which is only worth paying
+# when the gate, its config or a file a case edits and asserts on changes. A refactor of one of those files can turn
+# its case into a NO-OP (s_ai_stale asserts LlmReranker still holds the read it
+# rewrites), and that must surface on the change that caused it.
 
 on:
   push:
@@ -22,6 +25,17 @@ on:
       - 'scripts/lib/**'
       - 'scripts/validate-no-hardcoded-atmosphere-version.sh'
       - '.github/workflows/gate-selftest.yml'
+      - '.github/workflows/e2e.yml'
+      - 'modules/cpr/src/main/java/org/atmosphere/util/SimpleBroadcaster.java'
+      - 'modules/cpr/src/test/java/org/atmosphere/inject/InjectableObjectFactoryTest.java'
+      - 'modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java'
+      - 'samples/grpc-chat/src/main/java/org/atmosphere/samples/grpc/GrpcChatServer.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/AiConfig.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/LlmReranker.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/memory/LongTermMemories.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointProcessor.java'
+      - 'modules/kotlin/src/main/kotlin/org/atmosphere/kotlin/ai/AgentRegistration.kt'
+      - 'modules/quarkus-extension/runtime/src/main/java/org/atmosphere/quarkus/runtime/AtmosphereBootstrap.java'
   pull_request:
     paths:
       - 'scripts/architectural-validation.sh'
@@ -29,6 +43,17 @@ on:
       - 'scripts/lib/**'
       - 'scripts/validate-no-hardcoded-atmosphere-version.sh'
       - '.github/workflows/gate-selftest.yml'
+      - '.github/workflows/e2e.yml'
+      - 'modules/cpr/src/main/java/org/atmosphere/util/SimpleBroadcaster.java'
+      - 'modules/cpr/src/test/java/org/atmosphere/inject/InjectableObjectFactoryTest.java'
+      - 'modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java'
+      - 'samples/grpc-chat/src/main/java/org/atmosphere/samples/grpc/GrpcChatServer.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/AiConfig.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/LlmReranker.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/memory/LongTermMemories.java'
+      - 'modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointProcessor.java'
+      - 'modules/kotlin/src/main/kotlin/org/atmosphere/kotlin/ai/AgentRegistration.kt'
+      - 'modules/quarkus-extension/runtime/src/main/java/org/atmosphere/quarkus/runtime/AtmosphereBootstrap.java'
   workflow_dispatch:
 
 jobs:
