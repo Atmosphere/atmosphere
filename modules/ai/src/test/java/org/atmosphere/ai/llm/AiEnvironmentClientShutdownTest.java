@@ -94,6 +94,55 @@ class AiEnvironmentClientShutdownTest {
     }
 
     /**
+     * A client installed over the settings the application built (the Spring
+     * Boot starter's routing client wraps the built client, and puts it back
+     * when the context stops) does not make the application forget the client
+     * it built: closing it still shuts that one down.
+     */
+    @Test
+    void theClientTheApplicationBuiltIsShutDownAfterAClientWasInstalledOverIt() throws InterruptedException {
+        var application = application();
+        var built = application.configure("remote", "model-a", "k", URL);
+        application.installClient(new DelegatingClient(built.client()));
+        application.installClient(built.client());
+
+        application.close();
+
+        assertTrue(httpClientOf(built).awaitTermination(Duration.ofSeconds(5)),
+                "the client the application built is shut down when it closes");
+    }
+
+    /**
+     * Settings carrying a wrapper over the built client, which the process
+     * default took from the application while it ran, are still handed out
+     * once it closes: the client they wrap stays open.
+     */
+    @Test
+    void theBuiltClientStaysOpenWhileTheProcessDefaultHandsOutAWrapperOverIt() throws InterruptedException {
+        var a = application();
+        AiConfig.configure("remote", "static-model", "k", URL);
+        var b = application();
+        var built = b.configure("remote", "model-b", "k", URL);
+        var wrapped = b.installClient(new DelegatingClient(built.client()));
+        a.close();
+        assertSame(wrapped, AiEnvironment.processDefault().settings());
+        b.installClient(built.client());
+
+        b.close();
+
+        assertFalse(httpClientOf(built).awaitTermination(OPEN),
+                "the client the process default still reaches through the wrapper stays open");
+    }
+
+    /** A client wrapping another, as the routing client wraps the resolved one. */
+    private record DelegatingClient(LlmClient delegate) implements LlmClient {
+        @Override
+        public void streamChatCompletion(ChatCompletionRequest request, org.atmosphere.ai.StreamingSession session) {
+            delegate.streamChatCompletion(request, session);
+        }
+    }
+
+    /**
      * Settings the process default took from an application that closed
      * earlier are still handed out by the static API once the last application
      * closes: their client stays open.

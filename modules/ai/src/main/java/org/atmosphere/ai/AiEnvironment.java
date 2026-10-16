@@ -149,10 +149,21 @@ public final class AiEnvironment implements AutoCloseable {
     private final ConcurrentHashMap<String, AiConfig.LlmSettings> agentSettings = new ConcurrentHashMap<>();
     /**
      * The settings this environment built itself and made its own, so
-     * {@link #close()} shuts down their client while they are still its own;
-     * written with {@link #ownSettings}, under {@link #lock}.
+     * {@link #close()} shuts down their client while they, or settings
+     * installed over them ({@link #builtLineage}), are still its own; written
+     * with {@link #ownSettings}, under {@link #lock}.
      */
     private volatile AiConfig.LlmSettings builtSettings;
+    /**
+     * The settings {@link #installClient} made this environment's own over
+     * {@link #builtSettings} (a client that wraps the built one, as a routing
+     * client does, or the built one put back), oldest first. They may still
+     * reach the built client, so {@link #close()} shuts it down only when none
+     * of them is the process default's. Replaced, never mutated, under
+     * {@link #lock}; bounded by the {@code installClient} calls since the
+     * environment last built its settings.
+     */
+    private volatile List<AiConfig.LlmSettings> builtLineage = List.of();
     /** The agent settings {@link #configureForAgent} built, by agent; bounded like {@link #agentSettings}. */
     private final ConcurrentHashMap<String, AiConfig.LlmSettings> builtAgentSettings = new ConcurrentHashMap<>();
     private final AgentRuntimeRegistry runtimes;
@@ -553,7 +564,8 @@ public final class AiEnvironment implements AutoCloseable {
      * static API stops returning a closed application's settings. The clients of
      * the settings this environment built itself ({@link #configure},
      * {@link #settingsOrEnvironment()}, {@link #configureForAgent}) and still
-     * holds are shut down ({@link OpenAiCompatibleClient#shutdown()}: a request
+     * holds, directly or under a client {@link #installClient} put over them,
+     * are shut down ({@link OpenAiCompatibleClient#shutdown()}: a request
      * already sent completes, a later one, such as a call's next tool round,
      * fails), unless the process default now holds those settings. Clients it
      * was given ({@link #installClient}, {@link #adopt}, settings a static
@@ -597,7 +609,8 @@ public final class AiEnvironment implements AutoCloseable {
         }
         var builtHere = new ArrayList<AiConfig.LlmSettings>();
         var built = builtSettings;
-        if (built != null && built == own && built != processOwn) {
+        var lineage = builtLineage;
+        if (built != null && fromBuilt(own, built, lineage) && !fromBuilt(processOwn, built, lineage)) {
             builtHere.add(built);
         }
         builtAgentSettings.forEach((agentId, agentBuilt) -> {
@@ -618,6 +631,7 @@ public final class AiEnvironment implements AutoCloseable {
         agentSettings.clear();
         builtAgentSettings.clear();
         builtSettings = null;
+        builtLineage = List.of();
         for (var settings : builtHere) {
             if (settings.client() instanceof OpenAiCompatibleClient client) {
                 client.shutdown();
@@ -771,6 +785,27 @@ public final class AiEnvironment implements AutoCloseable {
         return PROCESS_DEFAULT.ownPins();
     }
 
+    /**
+     * Whether {@code settings} are {@code built} or settings installed over
+     * them; compared by identity, as settings with equal components may hold
+     * another client.
+     */
+    private static boolean fromBuilt(AiConfig.LlmSettings settings, AiConfig.LlmSettings built,
+                                     List<AiConfig.LlmSettings> lineage) {
+        if (settings == null) {
+            return false;
+        }
+        if (settings == built) {
+            return true;
+        }
+        for (var installed : lineage) {
+            if (installed == settings) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private AiConfig.LlmSettings own() {
         return kind == Kind.PROCESS_DEFAULT ? AiConfig.processSettings() : ownSettings;
     }
@@ -813,7 +848,7 @@ public final class AiEnvironment implements AutoCloseable {
                                           GenerationParams pinned) {
         var pins = pinned != null ? pinned : GenerationParams.defaults();
         var built = buildSettings(mode, model, apiKey, baseUrl, pins);
-        own(built, pins, true);
+        own(built, pins, Origin.BUILT);
         return built;
     }
 
@@ -835,7 +870,7 @@ public final class AiEnvironment implements AutoCloseable {
                         + "there is no resolved client to wrap");
             }
             var installed = AiConfig.withClient(current, client);
-            own(installed, pinned(), false);
+            own(installed, pinned(), Origin.INSTALLED);
             logger.info("AI environment {}: installed client {} (model={}, mode={})", name,
                     client.getClass().getSimpleName(), current.model(), current.mode());
             return installed;
@@ -852,14 +887,45 @@ public final class AiEnvironment implements AutoCloseable {
      */
     public void adopt(AiConfig.LlmSettings adopted) {
         Objects.requireNonNull(adopted, "settings");
-        own(adopted, GenerationParams.defaults(), false);
+        own(adopted, GenerationParams.defaults(), Origin.ADOPTED);
     }
 
-    private void own(AiConfig.LlmSettings settings, GenerationParams pins, boolean builtHere) {
+    /** How settings this environment makes its own came to be. */
+    private enum Origin {
+        /** Built here, with a client this environment shuts down when it closes. */
+        BUILT,
+        /** The settings in effect with another client installed. */
+        INSTALLED,
+        /** Handed over as built. */
+        ADOPTED
+    }
+
+    private void own(AiConfig.LlmSettings settings, GenerationParams pins, Origin origin) {
         lock.lock();
         try {
+            var built = builtSettings;
+            var replaced = own();
+            switch (origin) {
+                case BUILT -> {
+                    builtSettings = settings;
+                    builtLineage = List.of();
+                }
+                case INSTALLED -> {
+                    if (built != null && fromBuilt(replaced, built, builtLineage)) {
+                        var lineage = new ArrayList<>(builtLineage);
+                        lineage.add(settings);
+                        builtLineage = List.copyOf(lineage);
+                    } else {
+                        builtSettings = null;
+                        builtLineage = List.of();
+                    }
+                }
+                case ADOPTED -> {
+                    builtSettings = null;
+                    builtLineage = List.of();
+                }
+            }
             store(settings, pins);
-            builtSettings = builtHere ? settings : null;
         } finally {
             lock.unlock();
         }
@@ -889,6 +955,7 @@ public final class AiEnvironment implements AutoCloseable {
                 current = buildFromCoordinates();
                 store(current, GenerationParams.defaults());
                 builtSettings = current;
+                builtLineage = List.of();
             }
             return current;
         } finally {
