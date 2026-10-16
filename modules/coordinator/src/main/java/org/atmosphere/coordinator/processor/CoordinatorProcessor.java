@@ -377,9 +377,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             // promptCache attributes either.
             var aiInterceptors = LongTermMemories.withPresetLongTermMemory(
                     List.of(), preset, features.contains(Harness.MEMORY), path, framework);
-            if (!aiInterceptors.isEmpty()) {
-                MemorySafetyConfig.installedDefault().publishActive(framework);
-            }
+            MemorySafetyConfig.installedDefault().publishActive(framework, aiInterceptors);
             if (features.contains(Harness.MEMORY)) {
                 // A @Coordinator always resolves conversation memory (Step 5),
                 // so the primitive is genuinely ACTIVE here — publish it like

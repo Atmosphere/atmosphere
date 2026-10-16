@@ -18,7 +18,11 @@ package org.atmosphere.ai;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.sun.net.httpserver.HttpServer;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.decision.DecisionModelResolver;
 import org.atmosphere.ai.decision.TestDecisionModels;
 import org.atmosphere.ai.governance.PolicyAdmissionGate;
@@ -38,18 +42,26 @@ import org.atmosphere.ai.intent.IntentRouting;
 import org.atmosphere.ai.memory.InMemoryLongTermMemory;
 import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.ai.memory.MemoryExtractionStrategy;
+import org.atmosphere.ai.processor.AiEndpointProcessor;
 import org.atmosphere.ai.tool.ToolOutputSafetyScreen;
+import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.DefaultAnnotationProcessor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
 
+import java.lang.annotation.Annotation;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -304,6 +316,35 @@ class GovernanceTiersPerApplicationTest {
     }
 
     @Test
+    void anEndpointsMemoryScreenReportsTheTierItsInterceptorRuns() throws Exception {
+        // The endpoint declares its own long-term-memory interceptor, built
+        // over a runtime attached to no application: its screen resolves its
+        // classifier for the static API, which with two applications open is
+        // the process default's, so the LLM tier downgrades to rule-based. The
+        // first application has a decision model, so a report resolved for it
+        // would advertise an LLM screen that does not run.
+        try {
+            // Only the endpoint the scan result names, filtered to this package.
+            firstFramework.addAnnotationPackage(UnattachedMemoryEndpoint.class);
+            firstFramework.init(servletConfig(Map.of(MemorySafetyConfig.TIER_KEY, "LLM_CLASSIFIER"),
+                    UnattachedMemoryEndpoint.class));
+            assertTrue(firstFramework.getAtmosphereHandlers().containsKey("/governance/memory"),
+                    "the endpoint registered: " + firstFramework.getAtmosphereHandlers().keySet());
+
+            var state = firstFramework.getAtmosphereConfig().properties()
+                    .get(MemorySafetyConfig.RUNTIME_STATE_PROPERTY);
+            var published = assertInstanceOf(MemorySafetyConfig.MemorySafetyRuntimeState.class, state);
+            assertEquals("RULE_BASED", published.tier(),
+                    "the console must report the tier the endpoint's memory screen runs");
+            assertEquals(InjectionClassifier.Tier.RULE_BASED,
+                    new UnattachedMemoryInterceptor().screen().orElseThrow().effectiveTier(),
+                    "with the framework's LLM policy installed, such an interceptor screens rule-based");
+        } finally {
+            firstFramework.destroy();
+        }
+    }
+
+    @Test
     void memoryScreenRunsItsExtractionRuntimesApplicationsClassifier() {
         MemorySafetyConfig.installDefault(new MemorySafetyConfig(true,
                 InjectionClassifier.Tier.EMBEDDING_SIMILARITY, SafetyContextProvider.Breach.FLAG, false));
@@ -509,9 +550,58 @@ class GovernanceTiersPerApplicationTest {
                 IntentRoute.human("agent", "needs a person", decision -> "a person will follow up"));
     }
 
+    /** A servlet container's configuration whose annotation scan found the {@code @AiEndpoint} processor and {@code endpoint}. */
+    private static ServletConfig servletConfig(Map<String, String> initParams, Class<?> endpoint) {
+        var context = mock(ServletContext.class);
+        Map<Class<? extends Annotation>, Set<Class<?>>> scanned = new HashMap<>();
+        scanned.put(AtmosphereAnnotation.class, new HashSet<>(Set.of(AiEndpointProcessor.class)));
+        scanned.put(AiEndpoint.class, new HashSet<>(Set.of(endpoint)));
+        when(context.getAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE)).thenReturn(scanned);
+        return new ServletConfig() {
+            @Override
+            public String getServletName() {
+                return "governance";
+            }
+
+            @Override
+            public ServletContext getServletContext() {
+                return context;
+            }
+
+            @Override
+            public String getInitParameter(String name) {
+                return initParams.get(name);
+            }
+
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return Collections.enumeration(initParams.keySet());
+            }
+        };
+    }
+
     private static ScopeConfig scope(AgentScope.Tier tier) {
         return new ScopeConfig("Mathematics tutoring — arithmetic and algebra", List.of(),
                 AgentScope.Breach.DENY, "", tier, 0.45, false, false, "");
+    }
+
+    @AiEndpoint(path = "/governance/memory",
+            interceptors = UnattachedMemoryInterceptor.class)
+    public static final class UnattachedMemoryEndpoint {
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+            session.stream(message);
+        }
+    }
+
+    /** A user-declared long-term-memory interceptor whose extraction runtime belongs to no application. */
+    public static final class UnattachedMemoryInterceptor extends LongTermMemoryInterceptor {
+
+        public UnattachedMemoryInterceptor() {
+            super(new InMemoryLongTermMemory(), MemoryExtractionStrategy.onSessionClose(),
+                    new UnattachedRuntime(), 20);
+        }
     }
 
     /** A runtime that answers locally and is attached to no application. */

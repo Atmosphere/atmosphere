@@ -24,6 +24,8 @@ import org.atmosphere.ai.governance.rag.RuleBasedInjectionClassifier;
 import org.atmosphere.ai.governance.rag.SafetyContextProvider.Breach;
 import org.atmosphere.ai.memory.InMemoryLongTermMemory;
 import org.atmosphere.ai.memory.LongTermMemory;
+import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
+import org.atmosphere.ai.memory.MemoryExtractionStrategy;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.AfterEach;
@@ -211,5 +213,47 @@ class MemorySafetyTest {
 
         assertNull(props.get(MemorySafetyConfig.RUNTIME_STATE_PROPERTY),
                 "a disabled screen must not advertise itself as active");
+    }
+    @Test
+    void interceptorsWhoseMemoryIsNotScreenedPublishNoRuntimeTruth() {
+        var props = new HashMap<String, Object>();
+        var cfg = mock(AtmosphereConfig.class);
+        when(cfg.properties()).thenReturn(props);
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        // Built while the policy was disabled: the interceptor writes through
+        // no screen, so nothing it holds is active, whatever the policy says now.
+        MemorySafetyConfig.installDefault(
+                new MemorySafetyConfig(false, InjectionClassifier.Tier.RULE_BASED, Breach.DROP, false));
+        var unscreened = new LongTermMemoryInterceptor(new InMemoryLongTermMemory(),
+                MemoryExtractionStrategy.onSessionClose(), null);
+        assertTrue(unscreened.screen().isEmpty());
+
+        MemorySafetyConfig.defaults().publishActive(framework, List.of(unscreened));
+
+        assertNull(props.get(MemorySafetyConfig.RUNTIME_STATE_PROPERTY),
+                "an interceptor that holds no screen must not advertise one as active");
+    }
+
+    @Test
+    void interceptorsPublishTheTierAndBreachOfTheScreenTheyHold() {
+        var props = new HashMap<String, Object>();
+        var cfg = mock(AtmosphereConfig.class);
+        when(cfg.properties()).thenReturn(props);
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        MemorySafetyConfig.installDefault(
+                new MemorySafetyConfig(true, InjectionClassifier.Tier.RULE_BASED, Breach.FLAG, false));
+        var screened = new LongTermMemoryInterceptor(new InMemoryLongTermMemory(),
+                MemoryExtractionStrategy.onSessionClose(), null);
+
+        // The policy changed since: the report is the screen's, not the policy's.
+        new MemorySafetyConfig(true, InjectionClassifier.Tier.LLM_CLASSIFIER, Breach.DROP, false)
+                .publishActive(framework, List.of(screened));
+
+        var state = assertInstanceOf(MemorySafetyConfig.MemorySafetyRuntimeState.class,
+                props.get(MemorySafetyConfig.RUNTIME_STATE_PROPERTY));
+        assertEquals(InjectionClassifier.Tier.RULE_BASED.name(), state.tier());
+        assertEquals(Breach.FLAG.name(), state.breach());
     }
 }

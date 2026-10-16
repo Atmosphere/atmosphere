@@ -42,7 +42,6 @@ import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.llm.PromptCacheDefaults;
 import org.atmosphere.ai.memory.LongTermMemories;
-import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.ai.preset.Harness;
 import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
@@ -209,10 +208,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             // endpoint actually wires long-term memory — symmetric to ragSafety,
             // which publishes only once a ContextProvider is wrapped. Advertising
             // the screen on an endpoint with no memory store would be exactly the
-            // configured-intent overstatement Invariant #5 forbids.
-            if (interceptors.stream().anyMatch(i -> i instanceof LongTermMemoryInterceptor)) {
-                MemorySafetyConfig.installedDefault().publishActive(framework);
-            }
+            // configured-intent overstatement Invariant #5 forbids. The tier is
+            // that of the screen the interceptor holds, which a user-declared
+            // one resolved for its own extraction runtime's application.
+            MemorySafetyConfig.installedDefault().publishActive(framework, interceptors);
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
                 memory = resolveMemory(annotation.maxHistoryMessages(), framework, endpointModel);

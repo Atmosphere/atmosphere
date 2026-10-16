@@ -767,7 +767,10 @@ with the application (`ScopePolicyBuilder.build(environment, ...)`); `AiPipeline
 (`ScopePolicyInstaller.extract(metadata, environment)`) and an intent routing without a decision model
 of its own (`IntentRouting.classify(message, environment)`) for the application they serve; the RAG
 screen resolves its classifier for the framework's application, the long-term-memory screen for the
-application of its extraction runtime (and reports the tier of the framework's); and the Spring Boot
+application of its extraction runtime (the `@AiEndpoint`, `@Agent` and `@Coordinator` processors
+report the tier of the screen the endpoint's `LongTermMemoryInterceptor` holds,
+`MemorySafetyConfig.publishActive(framework, interceptors)`, so a user-declared interceptor over a
+runtime attached to no application reports the tier it runs for `AiEnvironment.current()`); and the Spring Boot
 starters build the LLM moderation detector with the context's environment
 (`LlmModerationDetector.forEnvironment(environment)`). A guardrail or classifier registered through
 `META-INF/services` (other than the built-in ones) is built once per tier for the JVM by its

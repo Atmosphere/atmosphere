@@ -16,15 +16,18 @@
 package org.atmosphere.ai.governance.memory;
 
 import org.atmosphere.ai.AiEnvironment;
+import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.governance.rag.InjectionClassifier;
 import org.atmosphere.ai.governance.rag.InjectionClassifierResolver;
 import org.atmosphere.ai.governance.rag.SafetyContextProvider.Breach;
 import org.atmosphere.ai.memory.LongTermMemory;
+import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -181,7 +184,10 @@ public record MemorySafetyConfig(
      * effective tier reflects any runtime-absent downgrade performed by
      * {@link InjectionClassifierResolver} for the framework's application
      * ({@link AiEnvironment#find}; {@link AiEnvironment#current()} when it has
-     * none). No-op when disabled.
+     * none): the tier a screen built for that application runs. A caller that
+     * holds the interceptors calls
+     * {@link #publishActive(AtmosphereFramework, List)}, which reports the tier
+     * of the screen they hold. No-op when disabled.
      */
     public void publishActive(AtmosphereFramework framework) {
         if (!enabled || framework == null) {
@@ -195,10 +201,48 @@ public record MemorySafetyConfig(
         var effectiveTier = (environment.isPresent()
                 ? InjectionClassifierResolver.resolve(environment.get(), tier)
                 : InjectionClassifierResolver.resolve(tier)).tier();
-        var state = new MemorySafetyRuntimeState(true, effectiveTier.name(), onBreach.name());
+        publish(cfg, effectiveTier, onBreach);
+    }
+
+    /**
+     * Publish the active runtime-state once (idempotent) from the screen the
+     * endpoint's long-term-memory interceptors actually hold: the tier and
+     * breach of the first {@link LongTermMemoryInterceptor} whose memory is
+     * screened, so the console reports the tier that runs. That tier is the
+     * one resolved for the application of the interceptor's extraction runtime
+     * when it was built, which can differ from the framework's: a
+     * user-declared interceptor over a runtime attached to no application
+     * screens for {@link AiEnvironment#current()}. No-op when no interceptor
+     * holds a screen. The first publish on a framework wins, as with
+     * {@link #publishActive(AtmosphereFramework)}.
+     *
+     * @param framework    the framework the endpoint registers on
+     * @param interceptors the endpoint's interceptors, the preset's included
+     */
+    public void publishActive(AtmosphereFramework framework, List<? extends AiInterceptor> interceptors) {
+        if (framework == null || interceptors == null) {
+            return;
+        }
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg == null) {
+            return;
+        }
+        for (var interceptor : interceptors) {
+            if (interceptor instanceof LongTermMemoryInterceptor memoryInterceptor) {
+                var screen = memoryInterceptor.screen();
+                if (screen.isPresent()) {
+                    publish(cfg, screen.get().effectiveTier(), screen.get().breach());
+                    return;
+                }
+            }
+        }
+    }
+
+    private void publish(AtmosphereConfig cfg, InjectionClassifier.Tier effectiveTier, Breach breach) {
+        var state = new MemorySafetyRuntimeState(true, effectiveTier.name(), breach.name());
         if (cfg.properties().putIfAbsent(RUNTIME_STATE_PROPERTY, state) == null) {
             logger.info("Long-term-memory injection-safety active: tier={}, onBreach={}, failOpen={}",
-                    effectiveTier, onBreach, failOpen);
+                    effectiveTier, breach, failOpen);
         }
     }
 

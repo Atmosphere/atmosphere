@@ -238,9 +238,7 @@ public class AgentProcessor implements Processor<Object> {
             var features = preset.featuresFor(path, annotation.harness(), true);
             var aiInterceptors = LongTermMemories.withPresetLongTermMemory(
                     List.of(), preset, features.contains(Harness.MEMORY), path, framework);
-            if (!aiInterceptors.isEmpty()) {
-                MemorySafetyConfig.installedDefault().publishActive(framework);
-            }
+            MemorySafetyConfig.installedDefault().publishActive(framework, aiInterceptors);
             if (features.contains(Harness.MEMORY)) {
                 // An @Agent always resolves conversation memory (Step 5), so the
                 // harness conversation-memory primitive is genuinely ACTIVE here.

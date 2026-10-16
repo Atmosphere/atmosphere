@@ -20,10 +20,12 @@ import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
+import org.atmosphere.ai.governance.memory.ScreenedLongTermMemory;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -92,6 +94,18 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
                                      MemoryExtractionStrategy strategy,
                                      AgentRuntime extractionRuntime) {
         this(memory, strategy, extractionRuntime, 20, MemoryConsolidationStrategy.disabled());
+    }
+
+    /**
+     * The injection-safety screen this interceptor writes facts through, as it
+     * was built: its {@link ScreenedLongTermMemory#effectiveTier() tier} is the
+     * one that runs, resolved for the application of the extraction runtime.
+     *
+     * @return the screen, empty when the memory is not screened (the policy was
+     *         disabled when this interceptor was built)
+     */
+    public Optional<ScreenedLongTermMemory> screen() {
+        return memory instanceof ScreenedLongTermMemory screened ? Optional.of(screened) : Optional.empty();
     }
 
     @Override
