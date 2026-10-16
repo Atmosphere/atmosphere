@@ -134,6 +134,41 @@ describe.each(DASHBOARDS)('admin dashboard (%s)', (_host, html) => {
     await settle()
     expect(connectionsTile(d)).toBe('1')
   })
+
+  /**
+   * Every live event triggered the three-request overview/broadcasters/
+   * resources refresh: one streamed AI turn produced 59 requests in about
+   * 40 s. A burst of events now coalesces into one trailing refresh that
+   * still shows the state after the last event.
+   */
+  it('coalesces a burst of live events into one refresh that reflects the last event', async () => {
+    let connections = 1
+    let overviewReads = 0
+    const d = boot(html, {
+      '/overview': () => {
+        overviewReads++
+        return { status: 200, body: { status: 'UP', connections, broadcasters: 1, agentCount: 0 } }
+      },
+    })
+    await settle()
+    d.sockets[0].onopen?.()
+    await settle()
+    const before = overviewReads
+
+    for (let i = 0; i < 20; i++) {
+      connections = 2
+      d.sockets[0].onmessage?.({ data: JSON.stringify({ type: 'MessageBroadcast', broadcasterId: '/chat', resourceCount: 2 }) })
+    }
+    await settle()
+    // The feed is live: every event is listed at once.
+    expect(d.doc.getElementById('event-feed')!.children.length).toBe(20)
+    expect(overviewReads - before).toBeLessThanOrEqual(1)
+
+    await new Promise((r) => setTimeout(r, 1200))
+    await settle()
+    expect(overviewReads - before).toBe(1)
+    expect(connectionsTile(d)).toBe('2')
+  })
 })
 
 function connectionsTile(d: Dashboard): string | undefined {

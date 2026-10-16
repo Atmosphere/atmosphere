@@ -475,6 +475,38 @@ async function loadAudit() {
 }
 
 // Event stream via WebSocket (eating our own dog food)
+// Live events come in bursts (one streamed AI turn emitted dozens), and each
+// used to run the three-request overview/broadcasters/resources refresh. A
+// burst now coalesces: one refresh at most every REFRESH_COALESCE_MS, the
+// trailing one after the last event, and never two refreshes at once.
+const REFRESH_COALESCE_MS = 1000;
+let refreshTimer = null;
+let refreshing = false;
+let refreshAgain = false;
+
+function scheduleDashboardRefresh() {
+  if (refreshTimer !== null) return;
+  refreshTimer = setTimeout(runDashboardRefresh, REFRESH_COALESCE_MS);
+}
+
+async function runDashboardRefresh() {
+  refreshTimer = null;
+  if (refreshing) {
+    refreshAgain = true;
+    return;
+  }
+  refreshing = true;
+  try {
+    await loadDashboard();
+  } finally {
+    refreshing = false;
+    if (refreshAgain) {
+      refreshAgain = false;
+      scheduleDashboardRefresh();
+    }
+  }
+}
+
 function connectEventStream() {
   const indicator = document.getElementById('status-indicator');
   const feed = document.getElementById('event-feed');
@@ -502,7 +534,7 @@ function connectEventStream() {
       item.innerHTML = `<span class="time">${time}</span><span class="type">${ev.type}</span><span>${formatEvent(ev)}</span>`;
       feed.prepend(item);
       while (feed.children.length > 200) feed.removeChild(feed.lastChild);
-      loadDashboard();
+      scheduleDashboardRefresh();
     } catch(err) { /* ignore non-JSON */ }
   };
   ws.onclose = () => {
