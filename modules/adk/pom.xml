@@ -94,4 +94,21 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <!-- The per-request runner builds its Gemini model from the LLM_* fallback,
+                             which needs a key; the lowest-priority variable, so a developer's own
+                             LLM_API_KEY / OPENAI_API_KEY still wins. Never used to call Gemini. -->
+                        <GEMINI_API_KEY>test-key-not-used-for-calls</GEMINI_API_KEY>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
