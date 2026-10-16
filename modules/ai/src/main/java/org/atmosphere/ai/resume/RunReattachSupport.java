@@ -40,7 +40,9 @@ import org.slf4j.LoggerFactory;
  * reattach to a run still in flight therefore also subscribes the
  * reconnected resource to the run's later events through its terminal
  * {@code complete} / {@code error} frame; the subscription ends with that
- * frame or when the reconnected resource disconnects. A run that already
+ * frame or when the reconnected resource disconnects. A resource suspended on
+ * the broadcaster of the run's {@code broadcastReply} room is written the
+ * backlog only: the room broadcasts it the rest of the run. A run that already
  * finished stays replayable for the registry TTL
  * ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the whole
  * tail. A long-polling poll is answered once: it gets the events of the run
@@ -650,14 +652,25 @@ public final class RunReattachSupport {
     /**
      * Write the backlog of a run still in flight, then keep forwarding its
      * events to {@code resource} until the run ends or the resource goes away.
+     * A member of the run's {@code broadcastReply} room (the resource is
+     * suspended on the room's broadcaster) is written the backlog only: the
+     * room broadcasts it the rest of the run, metadata, tool events and approval
+     * requests included, so forwarding the run's frames as well would write each
+     * of them twice. The run's own client still listens to the run until its
+     * terminal frame or its disconnect, as a forwarded reattach does, so it
+     * holds off the grace, and its disconnect detaches the run again.
      * The forwarder's lock is held from before the subscription until the
      * backlog is written, so an event captured meanwhile waits and lands after
      * the backlog, in order.
      */
     private static int replayAndForward(AtmosphereResource resource, String runId,
                                         AgentResumeHandle handle, java.time.Duration grace, boolean own) {
+        var broadcasterId = broadcasterIdFor(resource);
+        // A member of the run's room is delivered the rest of the run by the
+        // room's broadcaster: forwarding it too would write each frame twice.
+        var roomMember = broadcasterId.equals(handle.replayBuffer().roomId());
         var forwarder = new LiveForwarder(resource, handle, filtersFor(resource),
-                broadcasterIdFor(resource), grace);
+                broadcasterId, grace, !roomMember);
         if (!own) {
             return replayToBystander(resource, runId, handle, forwarder);
         }
@@ -684,7 +697,7 @@ public final class RunReattachSupport {
                 forwarder.cancel();
             }
             logger.info("Reattach run {} for resource {}: replayed {}/{} event(s), "
-                    + "forwarding the rest of the run: {}", runId, resource.uuid(), written,
+                    + "following the rest of the run: {}", runId, resource.uuid(), written,
                     subscription.backlog().size(), !forwarder.isCancelled());
             return written;
         }
@@ -736,6 +749,8 @@ public final class RunReattachSupport {
         private final java.util.List<org.atmosphere.cpr.BroadcastFilter> filters;
         private final String broadcasterId;
         private final java.time.Duration grace;
+        /** {@code false} for a member of the run's room: it listens to the run, the room writes it the frames. */
+        private final boolean writesLive;
         private final org.atmosphere.cpr.AtmosphereResourceEventListener disconnectListener;
         private long seq;
         private boolean cancelled;
@@ -743,8 +758,9 @@ public final class RunReattachSupport {
 
         LiveForwarder(AtmosphereResource resource, AgentResumeHandle run,
                       java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
-                      String broadcasterId, java.time.Duration grace) {
+                      String broadcasterId, java.time.Duration grace, boolean writesLive) {
             this.resource = resource;
+            this.writesLive = writesLive;
             this.runId = run.runId();
             this.run = run;
             this.filters = filters;
@@ -794,6 +810,14 @@ public final class RunReattachSupport {
         /** Buffer listener: forward one live event, ending the subscription on a terminal one. */
         synchronized void forward(RunEvent event) {
             if (cancelled) {
+                return;
+            }
+            if (!writesLive) {
+                logger.trace("Run {} event {} reaches room member {} through the room", runId, event.sequence(),
+                        resource.uuid());
+                if (RunEventReplayBuffer.isTerminal(event.type())) {
+                    cancel();
+                }
                 return;
             }
             if (write(event) == Write.FAILED || RunEventReplayBuffer.isTerminal(event.type())) {

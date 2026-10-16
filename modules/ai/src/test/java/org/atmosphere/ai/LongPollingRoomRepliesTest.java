@@ -52,6 +52,8 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -848,6 +850,90 @@ class LongPollingRoomRepliesTest {
         }
     }
 
+    /**
+     * A WebSocket or SSE member of a {@code broadcastReply} room that reconnects
+     * with the run id is subscribed to the room's broadcaster again, which
+     * delivers it the rest of the run. Its reattach also forwarded it every later
+     * frame of the run, so the client received each of them twice, under two
+     * session ids.
+     */
+    @ParameterizedTest
+    @EnumSource(value = AtmosphereResource.TRANSPORT.class, names = {"WEBSOCKET", "SSE"})
+    void aStreamingRoomMemberReconnectingWithTheRunIdReceivesEachLaterFrameOnce(AtmosphereResource.TRANSPORT transport) {
+        LongPollingRoomReplies.install(room);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var prompter = "prompter-" + UUID.randomUUID();
+        var run = registry.register("agent", "anonymous", prompter, new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+        var buffer = run.replayBuffer();
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), buffer);
+        session.sendMetadata(RunReattachSupport.RUN_ID_HEADER, run.runId());
+        session.send("one.");
+        awaitFrames(socket, 2);
+
+        // The prompter's connection comes back under its tracking id: the room's broadcaster takes it again,
+        // then the handler replays the run to it.
+        var member = subscriber(room, transport, prompter);
+        var sink = new StringWriter();
+        var reattach = streamingReattach(prompter, transport, run.runId(), sink);
+        assertEquals(1, RunReattachSupport.replayPendingRun(reattach, registry), "it is replayed what it missed");
+        assertEquals(1, buffer.subscriberCount(), "the prompter's reattach listens to the run, which holds its grace off");
+
+        session.send("two.");
+        session.emit(new AiEvent.ToolStart("lookup", Map.of("q", "x")));
+        session.emit(new AiEvent.ApprovalRequired("ap-1", "book", Map.of(), "Book it?", 60));
+        session.send("three.");
+        session.complete();
+        awaitComplete(socket);
+        awaitComplete(member);
+
+        var replayed = describe(lines(sink));
+        assertEquals(List.of("streaming-text:one."), replayed,
+                "the reattach replays what the member missed, and leaves the rest of the run to the room");
+        var live = frames(member);
+        assertEquals(1, live.stream().filter("streaming-text:two."::equals).count(), "received once: " + live);
+        assertEquals(1, live.stream().filter("streaming-text:three."::equals).count(), "received once: " + live);
+        assertEquals(1, live.stream().filter("complete"::equals).count(), "received once: " + live);
+        assertTrue(live.stream().anyMatch(f -> f.contains("tool-start")), "the room delivers tool events: " + live);
+        assertTrue(live.stream().anyMatch(f -> f.contains("approval-required")),
+                "the room delivers approval requests: " + live);
+        assertEquals(0, buffer.subscriberCount(), "the run's end releases the reattach");
+    }
+
+    /** A streaming reattach of {@code trackingId} on the room carrying {@code runId}, its writes in {@code sink}. */
+    private AtmosphereResource streamingReattach(String trackingId, AtmosphereResource.TRANSPORT transport,
+                                                 String runId, StringWriter sink) {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        when(resource.getRequest()).thenReturn(request);
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(runId);
+        when(resource.uuid()).thenReturn(trackingId);
+        when(resource.transport()).thenReturn(transport);
+        when(resource.isSuspended()).thenReturn(true);
+        when(resource.getBroadcaster()).thenReturn(room);
+        when(resource.getAtmosphereConfig()).thenReturn(config);
+        try {
+            when(resource.getResponse()).thenReturn(response);
+            when(response.getWriter()).thenReturn(new PrintWriter(sink));
+        } catch (IOException e) {
+            throw new AssertionError("a mock does not throw", e);
+        }
+        return resource;
+    }
+
+    private static List<String> lines(StringWriter sink) {
+        var out = new ArrayList<String>();
+        for (var line : sink.toString().split("\n")) {
+            if (!line.isBlank()) {
+                out.add(line);
+            }
+        }
+        return out;
+    }
+
     /** A suspended long-polling poll of {@code trackingId} on the room carrying {@code runId}. */
     private AtmosphereResource suspendedPoll(String trackingId, String runId, StringWriter sink, List<String> resumed) {
         var poll = mock(AtmosphereResource.class);
@@ -1229,8 +1315,18 @@ class LongPollingRoomRepliesTest {
 
     /** A subscriber of {@code broadcaster} on {@code transport}; a long-polling one leaves once written to. */
     private AtmosphereResourceImpl subscriber(Broadcaster broadcaster, AtmosphereResource.TRANSPORT transport) {
+        return subscriber(broadcaster, transport, null);
+    }
+
+    /** {@link #subscriber(Broadcaster, AtmosphereResource.TRANSPORT)} under {@code trackingId}, when not null. */
+    private AtmosphereResourceImpl subscriber(Broadcaster broadcaster, AtmosphereResource.TRANSPORT transport,
+                                              String trackingId) {
+        var request = AtmosphereRequestImpl.newInstance();
+        if (trackingId != null) {
+            request.setAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID, trackingId);
+        }
         var r = new AtmosphereResourceImpl(config, broadcaster,
-                AtmosphereRequestImpl.newInstance(),
+                request,
                 AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 new Recorder());

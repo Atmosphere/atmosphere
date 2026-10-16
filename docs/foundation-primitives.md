@@ -89,7 +89,9 @@ broadcasters on reconnect but not in-flight agent runs. Clients that
 disconnect mid-stream reattach via `runId` and receive the events they
 missed, up to the buffer's bounded capacity (oldest-evicted). On WebSocket,
 SSE and streaming, a reattach to a run still in flight also receives the
-run's later events through its terminal frame; a long-polling poll gets the
+run's later events through its terminal frame, unless it is a member of the
+run's `broadcastReply` room, which the room's broadcast delivers them to
+already; a long-polling poll gets the
 buffered events its tracking id was not sent yet — as a replay, or in a
 long-polling reply of its own; after an event that does not count as sent
 (one it never received, a `broadcastReply` room frame not kept for it, or a
