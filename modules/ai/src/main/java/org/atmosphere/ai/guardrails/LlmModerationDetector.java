@@ -131,14 +131,18 @@ public final class LlmModerationDetector implements ModerationDetector {
     }
 
     /**
-     * Resolves the decision model of one application on each call
-     * ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the default
-     * timeout and thresholds.
+     * A detector that resolves the decision model of one application on each
+     * call ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the
+     * default timeout and thresholds. A factory rather than a constructor, so
+     * {@code new LlmModerationDetector(null)} keeps selecting the
+     * {@link #LlmModerationDetector(AgentRuntime)} constructor.
      *
      * @param environment the application's environment
+     * @return the detector
      */
-    public LlmModerationDetector(AiEnvironment environment) {
-        this(null, Objects.requireNonNull(environment, "environment"), DEFAULT_TIMEOUT, NoulGate.DEFAULTS);
+    public static LlmModerationDetector forEnvironment(AiEnvironment environment) {
+        return new LlmModerationDetector(null, Objects.requireNonNull(environment, "environment"),
+                DEFAULT_TIMEOUT, NoulGate.DEFAULTS);
     }
 
     /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */

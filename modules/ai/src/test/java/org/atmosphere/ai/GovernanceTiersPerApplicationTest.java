@@ -429,7 +429,7 @@ class GovernanceTiersPerApplicationTest {
 
     @Test
     void moderationAndBuiltScopesOfAnApplicationAskItsModels() {
-        new LlmModerationDetector(first).detect("hello there");
+        LlmModerationDetector.forEnvironment(first).detect("hello there");
         assertOnlyFirst("/first/v1/chat/completions");
 
         requests.clear();

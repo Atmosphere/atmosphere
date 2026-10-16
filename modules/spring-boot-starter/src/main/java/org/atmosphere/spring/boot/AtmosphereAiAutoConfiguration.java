@@ -790,7 +790,7 @@ public class AtmosphereAiAutoConfiguration {
         // application the JVM-wide static API resolves when several run.
         var guardrail = llm
                 ? new org.atmosphere.ai.guardrails.ModerationGuardrail(
-                        new org.atmosphere.ai.guardrails.LlmModerationDetector(aiKnobBridge.aiEnvironment()))
+                        org.atmosphere.ai.guardrails.LlmModerationDetector.forEnvironment(aiKnobBridge.aiEnvironment()))
                         .scope(org.atmosphere.ai.guardrails.ModerationGuardrail.Scope.REQUEST)
                 : new org.atmosphere.ai.guardrails.ModerationGuardrail();
         if (failOpen) {

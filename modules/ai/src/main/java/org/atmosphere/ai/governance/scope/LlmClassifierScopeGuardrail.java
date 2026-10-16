@@ -75,7 +75,7 @@ import java.util.Objects;
  * {@link ScopePolicy} denies at pre-admission (Correctness Invariant #6). The
  * explicit, non-default opt-out is {@code failOpen}: an instance built by a
  * constructor that does not take it (the per-application instance
- * {@link ScopeGuardrailResolver} builds with {@link #LlmClassifierScopeGuardrail(AiEnvironment)}
+ * {@link ScopeGuardrailResolver} builds with {@link #forEnvironment(AiEnvironment)}
  * is built that way) reads the {@value #FAIL_OPEN_PROPERTY} JVM system property
  * on each uncertain verdict, so setting or clearing the property takes effect
  * on the next request even though {@link ScopeGuardrailResolver} caches the
@@ -119,16 +119,20 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     }
 
     /**
-     * Resolves the decision model of one application on each call
-     * ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the default
-     * timeout and thresholds; an uncertain verdict reads
-     * {@value #FAIL_OPEN_PROPERTY}, as the no-argument constructor does.
+     * A guardrail that resolves the decision model of one application on each
+     * call ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the
+     * default timeout and thresholds; an uncertain verdict reads
+     * {@value #FAIL_OPEN_PROPERTY}, as the no-argument constructor does. A
+     * factory rather than a constructor, so
+     * {@code new LlmClassifierScopeGuardrail(null)} keeps selecting the
+     * {@link #LlmClassifierScopeGuardrail(AgentRuntime)} constructor.
      *
      * @param environment the application's environment
+     * @return the guardrail
      */
-    public LlmClassifierScopeGuardrail(AiEnvironment environment) {
-        this(null, Objects.requireNonNull(environment, "environment"), DEFAULT_TIMEOUT,
-                NoulGate.DEFAULTS, null);
+    public static LlmClassifierScopeGuardrail forEnvironment(AiEnvironment environment) {
+        return new LlmClassifierScopeGuardrail(null, Objects.requireNonNull(environment, "environment"),
+                DEFAULT_TIMEOUT, NoulGate.DEFAULTS, null);
     }
 
     /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */

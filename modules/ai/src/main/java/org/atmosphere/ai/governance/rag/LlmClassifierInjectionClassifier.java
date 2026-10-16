@@ -129,15 +129,18 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
     }
 
     /**
-     * Resolves the decision model of one application on each call
-     * ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the default
-     * timeout and thresholds.
+     * A classifier that resolves the decision model of one application on each
+     * call ({@link DecisionModelResolver#resolve(AiEnvironment)}), with the
+     * default timeout and thresholds. A factory rather than a constructor, so
+     * {@code new LlmClassifierInjectionClassifier(null)} keeps selecting the
+     * {@link #LlmClassifierInjectionClassifier(AgentRuntime)} constructor.
      *
      * @param environment the application's environment
+     * @return the classifier
      */
-    public LlmClassifierInjectionClassifier(AiEnvironment environment) {
-        this(null, Objects.requireNonNull(environment, "environment"), DEFAULT_TIMEOUT,
-                DEFAULT_INJECTED_AT, DEFAULT_SAFE_BELOW);
+    public static LlmClassifierInjectionClassifier forEnvironment(AiEnvironment environment) {
+        return new LlmClassifierInjectionClassifier(null, Objects.requireNonNull(environment, "environment"),
+                DEFAULT_TIMEOUT, DEFAULT_INJECTED_AT, DEFAULT_SAFE_BELOW);
     }
 
     /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */

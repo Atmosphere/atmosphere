@@ -152,7 +152,7 @@ public final class ScopeGuardrailResolver {
             case EMBEDDING_SIMILARITY -> new EmbeddingScopeGuardrail(embeddingRuntime(environment));
             case SEMANTIC_INTENT -> new SemanticIntentScopeGuardrail(embeddingRuntime(environment),
                     SemanticIntentScopeGuardrail.DEFAULT_MARGIN);
-            case LLM_CLASSIFIER -> new LlmClassifierScopeGuardrail(environment);
+            case LLM_CLASSIFIER -> LlmClassifierScopeGuardrail.forEnvironment(environment);
         };
     }
 
