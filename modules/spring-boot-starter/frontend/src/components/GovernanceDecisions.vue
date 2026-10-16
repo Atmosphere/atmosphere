@@ -51,7 +51,7 @@ function decisionClass(d: string) {
         <span class="count-chip deny">deny {{ counts.deny ?? 0 }}</span>
         <span class="count-chip transform">xform {{ counts.transform ?? 0 }}</span>
         <span class="count-chip error">error {{ counts.error ?? 0 }}</span>
-        <select v-model="filterDecision" class="filter-select">
+        <select id="decisions-filter" name="decision" v-model="filterDecision" class="filter-select">
           <option value="all">All</option>
           <option value="admit">Admit</option>
           <option value="prefer">Prefer</option>

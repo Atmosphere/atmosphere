@@ -291,6 +291,8 @@ onMounted(() => { if (active.value) refresh() })
       <div class="toolbar-actions">
         <select
           v-if="owners.length > 0"
+          id="workspace-owner"
+          name="owner"
           v-model="selectedOwner"
           class="owner-select"
           data-testid="workspace-owner"
@@ -341,6 +343,8 @@ onMounted(() => { if (active.value) refresh() })
         <div class="session-picker">
           <select
             v-if="knownSessions.length > 0"
+            id="workspace-session-select"
+            name="session"
             v-model="sessionId"
             class="owner-select"
             data-testid="workspace-session-select"
@@ -349,6 +353,8 @@ onMounted(() => { if (active.value) refresh() })
             <option v-for="s in knownSessions" :key="s" :value="s">{{ s }}</option>
           </select>
           <input
+            id="workspace-session"
+            name="session"
             v-model.trim="sessionId"
             class="session-input"
             placeholder="session id"

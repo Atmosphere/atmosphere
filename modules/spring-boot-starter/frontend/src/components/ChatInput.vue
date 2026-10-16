@@ -39,6 +39,8 @@ function autoResize() {
   <div class="input-area">
     <div class="input-wrapper">
       <textarea
+        id="chat-message"
+        name="message"
         ref="textarea"
         v-model="input"
         :placeholder="disabled ? 'Connecting...' : 'Type a message... (Shift+Enter for newline)'"

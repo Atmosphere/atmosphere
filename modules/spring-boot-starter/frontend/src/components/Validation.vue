@@ -127,6 +127,8 @@ function argText(args?: Record<string, unknown>): string {
     </div>
     <div class="goal-row">
       <input
+        id="validation-goal"
+        name="goal"
         v-model="goal"
         class="goal-input"
         data-testid="goal-input"

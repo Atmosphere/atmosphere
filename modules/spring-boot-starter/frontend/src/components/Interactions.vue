@@ -314,7 +314,8 @@ watch(active, (on) => { if (on) start(); else stop() })
       ></textarea>
       <div class="ix-launch-actions">
         <label class="ix-check" title="Detach the run and poll its durable timeline">
-          <input type="checkbox" v-model="background" data-testid="interaction-background" />
+          <input id="ix-background" name="background" type="checkbox" v-model="background"
+                 data-testid="interaction-background" />
           Background
           <span class="ix-hint">— return immediately, retrievable after disconnect</span>
         </label>
