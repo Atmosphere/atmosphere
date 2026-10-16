@@ -86,8 +86,9 @@ public class AtmosphereQuarkusLangChain4jBridge {
         }
         if (handles.isAmbiguous()) {
             logger.info("Multiple StreamingChatModel beans found ({}). "
-                    + "Skipping auto-wiring — call LangChain4jAgentRuntime.setModel(...) explicitly "
-                    + "with the model you want Atmosphere to dispatch through.",
+                    + "Skipping auto-wiring — call LangChain4jAgentRuntime.setModel(model) explicitly "
+                    + "with the model you want Atmosphere to dispatch through (the deprecated "
+                    + "process-wide binder: the application's AiEnvironment does not exist yet).",
                     handles.stream().count());
             return;
         }

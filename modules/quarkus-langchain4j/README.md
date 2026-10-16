@@ -35,8 +35,13 @@ Ollama, Hugging Face, etc.):
    points.
 3. At runtime, `AtmosphereQuarkusLangChain4jBridge` (`@ApplicationScoped`,
    `@Startup(PLATFORM_BEFORE)`) looks up that bean via Arc and calls
-   `LangChain4jAgentRuntime.setModel(...)` before the Atmosphere framework
-   starts dispatching prompts.
+   `LangChain4jAgentRuntime.setModel(model)` before the Atmosphere framework
+   starts dispatching prompts. That is the deprecated process-wide binder: the
+   bridge runs before the framework, and the application's `AiEnvironment`, exist
+   (the extension creates the environment when the framework initializes and does
+   not expose it to CDI), so it cannot use the per-application
+   `setModel(AiEnvironment, model)`. The bound model is therefore the JVM-wide
+   one, used by every application that has no model bound to it alone.
 
 ## Quick Start
 
@@ -89,5 +94,8 @@ quarkus.atmosphere.packages=com.example
   bean that nulls those fields. See the sample.
 - `atmosphere-quarkus-langchain4j` only auto-wires the **default** chat model.
   Apps that use multiple named models can call
-  `LangChain4jAgentRuntime.setModel(...)` manually from a `@PostConstruct`
-  bean of their own.
+  `LangChain4jAgentRuntime.setModel(model)` manually from a `@PostConstruct`
+  bean of their own. That one-argument binder is deprecated (it binds for every
+  application in the JVM) and, as above, there is no per-application one a CDI
+  bean can reach at startup, so the bean needs `@SuppressWarnings("deprecation")`
+  to compile under `-Xlint:all -Werror`.

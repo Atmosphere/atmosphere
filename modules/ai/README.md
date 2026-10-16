@@ -684,8 +684,9 @@ attach it to the framework before the endpoint scan, and close it with the conte
 it with the framework; on a plain servlet the first `@AiEndpoint`, `@Agent` or `@Coordinator` that
 registers (or the Kotlin `registerAgent` DSL) creates it from the framework's init-params, and the
 framework's destroy closes it. Closing
-one drops its runtime instances and shuts down the HTTP clients of the LLM settings it built itself
-(not a client the application installed or gave it, nor one the process default still hands out); the
+one drops its runtime instances and shuts down the HTTP clients of the LLM settings it built itself,
+also once a client was installed over them (the starters' routing client wraps the built one), but not
+a client the application installed or gave it, nor one the process default still reaches; the
 other applications are untouched. Framework code reads it with
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 
@@ -700,22 +701,32 @@ process default (`AiEnvironment.processDefault()`). A single application therefo
 application with no settings of its own uses them. When several applications run and the thread is
 bound to none (an executor of your own, a reactive scheduler), the statics read the process default,
 which is no one application's, and a warning says so once per JVM: read your application's own with
-`AiEnvironment.of(...)` there. `AiConfig.installHostConfig(...)` remains for code with no application:
-its values are what the process default reads, and what an application created from init-params
-reads for a knob its init-params leave unset.
+`AiEnvironment.of(...)` there. `AiConfig.installHostConfig(...)` still works, deprecated in favour of
+the host creating its application's environment (`AiEnvironment.create(lookup)`, closed when the host
+stops): its values are what the process default reads, and what an application created from
+init-params reads for a knob its init-params leave unset.
 
 The static readers (`AiConfig.get()`, `knob(...)`, `forAgent(...)`, `agentScoped(...)`, the
 `AiConfig.resolve*()` knob readers, `AgentRuntimeResolver.resolve()` and `resolveAll()`) are
 deprecated, not for removal: code that holds an application reads it through
 `AiEnvironment.of(config)` (`settings()`, `knob(...)`, `forAgent(...)`, `resolveGenerationParams()`,
 `runtimes().resolve()`, ...), and code with no application through `AiEnvironment.current()`, which
-resolves exactly as the statics do. The mutators (`AiConfig.configure(...)`, `installClient(...)`,
-`configureForAgent(...)`) and `installHostConfig(...)` are not deprecated. Framework code that holds
-an application does not read the statics or `AiEnvironment.current()`: `scripts/architectural-validation.sh`
-fails the build on such a read in `modules/**/src/main` unless `scripts/validation-patterns.toml`
-allowlists it with a reason. The remaining reads are allowlisted there: the façade itself, runtime
-instances no environment attached, public entry points that take no application, hosts and reports
-for a framework with no environment attached, and the readers listed below.
+resolves exactly as the statics do. `AiConfig.installHostConfig(...)` is deprecated, not for removal
+in 4.x. The mutators (`AiConfig.configure(...)`, `installClient(...)`, `configureForAgent(...)`),
+`AgentRuntimeResolver.hasExplicitClientBinding()`, `AiConfig.reportKnobsNotInEffect()` and the
+no-argument `EmbeddingRuntimeResolver.resolve()`/`resolveAll()` and `DecisionModelResolver.resolve()`
+are not deprecated, so calling them gives no compiler warning although they read or write
+`AiEnvironment.current()` as the deprecated readers do. Framework code that holds an application
+does not itself read the statics, `AiEnvironment.current()` or
+`AiEnvironment.processDefault()`: `scripts/architectural-validation.sh` fails the build on such a read
+in `modules/**/src/main` (a call split across lines, or hidden behind a static import, included)
+unless `scripts/validation-patterns.toml` allowlists it with a regex tight to the site, the number of
+sites and a reason. The remaining reads are allowlisted there: the façade itself, runtime instances
+no environment attached, public entry points that take no application, hosts and reports for a
+framework with no environment attached, identity checks against the process default, and the readers
+listed below. Those readers are reached from code that holds an application too, which the gate does
+not follow across the call: the scope guardrails of an `@AgentScope` endpoint or agent, for one, read
+the static API (below).
 
 Native clients are per application too. A runtime adapter's instance uses, first found: the client
 bound to its application (`SpringAiAgentRuntime.setChatClient(environment, client)`,
@@ -746,7 +757,15 @@ injection, scope and moderation tiers, `IntentRouting` without a decision model 
 `InjectionClassifierResolver` cache, which keeps one classifier per tier for the JVM, the semantic
 response cache, embedding scope guardrails and embedding injection classifier built without an
 embedding runtime, and the Quarkus LangChain4j bridge, which binds through the deprecated static
-`LangChain4jAgentRuntime.setModel(model)`. Adapter configuration statics that are not native clients
+`LangChain4jAgentRuntime.setModel(model)`. Of these, the scope guardrails reach every `@AgentScope`
+endpoint or agent: `ScopeGuardrailResolver` keeps one built-in guardrail per tier for the JVM, built
+without an embedding runtime the first time a scope of that tier is resolved (an endpoint or agent
+registering, on a thread bound to no application), so it resolves the embedding runtime through the
+static API. With one application that is its own. With two running, it is the process default's:
+`EMBEDDING_SIMILARITY` and `SEMANTIC_INTENT` scopes degrade to rule-based enforcement (unless the
+semantic-intent tier is set to fail open) when the process default has no embedding runtime, even if
+the application bound one, and every application then shares the guardrail that first resolution
+built. Adapter configuration statics that are not native clients
 (`AdkAgentRuntime.setDefaults` / `setCacheConfig` / `setMaxSteps`, `EmbabelAgentRuntime.setAgentName`,
 `LangChain4jAgentRuntime.registerChatModelListener`, `DemoAgentRuntime.setResponseStrategy`) apply to
 every application.

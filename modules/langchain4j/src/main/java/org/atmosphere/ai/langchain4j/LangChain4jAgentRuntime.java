@@ -126,7 +126,10 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
      * auto-configuration, which must go through {@link #offerModel}.
      * @deprecated binds for every application in the JVM; bind for one application with
      *             {@link #setModel(org.atmosphere.ai.AiEnvironment, StreamingChatModel)}, as the auto-configuration does for its context. Kept as
-     *             the process-wide fallback through 4.x; not scheduled for removal.
+     *             the process-wide fallback through 4.x; not scheduled for removal. On Quarkus
+     *             it is the only binder a CDI bean can call at startup: the extension creates
+     *             the application's environment when the framework initializes and does not
+     *             expose it to CDI.
      */
     @Deprecated
     public static void setModel(StreamingChatModel streamingModel) {
