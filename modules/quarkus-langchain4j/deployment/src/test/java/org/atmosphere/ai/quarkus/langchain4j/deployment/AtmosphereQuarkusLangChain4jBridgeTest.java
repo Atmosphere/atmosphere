@@ -28,6 +28,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.langchain4j.LangChain4jAgentRuntime;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -112,11 +113,36 @@ public class AtmosphereQuarkusLangChain4jBridgeTest {
                 "the model was offered when the framework attached the environment");
         assertFalse(lateObserver.frameworkInitialized(),
                 "... which is before the framework initialized and the @AiEndpoint registered");
+    }
+
+    /**
+     * A second application in the JVM, a framework with an environment of its
+     * own, neither inherits the explicit binding nor streams through the
+     * model: the LangChain4j runtime it resolves has none.
+     */
+    @Test
+    public void aSecondApplicationDoesNotUseTheModel() throws Exception {
         assertFalse(AiEnvironment.processDefault().hasExplicitBinding(),
                 "the model is bound for this application, not for every application in the JVM");
-        try (var other = AiEnvironment.create(Map.<String, String>of()::get)) {
-            assertFalse(other.hasExplicitBinding(), "a second application in the JVM does not inherit the model");
-            assertNull(other.client(LangChain4jAgentRuntime.class, StreamingChatModel.class, null));
+        var secondFramework = new AtmosphereFramework(false, false);
+        try (var second = AiEnvironment.create(secondFramework.getAtmosphereConfig(), Map.<String, String>of()::get)) {
+            assertSame(second, AiEnvironment.find(secondFramework.getAtmosphereConfig()).orElse(null));
+            assertFalse(second.hasExplicitBinding(), "a second application in the JVM does not inherit the binding");
+            var runtime = second.runtimes().resolveAll().stream()
+                    .filter(LangChain4jAgentRuntime.class::isInstance)
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("the second application resolves the LangChain4j runtime"));
+            assertNull(applicationModel(runtime), "the second application's LangChain4j runtime has no model");
+        } finally {
+            secondFramework.destroy();
         }
+    }
+
+    // The model a runtime instance streams through: its application's
+    // binding, else the JVM's. Private, so read reflectively.
+    private static Object applicationModel(Object runtime) throws ReflectiveOperationException {
+        var method = LangChain4jAgentRuntime.class.getDeclaredMethod("applicationModel");
+        method.setAccessible(true);
+        return method.invoke(runtime);
     }
 }
