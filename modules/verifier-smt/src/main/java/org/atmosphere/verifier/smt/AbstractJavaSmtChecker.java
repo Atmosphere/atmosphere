@@ -107,8 +107,9 @@ public abstract class AbstractJavaSmtChecker implements SmtChecker {
      * Whether the configured {@link #solver()} actually loads in this JVM.
      * Probes by constructing (and immediately closing) one {@link SolverContext};
      * the result is cached so the probe runs at most once. Returns {@code false}
-     * (logging at debug) if the solver cannot be created — e.g. a native backend
-     * whose libraries are not on {@code java.library.path}. Never reports
+     * (one line at debug, the stack at trace) if the solver cannot be created —
+     * e.g. a native backend whose libraries are not on
+     * {@code java.library.path}. Never reports
      * available on classpath presence alone (Correctness Invariant #5).
      */
     @Override
@@ -128,8 +129,11 @@ public abstract class AbstractJavaSmtChecker implements SmtChecker {
                 probe.getFormulaManager().getIntegerFormulaManager();
                 ok = true;
             } catch (Exception | LinkageError e) {
-                LOG.debug("Solver {} unavailable; {} disabled",
-                        solver(), getClass().getSimpleName(), e);
+                // An absent solver (e.g. Z3 without its natives) is an expected
+                // state: one line at DEBUG, the stack only at TRACE.
+                LOG.debug("Solver {} unavailable; {} disabled ({})",
+                        solver(), getClass().getSimpleName(), e.toString());
+                LOG.trace("Solver {} probe failure", solver(), e);
                 ok = false;
             }
             available = ok;
@@ -316,7 +320,8 @@ public abstract class AbstractJavaSmtChecker implements SmtChecker {
      * Construct a fresh {@link SolverContext} for the configured {@link #solver()}.
      * Callers own the returned context and must close it.
      */
-    private SolverContext newContext() throws Exception {
+    /** Package-private so a test can stand in a solver that fails to load. */
+    SolverContext newContext() throws Exception {
         Configuration config = Configuration.defaultConfiguration();
         LogManager logger = BasicLogManager.create(config);
         ShutdownManager shutdown = ShutdownManager.create();
