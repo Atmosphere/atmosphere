@@ -45,10 +45,12 @@ import org.slf4j.LoggerFactory;
  * registered earlier keeps the runtime instance it resolved, with the client
  * that instance already built.</p>
  *
- * <p>It is a {@link Singleton} ({@link AiEnvironment} is final, so it cannot
- * have a client proxy) and a {@link DefaultBean}: a {@code @Singleton}
+ * <p>It is a {@link Singleton}, one instance shared without a client proxy,
+ * and a {@link DefaultBean}: a {@code @Singleton} or {@code @ApplicationScoped}
  * {@code AiEnvironment} bean of the application's own replaces it, and the
- * framework attaches that one.
+ * framework attaches that one. A replacement of any other scope, such as a
+ * {@code @Dependent} producer (the CDI default), fails the start: the framework
+ * and each bean that injects it would get an environment of their own.
  * This producer created the environment and {@link #dispose disposes} it when
  * the CDI container shuts down (Ownership, Correctness Invariant #1): when the
  * application stops, which a dev-mode live reload does, and when its start

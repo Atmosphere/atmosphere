@@ -98,8 +98,10 @@ With `atmosphere-ai` on the classpath, the extension produces the application's 
 the knobs above. It is created the first time a bean injects it, or at the latest when the framework
 initializes, and the CDI container closes it when it shuts down: when the application stops (a
 dev-mode live reload stops it; the next application gets a new one) and when its start fails. It is
-a `@DefaultBean`: a `@Singleton` `AiEnvironment` bean of the application's own replaces it, and the
-framework attaches that one (`AiEnvironment` is final, so it cannot be a normal-scoped bean).
+a `@DefaultBean`: a `@Singleton` or `@ApplicationScoped` `AiEnvironment` bean of the application's
+own replaces it, and the framework attaches that one. A replacement of any other scope, such as a
+`@Dependent` producer (the CDI default), fails the start: the framework and each bean that injects it
+would get an environment of their own.
 
 Once the framework has attached it, the extension fires it as a synchronous CDI event, before any
 `@AiEndpoint`, `@Agent` or `@Coordinator` registers and resolves its `AgentRuntime`. The framework

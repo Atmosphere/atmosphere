@@ -16,6 +16,9 @@
 package org.atmosphere.quarkus.runtime;
 
 import io.quarkus.arc.Arc;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.spi.Bean;
+import jakarta.inject.Singleton;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -63,8 +66,11 @@ final class AiKnobBridge {
      * framework is destroyed (Ownership, Correctness Invariant #1).
      *
      * @return the environment
-     * @throws RuntimeException what an observer of the environment threw; the
-     *                          caller fails the start
+     * @throws IllegalStateException when the {@link AiEnvironment} bean does not
+     *                               live as long as the application
+     *                               ({@link #requireApplicationLifetime})
+     * @throws RuntimeException      what an observer of the environment threw;
+     *                               the caller fails the start
      */
     static AiEnvironment install(AtmosphereFramework framework) {
         var existing = AiEnvironment.find(framework.getAtmosphereConfig());
@@ -75,7 +81,10 @@ final class AiKnobBridge {
         if (container != null && container.isRunning()) {
             var bean = container.select(AiEnvironment.class);
             if (bean.isResolvable()) {
-                var environment = bean.get();
+                // The handle creates the instance only when get() is called.
+                var handle = bean.getHandle();
+                requireApplicationLifetime(handle.getBean());
+                var environment = handle.get();
                 environment.attachTo(framework.getAtmosphereConfig());
                 container.beanManager().getEvent().select(AiEnvironment.class).fire(environment);
                 return environment;
@@ -86,6 +95,27 @@ final class AiKnobBridge {
                 key -> config.getOptionalValue(key, String.class).orElse(null));
         framework.getAtmosphereConfig().shutdownHook(environment::close);
         return environment;
+    }
+
+    /**
+     * Fails the start unless the application's {@link AiEnvironment} bean
+     * lives as long as the application. A bean of another scope (a
+     * {@code @Dependent} producer, the CDI default) would give the framework,
+     * and every injection point, an instance of its own: a client bound into
+     * the one a bean injected would never reach the framework's endpoints, and
+     * the framework's instance would never be closed.
+     *
+     * @param bean the resolved {@link AiEnvironment} bean
+     * @throws IllegalStateException when the bean is neither {@code @Singleton}
+     *                               nor {@code @ApplicationScoped}
+     */
+    static void requireApplicationLifetime(Bean<?> bean) {
+        var scope = bean.getScope();
+        if (scope != Singleton.class && scope != ApplicationScoped.class) {
+            throw new IllegalStateException("The application's AiEnvironment bean " + bean + " is @"
+                    + scope.getSimpleName() + ": it must be @Singleton or @ApplicationScoped, so the Atmosphere"
+                    + " framework and every bean that injects it share one environment");
+        }
     }
 
     /**
