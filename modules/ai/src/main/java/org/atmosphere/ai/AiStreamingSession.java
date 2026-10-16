@@ -972,8 +972,9 @@ public class AiStreamingSession implements StreamingSession {
      * process default, with nothing created, once the framework was
      * destroyed), else,
      * for a resource with no framework, that of the runtime. Its per-request
-     * scope guardrails and intent routing use that application's models, never
-     * those of another open application the static API would read.
+     * scope guardrails and an intent routing without a decision model of its
+     * own use that application's models, never those of another open
+     * application the static API would read; it is resolved only for them.
      */
     private AiEnvironment environment() {
         var config = resource != null ? resource.getAtmosphereConfig() : null;
@@ -1211,9 +1212,12 @@ public class AiStreamingSession implements StreamingSession {
             // it (guardrails, interceptors, per-request scope) and before RAG
             // augmentation — exactly what AiPipeline classifies, since its
             // context providers run inside the runtime after routing.
+            // A routing with its own decision model never reads the
+            // application's, so it opens no environment for the framework.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(routing,
                     request.message(), message, request, this, memory, resource.uuid(),
-                    approvalRegistry, cancelPending::get, turnDeadline, environment()));
+                    approvalRegistry, cancelPending::get, turnDeadline,
+                    routing.decisionModel() != null ? null : environment()));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 postProcess(request);
                 return;

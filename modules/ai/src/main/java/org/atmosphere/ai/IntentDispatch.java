@@ -96,7 +96,9 @@ final class IntentDispatch {
      *                  and the human route answers, before this deadline
      * @param environment the application dispatching the turn, whose decision
      *                  model a routing with none of its own asks, or {@code null}
-     *                  for {@link AiEnvironment#current()}
+     *                  for {@link AiEnvironment#current()}; a routing with its own
+     *                  decision model never reads it, so a caller may pass
+     *                  {@code null} then
      */
     record Step(IntentRouting routing, String message, String rawMessage, AiRequest request,
                 StreamingSession base, AiConversationMemory memory, String memoryKey,

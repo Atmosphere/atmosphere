@@ -23,7 +23,11 @@ import jakarta.servlet.ServletContext;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.decision.Answer;
+import org.atmosphere.ai.decision.DecisionModel;
 import org.atmosphere.ai.decision.DecisionModelResolver;
+import org.atmosphere.ai.decision.DecisionRequest;
+import org.atmosphere.ai.decision.DecisionResult;
 import org.atmosphere.ai.decision.TestDecisionModels;
 import org.atmosphere.ai.governance.PolicyAdmissionGate;
 import org.atmosphere.ai.governance.PolicyContext;
@@ -58,6 +62,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.lang.annotation.Annotation;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -67,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -483,6 +489,42 @@ class GovernanceTiersPerApplicationTest {
 
             assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty(),
                     "a turn without a request scope must not open an AI environment for the framework");
+        } finally {
+            AiEnvironment.find(framework.getAtmosphereConfig()).ifPresent(AiEnvironment::close);
+        }
+    }
+
+    @Test
+    void aiStreamingSessionIntentRoutingWithItsOwnModelOpensNoEnvironment() {
+        // A routing that carries its own decision model never reads the
+        // application's: its turn opens no environment for a framework that
+        // has none, as a turn without a request scope does not.
+        var framework = new AtmosphereFramework();
+        var asked = new AtomicInteger();
+        try {
+            var resource = mock(AtmosphereResource.class);
+            when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
+            when(resource.uuid()).thenReturn("streaming-routed-uuid");
+            when(resource.getAtmosphereConfig()).thenReturn(framework.getAtmosphereConfig());
+            var session = new AiStreamingSession(mock(StreamingSession.class), new UnattachedRuntime(),
+                    "sys", null, List.of(), resource);
+            session.setIntentRouting(routing().withDecisionModel(new DecisionModel() {
+                @Override public String name() { return "own-model"; }
+                @Override public boolean isAvailable() { return true; }
+                @Override public DecisionResult decide(DecisionRequest request) {
+                    asked.incrementAndGet();
+                    var answer = new Answer.Choice(IntentRouting.QUESTION_ID, "general", Map.of(),
+                            AiConfidence.reported(0.99));
+                    return new DecisionResult(name(), Map.of(answer.id(), answer), Optional.empty(),
+                            Duration.ZERO);
+                }
+            }));
+
+            session.stream("what is 2 + 2?");
+
+            assertEquals(1, asked.get(), "the routing classified the turn with its own model");
+            assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty(),
+                    "a routing with its own decision model must not open an AI environment for the framework");
         } finally {
             AiEnvironment.find(framework.getAtmosphereConfig()).ifPresent(AiEnvironment::close);
         }
