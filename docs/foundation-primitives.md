@@ -103,10 +103,14 @@ later poll with nothing new waits: for the run's next event while the run is
 going (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (64) tracking
 ids per run by default, init-param `org.atmosphere.ai.longPolling.maxWaitingPollsPerRun`
 for the runs an AI endpoint starts,
-which take none of the streaming reattaches' places; the poll of a long-polling
-member of a `broadcastReply` room waits on the run too, but is written the room's
-frames, which reach its polls already, not the run's), else for a
-reply or its suspend timeout. A run that already
+which take none of the streaming reattaches' places; the poll of the prompter's
+own long-polling client in a `broadcastReply` room waits on the run too, but is
+written the room's frames, which reach its polls already, not the run's), else for a
+reply or its suspend timeout. Every member of a `broadcastReply` room is handed
+the run id with the room's reply; a member other than the prompter (its tracking
+id is not the one that sent the prompt) that reattaches with it, on any
+transport, is sent what it missed, but neither restarts nor holds off the run's
+reattach grace, and does not wait on the run. A run that already
 finished stays replayable for the
 registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
 kept). The events are the text and terminal frame the client received,
@@ -115,8 +119,8 @@ whether the `@Prompt` method sent them or the runtime streamed them for
 WebSocket, WebTransport, SSE, long-polling and streaming — leaves a model call still in flight
 going for the reattach grace (system property `atmosphere.ai.reattach.grace`
 or env `LLM_REATTACH_GRACE`, default 30s): a
-reattach within it gets the rest of the run through `complete`. When the grace
-expires — or at once when the client closed the connection on purpose — the
+reattach within it by the run's own client gets the rest of the run through
+`complete`. When the grace expires — or at once when the client closed the connection on purpose — the
 call is cancelled, and a reattach gets the tokens streamed until then, then the
 run's `cancelled` frame.
 

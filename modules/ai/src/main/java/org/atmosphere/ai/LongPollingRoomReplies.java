@@ -121,11 +121,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * member past those is handed the run's retained events again on its first poll
  * carrying it, and then takes a place among those clients, pushing out the
  * least recently served past
- * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} of them. A poll of a
- * member carrying the run id that finds nothing new waits on the run, so it
- * listens to it and holds a pending reattach grace off as any waiting poll does,
- * but is written none of the run's events: the room's frames reach the member's
- * polls already.</p>
+ * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} of them. A poll of
+ * the prompter's own member carrying the run id that finds nothing new waits on
+ * the run, so it listens to it and holds a pending reattach grace off as any
+ * waiting poll does, but is written none of the run's events: the room's frames
+ * reach the member's polls already. A poll of any other member carrying the run
+ * id neither waits on the run nor restarts its grace
+ * ({@code RunReattachSupport.ownClient}).</p>
  */
 public final class LongPollingRoomReplies {
 

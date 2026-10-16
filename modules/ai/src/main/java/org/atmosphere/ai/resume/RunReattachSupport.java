@@ -72,7 +72,11 @@ import org.slf4j.LoggerFactory;
  * model call is cancelled and a reattached client receives the text streamed
  * until then, then the {@code cancelled} frame. A reattached client that loses
  * its own connection detaches the run again; one that leaves on purpose
- * cancels it.</p>
+ * cancels it. Only the run's own client ({@code ownClient}) rescinds,
+ * restarts or holds off the grace: in a {@code broadcastReply} room every
+ * member is handed the run id, and a member other than the prompter that
+ * reattaches with it, on any transport, is replayed what it missed and nothing
+ * more.</p>
  */
 public final class RunReattachSupport {
 
@@ -150,6 +154,24 @@ public final class RunReattachSupport {
         }
         var caller = resolveCallerUserId(req);
         return runUserId.equals(caller);
+    }
+
+    /**
+     * Whether {@code resource} is the run's own client, the one whose reattach
+     * holds the run's reattach grace off ({@link RunDisconnectGrace}): any caller
+     * that owns the run ({@code callerOwnsRun}) for a run whose reply reaches its
+     * own client only, since nobody else is handed its id; for a run whose reply
+     * is broadcast to a room ({@link RunEventReplayBuffer#forRoomRun}), whose
+     * every member is handed its id, only the tracking id that sent the prompt
+     * ({@link AgentResumeHandle#sessionId()}). Another member reattaching with
+     * the run id is a bystander: it is replayed what it missed, but neither
+     * restarts the grace nor listens to the run, so the run of a prompter that
+     * left for good is cancelled when the grace ends, whatever transport the
+     * room's other members use. A prompter that comes back under another
+     * tracking id (a reloaded page) is a bystander of its own room run too.
+     */
+    static boolean ownClient(AtmosphereResource resource, AgentResumeHandle handle) {
+        return handle.replayBuffer().roomId() == null || handle.sessionId().equals(resource.uuid());
     }
 
     /**
@@ -284,9 +306,12 @@ public final class RunReattachSupport {
      * empty. A long-polling poll is written only the events not handed to its
      * tracking id yet, and resumed when any were written; with none it stays
      * suspended, returns {@code 0}, and is answered with the run's next event,
-     * if the run is still going; the poll of a long-polling member of a
-     * {@code broadcastReply} room waits on the run too, but is written none of
-     * its events: the room's frames reach the member's polls already.
+     * if the run is still going; the poll of the run's own client that is a
+     * long-polling member of a {@code broadcastReply} room waits on the run too,
+     * but is written none of its events: the room's frames reach the member's
+     * polls already. The reattach of a room member other than the run's own
+     * client ({@code ownClient}) is written what it missed, and neither
+     * restarts, rescinds nor holds off the run's reattach grace.
      *
      * @param resource the reconnecting resource
      * @param registry the registry to look the run id up in
@@ -326,10 +351,11 @@ public final class RunReattachSupport {
                     resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
             return 0;
         }
+        var own = ownClient(resource, handle);
         if (!handle.isDone() && forwardsLiveEvents(resource)) {
-            return replayAndForward(resource, runId, handle, reattachGrace(resource, registry));
+            return replayAndForward(resource, runId, handle, reattachGrace(resource, registry), own);
         }
-        if (!handle.isDone()) {
+        if (!handle.isDone() && own) {
             // A long-polling client listens to the run at most while one poll
             // waits: nothing would detach the run again if it never polled
             // again, so its grace restarts from this poll instead of ending.
@@ -338,7 +364,7 @@ public final class RunReattachSupport {
         var transport = resource.transport();
         if (transport != null && Utils.resumableTransport(transport)) {
             return new PollReplay(resource, handle, filtersFor(resource), broadcasterIdFor(resource),
-                    reattachGrace(resource, registry)).start();
+                    reattachGrace(resource, registry), own).start();
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -403,12 +429,15 @@ public final class RunReattachSupport {
      * run's next event, until the poll ends (a reply, its suspend timeout, a
      * close), the run does, or a newer poll of its tracking id takes over the
      * wait; past {@link RunEventReplayBuffer#maxWaitingPolls()} tracking ids
-     * waiting, it is left to a reply or its suspend timeout. The poll of a
-     * long-polling member of a {@code broadcastReply} room
-     * ({@code org.atmosphere.ai.LongPollingRoomReplies}) waits on the run as
+     * waiting, it is left to a reply or its suspend timeout. The poll of the
+     * run's own client that is a long-polling member of a {@code broadcastReply}
+     * room ({@code org.atmosphere.ai.LongPollingRoomReplies}) waits on the run as
      * well, so it listens to it like any waiting poll, but is written none of
      * the run's events: the room's frames reach that poll, or are kept for the
-     * member's next one, already, and the room resumes it. Frames carry the event's own sequence, plus one,
+     * member's next one, already, and the room resumes it. The poll of another
+     * client of a room run ({@code ownClient}) never waits on the run: it is
+     * written what it missed, if anything, and left to the room, so it neither
+     * listens to the run nor detaches it again. Frames carry the event's own sequence, plus one,
      * so the pieces a client gets over several polls number consistently.
      * While it waits it listens to the run, which keeps a pending grace from
      * firing; when it ends with the run still going and nobody else listening,
@@ -433,14 +462,17 @@ public final class RunReattachSupport {
          * poll of the same tracking id ending never removes a newer one's wait.
          */
         private final java.util.function.Consumer<RunEvent> watchOnly;
+        /** The poll is the run's own client's ({@code ownClient}): only such a poll waits on the run. */
+        private final boolean own;
         private boolean ended;
         private Runnable unsubscribe = () -> { };
 
         PollReplay(AtmosphereResource resource, AgentResumeHandle run,
                    java.util.List<org.atmosphere.cpr.BroadcastFilter> filters, String broadcasterId,
-                   java.time.Duration grace) {
+                   java.time.Duration grace, boolean own) {
             this.resource = resource;
             this.run = run;
+            this.own = own;
             this.runId = run.runId();
             this.consumer = resource.uuid();
             this.buffer = run.replayBuffer();
@@ -477,9 +509,17 @@ public final class RunReattachSupport {
             // is written nothing: the room's frames reach its polls already, and
             // the run's next frame written here as well would reach the client
             // twice. The room resumes the poll, which ends the wait.
-            var subscription = consumer != null
-                    ? buffer.awaitNext(consumer, roomMember() ? watchOnly : this)
-                    : new RunEventReplayBuffer.Subscription(buffer.snapshot(), false, () -> { });
+            // A bystander's poll (a room member other than the run's own client)
+            // does not wait on the run at all: it would hold off the grace of a
+            // prompter gone for good, and the room's frames reach it already.
+            RunEventReplayBuffer.Subscription subscription;
+            if (consumer == null) {
+                subscription = new RunEventReplayBuffer.Subscription(buffer.snapshot(), false, () -> { });
+            } else if (own) {
+                subscription = buffer.awaitNext(consumer, roomMember() ? watchOnly : this);
+            } else {
+                subscription = new RunEventReplayBuffer.Subscription(java.util.List.of(), false, () -> { });
+            }
             unsubscribe = subscription.cancel();
             var claimed = consumer != null ? buffer.claimNew(consumer) : subscription.backlog();
             var written = claimed.isEmpty() ? 0 : writeAndResume(claimed);
@@ -581,7 +621,7 @@ public final class RunReattachSupport {
             // Listening, this poll may have stood a grace down; with nobody
             // listening now, the run waits out the grace again (a no-op for a
             // run that was never detached), and the client's next poll restarts it.
-            if (!run.isDone() && buffer.subscriberCount() == 0) {
+            if (own && !run.isDone() && buffer.subscriberCount() == 0) {
                 RunDisconnectGrace.redetach(runId, grace);
             }
         }
@@ -615,9 +655,12 @@ public final class RunReattachSupport {
      * the backlog, in order.
      */
     private static int replayAndForward(AtmosphereResource resource, String runId,
-                                        AgentResumeHandle handle, java.time.Duration grace) {
+                                        AgentResumeHandle handle, java.time.Duration grace, boolean own) {
         var forwarder = new LiveForwarder(resource, handle, filtersFor(resource),
                 broadcasterIdFor(resource), grace);
+        if (!own) {
+            return replayToBystander(resource, runId, handle, forwarder);
+        }
         synchronized (forwarder) {
             var subscription = handle.replayBuffer().subscribe(forwarder::forward);
             forwarder.cancelWith(subscription.cancel());
@@ -645,6 +688,32 @@ public final class RunReattachSupport {
                     subscription.backlog().size(), !forwarder.isCancelled());
             return written;
         }
+    }
+
+    /**
+     * Write the backlog of a room run to a member other than its own client
+     * ({@code ownClient}), and nothing more: the room broadcasts the rest of the
+     * run to it, and the member neither rescinds nor holds off the run's grace.
+     */
+    private static int replayToBystander(AtmosphereResource resource, String runId,
+                                         AgentResumeHandle handle, LiveForwarder forwarder) {
+        var backlog = handle.replayBuffer().snapshot();
+        var written = 0;
+        synchronized (forwarder) {
+            for (var event : backlog) {
+                var outcome = forwarder.write(event);
+                if (outcome == Write.FAILED) {
+                    break;
+                }
+                if (outcome == Write.WRITTEN) {
+                    written++;
+                }
+            }
+            forwarder.cancel();
+        }
+        logger.info("Reattach run {} for room member {}: replayed {}/{} event(s); the room delivers the rest",
+                runId, resource.uuid(), written, backlog.size());
+        return written;
     }
 
     /** Outcome of writing one frame to a reattached resource. */

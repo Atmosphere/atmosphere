@@ -176,7 +176,10 @@ public final class RunDisconnectGrace {
      * Restart the grace of a detached run from now: a client that cannot stay
      * subscribed (a long-polling one, which listens to the run at most while
      * one poll waits for its next event) came back for it. Nothing detaches such a run again if the client never
-     * returns, so its pending cancel is pushed back rather than rescinded. A
+     * returns, so its pending cancel is pushed back rather than rescinded. Only
+     * the run's own client restarts it ({@code RunReattachSupport.ownClient}),
+     * not a member of a {@code broadcastReply} room that read the run id from the
+     * room's reply. A
      * run not waiting out a grace is left as it is, and so is the pending
      * deadline when {@code grace} is disabled.
      *

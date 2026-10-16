@@ -1072,8 +1072,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // See RunEventCapturingSession javadoc. Named at creation, so its warnings
         // name the run; its long-polling bounds are the application's.
         var runId = java.util.UUID.randomUUID().toString();
-        var replayBuffer = org.atmosphere.ai.resume.RunEventReplayBuffer.forRun(runId,
-                resource.getAtmosphereConfig());
+        // A room's run id reaches every member with the reply: the buffer knows
+        // its room, so only the prompter's own reattach holds its grace off.
+        var replayBuffer = roomBroadcast
+                ? org.atmosphere.ai.resume.RunEventReplayBuffer.forRoomRun(runId,
+                        resource.getAtmosphereConfig(), roomIdOf(resource))
+                : org.atmosphere.ai.resume.RunEventReplayBuffer.forRun(runId,
+                        resource.getAtmosphereConfig());
         StreamingSession delegate = new org.atmosphere.ai.resume.RunEventCapturingSession(
                 roomBroadcast
                         ? StreamingSessions.startRoomBroadcast(resource)
@@ -1693,6 +1698,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // PromptMethodInvoker, shared with the A2A / AG-UI bridges so every
         // invocation mode dispatches @Prompt identically (Invariant #7).
         promptInvoker.invoke(message, session, resource, injectables);
+    }
+
+    /**
+     * The id of the room a {@code broadcastReply} run's reply is broadcast to:
+     * the broadcaster of the prompting resource, which its room-broadcast
+     * session broadcasts through; {@code "room"} when it cannot be read.
+     */
+    private static String roomIdOf(AtmosphereResource resource) {
+        try {
+            var broadcaster = resource.getBroadcaster();
+            if (broadcaster != null && broadcaster.getID() != null) {
+                return broadcaster.getID();
+            }
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read the broadcaster of {}", resource.uuid(), e);
+        }
+        return "room";
     }
 
     /**

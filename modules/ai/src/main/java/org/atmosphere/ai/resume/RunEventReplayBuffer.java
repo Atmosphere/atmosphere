@@ -207,6 +207,8 @@ public final class RunEventReplayBuffer {
     private final int capacity;
     private final int maxReplayPositions;
     private final int maxWaitingPolls;
+    /** The id of the broadcaster of the room the run's reply is broadcast to, or {@code null}. */
+    private final String roomId;
     private final AtomicLong nextSequence = new AtomicLong();
     private final List<RunEvent> buffer;
     private volatile RunJournal journal = RunJournal.NOOP;
@@ -271,6 +273,11 @@ public final class RunEventReplayBuffer {
      * @throws IllegalArgumentException when a bound is not positive
      */
     public RunEventReplayBuffer(String runId, int capacity, int maxReplayPositions, int maxWaitingPolls) {
+        this(runId, capacity, maxReplayPositions, maxWaitingPolls, null);
+    }
+
+    private RunEventReplayBuffer(String runId, int capacity, int maxReplayPositions, int maxWaitingPolls,
+                                 String roomId) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be > 0, got " + capacity);
         }
@@ -284,6 +291,7 @@ public final class RunEventReplayBuffer {
         this.maxReplayPositions = maxReplayPositions;
         this.maxWaitingPolls = maxWaitingPolls;
         this.runId = runId;
+        this.roomId = roomId;
         this.buffer = Collections.synchronizedList(new ArrayList<>(capacity));
     }
 
@@ -301,6 +309,32 @@ public final class RunEventReplayBuffer {
         return new RunEventReplayBuffer(runId, DEFAULT_CAPACITY,
                 positive(config, MAX_REPLAY_POSITIONS_PARAM, MAX_REPLAY_POSITIONS),
                 positive(config, MAX_WAITING_POLLS_PARAM, MAX_WAITING_POLLS));
+    }
+
+    /**
+     * {@link #forRun}, for a run whose reply is broadcast to a room
+     * ({@code @AiEndpoint(broadcastReply = true)}): every member of the room
+     * receives its frames, the run id with them, so only the run's own client,
+     * the tracking id that sent the prompt, holds its reattach grace off
+     * ({@code RunReattachSupport}).
+     *
+     * @param runId  the run's id
+     * @param config the run's application; {@code null} for the defaults
+     * @param roomId the id of the room's broadcaster
+     */
+    public static RunEventReplayBuffer forRoomRun(String runId, AtmosphereConfig config, String roomId) {
+        Objects.requireNonNull(roomId, "roomId");
+        return new RunEventReplayBuffer(runId, DEFAULT_CAPACITY,
+                positive(config, MAX_REPLAY_POSITIONS_PARAM, MAX_REPLAY_POSITIONS),
+                positive(config, MAX_WAITING_POLLS_PARAM, MAX_WAITING_POLLS), roomId);
+    }
+
+    /**
+     * The id of the broadcaster of the room the run's reply is broadcast to
+     * ({@link #forRoomRun}), or {@code null} when it reaches its own client only.
+     */
+    public String roomId() {
+        return roomId;
     }
 
     private static int positive(AtmosphereConfig config, String name, int defaultValue) {

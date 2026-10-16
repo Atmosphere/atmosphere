@@ -34,9 +34,11 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -83,6 +85,38 @@ class RunReattachLiveForwardTest {
         assertTrue(frames.get(6).contains("\"type\":\"complete\""), frames.get(6));
         assertEquals(0, buffer.subscriberCount(), "the terminal frame ends the subscription");
         Mockito.verify(resource).removeEventListener(Mockito.any());
+    }
+
+    /**
+     * Every member of a {@code broadcastReply} room is handed the run id. A
+     * member other than the prompter that reconnects over WebSocket with it
+     * rescinded the prompter's pending cancel and listened to the run, so a run
+     * whose prompter had left for good kept going.
+     */
+    @Test
+    void aRoomMemberOtherThanThePrompterReattachingOverWebSocketLeavesTheGraceRunning() {
+        var registry = new RunRegistry();
+        var handle = registry.register("harness", "anonymous", "prompter",
+                new ExecutionHandle.Settable(() -> { }), RunEventReplayBuffer.forRoomRun(null, null, "room"), null);
+        var buffer = handle.replayBuffer();
+        buffer.capture("streaming-text", "event-0");
+        var cancelled = new AtomicBoolean();
+        try {
+            assertTrue(RunDisconnectGrace.detach(handle.runId(), Duration.ofMinutes(1), () -> cancelled.set(true),
+                    () -> buffer.subscriberCount() > 0));
+            var out = new StringWriter();
+            var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+
+            assertEquals(1, RunReattachSupport.replayPendingRun(resource, registry), "it is replayed what it missed");
+            assertEquals(0, buffer.subscriberCount(), "a member other than the prompter does not listen to the run");
+            assertTrue(RunDisconnectGrace.isDetached(handle.runId()),
+                    "a member other than the prompter must not rescind the prompter's pending cancel");
+            buffer.capture("streaming-text", "event-1");
+            assertEquals(1, frames(out).size(), "the room, not the reattach, delivers the rest: " + frames(out));
+            assertFalse(cancelled.get());
+        } finally {
+            RunDisconnectGrace.runEnded(handle.runId());
+        }
     }
 
     @Test

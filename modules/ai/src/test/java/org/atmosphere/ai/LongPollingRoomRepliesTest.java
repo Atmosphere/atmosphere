@@ -749,8 +749,9 @@ class LongPollingRoomRepliesTest {
         room.removeAtmosphereResource(member);
         var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
         var registry = new RunRegistry();
-        var run = registry.register("agent", "anonymous", "room-session", new ExecutionHandle.Settable(() -> { }),
-                new RunEventReplayBuffer(), null);
+        // The member is the prompter: the run was started under its tracking id.
+        var run = registry.register("agent", "anonymous", member.uuid(), new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
         var buffer = run.replayBuffer();
 
         var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), buffer);
@@ -785,6 +786,62 @@ class LongPollingRoomRepliesTest {
             assertEquals(List.of("streaming-text:two.", "complete"), nextPoll(member),
                     "the reattached member receives the rest of the answer through complete");
             assertEquals(0, buffer.subscriberCount(), "the run's end releases the waiting poll");
+        } finally {
+            System.clearProperty(AiConfig.REATTACH_GRACE_PROPERTY);
+            RunDisconnectGrace.runEnded(run.runId());
+        }
+    }
+
+    /**
+     * Every member of a room is handed the run id with the room's reply, and a
+     * long-polling member's polls carry it. Such a poll of a member other than
+     * the prompter restarted the run's reattach grace and waited on the run as a
+     * watcher, so a run whose prompter had left for good was never cancelled
+     * while a bystander kept polling; with WebSocket or SSE bystanders, which
+     * never poll, it was.
+     */
+    @Test
+    void aBystandersPollCarryingTheRunIdNeitherRestartsNorHoldsOffThePromptersGrace() throws InterruptedException {
+        LongPollingRoomReplies.install(room);
+        var prompter = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(prompter);
+        var bystander = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(bystander);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", prompter.uuid(), new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+        var buffer = run.replayBuffer();
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), buffer);
+        session.sendMetadata(RunReattachSupport.RUN_ID_HEADER, run.runId());
+        session.send("one.");
+        awaitFrames(socket, 2);
+        assertTrue(nextPoll(bystander).contains("streaming-text:one."));
+
+        var grace = Duration.ofMillis(400);
+        var cancelled = new AtomicBoolean();
+        System.setProperty(AiConfig.REATTACH_GRACE_PROPERTY, grace.toMillis() + "ms");
+        try {
+            // The prompter left for good: the run waits out the grace.
+            assertTrue(RunDisconnectGrace.detach(run.runId(), grace, () -> cancelled.set(true),
+                    () -> buffer.subscriberCount() > 0));
+            // The bystander keeps polling with the run id it read from the room's reply.
+            var deadline = System.nanoTime() + grace.multipliedBy(4).toNanos();
+            while (!cancelled.get() && System.nanoTime() < deadline) {
+                var poll = suspendedPoll(bystander.uuid(), run.runId(), new StringWriter(), new ArrayList<>());
+                room.addAtmosphereResource(bystander);
+                assertEquals(0, RunReattachSupport.replayPendingRun(poll, registry),
+                        "the bystander received all of the run");
+                assertEquals(0, buffer.subscriberCount(), "a bystander's poll must not wait on the run");
+                assertTrue(cancelled.get() || RunDisconnectGrace.isDetached(run.runId()),
+                        "a bystander's poll must not stand the prompter's grace down");
+                room.removeAtmosphereResource(bystander);
+                Thread.sleep(grace.toMillis() / 4);
+            }
+            assertTrue(cancelled.get(), "the run of a prompter gone for good is cancelled when its grace ends,"
+                    + " whoever else polls with its id");
+            assertFalse(RunDisconnectGrace.isDetached(run.runId()));
         } finally {
             System.clearProperty(AiConfig.REATTACH_GRACE_PROPERTY);
             RunDisconnectGrace.runEnded(run.runId());
