@@ -28,6 +28,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * This class contains information about the current state of the {@link AtmosphereFramework}. You can also
@@ -47,7 +48,9 @@ public class AtmosphereConfig {
     private boolean throwExceptionOnCloned;
     private AtmosphereFramework framework;
     private final Map<String, Object> properties = new ConcurrentHashMap<>();
-    protected List<ShutdownHook> shutdownHooks = new ArrayList<>();
+    // Copy-on-write: a hook may be registered from a request thread while
+    // destroy() iterates the hooks, which must not break that loop.
+    protected List<ShutdownHook> shutdownHooks = new CopyOnWriteArrayList<>();
     protected List<StartupHook> startUpHook = new ArrayList<>();
 
     protected AtmosphereConfig(AtmosphereFramework framework) {
@@ -230,7 +233,11 @@ public class AtmosphereConfig {
     }
 
     /**
-     * Add a {@link ShutdownHook}.
+     * Add a {@link ShutdownHook}. Safe to call from any thread, including while
+     * the framework's destroy runs its hooks; a hook added then may not run, so
+     * a caller that can register late checks
+     * {@link AtmosphereFramework#isDestroyed()} after registering and releases
+     * what the hook would have.
      *
      * @param s a {@link ShutdownHook}
      * @return this
