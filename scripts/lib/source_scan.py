@@ -51,13 +51,18 @@ original untouched line so humans read what they wrote, not the projection.
 
 Usage:
     source_scan.py --mode code    --regex 'System\\.out' [--ignore-case]
-                   [--strip-javadoc-tags] [--multiline] [--exclude GLOB] FILE_OR_DIR...
+                   [--strip-javadoc-tags] [--multiline [--spans]] [--exclude GLOB] FILE_OR_DIR...
 
 ``--multiline`` matches the regex against a file's whole projection rather than
 one line at a time, so a call split across lines (``AiEnvironment`` on one line,
 ``.current()`` on the next) is still found. Each match is reported once, at the
 line it starts on, so a line holding two matches is reported twice; when a match
 spans lines, ``text`` is those original lines joined by a space.
+
+``--spans`` (with ``--multiline``) prints ``path:line:start:end:text`` instead,
+``text[start:end]`` being the stretch of ``text`` the match itself covers, so a
+caller can tell one read on a line from another, and a read from a comment
+naming it (see ``multiline_spans``).
 """
 
 import argparse
@@ -82,9 +87,28 @@ def project(text):
     forward pass tracks lexer state so that comment markers inside strings
     (and quotes inside comments) are read the way javac reads them.
     """
+    return [(line_no, original, code, comment)
+            for line_no, original, code, _code_cols, comment, _comment_cols in project_columns(text)]
+
+
+def project_columns(text):
+    """``project`` that also says where each projected character came from.
+
+    Returns ``(line_no, original, code, code_cols, comment, comment_cols)``
+    tuples: ``code_cols[k]`` is the column in ``original`` of ``code[k]`` (and
+    likewise for the comment), so a match found in a projection can be located
+    in the line a human reads.
+    """
     lines = text.split("\n")
     code = [[] for _ in lines]
     comment = [[] for _ in lines]
+    code_cols = [[] for _ in lines]
+    comment_cols = [[] for _ in lines]
+    line_start = 0
+
+    def put(buf, cols, at_row, chars, col):
+        buf[at_row].append(chars)
+        cols[at_row].extend(range(col, col + len(chars)))
 
     CODE, LINE_C, BLOCK_C, STR, CHAR, TEXT = range(6)
     state = CODE
@@ -96,6 +120,7 @@ def project(text):
         c = text[i]
         if c == "\n":
             row += 1
+            line_start = i + 1
             # A line comment dies at the newline; every other state survives it.
             if state == LINE_C:
                 state = CODE
@@ -111,27 +136,27 @@ def project(text):
                 continue
             if c == "/" and nxt == "*":
                 state = BLOCK_C
-                comment[row].append("  ")
+                put(comment, comment_cols, row, "  ", i - line_start)
                 i += 2
                 continue
             if text.startswith('"""', i):
                 state = TEXT
-                code[row].append('"""')
+                put(code, code_cols, row, '"""', i - line_start)
                 i += 3
                 continue
             if c == '"':
                 state = STR
             elif c == "'":
                 state = CHAR
-            code[row].append(c)
+            put(code, code_cols, row, c, i - line_start)
             i += 1
             continue
 
         if state == STR:
-            code[row].append(c)
+            put(code, code_cols, row, c, i - line_start)
             if c == "\\":
                 if nxt and nxt != "\n":
-                    code[row].append(nxt)
+                    put(code, code_cols, row, nxt, i + 1 - line_start)
                     i += 2
                     continue
             elif c == '"':
@@ -140,10 +165,10 @@ def project(text):
             continue
 
         if state == CHAR:
-            code[row].append(c)
+            put(code, code_cols, row, c, i - line_start)
             if c == "\\":
                 if nxt and nxt != "\n":
-                    code[row].append(nxt)
+                    put(code, code_cols, row, nxt, i + 1 - line_start)
                     i += 2
                     continue
             elif c == "'":
@@ -154,30 +179,31 @@ def project(text):
         if state == TEXT:
             if text.startswith('"""', i):
                 state = CODE
-                code[row].append('"""')
+                put(code, code_cols, row, '"""', i - line_start)
                 i += 3
                 continue
-            code[row].append(c)
+            put(code, code_cols, row, c, i - line_start)
             i += 1
             continue
 
         if state == LINE_C:
-            comment[row].append(c)
+            put(comment, comment_cols, row, c, i - line_start)
             i += 1
             continue
 
         if state == BLOCK_C:
             if c == "*" and nxt == "/":
                 state = CODE
-                comment[row].append("  ")
+                put(comment, comment_cols, row, "  ", i - line_start)
                 i += 2
                 continue
-            comment[row].append(c)
+            put(comment, comment_cols, row, c, i - line_start)
             i += 1
             continue
 
     return [
-        (idx + 1, lines[idx], "".join(code[idx]), "".join(comment[idx]))
+        (idx + 1, lines[idx], "".join(code[idx]), code_cols[idx],
+         "".join(comment[idx]), comment_cols[idx])
         for idx in range(len(lines))
     ]
 
@@ -200,6 +226,66 @@ def multiline_hits(rx, rows, mode, strip):
         if strip:
             hay = INLINE_TAG.sub(" ", hay)
         hays.append(hay)
+    matches, _locate = _matches(rx, hays)
+    return [(rows[first][0], _joined(rows, first, last)) for _m, first, last in matches]
+
+
+def multiline_spans(rx, rows, mode):
+    """``multiline_hits`` that also says where in ``text`` the match lies.
+
+    ``rows`` comes from ``project_columns``. Returns ``(first_line_no, text,
+    start, end)`` per match: ``text[start:end]`` is the stretch of the original
+    lines the match covers, from its first projected character to its last, so
+    a comment inside a call split across lines lies inside it, and the same
+    text elsewhere on the line (a second read, a comment naming the call) lies
+    outside it. A caller deciding which allowlist entry explains a read must
+    look there, not at the whole line: the line also carries every other read
+    on it. Javadoc inline tags are never stripped here, since replacing one
+    would move every column after it.
+    """
+    hays = [row[2] if mode == "code" else row[4] for row in rows]
+    cols = [row[3] if mode == "code" else row[5] for row in rows]
+    matches, locate = _matches(rx, hays)
+    hits = []
+    for m, first, last in matches:
+        text = _joined(rows, first, last)
+        base, offset = {}, 0
+        for r in range(first, last + 1):
+            base[r] = offset
+            offset += len(rows[r][1].strip()) + 1
+
+        def located(r, k):
+            """Offset in ``text`` of projected character ``k`` of row ``r``."""
+            original = rows[r][1]
+            lead = len(original) - len(original.lstrip())
+            return min(max(base[r] + cols[r][k] - lead, base[r]), base[r] + len(original.strip()))
+
+        # The separators joining the projections are no source character; a
+        # match made of nothing else names no stretch of the line, so it is
+        # given the whole of it and only an entry matching all of it covers it.
+        chars = [(r, k) for r, k in (locate(pos) for pos in range(m.start(), m.end()))
+                 if k < len(hays[r])]
+        if chars:
+            start = located(*chars[0])
+            end = located(*chars[-1]) + 1
+        else:
+            start, end = 0, len(text)
+        hits.append((rows[first][0], text, start, end))
+    return hits
+
+
+def _joined(rows, first, last):
+    return " ".join(rows[i][1].strip() for i in range(first, last + 1))
+
+
+def _matches(rx, hays):
+    """Match ``rx`` over the projections joined by newlines.
+
+    Returns ``(matches, locate)``: ``matches`` holds ``(match, first_row,
+    last_row)`` in source order, and ``locate(pos)`` gives the ``(row, index)``
+    of a position in the joined text, ``index == len(hays[row])`` being the
+    newline after that row.
+    """
     starts, offset = [], 0
     for hay in hays:
         starts.append(offset)
@@ -215,12 +301,16 @@ def multiline_hits(rx, rows, mode, strip):
                 hi = mid - 1
         return lo
 
-    hits = []
+    def locate(pos):
+        r = row_of(pos)
+        return r, pos - starts[r]
+
+    matches = []
     for m in rx.finditer("\n".join(hays)):
         first = row_of(m.start())
         last = row_of(max(m.start(), m.end() - 1))
-        hits.append((rows[first][0], " ".join(rows[i][1].strip() for i in range(first, last + 1))))
-    return hits
+        matches.append((m, first, last))
+    return matches, locate
 
 
 def iter_files(roots, excludes):
@@ -340,6 +430,37 @@ MULTILINE_SELF_TEST = [
 ]
 
 
+# --multiline --spans fixtures: (name, source, regex, expected (line, text[start:end]) per hit)
+SPAN_SELF_TEST = [
+    (
+        "a read's span is the read, not the line naming another in a comment",
+        "    Object o = AiEnvironment.processDefault().settings(); // was AiEnvironment.current()\n",
+        r"\bAiEnvironment\s*\.\s*(?:current|processDefault)\s*\(", [(1, "AiEnvironment.processDefault(")],
+    ),
+    (
+        "two reads on one line have two spans",
+        "\tvar a = AiEnvironment.current() != null ? null : AiEnvironment.processDefault();\n",
+        r"\bAiEnvironment\s*\.\s*(?:current|processDefault)\s*\(",
+        [(1, "AiEnvironment.current("), (1, "AiEnvironment.processDefault(")],
+    ),
+    (
+        "a split read spans its lines, the comment between its tokens included",
+        "int a;\n    Object o = AiEnvironment // the application's\n            .current();\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [(2, "AiEnvironment // the application's .current(")],
+    ),
+    (
+        "a block comment before the read does not shift its span",
+        "    /* AiEnvironment.current() */ Object o = AiEnvironment.current();\n",
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [(1, "AiEnvironment.current(")],
+    ),
+    (
+        "a string before the read does not shift its span",
+        '    String s = "a\\"b/* x */"; Object o = AiEnvironment.current();\n',
+        r"\bAiEnvironment\s*\.\s*current\s*\(", [(1, "AiEnvironment.current(")],
+    ),
+]
+
+
 def self_test():
     failures = []
     for name, src, mode, regex, strip, expected in SELF_TEST:
@@ -361,12 +482,19 @@ def self_test():
         if got != expected:
             failures.append(f"  {name} (--multiline): expected lines {expected}, got {got}")
 
+    for name, src, regex, expected in SPAN_SELF_TEST:
+        got = [(line_no, text[start:end])
+               for line_no, text, start, end in multiline_spans(re.compile(regex), project_columns(src), "code")]
+        if got != expected:
+            failures.append(f"  {name} (--multiline --spans): expected {expected}, got {got}")
+
     if failures:
         print("source_scan.py SELF-TEST FAILED:", file=sys.stderr)
         for f in failures:
             print(f, file=sys.stderr)
         return 1
-    print(f"source_scan.py self-test: {len(SELF_TEST) + len(MULTILINE_SELF_TEST)} cases passed")
+    total = len(SELF_TEST) + len(MULTILINE_SELF_TEST) + len(SPAN_SELF_TEST)
+    print(f"source_scan.py self-test: {total} cases passed")
     return 0
 
 
@@ -380,9 +508,14 @@ def main():
     ap.add_argument("--ignore-case", action="store_true")
     ap.add_argument("--strip-javadoc-tags", action="store_true")
     ap.add_argument("--multiline", action="store_true")
+    ap.add_argument("--spans", action="store_true")
     ap.add_argument("--exclude", action="append", default=[])
     ap.add_argument("roots", nargs="+")
     args = ap.parse_args()
+
+    if args.spans and (not args.multiline or args.strip_javadoc_tags):
+        print("source_scan.py: --spans needs --multiline and no --strip-javadoc-tags", file=sys.stderr)
+        return 2
 
     flags = re.IGNORECASE if args.ignore_case else 0
     try:
@@ -398,6 +531,11 @@ def main():
         except OSError as e:
             print(f"source_scan.py: cannot read {f}: {e}", file=sys.stderr)
             return 2
+        if args.spans:
+            for line_no, joined, start, end in multiline_spans(rx, project_columns(text), args.mode):
+                print(f"{f}:{line_no}:{start}:{end}:{joined}")
+                hits += 1
+            continue
         if args.multiline:
             for line_no, joined in multiline_hits(rx, project(text), args.mode, args.strip_javadoc_tags):
                 print(f"{f}:{line_no}:{joined}")

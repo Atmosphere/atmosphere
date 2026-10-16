@@ -1181,7 +1181,12 @@ echo -e "${BLUE}--- AI State Read Through The Application ---${NC}"
 #
 # The scan matches across lines (--multiline), so a call split over two lines
 # (`AiEnvironment` / `.current()`) is a read like any other, and reports each
-# read, so two on one line count twice against the entry's sites. An import
+# read, so two on one line count twice against the entry's sites. It reports
+# where on the line each read lies (--spans), and an entry explains a read only
+# where its regex's match covers that read, not anywhere on the line: a
+# processDefault() read swapped in for, or added beside, an allowlisted
+# current() leaves the line matching the current() entry, but not the new read
+# (scripts/lib/filter_ai_state_sites.py). An import
 # that brings a flagged member in under a bare name (Java `import static`, a
 # Kotlin `import`, aliased or not) is a read; a resolver's resolve/resolveAll
 # import only where the file then calls the imported name with no argument.
@@ -1207,7 +1212,7 @@ done < <(find modules -type d -path '*/src/main' -not -path '*/node_modules/*' -
 # An empty root list would make the scan read nothing and pass (see check 3).
 if [ "${#AI_STATE_ROOTS[@]}" -eq 0 ]; then
     fail_validation "AI state check found no modules/**/src/main directory to scan"
-elif ! AI_STATE_SCAN=$(python3 "$SCAN" --mode code --multiline --regex "$AI_STATE_REGEX" "${AI_STATE_ROOTS[@]}"; \
+elif ! AI_STATE_SCAN=$(python3 "$SCAN" --mode code --multiline --spans --regex "$AI_STATE_REGEX" "${AI_STATE_ROOTS[@]}"; \
         rc=$?; [ "$rc" -le 1 ] || exit "$rc"); then
     fail_validation "AI state check: the scanner failed (bad regex in [ai_application_state]?)"
 elif ! AI_STATE_HITS=$(printf '%s\n' "$AI_STATE_SCAN" | grep . | python3 "$AI_STATE_FILTER" "$TOML_FILE"); then

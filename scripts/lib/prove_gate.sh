@@ -273,6 +273,32 @@ open(p, 'w').write(s.replace(old, "return AiEnvironment.current().settings() != 
                              " ? AiEnvironment.current().settings() : AiEnvironment.processDefault().settings();"))
 PY
 }
+# An allowlisted read swapped for the process default on the same line is a
+# read no entry explains. A plain swap removes the text the facade's entry
+# matches, so it failed already; the line keeping that text (here a trailing
+# comment) is what an entry matched against the whole line let through, with
+# the count unchanged. The entry must explain the read itself.
+s_ai_swap_same_line() { python3 - "$AI_CLASS" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+old = "return AiEnvironment.current().settings();"
+assert s.count(old) == 1, "the AiConfig.get() read moved; update s_ai_swap_same_line"
+open(p, 'w').write(s.replace(old, "return AiEnvironment.processDefault().settings(); // was AiEnvironment.current()"))
+PY
+}
+# A process-default read added to a line whose allowlisted read stays is not
+# explained by that read's entry: it is reported as a read of its own, not only
+# as the entry's count going up (s_ai_same_line), which a read removed elsewhere
+# in the file would hide.
+s_ai_add_same_line() { python3 - "$AI_CLASS" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+old = "return AiEnvironment.current().settings();"
+assert s.count(old) == 1, "the AiConfig.get() read moved; update s_ai_add_same_line"
+open(p, 'w').write(s.replace(old, "return AiEnvironment.current().settings() != null"
+                             " ? null : AiEnvironment.processDefault().settings();"))
+PY
+}
 # A static import of a no-argument resolver hides a call behind a bare resolve().
 s_ai_import_embedding() { inject_after_line "$AI_PROC" '^package ' \
                     'import static org.atmosphere.ai.EmbeddingRuntimeResolver.resolve;'
@@ -349,6 +375,8 @@ run_case "ai-state-import-decision" "process-wide AI state read"                
 run_case "ai-state-kotlin-import" "process-wide AI state read"                        s_ai_kotlin_import
 run_case "ai-state-kotlin-alias" "process-wide AI state read"                         s_ai_kotlin_alias
 run_case "ai-state-same-line"  "match a different number of AI state reads"          s_ai_same_line
+run_case "ai-state-swap-same-line" "process-wide AI state read"                      s_ai_swap_same_line
+run_case "ai-state-add-same-line" "process-wide AI state read"                       s_ai_add_same_line
 run_clean_case "ai-state-comment" "process-wide AI state read" \
                                   "AI state read through the application"            s_ai_comment
 run_clean_case "ai-state-import-clean" "process-wide AI state read" \

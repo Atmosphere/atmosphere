@@ -143,7 +143,9 @@ reason = "wires the documented atmosphere.ai.mode=fake demo mode"
 # the imported name with no argument.
 #
 # Every hit must match an [[ai_application_state.allowed]] entry: file, a regex
-# tight to the site (the reported text is the trimmed source line), `sites`
+# tight to the site (matched against the trimmed source line, and explaining a
+# read only where its match there covers that read: the line's other reads, and
+# a comment naming the call, are not the read), `sites`
 # (how many hits the entry explains: one per read, so a line holding two reads
 # is two hits) and a reason. An entry that matches
 # nothing fails the check (stale), and so does one that matches more or fewer
