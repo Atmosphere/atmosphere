@@ -56,9 +56,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>A session whose originating resource is a long-polling poll does not
  * stream: a poll is answered by the first frame written to it. Its frames run
  * through the broadcaster's filters as they are produced, are kept in a bounded
- * buffer, and are handed over complete, at the terminal frame and at an
- * {@code approval-required} frame, to the client's next poll; see
- * {@link LongPollingReplies}. A room session broadcasts its frames to the room
+ * buffer, and are handed over complete, at the terminal frame, at an
+ * {@code approval-required} frame and at the {@code X-Atmosphere-Run-Id}
+ * metadata frame (so a client that loses its connection mid-reply knows the run
+ * to reattach to), to the client's next poll; see {@link LongPollingReplies}. A room session broadcasts its frames to the room
  * whatever its originating resource's transport, and the room keeps them for
  * each of its long-polling members, the originating client included; see
  * {@link LongPollingRoomReplies}.</p>
@@ -340,6 +341,11 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("sessionId", sessionId);
         msg.put("seq", sequence.incrementAndGet());
         broadcast(toJson(msg));
+        if (longPolling != null && org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER.equals(key)) {
+            // The client needs its run id before the reply ends: one that loses its
+            // connection mid-reply (a page reload) comes back for the run with it.
+            flushLongPolling();
+        }
     }
 
     @Override

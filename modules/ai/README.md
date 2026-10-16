@@ -851,8 +851,10 @@ too, since the fallback carries the prompts once it takes over: the classroom sa
 A reply over long-polling is delivered whole, not streamed: a poll is answered
 by the first frame written to it. The session runs each frame through the
 broadcaster's filters (cluster filters excepted) as it is produced and keeps it;
-at the terminal frame, and at an `approval-required` frame (the run then waits
-for the client's answer), it hands the frames so far over: the client's waiting
+at the terminal frame, at an `approval-required` frame (the run then waits
+for the client's answer), and at the `X-Atmosphere-Run-Id` metadata frame (a
+client that loses its connection mid-reply, a page reload, needs the run id to
+reattach to the run), it hands the frames so far over: the client's waiting
 poll returns empty and its next poll receives every frame, length-delimited, in
 one response. Only a poll carrying the identity the prompt was sent under
 receives them. WebSocket, SSE and streaming keep streaming frame by frame. A

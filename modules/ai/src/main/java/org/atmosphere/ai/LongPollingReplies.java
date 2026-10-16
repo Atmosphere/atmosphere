@@ -40,8 +40,10 @@ import java.util.function.Predicate;
  * frames written after it target a poll that has already returned. So a
  * {@link DefaultStreamingSession} whose client is on long-polling does not
  * stream: it keeps its frames in a bounded {@link Buffer} and hands them over
- * complete, at its terminal frame, and at a frame the client must answer before
- * the reply can go on ({@code approval-required}). Handing over parks the
+ * complete, at its terminal frame, at a frame the client must answer before
+ * the reply can go on ({@code approval-required}), and at the run id
+ * ({@code X-Atmosphere-Run-Id} metadata), which a client that loses its
+ * connection mid-reply needs to reattach to the run. Handing over parks the
  * frames under the client's tracking id and resumes the poll waiting for it, if
  * any, empty. The client's next poll takes the parked frames
  * ({@link #deliver}) and writes them, every frame length-delimited, in one
