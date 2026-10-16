@@ -18,6 +18,8 @@ package org.atmosphere.a2a.security;
 import org.atmosphere.a2a.types.AgentCapabilities;
 import org.atmosphere.a2a.types.AgentCard;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.slf4j.Logger;
 
 import java.util.List;
 
@@ -26,6 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for {@link A2aCardSecurity}: the deployer-declared security-scheme
@@ -41,6 +48,36 @@ class A2aCardSecurityTest {
                 null, "1.0", null,
                 new AgentCapabilities(true, false, null, false),
                 null, null, null, null, List.of(), null, null);
+    }
+
+    /**
+     * The warning names the v1.0.0 methods the endpoint serves (A2aMethod),
+     * with the pre-1.0 slash names only as their aliases: it used to lead with
+     * the legacy {@code message/send} while clients and the README use
+     * {@code SendMessage}.
+     */
+    @Test
+    void theUnauthenticatedWarningNamesTheMethodsTheEndpointServes() {
+        var logger = mock(Logger.class);
+
+        A2aCardSecurity.warnIfUnauthenticated(logger, "", false, "/agent/a2a", "support-bot");
+
+        var format = ArgumentCaptor.forClass(String.class);
+        verify(logger).warn(format.capture(), eq("/agent/a2a"), eq("support-bot"));
+        var message = format.getValue();
+        assertTrue(message.contains("WITHOUT authentication — SendMessage and SendStreamingMessage"),
+                message);
+        assertTrue(message.contains("pre-1.0 aliases message/send, message/stream"), message);
+        assertFalse(message.contains("— message/send"), message);
+    }
+
+    @Test
+    void noWarningOnceASchemeIsDeclared() {
+        var logger = mock(Logger.class);
+
+        A2aCardSecurity.warnIfUnauthenticated(logger, "bearer", false, "/agent/a2a", "support-bot");
+
+        verify(logger, never()).warn(any(String.class), any(Object.class), any(Object.class));
     }
 
     @Test

@@ -115,7 +115,7 @@ final class A2aCardDecorations {
 
     /**
      * Emit a startup warning when an A2A endpoint is exposed with no declared
-     * security scheme. The endpoint accepts {@code message/send} (LLM dispatch +
+     * security scheme. The endpoint accepts {@code SendMessage} (LLM dispatch +
      * tool execution) from any caller unless the deployer fronts it with auth,
      * so the insecure default must not ship silently (Correctness Invariant #6).
      * Suppress with {@code org.atmosphere.a2a.suppressAuthWarning=true}.

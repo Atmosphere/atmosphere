@@ -965,7 +965,7 @@ public class AgentProcessor implements Processor<Object> {
 
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
-            // Register executable skill handlers so A2A message/send can find them
+            // Register executable skill handlers so A2A SendMessage can find them
             var bridge = new SkillBridge(commandRouter, promptTarget, promptMethod);
             bridge.setPipeline(pipeline);
             var handleCmdMethod = SkillBridge.class.getDeclaredMethod(

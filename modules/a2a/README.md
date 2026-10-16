@@ -28,7 +28,8 @@ scheme:
 
 ```
 A2A endpoint '/agent/a2a' for agent 'support-bot' is exposed WITHOUT
-authentication — message/send invokes the agent (LLM dispatch + tool execution)
+authentication — SendMessage and SendStreamingMessage (and their pre-1.0 aliases
+message/send, message/stream) invoke the agent (LLM dispatch + tool execution)
 for any caller. Front it with auth ... and declare
 org.atmosphere.a2a.securityScheme=bearer|apiKey so the served AgentCard is honest.
 ```

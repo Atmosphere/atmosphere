@@ -30,7 +30,7 @@ import java.util.Map;
  * Honest-by-default security decoration for the served A2A {@link AgentCard}.
  *
  * <p>The A2A inbound endpoint ships with <strong>no framework-enforced
- * authentication</strong> — {@code message/send} drives the agent (LLM dispatch
+ * authentication</strong> — {@code SendMessage} drives the agent (LLM dispatch
  * and tool execution), so a production deployment MUST front it with auth
  * (Spring Security, a servlet filter, or an API gateway). The framework cannot
  * see the deployer's external auth, so it never asserts it. Instead the deployer
@@ -117,8 +117,9 @@ public final class A2aCardSecurity {
         if (!shouldWarn(scheme, suppressed)) {
             return;
         }
-        logger.warn("A2A endpoint '{}' for agent '{}' is exposed WITHOUT authentication — message/send "
-                + "invokes the agent (LLM dispatch + tool execution) for any caller. Front it with auth "
+        logger.warn("A2A endpoint '{}' for agent '{}' is exposed WITHOUT authentication — SendMessage and "
+                + "SendStreamingMessage (and their pre-1.0 aliases message/send, message/stream) invoke "
+                + "the agent (LLM dispatch + tool execution) for any caller. Front it with auth "
                 + "(Spring Security / servlet filter / gateway) and declare "
                 + "org.atmosphere.a2a.securityScheme=bearer|apiKey so the served AgentCard is honest. "
                 + "See the atmosphere-a2a module README. Suppress with "
