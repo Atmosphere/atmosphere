@@ -4,9 +4,12 @@ Deterministic harness for the mid-stream reattach contract. The
 Playwright spec `e2e/tests/reattach.spec.ts` drives this sample end-to-end
 so the full HTTP → `RunRegistry` → `RunEventReplayBuffer` →
 `RunReattachSupport` wire is proven in CI — unit tests alone cannot
-prove the transport layer cooperates.
+prove the transport layer cooperates. The browser spec
+`modules/integration-tests/e2e/ai-reattach-reload.spec.ts` drives
+`SlowModelChat` through the real atmosphere.js to prove the reattach grace
+across a page reload over WebSocket, SSE and long-polling.
 
-## Two surfaces
+## Three surfaces
 
 ### `SlowEmitterChat` — live `@Prompt` emitter
 
@@ -28,10 +31,34 @@ the whole run, `complete` included, for the registry TTL (30 minutes by
 default).
 
 This works because `SlowEmitterChat` emits with `session.send(...)` and keeps
-running after the first socket drops. An `@Prompt` that answers with
-`session.stream(...)` is captured the same way, but the dropped socket cancels
-the in-flight model call: a reattach receives the tokens streamed before the
-drop, then an `error` frame saying the run was cancelled.
+running after the first socket drops: there is no model call for a disconnect
+to cancel. `SlowModelChat` below is the surface with one.
+
+### `SlowModelChat` — a model call a disconnect can cancel
+
+`@AiEndpoint(path = "/atmosphere/agent/harness-model")`. The `@Prompt`
+answers with `session.stream(message)`, so the reply is a model call through
+the built-in runtime's cancellable path. The model is `PacedModelClient`, an
+in-process `LlmClient` that answers every prompt with the twelve tokens
+`t00 ` … `t11 `, one every 500ms, and stops when the call is cancelled.
+`HarnessModelConfiguration` makes it the application's model with its own
+`AiConfig.LlmSettings` bean, which the starter adopts in place of the settings
+it builds from `LLM_*`, so the harness answers the same way whatever keys the
+host exports.
+
+A client whose connection is lost — a dropped network, a page reload (a
+WebSocket closed with 1001; over SSE and long-polling, the close message
+atmosphere.js sends from `pagehide`, marked
+`X-Atmosphere-Close-Reason=going-away`) — leaves the model call going for the
+reattach grace (30s by default): a reattach with the run id receives the whole
+reply through `complete`. A client that leaves on purpose (atmosphere.js
+`close()`) cancels the call at once, and a reattach receives the tokens streamed
+until then, then the `cancelled` frame.
+
+`GET /harness/model-call?prompt=<prompt>` reports how the model call that
+answered a prompt stands — `{"state":"RUNNING"|"COMPLETED"|"CANCELLED","tokens":n,"total":12,…}`,
+404 when no call answered it — so a test asks the server whether the call was
+cancelled rather than inferring it from what one client received.
 
 ### `SyntheticRunController` — deterministic REST surface
 
@@ -48,6 +75,13 @@ identical production code (`AiEndpointHandler.onReady` →
 
 ```bash
 ./mvnw spring-boot:run -pl samples/spring-boot-reattach-harness
+
+# A model call over WebSocket, and how it ended
+#   ws://localhost:8096/atmosphere/agent/harness-model?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0
+#   send any prompt, e.g. "hello": the X-Atmosphere-Run-Id metadata frame, a progress
+#   and a model metadata frame, t00 … t11, then complete
+curl 'http://localhost:8096/harness/model-call?prompt=hello'
+# → {"prompt":"hello","state":"COMPLETED","tokens":12,"total":12}
 
 # Register a synthetic run
 curl -X POST http://localhost:8096/harness/synthetic-run

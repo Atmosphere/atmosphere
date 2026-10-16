@@ -3,16 +3,18 @@ server:
 
 atmosphere:
   packages: org.atmosphere.samples.springboot.reattach
+  # Two @AiEndpoints live here; the Console talks to the session.send emitter.
+  console-endpoint: /atmosphere/agent/harness
   auth:
     # The reattach harness is a CI-only surface; leave auth off so the
     # Playwright spec can focus on the reattach contract without carrying
     # an auth token dance.
     enabled: false
 
-# Intentionally minimal — the sample has no LLM dispatch. The @Prompt in
-# SlowEmitterChat emits canned events with Thread.sleep, and the
-# SyntheticRunController pre-populates the registry directly. No model
-# configuration needed.
+# No model configuration: the @Prompt in SlowEmitterChat emits canned events
+# with Thread.sleep, the SyntheticRunController pre-populates the registry
+# directly, and SlowModelChat streams from the in-process PacedModelClient,
+# which HarnessModelConfiguration installs whatever LLM_* the host exports.
 logging:
   level:
     org.atmosphere.ai.resume: DEBUG

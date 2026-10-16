@@ -24,13 +24,18 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * full HTTP → {@code RunRegistry} → {@code RunEventReplayBuffer} →
  * {@code RunReattachSupport} chain without timing flakiness.
  *
- * <p>The sample exposes two surfaces:</p>
+ * <p>The sample exposes three surfaces:</p>
  * <ol>
  *   <li>{@link SlowEmitterChat} — an {@code @AiEndpoint} whose
  *       {@code @Prompt} method emits events on a fixed 500ms cadence
  *       via {@code session.send(...)}. Matches the literal harness spec
  *       the project maintainer asked for; useful for manual verification and
  *       future timing-tolerant integration tests.</li>
+ *   <li>{@link SlowModelChat} — an {@code @AiEndpoint} whose {@code @Prompt}
+ *       answers with {@code session.stream(...)} from {@link PacedModelClient},
+ *       a model call a disconnect can cancel; {@link ModelCallController}
+ *       reports whether it was. The {@code ai-reattach-reload} browser spec
+ *       drives it to prove the reattach grace across a page reload.</li>
  *   <li>{@link SyntheticRunController} — a tiny REST surface that
  *       pre-registers a run with a known set of buffered events and
  *       returns the run id. Playwright hits this for deterministic CI
