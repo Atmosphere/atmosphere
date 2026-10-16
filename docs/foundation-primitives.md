@@ -93,9 +93,14 @@ run's later events through its terminal frame, unless it is a member of the
 run's `broadcastReply` room, which the room's broadcast delivers them to
 already (the session broadcasting a room run's reply belongs to the run, not
 to the prompter's connection: it goes on broadcasting when that connection is
-lost or closed, and only the run's `complete`, `error` or `cancelled` frame —
-a run cancelled because its prompter left or its grace expired — closes it,
-the room receiving that frame too); a long-polling poll gets the
+lost or closed, and is closed by the run's `complete`, `error` or `cancelled`
+frame — a run is cancelled when its prompter left or its grace expired, whether
+a model call or the `@Prompt` method itself writes the reply, and what the
+method sends after that is dropped — by the run's end (its `@Prompt` method
+returned, unless a model call it started still streams), which sends the room
+the end the run's replay records, or, when neither comes, by the idle sweep;
+the room receives that frame too, and a room destroyed meanwhile is not
+recreated by it); a long-polling poll gets the
 buffered events its tracking id was not sent yet — as a replay, or in a
 long-polling reply of its own; after an event that does not count as sent
 (one it never received, a `broadcastReply` room frame not kept for it, or a

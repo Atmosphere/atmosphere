@@ -50,6 +50,8 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.stubbing.Answer;
 
 import java.io.PrintWriter;
@@ -68,6 +70,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -94,6 +97,12 @@ class AiEndpointHandlerRoomRunTest {
     private static final String PATH = "/ai/room-run";
 
     static final AtomicReference<String> RUN_ID = new AtomicReference<>();
+    /** Counted down once a self-writing {@code @Prompt} sent its first text. */
+    static final AtomicReference<CountDownLatch> SENT_FIRST = new AtomicReference<>();
+    /** Released to let a self-writing {@code @Prompt} send its text after the leave, and return. */
+    static final AtomicReference<CountDownLatch> RESUME = new AtomicReference<>();
+    /** The runtime an {@code @Prompt} that streams on its own thread waits on. */
+    static final AtomicReference<HeldRuntime> PROMPT_RUNTIME = new AtomicReference<>();
 
     private AtmosphereConfig config;
     private DefaultBroadcasterFactory factory;
@@ -105,6 +114,9 @@ class AiEndpointHandlerRoomRunTest {
     void setUp() {
         RunRegistryHolder.reset();
         RUN_ID.set(null);
+        SENT_FIRST.set(new CountDownLatch(1));
+        RESUME.set(new CountDownLatch(1));
+        PROMPT_RUNTIME.set(null);
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
         factory.configure(DefaultBroadcaster.class, "NEVER", config);
@@ -157,17 +169,23 @@ class AiEndpointHandlerRoomRunTest {
                 "the run's end closed the session that broadcast it to the room");
     }
 
-    @Test
-    void aPrompterThatLeavesCancelsTheRoomRunWithTheCancelledFrameToTheRoom() throws Exception {
+    /**
+     * A prompter that leaves on purpose, in the shape each transport reports a
+     * leave in: a WebSocket closed with 1000, and over SSE and long-polling the
+     * close message atmosphere.js sends from {@code close()} without the
+     * going-away reason. The run is cancelled at once and the room told so.
+     */
+    @ParameterizedTest
+    @EnumSource(value = AtmosphereResource.TRANSPORT.class, names = {"WEBSOCKET", "SSE", "LONG_POLLING"})
+    void aPrompterThatLeavesCancelsTheRoomRunWithTheCancelledFrameToTheRoom(AtmosphereResource.TRANSPORT transport)
+            throws Exception {
         System.setProperty(GRACE_PROPERTY, "30s");
         var runtime = new HeldRuntime();
         var member = subscriber(null);
-        var prompter = startRun(runtime, null);
+        var prompter = startRun(runtime, null, transport);
 
-        // atmosphere.js closes with 1000 on an explicit disconnect: a leave, cancelled at once.
-        handler.onStateChange(new AtmosphereResourceEventImpl(prompter, false, false, true, null)
-                .webSocketCloseCode(1000));
-        room.removeAtmosphereResource(prompter);
+        leave(prompter);
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "a prompter that left is not granted the grace");
         assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "a prompter that left is not waited for");
         awaitTerminal(member);
 
@@ -175,6 +193,125 @@ class AiEndpointHandlerRoomRunTest {
                 "the room is told the run was cut short");
         assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
                 "the run's end closed the session that broadcast it to the room");
+        awaitRunEnd();
+        assertEquals("cancelled:disconnect", last(replayed()), "a reattach sees the end the room saw");
+    }
+
+    /**
+     * An {@code @Prompt} that writes its reply itself has no model call to cut
+     * short. Its prompter leaving still ends the run for the room with the
+     * cancelled frame and closes the session that broadcast it; what the
+     * {@code @Prompt} sends after that is dropped, from the room and the
+     * replay alike, which ends with the frame the room saw.
+     */
+    @ParameterizedTest
+    @EnumSource(value = AtmosphereResource.TRANSPORT.class, names = {"WEBSOCKET", "SSE", "LONG_POLLING"})
+    void aPrompterThatLeavesEndsTheRoomRunOfAPromptThatWritesItsReplyItself(AtmosphereResource.TRANSPORT transport)
+            throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var member = subscriber(null);
+        var prompter = startSelfWritingRun(transport);
+
+        leave(prompter);
+        awaitTerminal(member);
+        var sessionId = sessionIdOf(member);
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionId).isEmpty(),
+                "the leave closed the session that broadcast the run to the room");
+        RESUME.get().countDown();
+        awaitRunEnd();
+
+        assertEquals(List.of("streaming-text:first", "cancelled:disconnect"), text(member),
+                "the room is told the run was cut short, and is sent nothing after it");
+        var replayed = replayed();
+        assertEquals("cancelled:disconnect", last(replayed), "a reattach sees the end the room saw: " + replayed);
+        assertFalse(replayed.contains("streaming-text:after-leave"), "nothing is recorded after the run's end");
+    }
+
+    /** The same for a run whose prompter's connection was lost and never came back within the grace. */
+    @Test
+    void anExpiredGraceEndsTheRoomRunOfAPromptThatWritesItsReplyItself() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var member = subscriber(null);
+        var prompter = startSelfWritingRun(AtmosphereResource.TRANSPORT.WEBSOCKET);
+
+        lose(prompter);
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()), "a lost connection detaches the run for the grace");
+        awaitTerminal(member);
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
+                "the expired grace closed the session that broadcast the run to the room");
+        RESUME.get().countDown();
+        awaitRunEnd();
+
+        assertEquals(List.of("streaming-text:first", "cancelled:disconnect"), text(member));
+        var replayed = replayed();
+        assertEquals("cancelled:disconnect", last(replayed), "a reattach sees the end the room saw: " + replayed);
+        assertFalse(replayed.contains("streaming-text:after-leave"), "nothing is recorded after the run's end");
+    }
+
+    /**
+     * An {@code @Prompt} that returns without sending a terminal frame ends its
+     * run: the room is sent the end the replay records, and the session that
+     * broadcast the run is closed then, not left to the idle sweep.
+     */
+    @Test
+    void aRoomRunWhosePromptReturnsWithoutATerminalFrameEndsForTheRoomWithTheRun() throws Exception {
+        var member = subscriber(null);
+        handler = newHandler(new HeldRuntime(), ReturningEndpoint.class);
+        handler.dispatchPrompt(subscriber(null), "explain");
+        awaitRunId();
+        awaitRunEnd();
+        awaitTerminal(member);
+
+        assertEquals(List.of("streaming-text:only", "complete"), text(member),
+                "the room is sent the end of the run");
+        assertEquals("complete", last(replayed()), "the room and a reattach see the same end");
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
+                "the run's end closed the session that broadcast it to the room");
+    }
+
+    /**
+     * An {@code @Prompt} that hands its session to a thread of its own and
+     * returns while the model call it started streams on: the room session is
+     * not closed under the call, which ends it with its own terminal frame.
+     */
+    @Test
+    void aRoomSessionIsNotClosedWhenItsPromptReturnsWhileAModelCallStreamsOn() throws Exception {
+        var runtime = new HeldRuntime();
+        PROMPT_RUNTIME.set(runtime);
+        var member = subscriber(null);
+        handler = newHandler(runtime, StreamingOnItsOwnThreadEndpoint.class);
+        handler.dispatchPrompt(subscriber(null), "explain");
+        awaitRunId();
+        awaitRunEnd();
+
+        assertEquals(List.of("streaming-text:partial "), text(member), "the model call still streams");
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isPresent(),
+                "the session is left to the model call still streaming on it");
+        runtime.finish();
+        awaitTerminal(member);
+        assertEquals(List.of("streaming-text:partial ", "streaming-text:rest", "complete"), text(member));
+    }
+
+    /**
+     * A room destroyed (its last member gone, an empty-destroy lifecycle
+     * policy) before the run's end is not brought back by the session that
+     * broadcast to it: its frames are dropped, and no empty room of the same
+     * id is left in the factory.
+     */
+    @Test
+    void aRoomRunDoesNotRecreateARoomDestroyedBeforeItsEnd() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var prompter = startRun(runtime, null);
+        var roomId = room.getID();
+
+        lose(prompter);
+        room.destroy();
+        assertNull(factory.lookup(roomId, false), "the room is gone");
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "the grace expires and cancels the model call");
+        awaitRunEnd();
+
+        assertNull(factory.lookup(roomId, false), "the run's end must not recreate the destroyed room");
     }
 
     /**
@@ -186,7 +323,7 @@ class AiEndpointHandlerRoomRunTest {
      */
     @Test
     void aReloadedPromptersReattachInAnAuthenticatedRoomKeepsTheRunGoing() throws Exception {
-        System.setProperty(GRACE_PROPERTY, "1s");
+        System.setProperty(GRACE_PROPERTY, "3s");
         var runtime = new HeldRuntime();
         var member = subscriber("bob");
         var prompter = startRun(runtime, "alice");
@@ -195,7 +332,8 @@ class AiEndpointHandlerRoomRunTest {
         var out = new StringWriter();
         reconnect("reloaded-" + UUID.randomUUID(), "alice", out);
         assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "the reloaded prompter's reattach rescinds the grace");
-        assertFalse(runtime.cancelled.await(2_500, TimeUnit.MILLISECONDS),
+        // Waits past the grace: were the reattach not the owner's, its cancel would fire meanwhile.
+        assertFalse(runtime.cancelled.await(4_500, TimeUnit.MILLISECONDS),
                 "a run its owner came back to is not cancelled when the grace would have ended");
 
         runtime.finish();
@@ -262,31 +400,102 @@ class AiEndpointHandlerRoomRunTest {
         room.removeAtmosphereResource(prompter);
     }
 
+    /**
+     * The prompter leaving on purpose, in the shape its transport reports it:
+     * the resource's own event, closed by the client, with the 1000 a WebSocket
+     * closes with ({@code DefaultWebSocketProcessor.executeClose}), or, over an
+     * HTTP transport, as the close message without the going-away reason
+     * leaves it ({@code OnDisconnectInterceptor}).
+     */
+    private void leave(AtmosphereResourceImpl prompter) throws Exception {
+        var event = prompter.getAtmosphereResourceEvent();
+        if (prompter.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
+            event.webSocketCloseCode(1000);
+        }
+        event.isClosedByClient(true);
+        assertFalse(RunDisconnectGrace.isTransportLoss(event), "a leave, not a lost connection");
+        handler.onStateChange(event);
+        room.removeAtmosphereResource(prompter);
+    }
+
     /** Starts a run in the room, prompted by a new member authenticated as {@code user} ({@code null}: anonymous). */
     private AtmosphereResourceImpl startRun(HeldRuntime runtime, String user) throws Exception {
-        handler = new AiEndpointHandler(new HeldEndpoint(),
-                HeldEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
-                30_000L, "", PATH, runtime, List.<AiInterceptor>of(), null,
-                AnnotatedLifecycle.scan(HeldEndpoint.class));
-        handler.setBroadcastReply(true);
-        var prompter = subscriber(user);
+        return startRun(runtime, user, AtmosphereResource.TRANSPORT.WEBSOCKET);
+    }
+
+    /** As above, the prompter connected over {@code transport}. */
+    private AtmosphereResourceImpl startRun(HeldRuntime runtime, String user, AtmosphereResource.TRANSPORT transport)
+            throws Exception {
+        handler = newHandler(runtime, HeldEndpoint.class);
+        var prompter = subscriber(user, transport);
         handler.dispatchPrompt(prompter, "explain");
         assertTrue(runtime.streaming.await(10, TimeUnit.SECONDS), "the model call must be in flight");
+        awaitRunId();
+        return prompter;
+    }
+
+    /** Starts a run of a {@code @Prompt} that writes its reply itself, prompted over {@code transport}. */
+    private AtmosphereResourceImpl startSelfWritingRun(AtmosphereResource.TRANSPORT transport) throws Exception {
+        handler = newHandler(new HeldRuntime(), SelfWritingEndpoint.class);
+        var prompter = subscriber(null, transport);
+        handler.dispatchPrompt(prompter, "explain");
+        assertTrue(SENT_FIRST.get().await(10, TimeUnit.SECONDS), "the @Prompt must have sent its first text");
+        awaitRunId();
+        return prompter;
+    }
+
+    private AiEndpointHandler newHandler(HeldRuntime runtime, Class<?> endpoint) throws Exception {
+        var h = new AiEndpointHandler(endpoint.getDeclaredConstructor().newInstance(),
+                endpoint.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
+                30_000L, "", PATH, runtime, List.<AiInterceptor>of(), null,
+                AnnotatedLifecycle.scan(endpoint));
+        h.setBroadcastReply(true);
+        return h;
+    }
+
+    private static void awaitRunId() throws InterruptedException {
         var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (RUN_ID.get() == null && System.nanoTime() < deadline) {
             Thread.sleep(5);
         }
-        return prompter;
+        assertTrue(RUN_ID.get() != null, "the run must have started");
+    }
+
+    /** Waits for the run to leave the live registry: its execution ended. */
+    private static void awaitRunEnd() throws InterruptedException {
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (RunRegistryHolder.get().lookup(RUN_ID.get()).isPresent() && System.nanoTime() < deadline) {
+            Thread.sleep(5);
+        }
+        assertTrue(RunRegistryHolder.get().lookup(RUN_ID.get()).isEmpty(), "the run must have ended");
+    }
+
+    /** What the run's replay buffer holds, as {@code type:data}. */
+    private static List<String> replayed() {
+        var run = RunRegistryHolder.get().lookupReplayable(RUN_ID.get()).orElseThrow();
+        return run.replayBuffer().snapshot().stream()
+                .map(e -> e.payload() == null || e.payload().isEmpty() ? e.type() : e.type() + ":" + e.payload())
+                .toList();
+    }
+
+    private static String last(List<String> frames) {
+        return frames.isEmpty() ? null : frames.get(frames.size() - 1);
     }
 
     /** A member of the room authenticated as {@code user} ({@code null}: anonymous); what it receives is recorded. */
     private AtmosphereResourceImpl subscriber(String user) {
+        return subscriber(user, AtmosphereResource.TRANSPORT.WEBSOCKET);
+    }
+
+    /** As above, connected over {@code transport}. */
+    private AtmosphereResourceImpl subscriber(String user, AtmosphereResource.TRANSPORT transport) {
         var request = AtmosphereRequestImpl.newInstance();
         if (user != null) {
             request.setAttribute("ai.userId", user);
         }
         var r = new AtmosphereResourceImpl(config, room, request, AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class), new Recorder());
+        r.transport(transport);
         room.addAtmosphereResource(r);
         return r;
     }
@@ -459,6 +668,43 @@ class AiEndpointHandlerRoomRunTest {
         public void onPrompt(String message, StreamingSession session) {
             RUN_ID.set(session.runId().orElseThrow());
             session.stream(message);
+        }
+    }
+
+    /** Writes its reply itself: a first text, then, once released, a second, and returns without completing. */
+    @AiEndpoint(path = PATH, broadcastReply = true)
+    static final class SelfWritingEndpoint {
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) throws InterruptedException {
+            RUN_ID.set(session.runId().orElseThrow());
+            session.send("first");
+            SENT_FIRST.get().countDown();
+            RESUME.get().await(10, TimeUnit.SECONDS);
+            session.send("after-leave");
+        }
+    }
+
+    /** Sends a text and returns without a terminal frame. */
+    @AiEndpoint(path = PATH, broadcastReply = true)
+    static final class ReturningEndpoint {
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+            RUN_ID.set(session.runId().orElseThrow());
+            session.send("only");
+        }
+    }
+
+    /** Streams the model call on a thread of its own and returns once it is in flight. */
+    @AiEndpoint(path = PATH, broadcastReply = true)
+    static final class StreamingOnItsOwnThreadEndpoint {
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) throws InterruptedException {
+            Thread.startVirtualThread(() -> session.stream(message));
+            PROMPT_RUNTIME.get().streaming.await(10, TimeUnit.SECONDS);
+            RUN_ID.set(session.runId().orElseThrow());
         }
     }
 }

@@ -180,11 +180,17 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      * which is how a reattached client receives it, and writing to the closed
      * session would only log a WARN per remaining chunk.</p>
      *
-     * @return the captured event's place in the run, or {@code null} for an empty text
+     * <p>A text sent after the run ended (a {@code @Prompt} that writes on
+     * after its room run was cancelled) is not recorded: the replay ends with
+     * the terminal frame its clients were sent.</p>
+     *
+     * @return the captured event's place in the run, or {@code null} for an
+     * empty text or a run that already ended
      */
     private RunEventReplayBuffer.Position captureText(String text) {
         if (text != null && !text.isEmpty()) {
-            return new RunEventReplayBuffer.Position(buffer, buffer.capture("streaming-text", text).sequence());
+            var event = buffer.captureIfOpen("streaming-text", text);
+            return event != null ? new RunEventReplayBuffer.Position(buffer, event.sequence()) : null;
         }
         return null;
     }

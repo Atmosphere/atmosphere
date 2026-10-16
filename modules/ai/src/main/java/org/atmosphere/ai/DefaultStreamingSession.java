@@ -19,6 +19,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
@@ -91,6 +92,14 @@ public final class DefaultStreamingSession implements StreamingSession {
     private final String sessionId;
     private final AtmosphereResource resource;
     private final boolean broadcastToRoom;
+    /**
+     * The room a room session broadcasts to, read once when the session starts;
+     * {@code null} for any other session, or when it could not be read. Held
+     * rather than read from the resource on each frame: the resource recreates
+     * a destroyed broadcaster under the same id when asked for it, and a
+     * session that outlives its room must not bring the room back.
+     */
+    private final Broadcaster room;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
@@ -134,8 +143,13 @@ public final class DefaultStreamingSession implements StreamingSession {
             this.longPollingOwner = null;
         }
         if (broadcastToRoom) {
+            this.room = roomOf(resource);
             // The room's long-polling members receive the reply whole; see LongPollingRoomReplies.
-            installRoom(resource);
+            if (room != null) {
+                installRoom(room, resource);
+            }
+        } else {
+            this.room = null;
         }
         SESSION_RESOURCES.put(sessionId, resource);
         SESSION_INSTANCES.put(sessionId, this);
@@ -266,8 +280,11 @@ public final class DefaultStreamingSession implements StreamingSession {
      * receiving the reply. It belongs to whoever started it (for an
      * {@code @AiEndpoint(broadcastReply = true)} turn, the run), and is closed
      * by its own terminal frame ({@code complete}, {@code error}, or the
-     * {@code cancelled} frame of a run cut short) or, when it never sends one,
-     * reaped by the idle sweep ({@link #sweepExpired}).</p>
+     * {@code cancelled} frame of a run cut short, which a prompter that left
+     * or whose reattach grace expired gets), by the end of its run, which
+     * sends it the end the run's replay records, or, when neither comes, by
+     * the idle sweep ({@link #sweepExpired}). A room destroyed meanwhile is
+     * not recreated by it: its frames are dropped.</p>
      *
      * @param resourceUuid the atmosphere resource UUID (may be null; no-op)
      */
@@ -534,11 +551,20 @@ public final class DefaultStreamingSession implements StreamingSession {
         }
     }
 
-    private static void installRoom(AtmosphereResource resource) {
+    private static Broadcaster roomOf(AtmosphereResource resource) {
         try {
-            LongPollingRoomReplies.install(resource.getBroadcaster());
+            return resource.getBroadcaster();
         } catch (RuntimeException e) {
             logger.debug("Unable to read the room of {}", resource.uuid(), e);
+            return null;
+        }
+    }
+
+    private static void installRoom(Broadcaster room, AtmosphereResource resource) {
+        try {
+            LongPollingRoomReplies.install(room);
+        } catch (RuntimeException e) {
+            logger.debug("Unable to install the long-polling replies of the room of {}", resource.uuid(), e);
         }
     }
 
@@ -704,7 +730,6 @@ public final class DefaultStreamingSession implements StreamingSession {
         // Wrap in RawMessage so ManagedAtmosphereHandler.onStateChange()
         // delivers the JSON as-is without re-invoking @Message handlers.
         try {
-            var broadcaster = resource.getBroadcaster();
             if (broadcastToRoom) {
                 // Room fan-out (@AiEndpoint.broadcastReply=true): deliver the
                 // single reply to every subscriber on the per-path broadcaster,
@@ -712,14 +737,21 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // to one @Prompt handler upstream, so the model ran exactly once.
                 // A frame of a run carries the place of its run event in the run,
                 // for the long-polling members the room keeps it for.
+                if (room == null || room.isDestroyed()) {
+                    // The room is gone (destroyed once empty): nobody is left to
+                    // receive the frame, and asking the resource for its
+                    // broadcaster would recreate the room under the same id.
+                    logger.debug("Dropping a frame of room session {}: its room is gone", sessionId);
+                    return;
+                }
                 var position = org.atmosphere.ai.resume.RunEventCapturingSession.positionOfFrameBeingWritten(this);
-                broadcaster.broadcast(position != null
+                room.broadcast(position != null
                         ? new LongPollingRoomReplies.RunFrame(json, position)
                         : new RawMessage(json));
             } else {
                 // Default: deliver only to the originating resource (unicast)
                 // while still passing through the broadcaster's filter/cache chain.
-                broadcaster.broadcast(new RawMessage(json), Set.of(resource));
+                resource.getBroadcaster().broadcast(new RawMessage(json), Set.of(resource));
             }
         } catch (Exception e) {
             logger.warn("Failed to broadcast from session {}: {}", sessionId, e.getMessage());

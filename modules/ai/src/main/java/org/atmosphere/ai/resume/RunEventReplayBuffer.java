@@ -265,6 +265,8 @@ public final class RunEventReplayBuffer {
     private final Map<String, Consumer<RunEvent>> waitingPolls = new LinkedHashMap<>();
     /** Guarded by {@code buffer}: a terminal event was captured. */
     private boolean terminated;
+    /** Guarded by {@code buffer}: the terminal event that ended the run, or {@code null} while it runs. */
+    private RunEvent terminal;
     /**
      * Guarded by {@code buffer}: consumer -> sequence of the last event handed
      * to it, for the consumers a {@link #claimNew} or {@link #claim} handed
@@ -475,6 +477,17 @@ public final class RunEventReplayBuffer {
     }
 
     /**
+     * {@link #capture} an event unless the run already ended: nothing is
+     * recorded after the terminal event, so the replay ends with the end the
+     * run's clients were sent.
+     *
+     * @return the stored event, or {@code null} when the run had already ended
+     */
+    RunEvent captureIfOpen(String type, String payload) {
+        return append(type, payload, true);
+    }
+
+    /**
      * End the run with a terminal {@code complete}, {@code error} or
      * {@code cancelled} event
      * unless one was already captured: the event is stored, delivered to every
@@ -514,6 +527,17 @@ public final class RunEventReplayBuffer {
         }
     }
 
+    /**
+     * The terminal {@code complete} / {@code error} / {@code cancelled} event
+     * that ended the run, kept whatever the capacity evicted; empty while the
+     * run goes on.
+     */
+    public java.util.Optional<RunEvent> terminal() {
+        synchronized (buffer) {
+            return java.util.Optional.ofNullable(terminal);
+        }
+    }
+
     private RunEvent append(String type, String payload, boolean onlyIfOpen) {
         RunEvent event;
         List<Consumer<RunEvent>> listeners;
@@ -533,6 +557,7 @@ public final class RunEventReplayBuffer {
             listeners = listeners();
             if (isTerminal(type)) {
                 terminated = true;
+                terminal = event;
                 subscribers.clear();
                 waitingPolls.clear();
             }
@@ -657,7 +682,10 @@ public final class RunEventReplayBuffer {
             for (var event : events) {
                 buffer.add(event);
                 maxSeq = Math.max(maxSeq, event.sequence());
-                terminated |= isTerminal(event.type());
+                if (isTerminal(event.type())) {
+                    terminated = true;
+                    terminal = event;
+                }
             }
             while (buffer.size() > capacity) {
                 buffer.remove(0);

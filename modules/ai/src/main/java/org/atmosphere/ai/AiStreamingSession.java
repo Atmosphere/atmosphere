@@ -233,6 +233,10 @@ public class AiStreamingSession implements StreamingSession {
     private final java.util.concurrent.atomic.AtomicBoolean cancelPending =
             new java.util.concurrent.atomic.AtomicBoolean();
 
+    /** Number of {@link #stream(String, List)} calls in progress on this session. */
+    private final java.util.concurrent.atomic.AtomicInteger streamsInProgress =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     /** Message of a client that disconnected while its model call was in flight. */
     public static final String CANCELLED_BY_DISCONNECT = RunCancelledException.Reason.DISCONNECT.message();
     /** Message of a model call an operator cancelled through the admin plane. */
@@ -579,6 +583,16 @@ public class AiStreamingSession implements StreamingSession {
      * {@code complete} the runtime sends on a cancel. A call that already
      * finished is not cut short, and its turn ends as it did.
      *
+     * <p>A session that broadcasts its turn to a room
+     * ({@link StreamingSessions#startRoomBroadcast}) whose prompter is gone
+     * ({@link RunCancelledException.Reason#DISCONNECT}: it left, or its grace
+     * expired) with no model call in flight, as when the {@code @Prompt}
+     * method writes the reply itself, is ended here with that
+     * {@code cancelled} frame: the room and the run's replay are told the run
+     * was cut short, the session is closed, and what the {@code @Prompt}
+     * method sends after it is dropped. A model call in flight ends the turn
+     * with that frame itself.</p>
+     *
      * @param reason why the call is cancelled
      */
     public void cancelInflight(RunCancelledException.Reason reason) {
@@ -591,7 +605,8 @@ public class AiStreamingSession implements StreamingSession {
         pendingCancelReason.compareAndSet(null, reason);
         cancelPending.set(true);
         var handle = this.currentHandle;
-        if (handle != null && !handle.isDone()) {
+        var inFlight = handle != null && !handle.isDone();
+        if (inFlight) {
             // Before the cancel: a runtime completes the session from inside it.
             cancelledReason.compareAndSet(null, reason);
             handle.cancel();
@@ -601,6 +616,31 @@ public class AiStreamingSession implements StreamingSession {
             logger.debug("Disconnect cancelled {} pending approval(s) for resource {}",
                     cancelledApprovals, resource != null ? resource.uuid() : "null");
         }
+        if (!inFlight && reason == RunCancelledException.Reason.DISCONNECT && broadcastsToRoom() && !isClosed()) {
+            // No model call to end the turn: the room run of a prompter that
+            // is gone ends here, as the call's cancel would have ended it.
+            error(new RunCancelledException(reason));
+        }
+    }
+
+    /** Whether this session's turn is broadcast to a room rather than to its prompter only. */
+    private boolean broadcastsToRoom() {
+        return DefaultStreamingSession.deliveryForSession(sessionId())
+                .map(DefaultStreamingSession.Delivery::toRoom)
+                .orElse(false);
+    }
+
+    /**
+     * Whether a {@link #stream(String)} call is in progress on this session: a
+     * model call it started has not ended yet. The {@code @AiEndpoint} handler
+     * leaves the session of a room run whose {@code @Prompt} method returned
+     * while one streams on (on a thread of its own) to that call's terminal
+     * frame.
+     *
+     * @return {@code true} while a stream call runs
+     */
+    public boolean isStreaming() {
+        return streamsInProgress.get() > 0;
     }
 
     /**
@@ -1014,6 +1054,15 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void stream(String message, List<Content> inputParts) {
+        streamsInProgress.incrementAndGet();
+        try {
+            streamTurn(message, inputParts);
+        } finally {
+            streamsInProgress.decrementAndGet();
+        }
+    }
+
+    private void streamTurn(String message, List<Content> inputParts) {
         // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
         // By the time stream() is called, all coordinator/agent work is done.
         var hook = preStreamHook.getAndSet(null);
