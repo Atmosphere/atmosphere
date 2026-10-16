@@ -632,25 +632,33 @@ public class ReactorNettyTransportServer {
     static final long WEBTRANSPORT_SESSION_GONE = 0x170d7b68L;
 
     /**
+     * The reason atmosphere.js {@code disconnect()} has always sent with its
+     * CLOSE_WEBTRANSPORT_SESSION capsule (code 0).
+     */
+    static final String ATMOSPHERE_JS_DISCONNECT_REASON = "Client disconnect";
+
+    /**
      * The close code of a CLOSE_WEBTRANSPORT_SESSION capsule as the processor
      * reads it: the application error code 0 ("no error") is a page going
-     * away, any other code is passed through (1000 is a leave).
+     * away, unless its reason is atmosphere.js's; any other code is passed
+     * through (1000 is a leave).
      *
-     * <p>Code 0 is what Chrome sends when the page that holds the session
-     * reloads, navigates away or closes, with the session's bidi stream still
-     * open. atmosphere.js {@code disconnect()} sends it too, but only after it
-     * finished its bidi stream, which already closed the session as a leave
-     * (1000; the session closes once). So a code 0 that finds the session still
-     * open reads as the WebSocket 1001 a browser sends from a page going away,
-     * which the AI reattach grace treats as a lost transport. Like the HTTP
-     * transports' going-away close message, it is the client's word: a client
-     * that leaves on purpose without finishing its stream — or whose FIN
-     * arrives after its capsule — only has its run cancelled after the bounded
-     * grace rather than at once; a client sends 1000 to leave without its FIN.</p>
+     * <p>Code 0 with no reason is what Chrome sends when the page that holds
+     * the session reloads, navigates away or closes, with the session's bidi
+     * stream still open. It reads as the WebSocket 1001 a browser sends from a
+     * page going away, which the AI reattach grace treats as a lost transport.
+     * atmosphere.js {@code disconnect()} sends code 0 too, after it finished its
+     * bidi stream, but always with the reason {@code 'Client disconnect'}; the
+     * FIN and the capsule travel on separate QUIC streams, which QUIC does not
+     * order, so whichever is read first closes the session (once) as a leave
+     * (1000). Like the HTTP transports' going-away close message, it is the
+     * client's word: another client that leaves on purpose with code 0 and
+     * neither that reason nor a FIN read first only has its run cancelled after
+     * the bounded grace rather than at once; it sends 1000 to leave.</p>
      */
-    static int closeCode(long webTransportErrorCode) {
+    static int closeCode(long webTransportErrorCode, String reason) {
         if (webTransportErrorCode == 0) {
-            return GOING_AWAY;
+            return ATMOSPHERE_JS_DISCONNECT_REASON.equals(reason) ? NORMAL_CLOSURE : GOING_AWAY;
         }
         return (int) Math.min(webTransportErrorCode, Integer.MAX_VALUE);
     }
@@ -834,7 +842,7 @@ public class ReactorNettyTransportServer {
                 if (capsule.type() == WebTransportCapsules.CLOSE_WEBTRANSPORT_SESSION) {
                     logger.debug("WebTransport CLOSE_WEBTRANSPORT_SESSION for {} (code {}, reason '{}')",
                             sessionPath(), capsule.closeErrorCode(), capsule.closeReason());
-                    endSession(ctx, closeCode(capsule.closeErrorCode()));
+                    endSession(ctx, closeCode(capsule.closeErrorCode(), capsule.closeReason()));
                     return;
                 } else if (capsule.type() == WebTransportCapsules.DRAIN_WEBTRANSPORT_SESSION) {
                     logger.debug("WebTransport DRAIN_WEBTRANSPORT_SESSION for {}", sessionPath());
@@ -909,9 +917,9 @@ public class ReactorNettyTransportServer {
                 // FIN on the CONNECT stream terminates the session. Unread
                 // bytes are an incomplete capsule, never a message. Without a
                 // CLOSE capsule it is a close with code 0 (draft-ietf-webtrans-http3),
-                // read as closeCode(0) reads it.
+                // read as closeCode reads a code 0 with no reason.
                 logger.debug("WebTransport CONNECT stream closed");
-                endSession(ctx, closeCode(0));
+                endSession(ctx, closeCode(0, ""));
                 return;
             }
             // Flush any remaining buffered data as a final message

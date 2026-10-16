@@ -67,7 +67,8 @@ import static org.mockito.Mockito.mock;
  * the reattach grace ({@link RunDisconnectGrace#isTransportLoss}). A page that
  * reloads, navigates away or closes makes Chrome send a CLOSE capsule with code
  * 0 and no reason, its bidi stream unfinished; atmosphere.js
- * {@code disconnect()} finishes its bidi stream before it sends its capsule.
+ * {@code disconnect()} finishes its bidi stream and sends its capsule with code
+ * 0 and the reason {@code 'Client disconnect'}, the two read in either order.
  * The first is a page going away (a WebSocket's 1001), the second a client
  * that left (1000).</p>
  */
@@ -239,6 +240,29 @@ class WebTransportCloseCodeTest {
         assertClosedByTheClient("atmosphere.js disconnect()");
         assertNotGrantedTheReattachGrace("atmosphere.js disconnect()");
         assertEquals(1000, CLOSE_CODE.get(), "atmosphere.js disconnect() is a normal close");
+    }
+
+    @Test
+    void atmosphereJsCapsuleArrivingBeforeItsBidiFinIsALeaveWithoutTheGrace() {
+        // The FIN and the capsule travel on separate QUIC streams, which QUIC does
+        // not order: atmosphere.js's capsule can be read before its bidi FIN. Its
+        // reason, 'Client disconnect', still says the client left.
+        connectStream.writeInbound(new DefaultHttp3DataFrame(Unpooled.wrappedBuffer(CLOSE_CAPSULE)));
+        bidiStream.pipeline().fireUserEventTriggered(ChannelInputShutdownEvent.INSTANCE);
+        assertClosedByTheClient("atmosphere.js disconnect() with its capsule first");
+        assertNotGrantedTheReattachGrace("atmosphere.js disconnect() with its capsule first");
+        assertEquals(1000, CLOSE_CODE.get(), "atmosphere.js disconnect() is a normal close");
+    }
+
+    @Test
+    void codeZeroWithAnotherReasonGetsTheReattachGrace() {
+        // Only atmosphere.js's own reason marks a code 0 as a leave.
+        var reason = "bye".getBytes(StandardCharsets.UTF_8);
+        var capsule = new byte[4 + reason.length + 3];
+        System.arraycopy(new byte[] {0x68, 0x43, (byte) (4 + reason.length)}, 0, capsule, 0, 3);
+        System.arraycopy(reason, 0, capsule, 7, reason.length);
+        connectStream.writeInbound(new DefaultHttp3DataFrame(Unpooled.wrappedBuffer(capsule)));
+        assertGrantedTheReattachGrace("a CLOSE capsule with code 0 and another reason");
     }
 
     @Test
