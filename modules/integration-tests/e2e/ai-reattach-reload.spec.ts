@@ -258,6 +258,27 @@ test.describe('AI reattach grace across a page reload', () => {
     });
   }
 
+  test('long-polling: an uninterrupted reply arrives once, its run id first', async ({ page }) => {
+    // The run id reaches a long-polling page before the reply ends, and atmosphere.js
+    // then sends it on every poll until the terminal frame. A poll of the client the
+    // reply is for is not a reattach: the reply must still arrive exactly once.
+    await openReattachPage(page, server.baseUrl, 'long-polling', ENDPOINT);
+    await waitForOpen(page);
+    const prompt = `whole-long-polling-${Date.now()}`;
+    await sendPrompt(page, prompt);
+    const load = await terminalLoad(page);
+
+    expect(texts(load.frames)).toEqual(TOKENS);
+    expect(count(load.frames, 'complete')).toBe(1);
+    expect(count(load.frames, 'cancelled')).toBe(0);
+    expect(count(load.frames, 'error')).toBe(0);
+    expect(load.frames.filter((f) => f.type === 'metadata' && f.key === 'X-Atmosphere-Run-Id').length).toBe(1);
+    const runIdAt = load.frames.findIndex((f) => f.type === 'metadata' && f.key === 'X-Atmosphere-Run-Id');
+    const firstTextAt = load.frames.findIndex((f) => f.type === 'streaming-text');
+    expect(runIdAt, 'the run id must come before the text').toBeLessThan(firstTextAt);
+    expect((await modelCall(prompt))?.state).toBe('COMPLETED');
+  });
+
   for (const transport of ['sse', 'long-polling'] as const) {
     test(`${transport}: without the going-away mark on the close beacon, a reload cancels the run`,
         async ({ page }) => {
