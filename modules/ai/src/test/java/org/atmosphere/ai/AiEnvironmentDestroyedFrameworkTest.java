@@ -20,7 +20,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -73,5 +76,46 @@ class AiEnvironmentDestroyedFrameworkTest {
         assertTrue(created.isClosed(), "the framework's destroy closes the environment it created");
         assertSame(AiEnvironment.processDefault(), AiEnvironment.of(framework.getAtmosphereConfig()));
         assertTrue(AiEnvironment.live().isEmpty(), "nothing stays open, saw " + AiEnvironment.live());
+    }
+
+    @Test
+    void anEnvironmentWhoseShutdownHookCameTooLateIsClosedAtOnce() {
+        var running = AiEnvironment.create(key -> null);
+        var framework = new DestroyedRightAfterTheFirstCheck();
+        var before = AiEnvironment.live();
+        framework.armed.set(true);
+
+        var environment = AiEnvironment.of(framework.getAtmosphereConfig());
+
+        assertFalse(framework.armed.get(), "the destroy ran between the first check and the hook registration");
+        assertSame(AiEnvironment.processDefault(), environment,
+                "an environment created while the framework is destroyed is not handed out");
+        assertEquals(before, AiEnvironment.live(),
+                "the environment whose hook the destroy never ran is closed, not left open for good");
+        assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty());
+        assertSame(running, AiEnvironment.current(),
+                "the running application stays the one the static API reads");
+    }
+
+    /**
+     * Reproduces, without timing, a destroy that runs on another thread while
+     * {@link AiEnvironment#of(org.atmosphere.cpr.AtmosphereConfig)} is between
+     * its first {@link #isDestroyed()} check and its shutdown hook
+     * registration: the first armed check answers {@code false}, then the
+     * framework's destroy runs its hooks and clears them before that
+     * registration.
+     */
+    private static final class DestroyedRightAfterTheFirstCheck extends AtmosphereFramework {
+        final AtomicBoolean armed = new AtomicBoolean();
+
+        @Override
+        public boolean isDestroyed() {
+            if (armed.compareAndSet(true, false)) {
+                var seen = super.isDestroyed();
+                destroy();
+                return seen;
+            }
+            return super.isDestroyed();
+        }
     }
 }
