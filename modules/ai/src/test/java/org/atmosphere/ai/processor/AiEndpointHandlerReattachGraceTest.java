@@ -518,7 +518,7 @@ class AiEndpointHandlerReattachGraceTest {
      * loss of the one it replaced must neither detach nor cancel its run.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING"})
+    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING", "STREAMING"})
     void aLossNoticedWhileTheSameIdReconnectIsSetUpLeavesTheRunsOfTheLiveConnectionGoing(String transport)
             throws Exception {
         System.setProperty(GRACE_PROPERTY, "300ms");
@@ -578,10 +578,10 @@ class AiEndpointHandlerReattachGraceTest {
     /**
      * The reconnect asks its own question, then the server notices the original
      * connection is gone: the answer streaming to the live connection goes on
-     * through {@code complete}, over WebSocket and over SSE.
+     * through {@code complete}, over every transport.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING"})
+    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING", "STREAMING"})
     void aLateNoticedLossLeavesTheAnswerTheSameIdReconnectAskedForStreaming(String transport) throws Exception {
         System.setProperty(GRACE_PROPERTY, "300ms");
         var frames = captureFrames();
@@ -612,13 +612,14 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
-     * A WebSocket, SSE or long-polling connection whose suspend times out ends without a
-     * departure reaching the handler: it stops being tracked as the live
+     * A WebSocket, SSE, long-polling or streaming connection whose suspend
+     * times out ends without a departure reaching the handler: it stops being
+     * tracked as the live
      * connection of its tracking id all the same, or every client that times
      * out and never comes back would stay pinned for good.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"websocket", "sse", "long-polling"})
+    @ValueSource(strings = {"websocket", "sse", "long-polling", "streaming"})
     void aConnectionWhoseSuspendTimesOutStopsBeingTracked(String transport) throws Exception {
         newHandler(new HeldRuntime(), null);
         var connection = connect(transport);
@@ -633,7 +634,7 @@ class AiEndpointHandlerReattachGraceTest {
 
     /** The timeout of a connection replaced under its tracking id leaves the live one tracked. */
     @ParameterizedTest
-    @ValueSource(strings = {"websocket", "sse", "long-polling"})
+    @ValueSource(strings = {"websocket", "sse", "long-polling", "streaming"})
     void theTimeoutOfAReplacedConnectionLeavesTheLiveOneTracked(String transport) throws Exception {
         newHandler(new HeldRuntime(), null);
         var original = connect(transport);
@@ -653,7 +654,7 @@ class AiEndpointHandlerReattachGraceTest {
      * already the live one, and the departure leaves its runs going.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING"})
+    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING", "STREAMING"})
     void aLossNoticedInsideTheSuspendOfTheSameIdReconnectLeavesTheRunsGoing(String transport) throws Exception {
         System.setProperty(GRACE_PROPERTY, "300ms");
         var runtime = new HeldRuntime();

@@ -176,8 +176,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Tracking id -> the WebSocket, SSE or long-polling connection suspended
-     * under it last. atmosphere.js reconnects, or polls again, under the id it
+     * Tracking id -> the WebSocket, SSE, streaming or long-polling connection
+     * suspended under it last. atmosphere.js reconnects, or polls again, under the id it
      * holds, often before the server notices the connection it replaces is gone
      * (an idle timeout, a failed write, a poll the client gave up on): the late
      * departure of the replaced connection then leaves the state keyed by the
@@ -455,7 +455,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         //   • WebSocket: DefaultWebSocketProcessor stashes it on the suspended request
         //     under SUSPENDED_ATMOSPHERE_RESOURCE_UUID; the temp request inherits via
         //     attribute delegation to the wrapped original request.
-        //   • SSE / long-polling: the client carries it on every POST as the
+        //   • SSE / streaming / long-polling: the client carries it on every POST as the
         //     X-Atmosphere-tracking-id header.
         //
         // A prompt is never fanned out to the per-path broadcaster: every
@@ -490,7 +490,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         refuseWebSocketFrame(resource);
                         return;
                     }
-                    // An SSE / long-polling POST names its connection with the header
+                    // An SSE / streaming / long-polling POST names its connection with the header
                     // only: the framework fills SUSPENDED_ATMOSPHERE_RESOURCE_UUID with a
                     // freshly generated id when the header is missing or "0", so that
                     // attribute alone identifies nobody here.
@@ -537,9 +537,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
-        // Initial connection: suspend the resource.
+        // Initial connection: suspend the resource. A streaming GET is set up here
+        // like an SSE one: left to AtmosphereResourceLifecycleInterceptor, it would
+        // be suspended without the handler and owner a prompt POST resolves it by.
         if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
+                || resource.transport() == AtmosphereResource.TRANSPORT.STREAMING
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
             resource.getRequest().setAttribute(ENDPOINT_HANDLER_ATTRIBUTE, this);
             var owner = requestIdentity(resource.getRequest());
@@ -1711,7 +1714,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return longPollingClients.size();
     }
 
-    /** The WebSocket, SSE or long-polling connection tracked as live under {@code uuid}, if any. */
+    /** The WebSocket, SSE, streaming or long-polling connection tracked as live under {@code uuid}, if any. */
     Optional<AtmosphereResource> liveConnection(String uuid) {
         return Optional.ofNullable(liveConnections.get(uuid));
     }
@@ -1905,8 +1908,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     /**
      * Resolves the originating suspended {@link AtmosphereResource} for a
-     * prompt POST. WebSocket frames arrive as freshly-built temp resources; SSE
-     * and long-polling carry the suspended UUID via the
+     * prompt POST. WebSocket frames arrive as freshly-built temp resources; SSE,
+     * streaming and long-polling carry the suspended UUID via the
      * {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID} header. We try the
      * WebSocket-suspended attribute first (set by
      * {@code DefaultWebSocketProcessor}) and fall back to the tracking-id
@@ -1929,12 +1932,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /**
      * The connection of this endpoint that sent {@code post}, resolved the way a
      * prompt's is: the WebSocket connection a frame arrived on, or the SSE /
-     * long-polling connection the POST's {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
+     * streaming / long-polling connection the POST's {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
      * header names, suspended by this endpoint under the sender's identity. A
      * long-polling client that posted between two polls is waited for, as its
      * prompt would be. A handler that answers a POST itself (an {@code @Agent}
-     * slash command) replies on this connection: an SSE or long-polling client
-     * does not read the POST's own response.
+     * slash command) replies on this connection: an SSE, streaming or
+     * long-polling client does not read the POST's own response.
      *
      * <p>When no connection resolves, {@code post} is answered as a prompt is: a
      * WebSocket frame with a terminal error frame over its socket, a POST naming
@@ -2233,7 +2236,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /**
      * The concrete request path, resolved the same way on every transport.
      *
-     * <p>{@code getRequestURI()} is populated by the WebSocket / SSE / long-polling
+     * <p>{@code getRequestURI()} is populated by the WebSocket / SSE / streaming / long-polling
      * paths but NOT by WebTransport: {@code ReactorNettyTransportServer} fills
      * {@code pathInfo} from the HTTP/3 CONNECT {@code :path}. Reading only the URI
      * therefore yielded the empty string for every WebTransport client, so

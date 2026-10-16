@@ -110,10 +110,10 @@ A slash command's answer (and a confirmation prompt, and the answer to its
 other subscribers of the path, and is delivered like an AI reply: a
 `streaming-text` frame and a `complete` frame under a session id of their own,
 fresh for every answer, run through the path broadcaster's filters. Over
-WebSocket and SSE they are written to the sender's socket or stream; over
-long-polling they are kept whole and handed to the client's next poll. The
-command arrives on a POST whose own response an SSE or long-polling client does
-not read, so the sender's connection is resolved the way an `@AiEndpoint`
+WebSocket, SSE and streaming they are written to the sender's socket or stream;
+over long-polling they are kept whole and handed to the client's next poll. The
+command arrives on a POST whose own response an SSE, streaming or long-polling
+client does not read, so the sender's connection is resolved the way an `@AiEndpoint`
 prompt's is (see
 [Prompt routing over HTTP transports](../ai/README.md#prompt-routing-over-http-transports)):
 the WebSocket frame's connection, or the one the POST's `X-Atmosphere-tracking-id`

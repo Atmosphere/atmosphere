@@ -146,7 +146,7 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if ("POST".equalsIgnoreCase(method)) {
-            // An SSE or long-polling POST arrives unread, a WebSocket frame
+            // An SSE, streaming or long-polling POST arrives unread, a WebSocket frame
             // cached: read both the way the AI endpoint does, bounded, so a
             // command or @Message input is routed on every transport. The text
             // stays cached on the request for the AI endpoint below.
@@ -246,11 +246,11 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
      *
      * <p>{@code session} was started on the sender's connection ({@link
      * AiEndpointHandler#resolveSender}), not on the POST that carried the command,
-     * whose response an SSE or long-polling client does not read, before the
-     * command ran. The reply is delivered like an AI reply: through the path
-     * broadcaster's filters to that connection over WebSocket and SSE, and over
-     * long-polling kept whole for the client's next poll made under the identity
-     * the connection had when the command arrived.</p>
+     * whose response an SSE, streaming or long-polling client does not read,
+     * before the command ran. The reply is delivered like an AI reply: through
+     * the path broadcaster's filters to that connection over WebSocket, SSE and
+     * streaming, and over long-polling kept whole for the client's next poll
+     * made under the identity the connection had when the command arrived.</p>
      */
     private void sendCommandResponse(StreamingSession session, String response) {
         session.send(response);
