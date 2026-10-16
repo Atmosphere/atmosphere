@@ -765,22 +765,24 @@ class LongPollingRoomRepliesTest {
         awaitFrames(socket, 2);
         assertTrue(nextPoll(member).contains("streaming-text:one."));
 
-        var grace = Duration.ofMillis(300);
+        // Its new page's poll, built before the grace is armed, so nothing but the
+        // reattach itself runs between the arm and the poll listening to the run.
+        var sink = new StringWriter();
+        var resumed = new ArrayList<String>();
+        var poll = suspendedPoll(member.uuid(), run.runId(), sink, resumed);
+        var grace = Duration.ofSeconds(1);
         var cancelled = new AtomicBoolean();
         System.setProperty(AiConfig.REATTACH_GRACE_PROPERTY, grace.toMillis() + "ms");
         try {
             // The prompter's page went away mid-reply: the run waits out the grace.
             assertTrue(RunDisconnectGrace.detach(run.runId(), grace, () -> cancelled.set(true),
                     () -> buffer.subscriberCount() > 0));
-            // Its new page polls with the run id; nothing is new for it, so the poll waits.
-            var sink = new StringWriter();
-            var resumed = new ArrayList<String>();
-            var poll = suspendedPoll(member.uuid(), run.runId(), sink, resumed);
+            // The new page polls with the run id; nothing is new for it, so the poll waits.
             room.addAtmosphereResource(member);
             assertEquals(0, RunReattachSupport.replayPendingRun(poll, registry), "the member received all of the run");
             assertEquals(1, buffer.subscriberCount(), "the member's waiting poll listens to the run");
 
-            Thread.sleep(grace.toMillis() * 3);
+            Thread.sleep(grace.toMillis() * 5 / 2);
             assertFalse(cancelled.get(), "a run a member's poll waits on must not be cancelled when the grace ends");
 
             session.send("two.");
