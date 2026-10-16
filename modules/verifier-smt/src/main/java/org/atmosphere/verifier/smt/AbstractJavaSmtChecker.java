@@ -318,9 +318,9 @@ public abstract class AbstractJavaSmtChecker implements SmtChecker {
 
     /**
      * Construct a fresh {@link SolverContext} for the configured {@link #solver()}.
-     * Callers own the returned context and must close it.
+     * Callers own the returned context and must close it. Package-private so a
+     * test can stand in a solver that fails to load.
      */
-    /** Package-private so a test can stand in a solver that fails to load. */
     SolverContext newContext() throws Exception {
         Configuration config = Configuration.defaultConfiguration();
         LogManager logger = BasicLogManager.create(config);
