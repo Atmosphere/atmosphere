@@ -16,8 +16,22 @@ worth replaying. A flooder gets a `429`.
 Open <http://localhost:8105/atmosphere/console/> — the bundled Atmosphere Console is the UI.
 Occupancy and replay counters: <http://localhost:8105/api/presence>.
 
-Change the room by pointing the Console at `/atmosphere/rooms/<anything>`; each distinct path
-is a separate room with separate membership and separate history.
+Each distinct `/atmosphere/rooms/<anything>` path is a separate room with separate membership
+and separate history. The Console joins the room named by the boot property
+`atmosphere.console-endpoint`, which `application.yml` sets to `/atmosphere/rooms/general`; the
+Console has no URL parameter or UI field to change it. To open the Console on another room,
+override the property at startup:
+
+```bash
+./mvnw spring-boot:run -pl samples/spring-boot-team-rooms \
+  -Dspring-boot.run.arguments=--atmosphere.console-endpoint=/atmosphere/rooms/design
+```
+
+Any WebSocket client can join any room directly at `ws://localhost:8105/atmosphere/rooms/<name>`.
+To let Console users choose among a fixed set of rooms instead, list them in
+`atmosphere.console-endpoints` as `Label=/path` pairs (for example
+`General=/atmosphere/rooms/general,Design=/atmosphere/rooms/design`): the Console then shows a
+room picker before it connects, as `spring-boot-ai-classroom` does.
 
 A room accepts the sample's own `{"author","text"}`, the Console's `{"author","message"}`
 envelope and plain text (`JacksonDecoder`), and answers `{"room","author","text","at","message"}`
