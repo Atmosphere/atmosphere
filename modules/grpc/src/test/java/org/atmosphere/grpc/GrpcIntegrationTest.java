@@ -358,4 +358,94 @@ class GrpcIntegrationTest {
 
         requestObserver.onCompleted();
     }
+
+    @Test
+    void subscribedChannelsAreSuspendedBeforeJoiningTheirTopic() throws Exception {
+        // Every gRPC subscribe logged "DefaultBroadcaster: AtmosphereResource
+        // <uuid> is not suspended ... Suspend first": the processor added the
+        // channel's resource to the topic without ever suspending it.
+        var broadcasterLogger = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(org.atmosphere.cpr.DefaultBroadcaster.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        broadcasterLogger.addAppender(appender);
+        try {
+            // The server-streaming Subscribe a browser reaches over Connect.
+            var connectAck = new CountDownLatch(1);
+            var connectFrames = new CopyOnWriteArrayList<AtmosphereMessage>();
+            AtmosphereServiceGrpc.newStub(clientChannel).subscribe(AtmosphereMessage.newBuilder()
+                    .setType(MessageType.SUBSCRIBE)
+                    .setTopic("/suspended")
+                    .build(), new StreamObserver<>() {
+                        @Override
+                        public void onNext(AtmosphereMessage message) {
+                            connectFrames.add(message);
+                            if (message.getType() == MessageType.ACK) {
+                                connectAck.countDown();
+                            }
+                        }
+
+                        @Override
+                        public void onError(Throwable t) {
+                        }
+
+                        @Override
+                        public void onCompleted() {
+                        }
+                    });
+            assertTrue(connectAck.await(5, TimeUnit.SECONDS), "Subscribe must be acknowledged");
+
+            // The bidirectional Stream a native client uses.
+            var streamAck = new CountDownLatch(1);
+            var requestObserver = AtmosphereServiceGrpc.newStub(clientChannel).stream(new StreamObserver<>() {
+                @Override
+                public void onNext(AtmosphereMessage message) {
+                    if (message.getType() == MessageType.ACK) {
+                        streamAck.countDown();
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                }
+
+                @Override
+                public void onCompleted() {
+                }
+            });
+            requestObserver.onNext(AtmosphereMessage.newBuilder()
+                    .setType(MessageType.SUBSCRIBE)
+                    .setTopic("/suspended")
+                    .build());
+            assertTrue(streamAck.await(5, TimeUnit.SECONDS), "Stream subscribe must be acknowledged");
+
+            var warnings = appender.list.stream()
+                    .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .filter(m -> m.contains("is not suspended"))
+                    .toList();
+            assertEquals(java.util.List.of(), warnings,
+                    "no topic may receive a gRPC channel before it is suspended");
+            for (var channel : processor.getChannels()) {
+                assertTrue(channel.resource().isSuspended(),
+                        "channel " + channel.uuid() + " must be suspended once subscribed");
+            }
+
+            // Delivery still works: a message on the topic reaches the Connect subscriber.
+            requestObserver.onNext(AtmosphereMessage.newBuilder()
+                    .setType(MessageType.MESSAGE)
+                    .setTopic("/suspended")
+                    .setPayload("after-suspend")
+                    .build());
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (connectFrames.stream().noneMatch(m -> m.getPayload().contains("after-suspend"))
+                    && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            assertTrue(connectFrames.stream().anyMatch(m -> m.getPayload().contains("after-suspend")),
+                    "the Connect subscriber must receive the topic broadcast; got: " + connectFrames);
+            requestObserver.onCompleted();
+        } finally {
+            broadcasterLogger.detachAppender(appender);
+        }
+    }
 }

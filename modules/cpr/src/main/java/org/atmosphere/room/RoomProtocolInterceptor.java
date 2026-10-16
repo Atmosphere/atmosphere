@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.room.auth.RoomAuth;
 import org.atmosphere.room.auth.RoomAuthorizer;
@@ -30,6 +31,7 @@ import org.atmosphere.room.protocol.RoomProtocolCodec;
 import org.atmosphere.room.protocol.RoomProtocolMessage;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.ReaderInputStream;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,16 +134,36 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
             return Action.CONTINUE;
         }
 
+        var connection = connectionOf(r);
         switch (message) {
-            case RoomProtocolMessage.Join join -> handleJoin(r, join);
-            case RoomProtocolMessage.Leave leave -> handleLeave(r, leave);
-            case RoomProtocolMessage.Broadcast broadcast -> handleBroadcast(r, broadcast);
-            case RoomProtocolMessage.Direct direct -> handleDirect(r, direct);
-            case RoomProtocolMessage.Typing typing -> handleTyping(r, typing);
+            case RoomProtocolMessage.Join join -> handleJoin(connection, join);
+            case RoomProtocolMessage.Leave leave -> handleLeave(connection, leave);
+            case RoomProtocolMessage.Broadcast broadcast -> handleBroadcast(connection, broadcast);
+            case RoomProtocolMessage.Direct direct -> handleDirect(connection, direct);
+            case RoomProtocolMessage.Typing typing -> handleTyping(connection, typing);
         }
 
         // Consume the message — don't let downstream interceptors re-broadcast
         return Action.CANCELLED;
+    }
+
+    /**
+     * The connection a room frame belongs to. A frame that arrives over a
+     * WebSocket, or over WebTransport, which is bridged onto the WebSocket
+     * processor, is dispatched on a resource created for that one frame: it
+     * has the connection's uuid, is never suspended and is gone once the frame
+     * is handled. Joining that resource put a resource that was never
+     * suspended into the room's broadcaster ({@code DefaultBroadcaster} warned
+     * "is not suspended ... Suspend first" on every join) and hung the drop
+     * announcer on a resource whose disconnect never fires. The suspended
+     * connection is the member; a frame from any other transport is handled on
+     * its own resource, as before.
+     */
+    private static AtmosphereResource connectionOf(AtmosphereResource r) {
+        if (r instanceof AtmosphereResourceImpl && Utils.webSocketMessage(r)) {
+            return Utils.websocketResource(r);
+        }
+        return r;
     }
 
     @Override

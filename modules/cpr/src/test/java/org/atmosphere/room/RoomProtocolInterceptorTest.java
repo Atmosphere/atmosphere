@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -33,6 +34,7 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.ExecutorsFactory;
 
 import org.junit.jupiter.api.AfterEach;
@@ -67,6 +69,31 @@ public class RoomProtocolInterceptorTest {
     }
 
     // --- Join flow ---
+
+    @Test
+    public void testJoinFromAWebSocketFrameJoinsTheSuspendedConnection() throws Exception {
+        // A WebSocket (or bridged WebTransport) frame is dispatched on a resource
+        // made for that frame: the connection's uuid, never suspended. The room
+        // member must be the suspended connection itself.
+        var connection = (AtmosphereResourceImpl) createResource();
+        connection.suspend();
+        config.resourcesFactory().registerUuidForFindCandidate(connection);
+
+        var frame = (AtmosphereResourceImpl) createResourceWithBody(
+                """
+                {"type":"join","room":"lobby","memberId":"alice"}""");
+        frame.getRequest(false).setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
+        frame.getRequest(false).setAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,
+                connection.uuid());
+        assertFalse(frame.isSuspended());
+
+        assertEquals(Action.CANCELLED, interceptor.inspect(frame));
+
+        var members = ((DefaultRoom) roomManager.room("lobby")).broadcaster().getAtmosphereResources();
+        assertEquals(1, members.size());
+        assertSame(connection, members.iterator().next(),
+                "the room holds the suspended connection, not the frame's resource");
+    }
 
     @Test
     public void testJoinCreatesRoomAndAddsMember() throws Exception {

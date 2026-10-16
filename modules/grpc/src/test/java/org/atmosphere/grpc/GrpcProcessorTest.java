@@ -121,6 +121,24 @@ class GrpcProcessorTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    void onMessageSubscribeOnASuspendedChannelAddsResourceToBroadcaster() {
+        var observer = mock(StreamObserver.class);
+        var channel = processor.open(observer);
+        when(channel.resource().isSuspended()).thenReturn(true);
+
+        var broadcaster = mock(Broadcaster.class);
+        when(broadcasterFactory.lookup("/news", true)).thenReturn(broadcaster);
+
+        processor.onMessage(channel, AtmosphereMessage.newBuilder()
+                .setType(MessageType.SUBSCRIBE)
+                .setTopic("/news")
+                .build());
+
+        verify(broadcaster).addAtmosphereResource(channel.resource());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     void onMessageSubscribeAddsResourceToBroadcaster() {
         var observer = mock(StreamObserver.class);
         var channel = processor.open(observer);
@@ -136,7 +154,11 @@ class GrpcProcessorTest {
         processor.onMessage(channel, subscribeMsg);
 
         verify(broadcasterFactory).lookup("/chat", true);
-        verify(broadcaster).addAtmosphereResource(channel.resource());
+        // Not yet suspended: the first topic suspends the channel's resource,
+        // which joins it to that topic's broadcaster.
+        var resource = (AtmosphereResourceImpl) channel.resource();
+        verify(resource).setBroadcaster(broadcaster);
+        verify(resource).suspend();
 
         // Verify ACK sent
         var captor = ArgumentCaptor.forClass(AtmosphereMessage.class);

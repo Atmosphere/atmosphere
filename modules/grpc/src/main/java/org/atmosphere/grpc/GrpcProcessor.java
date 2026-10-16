@@ -137,7 +137,19 @@ public class GrpcProcessor {
     private void handleSubscribe(GrpcChannel channel, AtmosphereMessage message) {
         var topic = message.getTopic();
         var broadcaster = framework.getBroadcasterFactory().lookup(topic, true);
-        broadcaster.addAtmosphereResource(channel.resource());
+        var resource = channel.resource();
+        if (resource instanceof AtmosphereResourceImpl impl && !impl.isSuspended()) {
+            // The gRPC stream is the long-lived connection, as a suspended
+            // WebSocket is, but open() created its resource with no broadcaster
+            // and never suspended it, so every subscribe handed the topic a
+            // resource DefaultBroadcaster warned about ("is not suspended ...
+            // Suspend first"). Its first topic suspends it, which also adds it
+            // to that topic's broadcaster.
+            impl.setBroadcaster(broadcaster);
+            impl.suspend();
+        } else {
+            broadcaster.addAtmosphereResource(resource);
+        }
         sendAck(channel, topic);
         logger.debug("Channel {} subscribed to topic {}", channel.uuid(), topic);
     }
