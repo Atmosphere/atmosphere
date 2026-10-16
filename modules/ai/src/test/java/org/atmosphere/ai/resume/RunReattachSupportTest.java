@@ -603,6 +603,44 @@ class RunReattachSupportTest {
         }
     }
 
+    /**
+     * An older atmosphere.js client keeps sending the run id after the terminal
+     * frame of its own long-polling reply: its next poll must not be answered
+     * with the frames that reply already brought it.
+     */
+    @Test
+    void aLongPollingClientsRunIdPollAfterItsOwnReplyIsNotAnsweredWithTheRunAgain() {
+        var trackingId = "poll-own-" + java.util.UUID.randomUUID();
+        var origin = Mockito.mock(AtmosphereResource.class);
+        var broadcaster = Mockito.mock(org.atmosphere.cpr.Broadcaster.class);
+        var broadcasterConfig = Mockito.mock(org.atmosphere.cpr.BroadcasterConfig.class);
+        when(broadcasterConfig.filters()).thenReturn(List.of());
+        when(broadcaster.getBroadcasterConfig()).thenReturn(broadcasterConfig);
+        when(broadcaster.getID()).thenReturn("/ai");
+        when(origin.getBroadcaster()).thenReturn(broadcaster);
+        when(origin.uuid()).thenReturn(trackingId);
+        when(origin.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        when(origin.getRequest()).thenReturn(Mockito.mock(AtmosphereRequest.class));
+        var session = new RunEventCapturingSession(org.atmosphere.ai.StreamingSessions.start(origin),
+                handle.replayBuffer());
+        session.send("the whole answer");
+        session.complete();
+        var poll = Mockito.mock(AtmosphereResource.class);
+        when(poll.uuid()).thenReturn(trackingId);
+        var received = new ArrayList<String>();
+        assertTrue(org.atmosphere.ai.LongPollingReplies.deliver(poll, owner -> true,
+                (p, frames) -> received.addAll(frames)));
+        assertEquals(2, received.size(), "the reply reached the client: " + received);
+
+        var steps = new ArrayList<String>();
+        var sink = new java.io.StringWriter();
+        var replayed = RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps, sink, trackingId), registry);
+
+        assertEquals(0, replayed, "the client already received the run as its reply: " + sink);
+        assertTrue(steps.isEmpty(), "the poll must stay suspended, unwritten: " + steps);
+    }
+
     /** A suspended connection of {@code transport} reattaching to the run; flushes and resumes land in {@code steps}. */
     private AtmosphereResource suspendedPoll(AtmosphereResource.TRANSPORT transport, List<String> steps) {
         return suspendedPoll(transport, steps, new java.io.StringWriter());

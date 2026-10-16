@@ -1069,8 +1069,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // every outbound frame passes — what the @Prompt method sends and what
         // the runtime streams for session.stream(...) alike — so the replay
         // buffer holds what the client received. Registered with the run below.
-        // See RunEventCapturingSession javadoc.
-        var replayBuffer = new org.atmosphere.ai.resume.RunEventReplayBuffer();
+        // See RunEventCapturingSession javadoc. Named at creation, so its warnings
+        // name the run; its long-polling bounds are the application's.
+        var runId = java.util.UUID.randomUUID().toString();
+        var replayBuffer = org.atmosphere.ai.resume.RunEventReplayBuffer.forRun(runId,
+                resource.getAtmosphereConfig());
         StreamingSession delegate = new org.atmosphere.ai.resume.RunEventCapturingSession(
                 roomBroadcast
                         ? StreamingSessions.startRoomBroadcast(resource)
@@ -1201,7 +1204,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         });
         recordConnectionOwner(resource);
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
-                pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, null);
+                pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
         session.setRunId(handle.runId());
         // Late-bind the tape run to the registry-minted identity so the taped
         // run joins the RunRegistry / EffectJournal runId (provenance). The

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.resume;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +79,7 @@ import java.util.function.Consumer;
  * their places, so polls waiting on a run never stop a WebSocket, SSE or
  * streaming reattach from receiving the rest of it. At most one poll per
  * consumer (a tracking id) waits, the newer taking over from the older, and at
- * most {@link #MAX_WAITING_POLLS} consumers' polls per run (Correctness
+ * most {@link #maxWaitingPolls()} consumers' polls per run (Correctness
  * Invariant #3); waiting polls are notified and released like the subscribers.</p>
  *
  * <h2>Replay positions</h2>
@@ -87,9 +88,16 @@ import java.util.function.Consumer;
  * run id on each one until it reads a terminal frame. {@link #claimNew} and
  * {@link #claim} hand each event to such a consumer once: the buffer remembers,
  * per consumer (a tracking id), the sequence of the last event it handed over,
- * for at most {@link #MAX_REPLAY_POSITIONS} consumers per run, the least
+ * for at most {@link #maxReplayPositions()} consumers per run, the least
  * recently used forgotten first. A forgotten consumer is handed the retained
- * events again.
+ * events again. The frames a client received through a long-polling poll as a
+ * reply ({@code org.atmosphere.ai.LongPollingReplies}) count as handed to it
+ * too ({@link #handedUpTo}), so a later poll of it carrying the run id is not
+ * handed them again.
+ *
+ * <p>Both bounds are {@value #MAX_REPLAY_POSITIONS} by default; {@link #forRun}
+ * reads them from the init parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
+ * {@value #MAX_WAITING_POLLS_PARAM} of the run's application.</p>
  */
 public final class RunEventReplayBuffer {
 
@@ -101,14 +109,52 @@ public final class RunEventReplayBuffer {
     /** Upper bound on live subscribers per run — one per reattached connection. */
     public static final int MAX_SUBSCRIBERS = 8;
 
-    /** Upper bound on the consumers whose replay position one run remembers. */
+    /**
+     * Default upper bound on the consumers whose replay position one run
+     * remembers; see {@link #MAX_REPLAY_POSITIONS_PARAM}.
+     */
     public static final int MAX_REPLAY_POSITIONS = 64;
 
     /**
-     * Upper bound on the consumers whose long-polling poll waits for one run's
-     * next event: as many as the consumers whose replay position it remembers.
+     * Default upper bound on the consumers whose long-polling poll waits for one
+     * run's next event: as many as the consumers whose replay position it
+     * remembers; see {@link #MAX_WAITING_POLLS_PARAM}.
      */
     public static final int MAX_WAITING_POLLS = MAX_REPLAY_POSITIONS;
+
+    /**
+     * Init parameter: the consumers (long-polling tracking ids) whose replay
+     * position one run remembers; a positive integer, {@value #MAX_REPLAY_POSITIONS}
+     * by default.
+     */
+    public static final String MAX_REPLAY_POSITIONS_PARAM = "org.atmosphere.ai.longPolling.maxReplayPositionsPerRun";
+
+    /**
+     * Init parameter: the consumers (long-polling tracking ids) whose poll may
+     * wait for one run's next event at once; a positive integer,
+     * {@value #MAX_WAITING_POLLS} by default.
+     */
+    public static final String MAX_WAITING_POLLS_PARAM = "org.atmosphere.ai.longPolling.maxWaitingPollsPerRun";
+
+    /**
+     * Where a run event is in its run, as a replay position: once a client
+     * received the event's frame, {@link #reachedBy} records that it was handed
+     * every event of the run up to this one.
+     *
+     * @param run      the run's buffer
+     * @param sequence the event's sequence
+     */
+    public record Position(RunEventReplayBuffer run, long sequence) {
+
+        public Position {
+            Objects.requireNonNull(run, "run");
+        }
+
+        /** {@code consumer} received the run's frames up to this event; see {@link RunEventReplayBuffer#handedUpTo}. */
+        public void reachedBy(String consumer) {
+            run.handedUpTo(consumer, sequence);
+        }
+    }
 
     /**
      * The backlog a {@link #subscribe} call returned, whether later captures
@@ -123,6 +169,8 @@ public final class RunEventReplayBuffer {
     }
 
     private final int capacity;
+    private final int maxReplayPositions;
+    private final int maxWaitingPolls;
     private final AtomicLong nextSequence = new AtomicLong();
     private final List<RunEvent> buffer;
     private volatile RunJournal journal = RunJournal.NOOP;
@@ -137,7 +185,7 @@ public final class RunEventReplayBuffer {
     private final Map<String, Long> positions = new LinkedHashMap<>(16, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
-            return size() > MAX_REPLAY_POSITIONS;
+            return size() > maxReplayPositions;
         }
     };
 
@@ -146,11 +194,111 @@ public final class RunEventReplayBuffer {
     }
 
     public RunEventReplayBuffer(int capacity) {
+        this(null, capacity);
+    }
+
+    /**
+     * A buffer of the run {@code runId}, which its warnings name.
+     *
+     * @param runId    the run's id; {@code null} for a buffer of no registered run,
+     *                 which {@link RunRegistry} names when it registers the run
+     * @param capacity the events it retains
+     */
+    public RunEventReplayBuffer(String runId, int capacity) {
+        this(runId, capacity, MAX_REPLAY_POSITIONS, MAX_WAITING_POLLS);
+    }
+
+    /**
+     * A buffer of the run {@code runId}, with its long-polling bounds.
+     *
+     * @param runId              the run's id; {@code null} for a buffer of no
+     *                           registered run, which {@link RunRegistry} names
+     *                           when it registers the run
+     * @param capacity           the events it retains
+     * @param maxReplayPositions the consumers whose replay position it remembers
+     * @param maxWaitingPolls    the consumers whose poll may wait for its next event
+     * @throws IllegalArgumentException when a bound is not positive
+     */
+    public RunEventReplayBuffer(String runId, int capacity, int maxReplayPositions, int maxWaitingPolls) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be > 0, got " + capacity);
         }
+        if (maxReplayPositions <= 0) {
+            throw new IllegalArgumentException("maxReplayPositions must be > 0, got " + maxReplayPositions);
+        }
+        if (maxWaitingPolls <= 0) {
+            throw new IllegalArgumentException("maxWaitingPolls must be > 0, got " + maxWaitingPolls);
+        }
         this.capacity = capacity;
+        this.maxReplayPositions = maxReplayPositions;
+        this.maxWaitingPolls = maxWaitingPolls;
+        this.runId = runId;
         this.buffer = Collections.synchronizedList(new ArrayList<>(capacity));
+    }
+
+    /**
+     * A buffer of {@link #DEFAULT_CAPACITY} events for the run {@code runId},
+     * with the long-polling bounds the init parameters
+     * {@value #MAX_REPLAY_POSITIONS_PARAM} and {@value #MAX_WAITING_POLLS_PARAM}
+     * of {@code config} set. A value that is not a positive integer is ignored,
+     * with a warning, for the default.
+     *
+     * @param runId  the run's id
+     * @param config the run's application; {@code null} for the defaults
+     */
+    public static RunEventReplayBuffer forRun(String runId, AtmosphereConfig config) {
+        return new RunEventReplayBuffer(runId, DEFAULT_CAPACITY,
+                positive(config, MAX_REPLAY_POSITIONS_PARAM, MAX_REPLAY_POSITIONS),
+                positive(config, MAX_WAITING_POLLS_PARAM, MAX_WAITING_POLLS));
+    }
+
+    private static int positive(AtmosphereConfig config, String name, int defaultValue) {
+        if (config == null) {
+            return defaultValue;
+        }
+        String raw;
+        try {
+            raw = config.getInitParameter(name);
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read {}", name, e);
+            return defaultValue;
+        }
+        if (raw == null || raw.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            var value = Integer.parseInt(raw.trim());
+            if (value > 0) {
+                return value;
+            }
+        } catch (NumberFormatException e) {
+            logger.trace("{} is not a number", name, e);
+        }
+        logger.warn("Ignoring {}={}: not a positive integer; using {}", name, raw, defaultValue);
+        return defaultValue;
+    }
+
+    /** The id of the run this buffer holds the events of, or {@code null} when it was given none. */
+    public String runId() {
+        return runId;
+    }
+
+    /** Names the run of a buffer created without an id; a no-op once it has one. */
+    void nameRun(String id) {
+        if (id == null) {
+            return;
+        }
+        synchronized (buffer) {
+            if (runId == null) {
+                runId = id;
+            }
+        }
+    }
+
+    /** The run as the warnings name it. */
+    private String describe() {
+        var id = runId;
+        return id != null ? "Run " + id : "A run with no id";
     }
 
     /**
@@ -196,7 +344,23 @@ public final class RunEventReplayBuffer {
         if (!isTerminal(type)) {
             throw new IllegalArgumentException("not a terminal event type: " + type);
         }
-        return append(type, payload, true) != null;
+        return terminateEvent(type, payload) != null;
+    }
+
+    /**
+     * {@link #terminate}, returning the terminal event stored, or {@code null}
+     * when the run had already ended.
+     */
+    RunEvent terminateEvent(String type, String payload) {
+        if (!isTerminal(type)) {
+            throw new IllegalArgumentException("not a terminal event type: " + type);
+        }
+        return append(type, payload, true);
+    }
+
+    /** The sequence of the last event captured, or {@code -1} when none was. */
+    long lastSequence() {
+        return nextSequence.get() - 1;
     }
 
     /** Whether a terminal {@code complete} / {@code error} / {@code cancelled} event was captured. */
@@ -236,8 +400,8 @@ public final class RunEventReplayBuffer {
             try {
                 listener.accept(event);
             } catch (RuntimeException e) {
-                logger.warn("Run event subscriber failed on event {} of run {}; dropping it ({})",
-                        event.sequence(), runId, e.toString());
+                logger.warn("A run event subscriber failed on event {} ({}); dropping it ({})",
+                        event.sequence(), describe(), e.toString());
                 unsubscribe(listener);
             }
         }
@@ -258,8 +422,8 @@ public final class RunEventReplayBuffer {
                 return new Subscription(backlog, false, () -> { });
             }
             if (subscribers.size() >= MAX_SUBSCRIBERS) {
-                logger.warn("Run {} already has {} live subscribers; this WebSocket, SSE or streaming "
-                        + "reattach gets the backlog only", runId, MAX_SUBSCRIBERS);
+                logger.warn("{} already has {} live subscribers; this WebSocket, SSE or streaming "
+                        + "reattach gets the backlog only", describe(), MAX_SUBSCRIBERS);
                 return new Subscription(backlog, false, () -> { });
             }
             subscribers.add(listener);
@@ -272,7 +436,7 @@ public final class RunEventReplayBuffer {
      * {@code listener}, the long-polling poll of {@code consumer} waiting for the
      * run's next event, in place of an older poll of {@code consumer} still
      * waiting. Not counted against {@link #MAX_SUBSCRIBERS}; refused when
-     * {@link #MAX_WAITING_POLLS} other consumers' polls wait. Backlog and
+     * {@link #maxWaitingPolls()} other consumers' polls wait. Backlog and
      * registration happen atomically, as for {@link #subscribe}.
      */
     public Subscription awaitNext(String consumer, Consumer<RunEvent> listener) {
@@ -283,10 +447,10 @@ public final class RunEventReplayBuffer {
             if (terminated) {
                 return new Subscription(backlog, false, () -> { });
             }
-            if (waitingPolls.size() >= MAX_WAITING_POLLS && !waitingPolls.containsKey(consumer)) {
-                logger.warn("Run {} already has polls of {} clients waiting for its next event; this poll "
+            if (waitingPolls.size() >= maxWaitingPolls && !waitingPolls.containsKey(consumer)) {
+                logger.warn("{} already has polls of {} clients waiting for its next event; this poll "
                         + "waits for a reply or its suspend timeout, and its client's next poll gets what "
-                        + "it missed", runId, MAX_WAITING_POLLS);
+                        + "it missed", describe(), maxWaitingPolls);
                 return new Subscription(backlog, false, () -> { });
             }
             waitingPolls.put(consumer, listener);
@@ -456,6 +620,19 @@ public final class RunEventReplayBuffer {
     }
 
     /**
+     * {@code consumer} received the run's frames up to the event
+     * {@code sequence} some other way than a replay (a long-polling reply): no
+     * {@link #claimNew} or {@link #claim} hands it those events. A position
+     * already past {@code sequence} stays.
+     */
+    public void handedUpTo(String consumer, long sequence) {
+        Objects.requireNonNull(consumer, "consumer");
+        synchronized (buffer) {
+            positions.merge(consumer, sequence, Math::max);
+        }
+    }
+
+    /**
      * Give back to {@code consumer} the events it claimed from {@code sequence}
      * on, because they never reached it: the next {@link #claimNew} hands them
      * over again.
@@ -472,6 +649,16 @@ public final class RunEventReplayBuffer {
 
     public int capacity() {
         return capacity;
+    }
+
+    /** The consumers whose replay position this run remembers at most. */
+    public int maxReplayPositions() {
+        return maxReplayPositions;
+    }
+
+    /** The consumers whose long-polling poll may wait for this run's next event at once. */
+    public int maxWaitingPolls() {
+        return maxWaitingPolls;
     }
 
     public int size() {

@@ -16,6 +16,9 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.filter.PiiRedactionFilter;
+import org.atmosphere.ai.resume.RunEvent;
+import org.atmosphere.ai.resume.RunEventCapturingSession;
+import org.atmosphere.ai.resume.RunEventReplayBuffer;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -437,5 +440,69 @@ class LongPollingRepliesTest {
         assertEquals(limit, LongPollingReplies.parkedReplies());
         assertTrue(take(ids.get(2)).isEmpty(), "past the bound a reply is dropped, not parked");
         ids.forEach(LongPollingReplies::discard);
+    }
+
+    /** What a run's replay hands {@code uuid}: the payloads of the events it was not handed yet. */
+    private static List<String> replayed(RunEventReplayBuffer run, String uuid) {
+        return run.claimNew(uuid).stream().map(RunEvent::payload).toList();
+    }
+
+    @Test
+    void theRunFramesATrackingIdReceivedAsItsOwnReplyAreNotReplayedToIt() {
+        var uuid = newId();
+        var run = new RunEventReplayBuffer();
+        var session = new RunEventCapturingSession(new DefaultStreamingSession("s-" + uuid, longPolling(uuid)), run);
+
+        session.send("Hello");
+        session.send(" world");
+        session.complete();
+        assertEquals(List.of("Hello", " world"), texts(take(uuid)));
+
+        assertEquals(List.of(), replayed(run, uuid),
+                "the client received the run's frames as its own reply: a poll of it carrying the run id must not"
+                        + " be handed them again");
+        assertEquals(List.of("Hello", " world", ""), replayed(run, newId()),
+                "another client still gets every retained event of the run");
+    }
+
+    @Test
+    void theFramesOfAReplyHandedOverInPiecesCountOnceEachPieceIsWritten() {
+        var uuid = newId();
+        var run = new RunEventReplayBuffer();
+        var session = new RunEventCapturingSession(new DefaultStreamingSession("s-" + uuid, longPolling(uuid)), run);
+
+        session.send("Let me book that.");
+        session.emit(new AiEvent.ApprovalRequired("ap-3", "book", Map.of(), "Book it?", 60));
+        assertEquals(List.of("Let me book that."), texts(take(uuid)));
+        session.send("Booked.");
+        session.complete();
+
+        assertEquals(List.of("Booked.", ""), replayed(run, uuid),
+                "only the frames a poll wrote count as received; the rest of the reply waits for the next poll");
+        LongPollingReplies.discard(uuid);
+    }
+
+    @Test
+    void aReplyThatNeverReachedItsClientStaysReplayable() {
+        var dropped = newId();
+        var run = new RunEventReplayBuffer();
+        var session = new RunEventCapturingSession(
+                new DefaultStreamingSession("s-" + dropped, longPolling(dropped)), run);
+        session.send("lost");
+        session.complete();
+        LongPollingReplies.discard(dropped);
+        assertEquals(List.of("lost", ""), replayed(run, dropped), "a reply dropped before any poll took it");
+
+        var failed = newId();
+        var other = new RunEventReplayBuffer();
+        var retried = new RunEventCapturingSession(
+                new DefaultStreamingSession("s-" + failed, longPolling(failed)), other);
+        retried.send("retry me");
+        retried.complete();
+        assertFalse(LongPollingReplies.deliver(poll(failed), o -> true, (p, f) -> {
+            throw new IOException("client gone");
+        }));
+        assertEquals(List.of("retry me", ""), replayed(other, failed), "a reply whose write failed");
+        LongPollingReplies.discard(failed);
     }
 }

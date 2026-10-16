@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.resume.RunEventReplayBuffer;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
@@ -23,7 +24,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +59,12 @@ import java.util.function.Predicate;
  * and a poll that the hand-over resumed first leaves the frames for the next
  * one. A write that fails leaves them parked.</p>
  *
+ * <p>The frames of a run ({@link org.atmosphere.ai.resume.RunEventCapturingSession})
+ * a poll wrote count as handed to the poll's tracking id in that run's replay
+ * ({@link RunEventReplayBuffer#handedUpTo}): a later poll of the client carrying
+ * the run id is not handed them again. Frames a poll did not write (a failed
+ * write, a reply dropped or expired) do not count.</p>
+ *
  * <p>Bounds (Correctness Invariant #3), read from the init parameters of the
  * framework the session's connection belongs to:</p>
  * <ul>
@@ -68,8 +77,15 @@ import java.util.function.Predicate;
  *       (1,024), and the long-polling members of one room; the room frames kept
  *       for a member do not count against the parked replies;</li>
  *   <li>{@value #PARKED_TTL_MS_PARAM}: how long a parked reply waits for a poll
- *       (120 s).</li>
+ *       (120 s);</li>
+ *   <li>{@value #MAX_ROOM_REPLIES_PER_MEMBER_PARAM}: room replies a long-polling
+ *       member of a room follows at once (64);</li>
+ *   <li>{@value #ROOM_MEMBER_FRAME_BYTES_PARAM}: bytes a room frame kept for one
+ *       more member counts against {@value #MAX_BUFFERED_BYTES_PARAM}, on top of
+ *       its own bytes, counted once (16).</li>
  * </ul>
+ * <p>A value that is not a positive integer is ignored, with a warning, for the
+ * default.</p>
  * <p>A reply that outgrows a bound ends with an {@code error} frame in place of
  * its frames; a reply that cannot be parked is dropped and logged. A room
  * reply's frames are kept for each long-polling member of the room apart from
@@ -88,12 +104,22 @@ public final class LongPollingReplies {
     public static final String MAX_PARKED_REPLIES_PARAM = "org.atmosphere.ai.longPolling.maxParkedReplies";
     /** How long a parked reply waits for its client's next poll, in ms. */
     public static final String PARKED_TTL_MS_PARAM = "org.atmosphere.ai.longPolling.parkedReplyTtlMs";
+    /** Maximum room replies a long-polling member of a room follows at once; see {@link LongPollingRoomReplies}. */
+    public static final String MAX_ROOM_REPLIES_PER_MEMBER_PARAM =
+            "org.atmosphere.ai.longPolling.maxRoomRepliesPerMember";
+    /**
+     * Bytes a room frame kept for one more long-polling member counts, on top of
+     * the frame's own bytes, counted once; see {@link LongPollingRoomReplies}.
+     */
+    public static final String ROOM_MEMBER_FRAME_BYTES_PARAM = "org.atmosphere.ai.longPolling.roomMemberFrameBytes";
 
     static final long DEFAULT_MAX_REPLY_BYTES = 8L * 1024 * 1024;
     static final int DEFAULT_MAX_REPLY_FRAMES = 10_000;
     static final long DEFAULT_MAX_BUFFERED_BYTES = 256L * 1024 * 1024;
     static final int DEFAULT_MAX_PARKED_REPLIES = 1_024;
     static final long DEFAULT_PARKED_TTL_MS = 120_000;
+    static final int DEFAULT_MAX_ROOM_REPLIES_PER_MEMBER = 64;
+    static final int DEFAULT_ROOM_MEMBER_FRAME_BYTES = 16;
 
     /**
      * Request attribute holding the identity a connection was suspended under;
@@ -119,13 +145,15 @@ public final class LongPollingReplies {
         void write(AtmosphereResource poll, List<String> frames) throws IOException;
     }
 
-    /** The bounds a buffer is created with. */
+    /** The bounds a buffer, or a room member, is created with. */
     record Limits(long maxReplyBytes, int maxReplyFrames, long maxBufferedBytes,
-                  int maxParkedReplies, long parkedTtlNanos) {
+                  int maxParkedReplies, long parkedTtlNanos, int maxRoomRepliesPerMember,
+                  int roomMemberFrameBytes) {
 
         static final Limits DEFAULTS = new Limits(DEFAULT_MAX_REPLY_BYTES, DEFAULT_MAX_REPLY_FRAMES,
                 DEFAULT_MAX_BUFFERED_BYTES, DEFAULT_MAX_PARKED_REPLIES,
-                TimeUnit.MILLISECONDS.toNanos(DEFAULT_PARKED_TTL_MS));
+                TimeUnit.MILLISECONDS.toNanos(DEFAULT_PARKED_TTL_MS), DEFAULT_MAX_ROOM_REPLIES_PER_MEMBER,
+                DEFAULT_ROOM_MEMBER_FRAME_BYTES);
 
         static Limits of(AtmosphereConfig config) {
             if (config == null) {
@@ -138,7 +166,11 @@ public final class LongPollingReplies {
                     positive(config, MAX_BUFFERED_BYTES_PARAM, DEFAULT_MAX_BUFFERED_BYTES),
                     (int) Math.min(Integer.MAX_VALUE,
                             positive(config, MAX_PARKED_REPLIES_PARAM, DEFAULT_MAX_PARKED_REPLIES)),
-                    TimeUnit.MILLISECONDS.toNanos(positive(config, PARKED_TTL_MS_PARAM, DEFAULT_PARKED_TTL_MS)));
+                    TimeUnit.MILLISECONDS.toNanos(positive(config, PARKED_TTL_MS_PARAM, DEFAULT_PARKED_TTL_MS)),
+                    (int) Math.min(Integer.MAX_VALUE, positive(config, MAX_ROOM_REPLIES_PER_MEMBER_PARAM,
+                            DEFAULT_MAX_ROOM_REPLIES_PER_MEMBER)),
+                    (int) Math.min(Integer.MAX_VALUE, positive(config, ROOM_MEMBER_FRAME_BYTES_PARAM,
+                            DEFAULT_ROOM_MEMBER_FRAME_BYTES)));
         }
 
         private static long positive(AtmosphereConfig config, String name, long defaultValue) {
@@ -165,8 +197,46 @@ public final class LongPollingReplies {
         }
     }
 
-    /** Frames handed over at once, with the bytes they hold reserved. */
-    record Batch(List<String> frames, long bytes) {
+    /**
+     * Frames handed over at once, with the bytes they hold reserved, and the
+     * places in their runs of the run events the frames stand for, the last
+     * one per run.
+     */
+    record Batch(List<String> frames, long bytes, List<RunEventReplayBuffer.Position> positions) {
+
+        Batch {
+            positions = List.copyOf(positions);
+        }
+
+        Batch(List<String> frames, long bytes) {
+            this(frames, bytes, List.of());
+        }
+    }
+
+    /** Records {@code position}, after the places {@code positions} holds, keeping the last one per run. */
+    private static void advance(Map<RunEventReplayBuffer, Long> positions, RunEventReplayBuffer.Position position) {
+        positions.merge(position.run(), position.sequence(), Math::max);
+    }
+
+    private static List<RunEventReplayBuffer.Position> positionsOf(Map<RunEventReplayBuffer, Long> positions) {
+        if (positions.isEmpty()) {
+            return List.of();
+        }
+        var out = new ArrayList<RunEventReplayBuffer.Position>(positions.size());
+        positions.forEach((run, sequence) -> out.add(new RunEventReplayBuffer.Position(run, sequence)));
+        return List.copyOf(out);
+    }
+
+    /** {@code trackingId}'s client received the frames of {@code positions}; see {@link RunEventReplayBuffer#handedUpTo}. */
+    private static void received(List<RunEventReplayBuffer.Position> positions, String trackingId) {
+        for (var position : positions) {
+            try {
+                position.reachedBy(trackingId);
+            } catch (RuntimeException e) {
+                // Its next poll carrying the run id may then be handed these frames again.
+                logger.debug("Unable to record what {} received of a run", trackingId, e);
+            }
+        }
     }
 
     /**
@@ -179,6 +249,8 @@ public final class LongPollingReplies {
         private final String trackingId;
         private final Limits limits;
         private final ArrayList<String> frames = new ArrayList<>();
+        /** Run -> the sequence of the last of its events whose frame was added; at most one run per session. */
+        private final Map<RunEventReplayBuffer, Long> positions = new IdentityHashMap<>();
         private final AtomicBoolean closed = new AtomicBoolean();
         private long bytes;
 
@@ -214,10 +286,22 @@ public final class LongPollingReplies {
             return true;
         }
 
+        /**
+         * The frames added so far include those of the run events up to
+         * {@code position}: the client that receives them was handed the run up
+         * to there. Ignored once the buffer was closed.
+         */
+        synchronized void reached(RunEventReplayBuffer.Position position) {
+            if (!closed.get()) {
+                advance(positions, position);
+            }
+        }
+
         /** Takes the frames added so far; their bytes stay reserved by the batch. */
         synchronized Batch drain() {
-            var batch = new Batch(List.copyOf(frames), bytes);
+            var batch = new Batch(List.copyOf(frames), bytes, positionsOf(positions));
             frames.clear();
+            positions.clear();
             bytes = 0;
             return batch;
         }
@@ -225,6 +309,7 @@ public final class LongPollingReplies {
         /** Drops the frames added so far and releases their bytes. */
         synchronized void discardFrames() {
             frames.clear();
+            positions.clear();
             RESERVED.addAndGet(-bytes);
             bytes = 0;
         }
@@ -249,6 +334,11 @@ public final class LongPollingReplies {
         private final Object owner;
         private final long ttlNanos;
         private final ArrayList<String> frames = new ArrayList<>();
+        /**
+         * Run -> the last of its events the parked frames stand for; one entry per
+         * run whose frames are parked, so bounded like the frames.
+         */
+        private final Map<RunEventReplayBuffer, Long> positions = new IdentityHashMap<>();
         private long bytes;
         private volatile long touchedNanos = System.nanoTime();
         /** Set, under the lock, once the entry left the map; a hand-over then parks in a new one. */
@@ -322,6 +412,9 @@ public final class LongPollingReplies {
                     return false;
                 }
                 entry.frames.addAll(batch.frames());
+                for (var position : batch.positions()) {
+                    advance(entry.positions, position);
+                }
                 entry.bytes += batch.bytes();
                 entry.touchedNanos = System.nanoTime();
                 logger.debug("Parked {} frame(s) for the next poll of {}", entry.frames.size(), trackingId);
@@ -376,7 +469,9 @@ public final class LongPollingReplies {
      * is never resumed by a hand-over, so nothing ends it in the middle of the
      * write. The write holds up only this client's own polls and hand-overs,
      * never the room's broadcaster: the room frames kept for the client while it
-     * runs wait for its next poll.
+     * runs wait for its next poll. The frames of a run written count as handed
+     * to the poll's tracking id in the run's replay
+     * ({@link RunEventReplayBuffer#handedUpTo}).
      *
      * @return whether a reply was written; the poll is then answered with it
      * instead of being suspended
@@ -399,6 +494,7 @@ public final class LongPollingReplies {
         var locked = 0;
         var taken = new ArrayList<LongPollingRoomReplies.Member>();
         var written = false;
+        var reached = new ArrayList<RunEventReplayBuffer.Position>();
         try {
             for (var mailbox : mailboxes) {
                 mailbox.lockDelivery();
@@ -453,6 +549,8 @@ public final class LongPollingReplies {
             if (takeParked) {
                 RESERVED.addAndGet(-entry.bytes);
                 entry.frames.clear();
+                reached.addAll(positionsOf(entry.positions));
+                entry.positions.clear();
                 entry.bytes = 0;
                 entry.dead = true;
                 PARKED.remove(trackingId, entry);
@@ -461,7 +559,7 @@ public final class LongPollingReplies {
         } finally {
             for (var mailbox : taken) {
                 if (written) {
-                    mailbox.taken();
+                    reached.addAll(mailbox.taken());
                 } else {
                     mailbox.untaken();
                 }
@@ -472,6 +570,8 @@ public final class LongPollingReplies {
             if (entry != null) {
                 entry.lock.unlock();
             }
+            // Outside every lock of the client: a run's buffer has a lock of its own.
+            received(reached, trackingId);
         }
     }
 
@@ -560,6 +660,7 @@ public final class LongPollingReplies {
             }
             RESERVED.addAndGet(-entry.bytes);
             entry.frames.clear();
+            entry.positions.clear();
             entry.bytes = 0;
             entry.dead = true;
             PARKED.remove(trackingId, entry);

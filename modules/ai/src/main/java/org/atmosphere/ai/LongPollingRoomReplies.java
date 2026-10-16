@@ -17,13 +17,16 @@ package org.atmosphere.ai;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.ai.resume.RunEventReplayBuffer;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.Deliver;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 import org.atmosphere.cpr.RawMessage;
@@ -33,10 +36,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -70,7 +75,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * mailbox does not count against that bound for the replies waiting in the JVM.
  * A frame kept for several members is held once: its bytes count once against
  * {@value LongPollingReplies#MAX_BUFFERED_BYTES_PARAM}, and each member it is
- * kept for adds {@value #MEMBER_FRAME_BYTES} bytes. The frames of one reply
+ * kept for adds the bytes {@value LongPollingReplies#ROOM_MEMBER_FRAME_BYTES_PARAM}
+ * sets (16 by default). The frames of one reply
  * waiting for a member are bounded like one reply
  * ({@value LongPollingReplies#MAX_REPLY_BYTES_PARAM},
  * {@value LongPollingReplies#MAX_REPLY_FRAMES_PARAM}); the reply that would
@@ -79,8 +85,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * it stay whole. The frames a poll of the member is writing no longer wait for
  * it, and no longer count. Once no room is left for a frame of a reply, that
  * frame and the rest of that reply reach the member the way they did before,
- * only while a poll of it waits. A member follows at most {@value #MAX_REPLIES_PER_MEMBER}
- * replies at once: a frame of another reply sent while it follows that many
+ * only while a poll of it waits. A member follows at most
+ * {@value LongPollingReplies#MAX_ROOM_REPLIES_PER_MEMBER_PARAM} replies at once
+ * (64 by default): a frame of another reply sent while it follows that many
  * reaches it only while a poll of it waits too, and once one of them ends, that
  * reply is kept for the member from its next frame on, as for a client that
  * becomes a member in the middle of it.</p>
@@ -88,11 +95,19 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>When the room's broadcaster has a {@link BroadcasterCache}, the frame kept
  * for a member is also removed from what the cache keeps for that member, so its
  * next poll does not receive it twice; the cache keeps the frames that could not
- * be kept for the member, as its inspectors allow. When the framework shares one
- * list of broadcaster listeners between broadcasters
+ * be kept for the member, as its inspectors allow.</p>
+ *
+ * <p>A room follows its broadcaster through a listener of its own on it. When
+ * the framework shares one list of broadcaster listeners between broadcasters
  * ({@link ApplicationConfig#BROADCASTER_SHAREABLE_LISTENERS}), a broadcaster
- * registers no listener of its own, so no room is set up: its long-polling
- * clients receive a room reply only while a poll of theirs waits.</p>
+ * registers no listener of its own: one listener on the broadcaster factory
+ * then feeds every room of that factory, registered with the factory's first
+ * room and removed from it, and from nothing else, with its last; a room leaves
+ * when its broadcaster is destroyed, the broadcaster factory's own destroy
+ * included.</p>
+ *
+ * <p>The frames of a run a member's poll wrote count as handed to the member in
+ * that run's replay, as for a reply of its own ({@link LongPollingReplies}).</p>
  */
 public final class LongPollingRoomReplies {
 
@@ -100,20 +115,18 @@ public final class LongPollingRoomReplies {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     /** Error sent to a member, in place of a room reply, that the reply outgrew. */
     static final String TOO_LARGE_MESSAGE = "The reply is too large to be delivered over long-polling";
-    /** Bytes a frame kept for one more member counts, on top of the frame's own bytes, counted once. */
-    static final int MEMBER_FRAME_BYTES = 16;
-    /**
-     * Replies a member follows at once; a frame of another reply sent while it
-     * follows that many is not kept for it.
-     */
-    static final int MAX_REPLIES_PER_MEMBER = 64;
-
     /** Broadcaster -> its room; an entry leaves when its broadcaster is destroyed. */
     private static final ConcurrentHashMap<Broadcaster, Room> ROOMS = new ConcurrentHashMap<>();
     /** Tracking id -> its memberships, in the order they were made; see {@link #mailboxes}. */
     private static final ConcurrentHashMap<String, List<Member>> MEMBERSHIPS = new ConcurrentHashMap<>();
     private static final AtomicLong MEMBER_SEQUENCE = new AtomicLong();
-    private static final AtomicBoolean SHARED_LISTENERS_WARNED = new AtomicBoolean();
+    /**
+     * Broadcaster factory -> the listener feeding the rooms of its broadcasters
+     * when they share its listeners; an entry leaves with the factory's last
+     * room. Guarded by {@link #SHARED_LOCK}.
+     */
+    private static final Map<BroadcasterFactory, SharedRooms> SHARED = new HashMap<>();
+    private static final ReentrantLock SHARED_LOCK = new ReentrantLock();
 
     private LongPollingRoomReplies() {
     }
@@ -127,10 +140,15 @@ public final class LongPollingRoomReplies {
      * @param broadcaster the room's broadcaster; {@code null} is ignored
      */
     public static void install(Broadcaster broadcaster) {
-        if (broadcaster == null || ROOMS.containsKey(broadcaster)) {
+        if (broadcaster == null || ROOMS.containsKey(broadcaster) || destroyed(broadcaster)) {
             return;
         }
         var installed = ROOMS.computeIfAbsent(broadcaster, LongPollingRoomReplies::attach);
+        if (installed != null && destroyed(broadcaster)) {
+            // Destroyed while the room was set up: its departure may have gone by unseen.
+            installed.onPreDestroy(broadcaster);
+            return;
+        }
         if (installed != null) {
             try {
                 for (var subscriber : broadcaster.getAtmosphereResources()) {
@@ -144,6 +162,15 @@ public final class LongPollingRoomReplies {
         }
     }
 
+    private static boolean destroyed(Broadcaster broadcaster) {
+        try {
+            return broadcaster.isDestroyed();
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read whether {} is destroyed", broadcaster, e);
+            return false;
+        }
+    }
+
     /** Registers a new room's listener and filter on {@code broadcaster}, or returns {@code null} when it cannot. */
     private static Room attach(Broadcaster broadcaster) {
         try {
@@ -151,24 +178,18 @@ public final class LongPollingRoomReplies {
             if (config == null) {
                 return null;
             }
-            if (sharesListeners(config.getAtmosphereConfig())) {
-                // The broadcaster would ignore the room's listener: the room would never see a member, and
-                // nothing would remove it from ROOMS once the broadcaster is destroyed.
-                if (SHARED_LISTENERS_WARNED.compareAndSet(false, true)) {
-                    logger.warn("{} is set: the AI room replies of {} and every other room reach their long-polling"
-                            + " members only while a poll waits", ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS,
-                            broadcaster.getID());
-                } else {
-                    logger.debug("Shared broadcaster listeners: no long-polling room for {}", broadcaster.getID());
-                }
+            var framework = config.getAtmosphereConfig();
+            var room = sharesListeners(framework) ? sharedRoom(broadcaster, framework) : new Room(null);
+            if (room == null) {
                 return null;
             }
-            var room = new Room();
-            broadcaster.addBroadcasterListener(room);
+            if (room.shared == null) {
+                broadcaster.addBroadcasterListener(room);
+            }
             try {
                 config.addFilter(room.suppressor);
             } catch (RuntimeException e) {
-                broadcaster.removeBroadcasterListener(room);
+                room.detach(broadcaster);
                 throw e;
             }
             return room;
@@ -181,6 +202,32 @@ public final class LongPollingRoomReplies {
 
     private static boolean sharesListeners(AtmosphereConfig config) {
         return config != null && config.getInitParameter(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, false);
+    }
+
+    /**
+     * A room of {@code broadcaster}, whose listeners are its factory's: fed by
+     * the factory's listener of the rooms, registered with its first room; or
+     * {@code null} when the broadcaster would not call that listener.
+     */
+    private static Room sharedRoom(Broadcaster broadcaster, AtmosphereConfig framework) {
+        var factory = framework.getBroadcasterFactory();
+        if (factory == null) {
+            logger.warn("{} is set and {} has no broadcaster factory: its long-polling members receive its AI"
+                    + " room replies only while a poll waits", ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS,
+                    broadcaster.getID());
+            return null;
+        }
+        var shared = SharedRooms.acquire(factory);
+        var room = new Room(shared);
+        if (broadcaster instanceof DefaultBroadcaster db && !db.broadcasterListeners().contains(shared)) {
+            // Its listeners are not the factory's: the room would never see a member, nor its departure.
+            room.detach(broadcaster);
+            logger.warn("The listeners of {} are not those of its broadcaster factory although {} is set: its"
+                    + " long-polling members receive its AI room replies only while a poll waits",
+                    broadcaster.getID(), ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS);
+            return null;
+        }
+        return room;
     }
 
     /** {@code trackingId}'s client left: it is no longer a member of any room, and what was kept for it is dropped. */
@@ -215,6 +262,12 @@ public final class LongPollingRoomReplies {
         var now = System.nanoTime();
         var left = 0;
         for (var room : ROOMS.entrySet()) {
+            if (destroyed(room.getKey())) {
+                // Its departure went by unseen (destroyed while the room was set up).
+                left += room.getValue().members.size();
+                room.getValue().onPreDestroy(room.getKey());
+                continue;
+            }
             for (var member : room.getValue().members.values()) {
                 if (member.expired(now) && room.getValue().members.remove(member.trackingId, member)) {
                     member.leave();
@@ -236,6 +289,119 @@ public final class LongPollingRoomReplies {
     /** Whether {@code broadcaster} is a room; for tests. */
     static boolean installed(Broadcaster broadcaster) {
         return ROOMS.containsKey(broadcaster);
+    }
+
+    /**
+     * A frame of a room reply that stands for a run event, with the event's
+     * place in its run: a long-polling member whose poll writes the frame was
+     * handed the run up to there ({@link RunEventReplayBuffer#handedUpTo}). The
+     * room reads it from the message its session broadcast, before any filter
+     * ran; to the broadcaster, its filters and its subscribers it is the
+     * {@link RawMessage} of the frame.
+     */
+    static final class RunFrame extends RawMessage {
+        private static final long serialVersionUID = 1L;
+
+        /** Not sent anywhere: a copy of the frame, on another node, stands for no event of a run there. */
+        private final transient RunEventReplayBuffer.Position position;
+
+        RunFrame(String json, RunEventReplayBuffer.Position position) {
+            super(json);
+            this.position = position;
+        }
+
+        RunEventReplayBuffer.Position position() {
+            return position;
+        }
+    }
+
+    /**
+     * The listener of the rooms of one broadcaster factory whose broadcasters
+     * share its listeners: it hands each broadcaster's events to that
+     * broadcaster's room, and ignores those of a broadcaster that is no room.
+     * Registered on the factory with its first room, and removed from it, by
+     * itself, with its last ({@link #release}).
+     */
+    private static final class SharedRooms extends BroadcasterListenerAdapter {
+
+        private final BroadcasterFactory factory;
+        /** Rooms it feeds; guarded by {@link #SHARED_LOCK}. */
+        private int rooms;
+
+        private SharedRooms(BroadcasterFactory factory) {
+            this.factory = factory;
+        }
+
+        /** The listener of the rooms of {@code factory}, registered on it if it was not, counting one more room. */
+        static SharedRooms acquire(BroadcasterFactory factory) {
+            SHARED_LOCK.lock();
+            try {
+                var shared = SHARED.get(factory);
+                if (shared == null) {
+                    shared = new SharedRooms(factory);
+                    factory.addBroadcasterListener(shared);
+                    SHARED.put(factory, shared);
+                }
+                shared.rooms++;
+                return shared;
+            } finally {
+                SHARED_LOCK.unlock();
+            }
+        }
+
+        /** One room fewer; with the last, this listener leaves its factory. */
+        void release() {
+            SHARED_LOCK.lock();
+            try {
+                if (rooms > 0 && --rooms == 0 && SHARED.remove(factory, this)) {
+                    try {
+                        // Removes this listener, and no other, from the factory and its broadcasters.
+                        factory.removeBroadcasterListener(this);
+                    } catch (RuntimeException e) {
+                        logger.warn("Unable to remove the long-polling room listener from {}", factory, e);
+                    }
+                }
+            } finally {
+                SHARED_LOCK.unlock();
+            }
+        }
+
+        private Room roomOf(Broadcaster b) {
+            var room = ROOMS.get(b);
+            return room != null && room.shared == this ? room : null;
+        }
+
+        @Override
+        public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
+            var room = roomOf(b);
+            if (room != null) {
+                room.onAddAtmosphereResource(b, r);
+            }
+        }
+
+        @Override
+        public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
+            var room = roomOf(b);
+            if (room != null) {
+                room.onRemoveAtmosphereResource(b, r);
+            }
+        }
+
+        @Override
+        public void onPreDestroy(Broadcaster b) {
+            var room = roomOf(b);
+            if (room != null) {
+                room.onPreDestroy(b);
+            }
+        }
+
+        @Override
+        public void onMessage(Broadcaster b, Deliver deliver) {
+            var room = roomOf(b);
+            if (room != null) {
+                room.onMessage(b, deliver);
+            }
+        }
     }
 
     private static boolean isLongPolling(AtmosphereResource resource) {
@@ -306,12 +472,15 @@ public final class LongPollingRoomReplies {
         private final String json;
         private final String sessionId;
         private final long size;
+        /** The place in its run of the run event the frame stands for, or {@code null}. */
+        private final RunEventReplayBuffer.Position position;
         private int holders;
 
-        private Kept(String json, String sessionId) {
+        private Kept(String json, String sessionId, RunEventReplayBuffer.Position position) {
             this.json = json;
             this.sessionId = sessionId;
             this.size = json.getBytes(StandardCharsets.UTF_8).length;
+            this.position = position;
         }
 
         /** One more member holds this frame, or none can: no room is left under {@code maxBytes}. */
@@ -354,11 +523,19 @@ public final class LongPollingRoomReplies {
     private record Withheld(String json, Set<String> trackingIds) {
     }
 
-    /** A broadcaster's long-polling members, fed by its broadcasts. */
+    /**
+     * A broadcaster's long-polling members, fed by its broadcasts: through this
+     * listener, registered on the broadcaster, or through the {@link SharedRooms}
+     * of the broadcaster's factory when the broadcaster shares its listeners.
+     */
     private static final class Room extends BroadcasterListenerAdapter {
 
         private final ConcurrentHashMap<String, Member> members = new ConcurrentHashMap<>();
         private final Suppressor suppressor = new Suppressor(this);
+        /** The factory's listener that feeds this room, or {@code null} when it is a listener of the broadcaster. */
+        private final SharedRooms shared;
+        /** Set once the room no longer follows its broadcaster. */
+        private final AtomicBoolean detached = new AtomicBoolean();
         /**
          * Set by {@link #onMessage} for the {@link Suppressor}: the broadcaster
          * runs its listeners for a frame, then its per-request filters for each
@@ -366,6 +543,29 @@ public final class LongPollingRoomReplies {
          * threads each deliver a frame of their own at once.
          */
         private final ThreadLocal<Withheld> withheld = new ThreadLocal<>();
+
+        private Room(SharedRooms shared) {
+            this.shared = shared;
+        }
+
+        /**
+         * Stops following {@code b}: its own listener leaves the broadcaster, or
+         * the room no longer counts for its factory's listener. Idempotent.
+         */
+        void detach(Broadcaster b) {
+            if (!detached.compareAndSet(false, true)) {
+                return;
+            }
+            if (shared != null) {
+                shared.release();
+                return;
+            }
+            try {
+                b.removeBroadcasterListener(this);
+            } catch (RuntimeException e) {
+                logger.debug("Unable to remove the long-polling room listener from {}", b.getID(), e);
+            }
+        }
 
         @Override
         public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
@@ -387,6 +587,7 @@ public final class LongPollingRoomReplies {
         @Override
         public void onPreDestroy(Broadcaster b) {
             ROOMS.remove(b, this);
+            detach(b);
             for (var member : members.values()) {
                 if (members.remove(member.trackingId, member)) {
                     member.leave();
@@ -412,7 +613,8 @@ public final class LongPollingRoomReplies {
             if (frame == null) {
                 return;
             }
-            var kept = new Kept(json, frame.sessionId());
+            var kept = new Kept(json, frame.sessionId(),
+                    deliver.getOriginalMessage() instanceof RunFrame run ? run.position() : null);
             var cache = cacheOf(b);
             var now = System.nanoTime();
             var withheldFor = new HashSet<String>();
@@ -482,7 +684,7 @@ public final class LongPollingRoomReplies {
                 // Listed under its tracking id before any other thread can see it, so a
                 // removal, which comes after, always finds it listed.
                 member = members.computeIfAbsent(trackingId, id -> {
-                    var created = new Member(id);
+                    var created = new Member(id, limits);
                     created.index();
                     return created;
                 });
@@ -529,16 +731,23 @@ public final class LongPollingRoomReplies {
         private List<Uncounted> uncounted = List.of();
         private volatile Object owner;
         private volatile AtmosphereConfig config;
-        private volatile LongPollingReplies.Limits limits = LongPollingReplies.Limits.DEFAULTS;
+        private volatile LongPollingReplies.Limits limits;
         private volatile long seenNanos = System.nanoTime();
+        /**
+         * Bytes each frame kept for this member counts, on top of the frame's own,
+         * as it was when the member joined: what a frame reserved is what it releases.
+         */
+        private final int charge;
         private final ArrayList<Kept> mailbox = new ArrayList<>();
-        /** The replies this member follows while they run, at most {@value #MAX_REPLIES_PER_MEMBER}. */
+        /** The replies this member follows while they run, at most {@code limits.maxRoomRepliesPerMember()}. */
         private final LinkedHashMap<String, Reply> replies = new LinkedHashMap<>();
         /** Left its room: nothing more is kept for it. */
         private boolean gone;
 
-        private Member(String trackingId) {
+        private Member(String trackingId, LongPollingReplies.Limits limits) {
             this.trackingId = trackingId;
+            this.limits = limits;
+            this.charge = limits.roomMemberFrameBytes();
         }
 
         void polled(Object owner, AtmosphereConfig config, LongPollingReplies.Limits limits) {
@@ -655,10 +864,19 @@ public final class LongPollingRoomReplies {
          * The poll wrote the frames {@link #take} returned: they leave the
          * mailbox, and the frames kept while it wrote stay for the next poll.
          * Called holding {@link #lockDelivery}.
+         *
+         * @return the places in their runs of the run events the written frames
+         *         stand for, the last one per run: this member was handed them
          */
-        void taken() {
+        List<RunEventReplayBuffer.Position> taken() {
             var written = Collections.newSetFromMap(new IdentityHashMap<Kept, Boolean>());
             written.addAll(taking);
+            var positions = new IdentityHashMap<RunEventReplayBuffer, Long>();
+            for (var k : taking) {
+                if (k.position != null) {
+                    positions.merge(k.position.run(), k.position.sequence(), Math::max);
+                }
+            }
             taking = List.of();
             uncounted = List.of();
             lock.lock();
@@ -670,12 +888,15 @@ public final class LongPollingRoomReplies {
                     }
                     // Its reply stopped counting it when the poll took it.
                     k.release();
-                    LongPollingReplies.release(MEMBER_FRAME_BYTES);
+                    LongPollingReplies.release(charge);
                     return true;
                 });
             } finally {
                 lock.unlock();
             }
+            var reached = new ArrayList<RunEventReplayBuffer.Position>(positions.size());
+            positions.forEach((run, sequence) -> reached.add(new RunEventReplayBuffer.Position(run, sequence)));
+            return reached;
         }
 
         /**
@@ -727,7 +948,7 @@ public final class LongPollingRoomReplies {
                 if (!k.hold(limits.maxBufferedBytes())) {
                     return bypass(reply, frame);
                 }
-                if (!LongPollingReplies.reserve(MEMBER_FRAME_BYTES, limits.maxBufferedBytes())) {
+                if (!LongPollingReplies.reserve(charge, limits.maxBufferedBytes())) {
                     k.release();
                     return bypass(reply, frame);
                 }
@@ -750,13 +971,14 @@ public final class LongPollingRoomReplies {
             if (reply != null) {
                 return reply;
             }
-            if (replies.size() >= MAX_REPLIES_PER_MEMBER) {
+            var limits = this.limits;
+            if (replies.size() >= limits.maxRoomRepliesPerMember()) {
                 // A reply that sent nothing for the time to live is not running any more.
                 replies.values().removeIf(r -> now - r.touchedNanos > limits.parkedTtlNanos());
             }
-            if (replies.size() >= MAX_REPLIES_PER_MEMBER) {
+            if (replies.size() >= limits.maxRoomRepliesPerMember()) {
                 logger.debug("{} already follows {} room replies; this frame of {} reaches it only while a poll"
-                        + " of it waits", trackingId, MAX_REPLIES_PER_MEMBER, sessionId);
+                        + " of it waits", trackingId, limits.maxRoomRepliesPerMember(), sessionId);
                 return null;
             }
             reply = new Reply();
@@ -782,7 +1004,7 @@ public final class LongPollingRoomReplies {
                 if (k.sessionId.equals(frame.sessionId())) {
                     it.remove();
                     k.release();
-                    LongPollingReplies.release(MEMBER_FRAME_BYTES);
+                    LongPollingReplies.release(charge);
                 }
             }
             var json = errorFrame(frame);
@@ -790,9 +1012,10 @@ public final class LongPollingRoomReplies {
                 return;
             }
             // Always kept, past the bounds: the member is told why the rest of the reply does not come.
-            var error = new Kept(json, frame.sessionId());
+            // It stands for no run event: the frames it replaces did not reach the member.
+            var error = new Kept(json, frame.sessionId(), null);
             error.hold(Long.MAX_VALUE);
-            LongPollingReplies.reserve(MEMBER_FRAME_BYTES, Long.MAX_VALUE);
+            LongPollingReplies.reserve(charge, Long.MAX_VALUE);
             mailbox.add(error);
         }
 
@@ -827,7 +1050,7 @@ public final class LongPollingRoomReplies {
         private void empty() {
             for (var k : mailbox) {
                 k.release();
-                LongPollingReplies.release(MEMBER_FRAME_BYTES);
+                LongPollingReplies.release(charge);
             }
             mailbox.clear();
         }

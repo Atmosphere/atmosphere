@@ -22,6 +22,7 @@ import org.atmosphere.ai.RunCancelledException;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * {@link StreamingSession} decorator that mirrors the text and the terminal
@@ -47,6 +48,12 @@ import java.util.Objects;
  * can reconstruct the complete dialog state, including terminal
  * markers.</p>
  *
+ * <p>While the delegate writes the frame of a captured event, the event's
+ * place in the run is {@link #positionOfFrameBeingWritten(StreamingSession)}
+ * for the delegate, on the writing thread: a long-polling reply records it as
+ * its client's replay position once a poll wrote the frame, so a later poll of
+ * that client carrying the run id is not handed the event again.</p>
+ *
  * <p>Extends {@link DelegatingStreamingSession} so every interface
  * method that this decorator does not explicitly override is forwarded
  * automatically. The class originally hand-wrote each delegation and
@@ -55,6 +62,13 @@ import java.util.Objects;
  */
 public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
+    /** The captured event whose frame a delegate writes on this thread, while it does. */
+    private static final ThreadLocal<Writing> WRITING = new ThreadLocal<>();
+
+    /** {@code session} is writing the frame of the run event at {@code position}. */
+    private record Writing(StreamingSession session, RunEventReplayBuffer.Position position) {
+    }
+
     private final RunEventReplayBuffer buffer;
 
     public RunEventCapturingSession(StreamingSession delegate, RunEventReplayBuffer buffer) {
@@ -62,17 +76,36 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         this.buffer = Objects.requireNonNull(buffer, "buffer");
     }
 
+    /**
+     * The place in its run of the captured event whose frame {@code session},
+     * the session a {@code RunEventCapturingSession} decorates, is writing on
+     * the calling thread, or {@code null} when it writes none: what a client
+     * that receives the frame was handed of the run.
+     *
+     * @param session the session writing a frame
+     */
+    public static RunEventReplayBuffer.Position positionOfFrameBeingWritten(StreamingSession session) {
+        var writing = WRITING.get();
+        return writing != null && writing.session() == session ? writing.position() : null;
+    }
+
     @Override
     public void send(String text) {
-        if (captureText(text)) {
+        var position = captureText(text);
+        if (delegate.isClosed()) {
             return;
         }
-        delegate.send(text);
+        writing(position, s -> s.send(text));
     }
 
     @Override
     public void sendContent(Content content) {
-        if (content instanceof Content.Text text && captureText(text.text())) {
+        if (content instanceof Content.Text text) {
+            var position = captureText(text.text());
+            if (delegate.isClosed()) {
+                return;
+            }
+            writing(position, s -> s.sendContent(content));
             return;
         }
         delegate.sendContent(content);
@@ -80,21 +113,58 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void emit(AiEvent event) {
+        RunEventReplayBuffer.Position position = null;
         switch (event) {
             case AiEvent.TextDelta delta -> {
-                if (captureText(delta.text())) {
+                position = captureText(delta.text());
+                if (delegate.isClosed()) {
                     return;
                 }
             }
             case AiEvent.Complete complete ->
-                    buffer.terminate("complete", complete.summary() != null ? complete.summary() : "");
+                    position = terminate("complete", complete.summary() != null ? complete.summary() : "");
             case AiEvent.Error error ->
-                    buffer.terminate("error", error.message() != null ? error.message() : "error");
+                    position = terminate("error", error.message() != null ? error.message() : "error");
             default -> {
                 // Not a text or terminal frame: forwarded, not captured.
             }
         }
-        delegate.emit(event);
+        writing(position, s -> s.emit(event));
+    }
+
+    /**
+     * Has the delegate write a frame, with {@code position}, the place in the
+     * run of the event it stands for, as its
+     * {@link #positionOfFrameBeingWritten(StreamingSession)} meanwhile; a frame
+     * of no captured event ({@code null}) is written with none.
+     */
+    private void writing(RunEventReplayBuffer.Position position, Consumer<StreamingSession> write) {
+        var previous = WRITING.get();
+        if (position != null) {
+            WRITING.set(new Writing(delegate, position));
+        } else {
+            WRITING.remove();
+        }
+        try {
+            write.accept(delegate);
+        } finally {
+            if (previous != null) {
+                WRITING.set(previous);
+            } else {
+                WRITING.remove();
+            }
+        }
+    }
+
+    /**
+     * End the run with a terminal event unless it already ended; either way, the
+     * place in the run of the end the client's terminal frame stands for.
+     */
+    private RunEventReplayBuffer.Position terminate(String type, String payload) {
+        var event = buffer.terminateEvent(type, payload);
+        // Already ended (a timeout recorded its end first): the frame written now stands for that end.
+        var sequence = event != null ? event.sequence() : buffer.lastSequence();
+        return sequence >= 0 ? new RunEventReplayBuffer.Position(buffer, sequence) : null;
     }
 
     /**
@@ -103,16 +173,18 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      * translation step — "text" would not parse as a streaming-text event on
      * the client.
      *
-     * @return {@code true} when the client this session wrote to is gone: the
-     *         event is in the buffer, which is how a reattached client receives
-     *         it, and writing to the closed session would only log a WARN per
-     *         remaining chunk
+     * <p>The caller does not write the text when the client this session wrote
+     * to is gone ({@code delegate.isClosed()}): the event is in the buffer,
+     * which is how a reattached client receives it, and writing to the closed
+     * session would only log a WARN per remaining chunk.</p>
+     *
+     * @return the captured event's place in the run, or {@code null} for an empty text
      */
-    private boolean captureText(String text) {
+    private RunEventReplayBuffer.Position captureText(String text) {
         if (text != null && !text.isEmpty()) {
-            buffer.capture("streaming-text", text);
+            return new RunEventReplayBuffer.Position(buffer, buffer.capture("streaming-text", text).sequence());
         }
-        return delegate.isClosed();
+        return null;
     }
 
     // Terminal events go through terminate: the first one ends the run, so a
@@ -120,26 +192,25 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void complete() {
-        buffer.terminate("complete", "");
-        delegate.complete();
+        writing(terminate("complete", ""), StreamingSession::complete);
     }
 
     @Override
     public void complete(String summary) {
-        buffer.terminate("complete", summary != null ? summary : "");
-        delegate.complete(summary);
+        writing(terminate("complete", summary != null ? summary : ""), s -> s.complete(summary));
     }
 
     @Override
     public void error(Throwable t) {
+        RunEventReplayBuffer.Position position;
         if (t instanceof RunCancelledException cancelled) {
             // The run was cut short: a reattached client gets the same
             // cancelled frame the live client got.
-            buffer.terminate(RunCancelledException.FRAME_TYPE, cancelled.reason().wire());
+            position = terminate(RunCancelledException.FRAME_TYPE, cancelled.reason().wire());
         } else {
-            buffer.terminate("error", t == null ? "error"
+            position = terminate("error", t == null ? "error"
                     : t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
         }
-        delegate.error(t);
+        writing(position, s -> s.error(t));
     }
 }

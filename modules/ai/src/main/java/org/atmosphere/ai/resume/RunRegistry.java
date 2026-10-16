@@ -156,6 +156,8 @@ public final class RunRegistry {
             String runId) {
         var id = runId != null && !runId.isBlank() ? runId : UUID.randomUUID().toString();
         var createdAt = Instant.now(clock);
+        // Its warnings name the run, a journal attached or not.
+        Objects.requireNonNull(replayBuffer, "replayBuffer").nameRun(id);
         if (journal != RunJournal.NOOP) {
             // Persist metadata up front and bind the buffer to the journal so
             // every captured event is mirrored durably. recordRun is
@@ -366,7 +368,7 @@ public final class RunRegistry {
         }
         var count = 0;
         for (var record : journal.loadAll()) {
-            var buffer = new RunEventReplayBuffer();
+            var buffer = new RunEventReplayBuffer(record.runId(), RunEventReplayBuffer.DEFAULT_CAPACITY);
             buffer.restore(journal.loadEvents(record.runId()));
             // Nothing writes to this buffer again: end it, so a client that
             // reattaches over a streaming transport gets the backlog and a

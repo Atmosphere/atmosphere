@@ -50,12 +50,14 @@ import org.slf4j.LoggerFactory;
  * to it alone and resumed at once, or, for a run that already ended, for a
  * reply or its suspend timeout. Waiting polls take none of the places of the
  * streaming reattaches ({@link RunEventReplayBuffer#awaitNext}); past
- * {@link RunEventReplayBuffer#MAX_WAITING_POLLS} tracking ids waiting on one
+ * {@link RunEventReplayBuffer#maxWaitingPolls()} tracking ids waiting on one
  * run, a poll waits for a reply or its suspend timeout too, and its client's
  * next poll gets what it missed. Each event goes to a tracking id once
  * ({@link RunEventReplayBuffer#claimNew}), so a client that re-sends the run id
  * on every poll, as atmosphere.js does until it reads a terminal frame, is not
- * answered with the same replay over and over.</p>
+ * answered with the same replay over and over; the frames of the run a poll of
+ * it received as a long-polling reply count as handed to it too
+ * ({@link RunEventReplayBuffer#handedUpTo}).</p>
  *
  * <p>The events are what {@link RunEventCapturingSession} captures: the text
  * and the terminal frame the client received, whether the {@code @Prompt}
@@ -395,7 +397,7 @@ public final class RunReattachSupport {
      * the run its tracking id was not handed yet. With none, it waits for the
      * run's next event, until the poll ends (a reply, its suspend timeout, a
      * close), the run does, or a newer poll of its tracking id takes over the
-     * wait; past {@link RunEventReplayBuffer#MAX_WAITING_POLLS} tracking ids
+     * wait; past {@link RunEventReplayBuffer#maxWaitingPolls()} tracking ids
      * waiting, it is left to a reply or its suspend timeout. Frames carry the event's own sequence, plus one,
      * so the pieces a client gets over several polls number consistently.
      * While it waits it listens to the run, which keeps a pending grace from

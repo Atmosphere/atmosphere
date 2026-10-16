@@ -603,6 +603,12 @@ public final class DefaultStreamingSession implements StreamingSession {
                     deferredFrames.clear();
                 }
             }
+            // The run event this frame stands for, if any: the client that
+            // receives the reply was handed the run up to it.
+            var position = org.atmosphere.ai.resume.RunEventCapturingSession.positionOfFrameBeingWritten(this);
+            if (position != null) {
+                longPolling.reached(position);
+            }
         }
     }
 
@@ -695,7 +701,12 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // single reply to every subscriber on the per-path broadcaster,
                 // not just the originating resource. The prompt was dispatched
                 // to one @Prompt handler upstream, so the model ran exactly once.
-                broadcaster.broadcast(new RawMessage(json));
+                // A frame of a run carries the place of its run event in the run,
+                // for the long-polling members the room keeps it for.
+                var position = org.atmosphere.ai.resume.RunEventCapturingSession.positionOfFrameBeingWritten(this);
+                broadcaster.broadcast(position != null
+                        ? new LongPollingRoomReplies.RunFrame(json, position)
+                        : new RawMessage(json));
             } else {
                 // Default: deliver only to the originating resource (unicast)
                 // while still passing through the broadcaster's filter/cache chain.

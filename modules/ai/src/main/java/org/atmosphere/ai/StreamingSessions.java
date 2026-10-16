@@ -84,8 +84,8 @@ public final class StreamingSessions {
      * per prompt — only the reply delivery changes.</p>
      *
      * <p>The room's long-polling members receive the reply whole, on their next
-     * poll, within the bounds of a long-polling reply, unless the framework
-     * shares broadcaster listeners between broadcasters; see
+     * poll, within the bounds of a long-polling reply, whether or not the
+     * framework shares broadcaster listeners between broadcasters; see
      * {@link LongPollingRoomReplies}.</p>
      *
      * @param resource the originating atmosphere resource; its broadcaster is

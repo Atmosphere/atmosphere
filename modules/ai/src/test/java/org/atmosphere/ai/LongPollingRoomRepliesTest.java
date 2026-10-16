@@ -18,6 +18,8 @@ package org.atmosphere.ai;
 import org.atmosphere.ai.cache.AiResponseCacheInspector;
 import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
+import org.atmosphere.ai.resume.RunEventCapturingSession;
+import org.atmosphere.ai.resume.RunEventReplayBuffer;
 import org.atmosphere.cache.BoundedMemoryCache;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -34,6 +36,7 @@ import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterListener;
+import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.Deliver;
@@ -419,20 +422,216 @@ class LongPollingRoomRepliesTest {
     }
 
     @Test
-    void withSharedBroadcasterListenersNoRoomIsKeptForTheBroadcaster() {
+    void withSharedBroadcasterListenersALongPollingMemberBetweenPollsReceivesTheRoomReplyWhole() {
         params.put(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, "true");
         var shared = factory.get(DefaultBroadcaster.class, "/atmosphere/shared/" + UUID.randomUUID());
+        try {
+            LongPollingRoomReplies.install(shared);
+            var member = subscriber(shared, AtmosphereResource.TRANSPORT.LONG_POLLING);
+            shared.removeAtmosphereResource(member);
+            var socket = subscriber(shared, AtmosphereResource.TRANSPORT.WEBSOCKET);
 
-        LongPollingRoomReplies.install(shared);
-        var installedFilters = shared.getBroadcasterConfig().filters().stream()
-                .filter(f -> f.getClass().getName().startsWith(LongPollingRoomReplies.class.getName()))
-                .toList();
-        shared.destroy();
+            var session = StreamingSessions.startRoomBroadcast(socket);
+            session.send("one. ");
+            session.send("two.");
+            session.complete();
+            awaitComplete(socket);
 
-        assertTrue(installedFilters.isEmpty(), "a room whose listener the broadcaster does not register would"
-                + " never see its members: nothing of it may be installed; found " + installedFilters);
+            assertTrue(LongPollingRoomReplies.members(shared).contains(member.uuid()),
+                    "a broadcaster sharing the factory's listeners is a room too");
+            assertEquals(List.of("streaming-text:one. ", "streaming-text:two.", "complete"), nextPoll(member),
+                    "with shared broadcaster listeners a long-polling member must receive the room reply whole,"
+                            + " as without them");
+        } finally {
+            shared.destroy();
+        }
         assertFalse(LongPollingRoomReplies.installed(shared),
                 "a destroyed broadcaster must not stay referenced by the rooms");
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
+    void withSharedBroadcasterListenersAndACacheAWaitingMemberReceivesTheReplyWholeAndOnce() throws Exception {
+        params.put(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, "true");
+        var shared = factory.get(DefaultBroadcaster.class, "/atmosphere/shared/" + UUID.randomUUID());
+        try {
+            var cache = new UUIDBroadcasterCache();
+            cache.configure(config);
+            shared.getBroadcasterConfig().setBroadcasterCache(cache);
+            LongPollingRoomReplies.install(shared);
+            var waiting = subscriber(shared, AtmosphereResource.TRANSPORT.LONG_POLLING);
+            var socket = subscriber(shared, AtmosphereResource.TRANSPORT.WEBSOCKET);
+
+            var session = StreamingSessions.startRoomBroadcast(socket);
+            session.send("cached.");
+            session.complete();
+            awaitComplete(socket);
+
+            assertTrue(frames(waiting).isEmpty(), "the frames kept for the member are not written to its poll");
+            assertEquals(List.of("streaming-text:cached.", "complete"), nextPoll(waiting));
+            assertTrue(cache.retrieveFromCache(shared.getID(), waiting.uuid()).isEmpty(),
+                    "the cache does not hand the member the frames kept for it a second time");
+        } finally {
+            shared.destroy();
+        }
+    }
+
+    @Test
+    void withSharedBroadcasterListenersTheRoomsListenerLeavesTheFactoryWithItsLastRoomAndAloneOfAllListeners() {
+        params.put(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, "true");
+        BroadcasterListener application = new BroadcasterListenerAdapter() {
+        };
+        factory.addBroadcasterListener(application);
+        var before = List.copyOf(factory.broadcasterListeners());
+        var first = factory.get(DefaultBroadcaster.class, "/atmosphere/shared/" + UUID.randomUUID());
+        var second = factory.get(DefaultBroadcaster.class, "/atmosphere/shared/" + UUID.randomUUID());
+        try {
+            LongPollingRoomReplies.install(first);
+            LongPollingRoomReplies.install(second);
+            assertEquals(1, roomListeners().size(), "one listener of the factory feeds every room of it");
+
+            first.destroy();
+            assertFalse(LongPollingRoomReplies.installed(first));
+            assertTrue(LongPollingRoomReplies.installed(second));
+            assertEquals(1, roomListeners().size(), "the listener stays while a room of the factory is left");
+            var member = subscriber(second, AtmosphereResource.TRANSPORT.LONG_POLLING);
+            second.removeAtmosphereResource(member);
+            var socket = subscriber(second, AtmosphereResource.TRANSPORT.WEBSOCKET);
+            var session = StreamingSessions.startRoomBroadcast(socket);
+            session.send("still fed.");
+            session.complete();
+            awaitComplete(socket);
+            assertEquals(List.of("streaming-text:still fed.", "complete"), nextPoll(member));
+        } finally {
+            first.destroy();
+            second.destroy();
+        }
+
+        assertFalse(LongPollingRoomReplies.installed(second));
+        assertTrue(roomListeners().isEmpty(), "the rooms' listener leaves the factory with its last room");
+        assertEquals(before, List.copyOf(factory.broadcasterListeners()),
+                "removing the rooms' listener must leave every other listener of the factory registered");
+    }
+
+    @Test
+    void withSharedBroadcasterListenersDestroyingTheFactoryLeavesNoRoomBehind() {
+        params.put(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, "true");
+        var shared = factory.get(DefaultBroadcaster.class, "/atmosphere/shared/" + UUID.randomUUID());
+        LongPollingRoomReplies.install(shared);
+        var member = subscriber(shared, AtmosphereResource.TRANSPORT.LONG_POLLING);
+        shared.removeAtmosphereResource(member);
+        assertTrue(LongPollingRoomReplies.installed(shared));
+
+        factory.destroy();
+
+        assertFalse(LongPollingRoomReplies.installed(shared), "the framework's stop destroys its rooms");
+        assertTrue(LongPollingRoomReplies.mailboxes(member.uuid()).isEmpty(), "and their members");
+        assertTrue(roomListeners().isEmpty(), "and removes the rooms' listener from its factory");
+    }
+
+    @Test
+    void theRepliesARoomMemberFollowsAtOnceAreAnInitParameter() {
+        params.put("org.atmosphere.ai.longPolling.maxRoomRepliesPerMember", "1");
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+
+        var a = StreamingSessions.startRoomBroadcast(socket);
+        var b = StreamingSessions.startRoomBroadcast(socket);
+        a.send("a1.");
+        b.send("b1.");
+        a.complete();
+        b.complete();
+        awaitTerminals(socket, 2);
+
+        var received = bySession(nextPollRaw(member));
+        assertEquals(List.of("streaming-text:a1.", "complete"), received.get(a.sessionId()));
+        assertEquals(List.of("complete"), received.get(b.sessionId()),
+                "following one reply at most, the member is not kept the frame of another sent meanwhile");
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
+    void theBytesAFrameKeptForOneMoreMemberCountsAreAnInitParameter() {
+        params.put("org.atmosphere.ai.longPolling.roomMemberFrameBytes", "1000");
+        assertEquals(1000, heldForOneKeptFrame());
+    }
+
+    @Test
+    void aMemberChargeThatIsNotAPositiveIntegerIsTheDefault() {
+        params.put("org.atmosphere.ai.longPolling.roomMemberFrameBytes", "-5");
+        assertEquals(16, heldForOneKeptFrame());
+    }
+
+    @Test
+    void aNumberOfRepliesFollowedThatIsNotAPositiveIntegerIsTheDefault() {
+        params.put("org.atmosphere.ai.longPolling.maxRoomRepliesPerMember", "0");
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var a = StreamingSessions.startRoomBroadcast(socket);
+        var b = StreamingSessions.startRoomBroadcast(socket);
+        a.send("a1.");
+        b.send("b1.");
+        a.complete();
+        b.complete();
+        awaitTerminals(socket, 2);
+
+        var received = bySession(nextPollRaw(member));
+        assertEquals(List.of("streaming-text:a1.", "complete"), received.get(a.sessionId()));
+        assertEquals(List.of("streaming-text:b1.", "complete"), received.get(b.sessionId()));
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    /**
+     * The bytes one frame kept for one member holds beyond its own: one
+     * member, one frame of a reply still running, then the reply ends and is taken.
+     */
+    private long heldForOneKeptFrame() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var session = StreamingSessions.startRoomBroadcast(socket);
+        session.send("kept.");
+        awaitFrames(socket, 1);
+        var frameBytes = written.get(socket.uuid()).get(0).getBytes(StandardCharsets.UTF_8).length;
+        var held = LongPollingReplies.reservedBytes() - reservedBefore - frameBytes;
+        session.complete();
+        awaitComplete(socket);
+        assertEquals(List.of("streaming-text:kept.", "complete"), nextPoll(member));
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+        return held;
+    }
+
+    @Test
+    void theRunFramesALongPollingMemberReceivedFromItsMailboxAreNotReplayedToIt() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var run = new RunEventReplayBuffer();
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), run);
+        session.send("one. ");
+        session.send("two.");
+        session.complete();
+        awaitComplete(socket);
+        assertEquals(List.of("streaming-text:one. ", "streaming-text:two.", "complete"), nextPoll(member));
+
+        assertTrue(run.claimNew(member.uuid()).isEmpty(), "the member received the run's frames from its mailbox:"
+                + " a poll of it carrying the run id must not be handed them again");
+        assertEquals(3, run.claimNew(socket.uuid()).size(),
+                "a client that did not receive them through a long-polling poll is handed every retained event");
+    }
+
+    /** The listeners of the rooms registered on the factory. */
+    private List<BroadcasterListener> roomListeners() {
+        return factory.broadcasterListeners().stream()
+                .filter(l -> l.getClass().getName().startsWith(LongPollingRoomReplies.class.getName() + "$"))
+                .toList();
     }
 
     @Test
@@ -599,7 +798,7 @@ class LongPollingRoomRepliesTest {
         room.removeAtmosphereResource(member);
         var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
         var followed = new ArrayList<StreamingSession>();
-        for (var i = 0; i < LongPollingRoomReplies.MAX_REPLIES_PER_MEMBER; i++) {
+        for (var i = 0; i < LongPollingReplies.DEFAULT_MAX_ROOM_REPLIES_PER_MEMBER; i++) {
             var session = StreamingSessions.startRoomBroadcast(socket);
             session.send("head-" + i + ".");
             followed.add(session);
@@ -619,8 +818,8 @@ class LongPollingRoomRepliesTest {
         for (var session : followed.subList(1, followed.size())) {
             session.complete();
         }
-        awaitTerminals(socket, 1 + LongPollingRoomReplies.MAX_REPLIES_PER_MEMBER);
-        assertEquals(LongPollingRoomReplies.MAX_REPLIES_PER_MEMBER - 1, bySession(nextPollRaw(member)).size());
+        awaitTerminals(socket, 1 + LongPollingReplies.DEFAULT_MAX_ROOM_REPLIES_PER_MEMBER);
+        assertEquals(LongPollingReplies.DEFAULT_MAX_ROOM_REPLIES_PER_MEMBER - 1, bySession(nextPollRaw(member)).size());
         assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
     }
 
