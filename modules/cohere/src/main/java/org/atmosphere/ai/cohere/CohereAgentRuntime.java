@@ -145,11 +145,13 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         return builder.build();
     }
 
+    /**
+     * Shut down the HTTP client of a {@link CohereChatClient} this runtime built:
+     * a request already sent completes, a later one fails.
+     */
     @Override
-    public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null) {
-            setNativeClient(createNativeClient(settings));
-        }
+    protected void closeNativeClient(CohereChatClient client) {
+        client.shutdown();
     }
 
     @Override

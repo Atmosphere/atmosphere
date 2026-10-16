@@ -601,8 +601,14 @@ public final class AiEnvironment implements AutoCloseable {
      * fails), unless the process default now holds those settings. Clients it
      * was given ({@link #installClient}, {@link #adopt}, settings a static
      * {@code AiConfig} mutator built) and native clients bound by the
-     * application are not: they belong to the caller. The process default is
-     * never closed.
+     * application are not: they belong to the caller. The runtime and
+     * embedding-runtime instances this environment loaded, including ones a
+     * reset dropped that are still in use, are closed
+     * ({@link AgentRuntime#close()}, {@link EmbeddingRuntime#close()}): each
+     * releases what it created itself, such as the HTTP client of
+     * {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}, letting a
+     * request already sent finish. A runtime instance the application created
+     * itself is not. The process default is never closed.
      */
     @Override
     public void close() {

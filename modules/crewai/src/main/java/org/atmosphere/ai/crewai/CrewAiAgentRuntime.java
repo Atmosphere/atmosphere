@@ -104,6 +104,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         resolvedConfig.set(config);
         var client = new HttpSseSidecarClient(config);
         if (!client.health()) {
+            client.shutdown();
             logger.warn("CrewAI sidecar at {} did not respond OK to /health within {}ms; "
                             + "runtime stays unavailable until the sidecar is reachable.",
                     config.baseUrl(), config.healthTimeout().toMillis());
@@ -114,10 +115,14 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         return client;
     }
 
+    /**
+     * Shut down the HTTP client of a sidecar client this runtime built: a
+     * request already sent completes, a later one fails.
+     */
     @Override
-    public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null) {
-            setNativeClient(createNativeClient(settings));
+    protected void closeNativeClient(CrewAiSidecarClient client) {
+        if (client instanceof HttpSseSidecarClient http) {
+            http.shutdown();
         }
     }
 
@@ -137,7 +142,11 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
             return false;
         }
         var probeClient = new HttpSseSidecarClient(configOpt.get());
-        return probeClient.health();
+        try {
+            return probeClient.health();
+        } finally {
+            probeClient.shutdown();
+        }
     }
 
     @Override

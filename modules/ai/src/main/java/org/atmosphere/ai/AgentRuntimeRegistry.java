@@ -20,10 +20,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * The {@link AgentRuntime}s of one {@link AiEnvironment}: its own instances,
@@ -39,6 +42,12 @@ import java.util.ServiceLoader;
  *
  * <p>The resolution is cached until {@link #reset()}: instances handed out
  * before keep working, the next resolution loads new ones.</p>
+ *
+ * <p>The registry owns the instances it loads: an instance it does not keep
+ * (unavailable, or not the one the knob selects) is
+ * {@link AgentRuntime#close() closed} right away, and every instance it handed
+ * out, including the ones a {@link #reset()} dropped that are still in use,
+ * is closed when the environment closes.</p>
  */
 public final class AgentRuntimeRegistry {
 
@@ -49,6 +58,13 @@ public final class AgentRuntimeRegistry {
     // Benign double-init on first access: both threads produce an equivalent
     // ServiceLoader result, and the last write wins.
     private volatile List<AgentRuntime> cached;
+    /**
+     * The instances this registry handed out and has not closed yet, held
+     * weakly: one a {@link #reset()} dropped and nobody uses any more is
+     * collected with its resources instead of waiting for the close. Bounded
+     * by the instances still referenced; guarded by {@code this}.
+     */
+    private final Set<AgentRuntime> handedOut = Collections.newSetFromMap(new WeakHashMap<>());
 
     AgentRuntimeRegistry(AiEnvironment environment, boolean attach) {
         this.environment = environment;
@@ -87,20 +103,44 @@ public final class AgentRuntimeRegistry {
         // checked (a third-party one that ignores attach) reads this
         // environment's settings.
         var binding = AiEnvironment.bind(environment);
+        var loaded = new ArrayList<AgentRuntime>();
         try {
-            result = load();
+            result = load(loaded);
+        } catch (RuntimeException e) {
+            loaded.forEach(AgentRuntimeRegistry::close);
+            throw e;
         } finally {
             binding.close();
         }
-        cached = result;
+        for (var runtime : loaded) {
+            if (!containsInstance(result, runtime)) {
+                close(runtime);
+            }
+        }
+        synchronized (this) {
+            // The environment closed while this resolution loaded: clear()
+            // ran before these instances were handed out, so close them here.
+            if (environment.isClosed()) {
+                result.forEach(AgentRuntimeRegistry::close);
+                throw new IllegalStateException("AI environment " + environment.name()
+                        + " is closed: its application stopped");
+            }
+            handedOut.addAll(result);
+            cached = result;
+        }
         return result;
     }
 
-    private List<AgentRuntime> load() {
+    /**
+     * @param loaded receives every instance created, kept or not, so the
+     *               caller closes the ones it does not hand out
+     */
+    private List<AgentRuntime> load(List<AgentRuntime> loaded) {
         var all = new ArrayList<AgentRuntime>();
         var unavailable = new ArrayList<String>();
         try {
             for (var runtime : ServiceLoader.load(AgentRuntime.class)) {
+                loaded.add(runtime);
                 try {
                     if (attach) {
                         runtime.attach(environment);
@@ -125,6 +165,7 @@ public final class AgentRuntimeRegistry {
 
         if (all.isEmpty()) {
             var builtIn = new BuiltInAgentRuntime();
+            loaded.add(builtIn);
             if (attach) {
                 builtIn.attach(environment);
             }
@@ -164,9 +205,37 @@ public final class AgentRuntimeRegistry {
         cached = null;
     }
 
-    /** Drops the instances when the environment closes. */
+    /**
+     * Drops the instances when the environment closes and closes every one
+     * this registry handed out, once. Runs after the environment is marked
+     * closed, so a resolution racing with it either handed its instances out
+     * first (and they are closed here) or closes them itself.
+     */
     void clear() {
-        cached = null;
+        List<AgentRuntime> toClose;
+        synchronized (this) {
+            cached = null;
+            toClose = List.copyOf(handedOut);
+            handedOut.clear();
+        }
+        toClose.forEach(AgentRuntimeRegistry::close);
+    }
+
+    private static boolean containsInstance(List<AgentRuntime> runtimes, AgentRuntime runtime) {
+        for (var candidate : runtimes) {
+            if (candidate == runtime) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void close(AgentRuntime runtime) {
+        try {
+            runtime.close();
+        } catch (RuntimeException e) {
+            logger.warn("AgentRuntime {} failed to close: {}", runtime.name(), e.getMessage(), e);
+        }
     }
 
     /**

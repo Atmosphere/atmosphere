@@ -39,6 +39,17 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     private volatile C nativeClient;
     /**
+     * Whether {@link #nativeClient} is the one {@link #configure} had
+     * {@link #createNativeClient} build, which {@link #close()} releases,
+     * rather than one handed to {@link #setNativeClient}. Written with
+     * {@link #nativeClient} under {@link #clientLock}.
+     */
+    private volatile boolean nativeClientCreated;
+    /** Guards the creation of {@link #nativeClient} against {@link #close()}. */
+    private final Object clientLock = new Object();
+    /** Set once by {@link #close()}, under {@link #clientLock}. */
+    private volatile boolean closed;
+    /**
      * Per-agent clients for agents with {@link AiConfig#agentScoped scoped}
      * settings (workspace RUNTIME.md, registre#39). Keyed by agent id and
      * rebuilt when the agent's settings instance changes; bounded by the
@@ -94,9 +105,15 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         return nativeClient;
     }
 
-    /** Sets the native client instance. */
+    /**
+     * Sets the native client instance. A client set here is the caller's:
+     * {@link #close()} does not release it.
+     */
     protected void setNativeClient(C client) {
-        this.nativeClient = client;
+        synchronized (clientLock) {
+            this.nativeClient = client;
+            this.nativeClientCreated = false;
+        }
     }
 
     /**
@@ -149,6 +166,70 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * @return the native client, or {@code null} if configuration is not possible
      */
     protected abstract C createNativeClient(AiConfig.LlmSettings settings);
+
+    /**
+     * Release a client {@link #createNativeClient} returned to this instance
+     * ({@link #configure}, or an agent's scoped settings), called once for
+     * each by {@link #close()}. Override it when {@code createNativeClient}
+     * builds the client and the client holds resources (an HTTP client, a
+     * connection pool), letting a request already sent finish. A runtime
+     * whose {@code createNativeClient} returns a client the application bound
+     * keeps the default, which does nothing: that client is the application's.
+     * A failure is logged and does not stop the other clients from closing.
+     *
+     * @param client a client this instance built, never {@code null}
+     */
+    protected void closeNativeClient(C client) {
+    }
+
+    /**
+     * Release the clients {@link #createNativeClient} built for this instance
+     * through {@link #closeNativeClient}, once. A client set with
+     * {@link #setNativeClient} or {@link #configureNativeClient} is left
+     * alone. Afterwards this instance builds no new client: a dispatch that
+     * would need one fails with an {@link IllegalStateException}, one that
+     * uses a client set by the application still runs.
+     */
+    @Override
+    public void close() {
+        C created;
+        synchronized (clientLock) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            created = nativeClientCreated ? nativeClient : null;
+        }
+        for (var agentId : agentClients.keySet()) {
+            var removed = agentClients.remove(agentId);
+            if (removed != null) {
+                closeCreated(removed.client());
+            }
+        }
+        if (created != null) {
+            closeCreated(created);
+        }
+    }
+
+    // The scoped clients are stored as Object; each one came from
+    // createNativeClient, so it is a C.
+    @SuppressWarnings("unchecked")
+    private void closeCreated(Object client) {
+        if (client == null) {
+            return;
+        }
+        try {
+            closeNativeClient((C) client);
+        } catch (RuntimeException e) {
+            lifecycleLogger.warn("{}: failed to close its native client: {}", name(), e.getMessage(), e);
+        }
+    }
+
+    private void ensureNotClosed() {
+        if (closed) {
+            throw new IllegalStateException(name() + " is closed: its application stopped");
+        }
+    }
 
     /**
      * Performs the actual agent execution after the native client has been resolved.
@@ -361,12 +442,26 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         return 100;
     }
 
+    /**
+     * Build the native client with {@link #createNativeClient} unless one is
+     * set; {@link #close()} releases a client built here.
+     *
+     * @throws IllegalStateException when this instance is closed and has no client
+     */
     @Override
     public void configure(AiConfig.LlmSettings settings) {
         if (nativeClient != null) {
             return;
         }
-        nativeClient = createNativeClient(settings);
+        synchronized (clientLock) {
+            if (nativeClient != null) {
+                return;
+            }
+            ensureNotClosed();
+            var created = createNativeClient(settings);
+            nativeClient = created;
+            nativeClientCreated = created != null;
+        }
     }
 
     /**
@@ -481,10 +576,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         var aiEnvironment = environment();
         var scopedSettings = aiEnvironment.agentScoped(agentId);
         if (scopedSettings != null) {
+            ensureNotClosed();
             var scoped = agentClients.compute(agentId, (id, existing) ->
                     existing != null && existing.settings() == scopedSettings
                             ? existing
                             : new ScopedClient(scopedSettings, createNativeClient(scopedSettings)));
+            // close() ran while the client was built: it may have missed it.
+            if (closed) {
+                if (agentClients.remove(agentId, scoped)) {
+                    closeCreated(scoped.client());
+                }
+                ensureNotClosed();
+            }
             return (C) scoped.client();
         }
         var client = nativeClient;

@@ -59,6 +59,8 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
 
     private final URI baseUrl;
     private final HttpClient httpClient;
+    /** Whether {@link #httpClient} was built here, not injected. */
+    private final boolean ownsHttpClient;
     private final Duration healthTimeout;
     private final Duration requestTimeout;
 
@@ -75,15 +77,31 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
         this(config, HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(config.healthTimeout())
-                .build());
+                .build(), true);
     }
 
     HttpSseSidecarClient(CrewAiSidecarConfig config, HttpClient httpClient) {
+        this(config, httpClient, false);
+    }
+
+    private HttpSseSidecarClient(CrewAiSidecarConfig config, HttpClient httpClient, boolean ownsHttpClient) {
         Objects.requireNonNull(config, "config");
         this.baseUrl = stripTrailingSlash(config.baseUrl());
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
+        this.ownsHttpClient = ownsHttpClient;
         this.healthTimeout = config.healthTimeout();
         this.requestTimeout = config.requestTimeout();
+    }
+
+    /**
+     * Start an orderly shutdown of the HTTP client this client built: requests
+     * already sent complete, later ones fail. An injected client belongs to the
+     * caller and is left running. Idempotent.
+     */
+    public void shutdown() {
+        if (ownsHttpClient) {
+            httpClient.shutdown();
+        }
     }
 
     @Override

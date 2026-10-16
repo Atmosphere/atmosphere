@@ -157,11 +157,13 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         return builder.build();
     }
 
+    /**
+     * Shut down the HTTP client of a {@link AnthropicMessagesClient} this runtime built:
+     * a request already sent completes, a later one fails.
+     */
     @Override
-    public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null) {
-            setNativeClient(createNativeClient(settings));
-        }
+    protected void closeNativeClient(AnthropicMessagesClient client) {
+        client.shutdown();
     }
 
     @Override

@@ -89,6 +89,24 @@ public interface AgentRuntime {
     }
 
     /**
+     * Release what this instance created for itself, such as a native client
+     * it built from the settings ({@link AbstractAgentRuntime} shuts those
+     * down through {@code closeNativeClient}). The {@link AiEnvironment} that
+     * loaded the instance calls it when it closes, and right away on an
+     * instance it loaded but does not keep (unavailable, or not the one
+     * {@link AiConfig#RUNTIME_PROPERTY} selected). A request already sent
+     * should be allowed to finish; a later one may fail. It must leave alone
+     * what the instance did not create: a native client the application bound
+     * ({@link AiEnvironment#bindClient}) or offered, the settings' client
+     * ({@link AiEnvironment#close()} handles the clients the environment
+     * built), and anything shared with another instance. A provider that
+     * hands the same instance to several {@code ServiceLoader} lookups keeps
+     * the default, which does nothing. Calling it again does nothing.
+     */
+    default void close() {
+    }
+
+    /**
      * Capabilities supported by this runtime. Used for smart model routing,
      * tool calling negotiation, and feature discovery.
      *

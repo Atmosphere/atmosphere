@@ -74,6 +74,8 @@ public abstract class AbstractSseLlmClient {
     protected final String apiKey;
     /** Transport client; never null (defaulted by the carrier when unset). */
     protected final HttpClient httpClient;
+    /** Whether {@link #httpClient} was built here, not given in the carrier. */
+    private final boolean ownsHttpClient;
     /** Per-request timeout applied to the {@link HttpRequest}. */
     protected final Duration timeout;
     /** Default {@code max_tokens} ceiling forwarded on the request body. */
@@ -129,6 +131,7 @@ public abstract class AbstractSseLlmClient {
                 ? config.baseUrl().substring(0, config.baseUrl().length() - 1)
                 : config.baseUrl();
         this.apiKey = config.apiKey();
+        this.ownsHttpClient = config.httpClient() == null;
         this.httpClient = config.httpClient() != null ? config.httpClient()
                 : HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
         this.timeout = config.timeout();
@@ -136,6 +139,18 @@ public abstract class AbstractSseLlmClient {
         this.customHeaders = Map.copyOf(config.customHeaders());
         this.retryPolicy = config.retryPolicy() != null ? config.retryPolicy()
                 : RetryPolicy.DEFAULT;
+    }
+
+    /**
+     * Start an orderly shutdown of the HTTP client this client built: requests
+     * already sent complete, later ones fail. A client given in the carrier
+     * ({@link SseClientConfig#httpClient()}) belongs to the caller and is left
+     * running. Idempotent.
+     */
+    public void shutdown() {
+        if (ownsHttpClient) {
+            httpClient.shutdown();
+        }
     }
 
     /** Visible for tests. */

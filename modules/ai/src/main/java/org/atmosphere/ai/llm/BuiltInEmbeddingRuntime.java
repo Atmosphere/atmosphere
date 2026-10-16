@@ -67,14 +67,18 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
     private static final String DEFAULT_MODEL = "text-embedding-3-small";
 
     private volatile String modelOverride;
-    private final HttpClient httpClient;
+    /** Guards {@link #httpClient} and {@link #closed}. */
+    private final Object clientLock = new Object();
+    /**
+     * Built on the first request, so an instance that is only asked whether it
+     * is available (and dropped when it is not) starts no selector thread.
+     */
+    private HttpClient httpClient;
+    private boolean closed;
     /** The application this instance serves; {@code null} until {@link #attach}. */
     private volatile AiEnvironment environment;
 
     public BuiltInEmbeddingRuntime() {
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
     }
 
     /**
@@ -168,7 +172,7 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
                     .timeout(Duration.ofSeconds(60))
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
-            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            var response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 throw new IOException("Embedding API returned HTTP " + response.statusCode()
                         + ": " + response.body());
@@ -181,6 +185,44 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
             throw new RuntimeException("Embedding request failed: " + e.getMessage(), e);
         } catch (JacksonException e) {
             throw new RuntimeException("Embedding response parse failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Shut down the HTTP client this instance built: a request already sent
+     * completes, a later one fails. Idempotent.
+     */
+    @Override
+    public void close() {
+        HttpClient client;
+        synchronized (clientLock) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            client = httpClient;
+        }
+        if (client != null) {
+            client.shutdown();
+        }
+    }
+
+    /**
+     * The HTTP client of this instance, built on first use.
+     *
+     * @throws IllegalStateException once {@link #close()} ran
+     */
+    HttpClient httpClient() {
+        synchronized (clientLock) {
+            if (closed) {
+                throw new IllegalStateException("Built-in embedding runtime is closed: its application stopped");
+            }
+            if (httpClient == null) {
+                httpClient = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(30))
+                        .build();
+            }
+            return httpClient;
         }
     }
 

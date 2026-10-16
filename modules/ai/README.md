@@ -688,8 +688,14 @@ registers (or the Kotlin `registerAgent` DSL) creates it from the framework's in
 framework's destroy closes it. Closing
 one drops its runtime instances and shuts down the HTTP clients of the LLM settings it built itself,
 also once a client was installed over them (the starters' routing client wraps the built one), but not
-a client the application installed or gave it, nor one the process default still reaches; the
-other applications are untouched. Framework code reads it with
+a client the application installed or gave it, nor one the process default still reaches. It also
+closes (`AgentRuntime.close()`, `EmbeddingRuntime.close()`, no-ops by default) the runtime and
+embedding-runtime instances it loaded, including ones a reset dropped that are still in use: the
+built-in embedding runtime shuts down its HTTP client, and the Anthropic, Cohere and CrewAI runtimes
+the HTTP client of the native client they built from the settings. A request already sent finishes;
+a later one fails. A native client or embedding model the application bound or offered is never
+closed, nor is a runtime instance the application created itself. The other applications are
+untouched. Framework code reads it with
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 
 The static API (`AiConfig.get()`, `AiConfig.knob(...)`, `AiConfig.configure(...)`,

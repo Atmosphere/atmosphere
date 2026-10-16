@@ -53,6 +53,21 @@ public interface EmbeddingRuntime {
     }
 
     /**
+     * Release what this instance created for itself, such as the HTTP client
+     * of {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}. The
+     * {@link AiEnvironment} that loaded the instance calls it when it closes,
+     * and right away on an instance it loaded but does not keep (an unavailable
+     * one). A request already sent should be allowed to finish; a later one
+     * may fail. It must leave alone what the instance did not create: an
+     * embedding model the application bound ({@link AiEnvironment#bindClient})
+     * or offered, and anything shared with another instance. A provider that
+     * hands the same instance to several {@code ServiceLoader} lookups keeps
+     * the default, which does nothing. Calling it again does nothing.
+     */
+    default void close() {
+    }
+
+    /**
      * @return embedding dimension produced by the configured model, or {@code -1}
      * when the runtime cannot answer without making a network call.
      */
