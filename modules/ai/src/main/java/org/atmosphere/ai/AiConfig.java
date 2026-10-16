@@ -1010,7 +1010,15 @@ public final class AiConfig {
      * @param lookup the host's configuration, by property name; returns
      *               {@code null} for an unset property
      * @return the handle that uninstalls this host configuration
+     * @deprecated a host creates its application's environment instead,
+     *             {@link AiEnvironment#create(java.util.function.Function)} (or
+     *             {@link AiEnvironment#create(org.atmosphere.cpr.AtmosphereConfig, java.util.function.Function)}
+     *             once it has a framework), and closes it when it stops: its knobs are then that
+     *             application's, and while it is open the process default reads them too, as it
+     *             reads an installation. Kept for hosts that have not moved; not scheduled for
+     *             removal in 4.x.
      */
+    @Deprecated
     public static HostConfig installHostConfig(java.util.function.Function<String, String> lookup) {
         java.util.Objects.requireNonNull(lookup, "lookup");
         var values = new java.util.LinkedHashMap<String, String>();
