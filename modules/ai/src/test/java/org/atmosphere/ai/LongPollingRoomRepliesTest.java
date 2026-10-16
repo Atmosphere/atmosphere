@@ -905,6 +905,136 @@ class LongPollingRoomRepliesTest {
     }
 
     /**
+     * The session broadcasting a room run's reply was opened on the prompter's
+     * connection, and the handler's departure cleanup
+     * ({@link DefaultStreamingSession#cleanupResource}) closed it when that
+     * connection went away: the run went on into its buffer, but the members
+     * that never left received nothing more of the reply.
+     */
+    @Test
+    void aMemberThatNeverLeftReceivesTheRestOfARoomRunWhosePrompterLostItsConnection() {
+        LongPollingRoomReplies.install(room);
+        var prompter = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var member = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", prompter.uuid(), new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(prompter), run.replayBuffer());
+        session.send("one.");
+        awaitFrames(member, 1);
+
+        // The handler's cleanup of the departed prompter, then its departure from the room.
+        DefaultStreamingSession.cleanupResource(prompter.uuid());
+        room.removeAtmosphereResource(prompter);
+        session.send("two.");
+        session.send("three.");
+        session.complete();
+        awaitComplete(member);
+
+        assertEquals(List.of("streaming-text:one.", "streaming-text:two.", "streaming-text:three.", "complete"),
+                frames(member), "the room's reply reaches the members still present through complete");
+        assertTrue(session.isClosed(), "the run's terminal frame closes its room session");
+    }
+
+    /**
+     * A prompter that lost its connection and reconnects over WebSocket or SSE
+     * under its tracking id with the run id is written the backlog and left to
+     * the room for the rest: the room session the departure had closed sent it
+     * nothing more, not even {@code complete}.
+     */
+    @ParameterizedTest
+    @EnumSource(value = AtmosphereResource.TRANSPORT.class, names = {"WEBSOCKET", "SSE"})
+    void aPrompterReconnectingAfterALostConnectionReceivesTheRestOfItsRoomRunOnce(
+            AtmosphereResource.TRANSPORT transport) {
+        LongPollingRoomReplies.install(room);
+        var prompterId = "prompter-" + UUID.randomUUID();
+        var lost = subscriber(room, AtmosphereResource.TRANSPORT.WEBSOCKET, prompterId);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", prompterId, new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(lost), run.replayBuffer());
+        session.send("one.");
+        awaitFrames(lost, 1);
+        DefaultStreamingSession.cleanupResource(prompterId);
+        room.removeAtmosphereResource(lost);
+        written.remove(prompterId);
+
+        var member = subscriber(room, transport, prompterId);
+        var sink = new StringWriter();
+        assertEquals(1, RunReattachSupport.replayPendingRun(streamingReattach(prompterId, transport, run.runId(), sink),
+                registry), "it is replayed what it missed");
+        session.send("two.");
+        session.send("three.");
+        session.complete();
+        awaitComplete(member);
+
+        assertEquals(List.of("streaming-text:one."), describe(lines(sink)));
+        assertEquals(List.of("streaming-text:two.", "streaming-text:three.", "complete"), frames(member),
+                "the reconnected prompter receives the rest of its run once, through complete");
+    }
+
+    /**
+     * The long-polling prompter of a room run whose connection was lost polls
+     * with the run id: the poll waits on the run without being written its
+     * frames, which the room keeps for it. That holds only while the room
+     * session goes on broadcasting after the prompter's departure.
+     */
+    @Test
+    void aLongPollingPrompterThatLostItsConnectionReceivesTheRestOfItsRoomRunThroughTheRoom()
+            throws InterruptedException {
+        LongPollingRoomReplies.install(room);
+        var prompter = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(prompter);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", prompter.uuid(), new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+        var buffer = run.replayBuffer();
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(prompter), buffer);
+        session.sendMetadata(RunReattachSupport.RUN_ID_HEADER, run.runId());
+        session.send("one.");
+        awaitFrames(socket, 2);
+        assertEquals(List.of("streaming-text:one."), nextPoll(prompter).stream()
+                .filter(f -> f.startsWith("streaming-text")).toList());
+
+        var grace = Duration.ofMillis(300);
+        var cancelled = new AtomicBoolean();
+        System.setProperty(AiConfig.REATTACH_GRACE_PROPERTY, grace.toMillis() + "ms");
+        try {
+            // The handler's departure of a lost connection: the run waits out the grace.
+            DefaultStreamingSession.cleanupResource(prompter.uuid());
+            LongPollingReplies.discard(prompter.uuid(), false);
+            assertTrue(RunDisconnectGrace.detach(run.runId(), grace, () -> cancelled.set(true),
+                    () -> buffer.subscriberCount() > 0));
+            var sink = new StringWriter();
+            var resumed = new ArrayList<String>();
+            var poll = suspendedPoll(prompter.uuid(), run.runId(), sink, resumed);
+            room.addAtmosphereResource(prompter);
+            assertEquals(0, RunReattachSupport.replayPendingRun(poll, registry), "the prompter received all of the run");
+            assertEquals(1, buffer.subscriberCount(), "its waiting poll listens to the run");
+
+            session.send("two.");
+            session.complete();
+            assertTrue(session.isClosed(), "the run's terminal frame closes its room session");
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            var received = new ArrayList<String>();
+            while (System.nanoTime() < deadline && !received.contains("complete")) {
+                received.addAll(frames(prompter).stream().filter(f -> !f.startsWith("metadata")).toList());
+                written.remove(prompter.uuid());
+                received.addAll(nextPoll(prompter));
+                pause();
+            }
+            assertEquals(List.of("streaming-text:two.", "complete"), received,
+                    "the prompter's polls receive the rest of the run through the room, through complete");
+            assertEquals("", sink.toString(), "the poll waiting on the run is written none of its frames");
+            assertFalse(cancelled.get(), "the waiting poll held the grace off");
+        } finally {
+            System.clearProperty(AiConfig.REATTACH_GRACE_PROPERTY);
+            RunDisconnectGrace.runEnded(run.runId());
+        }
+    }
+
+    /**
      * Every long-polling member of a room receives the run id with the room's
      * reply, and its polls carry it. A run remembered what 64 tracking ids
      * received and were handed, the first ones: the rest of a larger room were

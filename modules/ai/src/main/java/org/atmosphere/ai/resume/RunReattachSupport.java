@@ -42,7 +42,9 @@ import org.slf4j.LoggerFactory;
  * {@code complete} / {@code error} frame; the subscription ends with that
  * frame or when the reconnected resource disconnects. A resource suspended on
  * the broadcaster of the run's {@code broadcastReply} room is written the
- * backlog only: the room broadcasts it the rest of the run. A run that already
+ * backlog only: the room broadcasts it the rest of the run, whose room session
+ * belongs to the run and outlives the connection of its prompter
+ * ({@code DefaultStreamingSession.cleanupResource} leaves it open). A run that already
  * finished stays replayable for the registry TTL
  * ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the whole
  * tail. A long-polling poll is answered once: it gets the events of the run

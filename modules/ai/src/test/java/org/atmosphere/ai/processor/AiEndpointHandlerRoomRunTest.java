@@ -1,0 +1,321 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.ai.processor;
+
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiCapability;
+import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiInterceptor;
+import org.atmosphere.ai.DefaultStreamingSession;
+import org.atmosphere.ai.ExecutionHandle;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.filter.AiStreamMessage;
+import org.atmosphere.ai.resume.RunDisconnectGrace;
+import org.atmosphere.ai.resume.RunRegistryHolder;
+import org.atmosphere.config.managed.AnnotatedLifecycle;
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.cpr.RawMessage;
+import org.atmosphere.util.ExecutorsFactory;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+
+/**
+ * The run of an {@code @AiEndpoint(broadcastReply = true)} turn owns the
+ * session that broadcasts its reply to the room. The prompter's connection
+ * going away closed that session with it, so the room's members that never
+ * left stopped receiving the reply, and a run cut short never told the room it
+ * ended.
+ */
+// Real AtmosphereResourceImpl subscribers through the deprecated 6-arg constructor,
+// as AiEndpointHandlerBroadcastReplyTest does: no non-deprecated public constructor
+// builds a standalone resource for a unit test.
+@SuppressWarnings("deprecation")
+class AiEndpointHandlerRoomRunTest {
+
+    private static final String GRACE_PROPERTY = "atmosphere.ai.reattach.grace";
+    private static final String PATH = "/ai/room-run";
+
+    static final AtomicReference<String> RUN_ID = new AtomicReference<>();
+
+    private AtmosphereConfig config;
+    private DefaultBroadcasterFactory factory;
+    private Broadcaster room;
+    private AiEndpointHandler handler;
+    private final Map<String, List<String>> written = new ConcurrentHashMap<>();
+
+    @BeforeEach
+    void setUp() {
+        RunRegistryHolder.reset();
+        RUN_ID.set(null);
+        config = new AtmosphereFramework().getAtmosphereConfig();
+        factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        room = factory.get(DefaultBroadcaster.class, PATH + "/" + UUID.randomUUID());
+    }
+
+    @AfterEach
+    void tearDown() {
+        System.clearProperty(GRACE_PROPERTY);
+        if (handler != null) {
+            handler.destroy();
+        }
+        RunRegistryHolder.reset();
+        room.destroy();
+        factory.destroy();
+        ExecutorsFactory.reset(config);
+    }
+
+    @Test
+    void aMemberThatNeverLeftReceivesTheRestOfTheReplyAfterThePromptersConnectionIsLost() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var member = subscriber(null);
+        var prompter = startRun(runtime, null);
+
+        lose(prompter);
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()), "a lost connection detaches the run for the grace");
+        runtime.finish();
+        awaitTerminal(member);
+
+        assertEquals(List.of("streaming-text:partial ", "streaming-text:rest", "complete"), text(member),
+                "the room's members receive the whole reply through complete, the prompter gone or not");
+    }
+
+    @Test
+    void anExpiredGraceEndsTheRoomRunWithTheCancelledFrameAndClosesItsSession() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var member = subscriber(null);
+        var prompter = startRun(runtime, null);
+
+        lose(prompter);
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "the grace expires and cancels the model call");
+        awaitTerminal(member);
+
+        assertEquals(List.of("streaming-text:partial ", "cancelled:disconnect"), text(member),
+                "the room is told the run was cut short");
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
+                "the run's end closed the session that broadcast it to the room");
+    }
+
+    @Test
+    void aPrompterThatLeavesCancelsTheRoomRunWithTheCancelledFrameToTheRoom() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var member = subscriber(null);
+        var prompter = startRun(runtime, null);
+
+        // atmosphere.js closes with 1000 on an explicit disconnect: a leave, cancelled at once.
+        handler.onStateChange(new AtmosphereResourceEventImpl(prompter, false, false, true, null)
+                .webSocketCloseCode(1000));
+        room.removeAtmosphereResource(prompter);
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "a prompter that left is not waited for");
+        awaitTerminal(member);
+
+        assertEquals(List.of("streaming-text:partial ", "cancelled:disconnect"), text(member),
+                "the room is told the run was cut short");
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
+                "the run's end closed the session that broadcast it to the room");
+    }
+
+    private void lose(AtmosphereResourceImpl prompter) throws Exception {
+        handler.onStateChange(new AtmosphereResourceEventImpl(prompter, true, false));
+        room.removeAtmosphereResource(prompter);
+    }
+
+    /** Starts a run in the room, prompted by a new member authenticated as {@code user} ({@code null}: anonymous). */
+    private AtmosphereResourceImpl startRun(HeldRuntime runtime, String user) throws Exception {
+        handler = new AiEndpointHandler(new HeldEndpoint(),
+                HeldEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
+                30_000L, "", PATH, runtime, List.<AiInterceptor>of(), null,
+                AnnotatedLifecycle.scan(HeldEndpoint.class));
+        handler.setBroadcastReply(true);
+        var prompter = subscriber(user);
+        handler.dispatchPrompt(prompter, "explain");
+        assertTrue(runtime.streaming.await(10, TimeUnit.SECONDS), "the model call must be in flight");
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (RUN_ID.get() == null && System.nanoTime() < deadline) {
+            Thread.sleep(5);
+        }
+        return prompter;
+    }
+
+    /** A member of the room authenticated as {@code user} ({@code null}: anonymous); what it receives is recorded. */
+    private AtmosphereResourceImpl subscriber(String user) {
+        var request = AtmosphereRequestImpl.newInstance();
+        if (user != null) {
+            request.setAttribute("ai.userId", user);
+        }
+        var r = new AtmosphereResourceImpl(config, room, request, AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class), new Recorder());
+        room.addAtmosphereResource(r);
+        return r;
+    }
+
+    /** Records what the broadcaster writes to each subscriber. */
+    private final class Recorder implements AtmosphereHandler {
+        @Override
+        public void onRequest(AtmosphereResource r) {
+        }
+
+        @Override
+        public void onStateChange(AtmosphereResourceEvent e) {
+            var msg = e.getMessage();
+            var text = msg instanceof RawMessage raw ? String.valueOf(raw.message()) : String.valueOf(msg);
+            written.computeIfAbsent(e.getResource().uuid(), k -> new CopyOnWriteArrayList<>()).add(text);
+        }
+
+        @Override
+        public void destroy() {
+        }
+    }
+
+    /** The text and terminal frames {@code r} was written, as {@code type:data}, in order. */
+    private List<String> text(AtmosphereResource r) {
+        return describe(written.getOrDefault(r.uuid(), List.of())).stream()
+                .filter(f -> f.startsWith("streaming-text") || f.startsWith("complete")
+                        || f.startsWith("cancelled") || f.startsWith("error"))
+                .toList();
+    }
+
+    private String sessionIdOf(AtmosphereResource r) {
+        for (var frame : written.getOrDefault(r.uuid(), List.of())) {
+            var msg = AiStreamMessage.parse(frame);
+            if (msg != null && "streaming-text".equals(msg.type())) {
+                return msg.sessionId();
+            }
+        }
+        throw new AssertionError("no text frame for " + r.uuid());
+    }
+
+    private void awaitTerminal(AtmosphereResource r) throws InterruptedException {
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            var frames = text(r);
+            if (!frames.isEmpty() && (frames.get(frames.size() - 1).startsWith("complete")
+                    || frames.get(frames.size() - 1).startsWith("cancelled"))) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("no terminal frame for " + r.uuid() + ": " + written.get(r.uuid()));
+    }
+
+    private static List<String> describe(List<String> json) {
+        var out = new ArrayList<String>();
+        for (var frame : json) {
+            var msg = AiStreamMessage.parse(frame);
+            out.add(msg == null ? frame : msg.data() == null || msg.data().isEmpty() ? msg.type()
+                    : msg.type() + ":" + msg.data());
+        }
+        return out;
+    }
+
+    /**
+     * Streams a token and holds the call open until {@link #finish()} streams
+     * the rest and completes it, or a cancel completes it as runtime bridges do.
+     */
+    static final class HeldRuntime implements AgentRuntime {
+        final CountDownLatch streaming = new CountDownLatch(1);
+        final CountDownLatch cancelled = new CountDownLatch(1);
+        private volatile StreamingSession session;
+        private volatile ExecutionHandle.Settable handle;
+
+        @Override
+        public String name() { return "held"; }
+
+        @Override
+        public boolean isAvailable() { return true; }
+
+        @Override
+        public int priority() { return 0; }
+
+        @Override
+        public void configure(AiConfig.LlmSettings settings) { }
+
+        @Override
+        public Set<AiCapability> capabilities() {
+            return Set.of(AiCapability.TEXT_STREAMING);
+        }
+
+        @Override
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            throw new UnsupportedOperationException("dispatched through executeWithHandle");
+        }
+
+        @Override
+        public ExecutionHandle executeWithHandle(AgentExecutionContext context, StreamingSession session) {
+            this.session = session;
+            var settable = new ExecutionHandle.Settable(() -> {
+                session.complete();
+                cancelled.countDown();
+            });
+            this.handle = settable;
+            session.send("partial ");
+            streaming.countDown();
+            return settable;
+        }
+
+        /** The model finishes its answer. */
+        void finish() {
+            session.send("rest");
+            session.complete();
+            handle.complete();
+        }
+    }
+
+    @AiEndpoint(path = PATH, broadcastReply = true)
+    static final class HeldEndpoint {
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+            RUN_ID.set(session.runId().orElseThrow());
+            session.stream(message);
+        }
+    }
+}

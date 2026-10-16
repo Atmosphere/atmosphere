@@ -260,6 +260,15 @@ public final class DefaultStreamingSession implements StreamingSession {
      * already stripped the {@link AtmosphereResource} from the event but the
      * event still carries the UUID it was created with.
      *
+     * <p>A session that broadcasts to the room ({@link StreamingSessions#startRoomBroadcast})
+     * is left open: its frames go to every member of the room, not to the
+     * departing resource that opened it, so the members still present keep
+     * receiving the reply. It belongs to whoever started it (for an
+     * {@code @AiEndpoint(broadcastReply = true)} turn, the run), and is closed
+     * by its own terminal frame ({@code complete}, {@code error}, or the
+     * {@code cancelled} frame of a run cut short) or, when it never sends one,
+     * reaped by the idle sweep ({@link #sweepExpired}).</p>
+     *
      * @param resourceUuid the atmosphere resource UUID (may be null; no-op)
      */
     public static void cleanupResource(String resourceUuid) {
@@ -272,7 +281,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             // session that already closed is broadcasting its terminal frame and
             // deregisters itself after it, so a filter deferring a frame past
             // that one still reads where the session's frames go.
-            if (resourceUuid.equals(session.resource.uuid())
+            if (!session.broadcastToRoom && resourceUuid.equals(session.resource.uuid())
                     && session.closed.compareAndSet(false, true)) {
                 SESSION_INSTANCES.remove(entry.getKey(), session);
                 SESSION_RESOURCES.remove(entry.getKey(), session.resource);

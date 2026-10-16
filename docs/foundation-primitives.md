@@ -91,7 +91,11 @@ missed, up to the buffer's bounded capacity (oldest-evicted). On WebSocket,
 SSE and streaming, a reattach to a run still in flight also receives the
 run's later events through its terminal frame, unless it is a member of the
 run's `broadcastReply` room, which the room's broadcast delivers them to
-already; a long-polling poll gets the
+already (the session broadcasting a room run's reply belongs to the run, not
+to the prompter's connection: it goes on broadcasting when that connection is
+lost or closed, and only the run's `complete`, `error` or `cancelled` frame —
+a run cancelled because its prompter left or its grace expired — closes it,
+the room receiving that frame too); a long-polling poll gets the
 buffered events its tracking id was not sent yet — as a replay, or in a
 long-polling reply of its own; after an event that does not count as sent
 (one it never received, a `broadcastReply` room frame not kept for it, or a
