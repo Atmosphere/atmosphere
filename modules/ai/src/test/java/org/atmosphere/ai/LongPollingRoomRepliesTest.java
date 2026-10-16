@@ -35,6 +35,7 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterListener;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -652,6 +653,91 @@ class LongPollingRoomRepliesTest {
         assertTrue(runA.claimNew(member.uuid()).isEmpty(), "the member received all of run a");
         assertEquals(List.of("b1.", ""), runB.claimNew(member.uuid()).stream().map(e -> e.payload()).toList(),
                 "b1. never reached the member: its replay hands it over, with what followed it");
+    }
+
+    @Test
+    void aBroadcasterAlreadyDestroyedIsNotMadeARoom() {
+        room.destroy();
+
+        LongPollingRoomReplies.install(room);
+
+        assertFalse(LongPollingRoomReplies.installed(room), "a destroyed broadcaster is no room");
+        assertTrue(roomParts(room).isEmpty(),
+                "nothing of a room is registered on a destroyed broadcaster: " + roomParts(room));
+    }
+
+    @Test
+    void aBroadcasterDestroyedWhileItsRoomIsSetUpLeavesNoRoomBehind() {
+        params.put(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, "true");
+        var racing = factory.get(DestroyedMidInstall.class,
+                "/atmosphere/racing/" + UUID.randomUUID());
+        try {
+            racing.armed = true;
+
+            LongPollingRoomReplies.install(racing);
+
+            assertTrue(racing.destroyedMidInstall, "the destroy raced the room's set-up");
+            assertFalse(LongPollingRoomReplies.installed(racing),
+                    "a room whose broadcaster was destroyed while it was set up leaves at once");
+            assertTrue(roomListeners().isEmpty(), "and its listener leaves the factory: " + roomListeners());
+        } finally {
+            racing.armed = false;
+            racing.destroyedMidInstall = false;
+            racing.destroy();
+        }
+    }
+
+    @Test
+    void theSweepRemovesARoomWhoseBroadcasterWasDestroyedUnseen() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        assertTrue(LongPollingRoomReplies.members(room).contains(member.uuid()));
+        // The room does not see the destroy, as when it raced the room's set-up.
+        roomParts(room).stream().filter(BroadcasterListener.class::isInstance)
+                .forEach(l -> room.removeBroadcasterListener((BroadcasterListener) l));
+        room.destroy();
+        assertTrue(LongPollingRoomReplies.installed(room), "the destroy went by unseen");
+
+        LongPollingRoomReplies.sweepExpired();
+
+        assertFalse(LongPollingRoomReplies.installed(room), "the sweep removes the room of a destroyed broadcaster");
+        assertTrue(LongPollingRoomReplies.mailboxes(member.uuid()).isEmpty(), "and its members");
+    }
+
+    /** The listeners and filters of a room registered on {@code broadcaster}. */
+    private static List<Object> roomParts(Broadcaster broadcaster) {
+        var parts = new ArrayList<Object>();
+        ((DefaultBroadcaster) broadcaster).broadcasterListeners().stream()
+                .filter(l -> l.getClass().getName().startsWith(LongPollingRoomReplies.class.getName() + "$"))
+                .forEach(parts::add);
+        broadcaster.getBroadcasterConfig().filters().stream()
+                .filter(f -> f.getClass().getName().startsWith(LongPollingRoomReplies.class.getName() + "$"))
+                .forEach(parts::add);
+        return parts;
+    }
+
+    /**
+     * A broadcaster destroyed by another thread while a room is set up on it:
+     * once armed, it reads as destroyed from the moment its configuration is
+     * first read, which setting up a room does after checking it is not destroyed.
+     */
+    public static final class DestroyedMidInstall extends DefaultBroadcaster {
+        volatile boolean armed;
+        volatile boolean destroyedMidInstall;
+
+        @Override
+        public BroadcasterConfig getBroadcasterConfig() {
+            if (armed) {
+                destroyedMidInstall = true;
+            }
+            return super.getBroadcasterConfig();
+        }
+
+        @Override
+        public boolean isDestroyed() {
+            return destroyedMidInstall || super.isDestroyed();
+        }
     }
 
     /** The listeners of the rooms registered on the factory. */
