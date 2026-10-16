@@ -100,7 +100,7 @@ registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
 kept). The events are the text and terminal frame the client received,
 whether the `@Prompt` method sent them or the runtime streamed them for
 `session.stream(...)`. A lost connection — a page reload included, over
-WebSocket, SSE, long-polling and streaming — leaves a model call still in flight
+WebSocket, WebTransport, SSE, long-polling and streaming — leaves a model call still in flight
 going for the reattach grace (system property `atmosphere.ai.reattach.grace`
 or env `LLM_REATTACH_GRACE`, default 30s): a
 reattach within it gets the rest of the run through `complete`. When the grace
