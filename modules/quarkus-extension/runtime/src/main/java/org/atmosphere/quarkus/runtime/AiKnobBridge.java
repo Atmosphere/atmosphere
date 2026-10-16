@@ -15,6 +15,7 @@
  */
 package org.atmosphere.quarkus.runtime;
 
+import io.quarkus.arc.Arc;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -32,6 +33,11 @@ import org.slf4j.LoggerFactory;
  * property or the knob's {@code LLM_*} environment variable still wins
  * ({@link AiEnvironment#knob(String)}).
  *
+ * <p>In a running Quarkus application the environment is the
+ * {@link AiEnvironment} CDI bean ({@link AtmosphereAiEnvironmentProducer}), so a
+ * bean that binds a native client into it binds it for the framework's
+ * application.</p>
+ *
  * <p>References {@code atmosphere-ai} types, an optional dependency: only
  * {@link AtmosphereBootstrap} calls it, once it found the module on the
  * classpath.</p>
@@ -44,17 +50,36 @@ final class AiKnobBridge {
     }
 
     /**
-     * Creates the environment, attaches it to {@code framework} before the
-     * framework initializes, and closes it when the framework is destroyed
-     * (Ownership, Correctness Invariant #1), so a dev-mode live reload, which
-     * gets a new framework, gets a new environment.
+     * Attaches the application's environment to {@code framework} before the
+     * framework initializes. In a running Quarkus application that is the
+     * {@link AiEnvironment} CDI bean, created now if no bean injected it yet;
+     * once it is attached, it is fired as a synchronous CDI event, so an
+     * observer ({@code void bind(@Observes AiEnvironment environment)}) binds
+     * its native clients before any {@code @AiEndpoint}, {@code @Agent} or
+     * {@code @Coordinator} registers and resolves its runtime, which happens
+     * before {@code @Startup} beans are created. The CDI container owns that
+     * environment and closes it when it shuts down. Without a CDI container (or
+     * without the bean), the environment is created here and closed when the
+     * framework is destroyed (Ownership, Correctness Invariant #1).
      *
      * @return the environment
+     * @throws RuntimeException what an observer of the environment threw; the
+     *                          caller fails the start
      */
     static AiEnvironment install(AtmosphereFramework framework) {
         var existing = AiEnvironment.find(framework.getAtmosphereConfig());
         if (existing.isPresent()) {
             return existing.get();
+        }
+        var container = Arc.container();
+        if (container != null && container.isRunning()) {
+            var bean = container.select(AiEnvironment.class);
+            if (bean.isResolvable()) {
+                var environment = bean.get();
+                environment.attachTo(framework.getAtmosphereConfig());
+                container.beanManager().getEvent().select(AiEnvironment.class).fire(environment);
+                return environment;
+            }
         }
         var config = ConfigProvider.getConfig();
         var environment = AiEnvironment.create(framework.getAtmosphereConfig(),

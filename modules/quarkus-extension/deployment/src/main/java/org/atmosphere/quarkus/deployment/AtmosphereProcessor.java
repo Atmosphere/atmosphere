@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
+import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.deployment.Capabilities;
 import io.quarkus.deployment.Capability;
 import io.quarkus.deployment.annotations.BuildProducer;
@@ -70,6 +71,7 @@ class AtmosphereProcessor {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereProcessor.class);
 
     private static final String FEATURE = "atmosphere";
+    private static final String AI_ENVIRONMENT = "org.atmosphere.ai.AiEnvironment";
 
     // Source of truth: AtmosphereAnnotations.coreAnnotationNames(), augmented with
     // optional annotations resolved by string so the extension keeps no hard
@@ -898,6 +900,27 @@ class AtmosphereProcessor {
                 "org.atmosphere.quarkus.runtime.AtmosphereTapeProducer"));
         logger.info("Atmosphere session tape producer registered "
                 + "(quarkus.atmosphere.ai.tape.enabled gates installation)");
+    }
+
+    /**
+     * Registers the producer of the application's {@code AiEnvironment} CDI bean
+     * when {@code atmosphere-ai} is on the classpath, the Quarkus counterpart of
+     * the Spring Boot starters' {@code AiEnvironment} bean. A bean observes or
+     * injects it to bind a native AI client for this application
+     * ({@code LangChain4jAgentRuntime.setModel(environment, model)}), and the
+     * framework attaches the same instance when it initializes, then fires it
+     * as a CDI event. Unremovable, so the framework finds it even when no bean
+     * injects it.
+     */
+    @BuildStep
+    void registerAiEnvironmentProducer(BuildProducer<AdditionalBeanBuildItem> beans,
+                                       BuildProducer<UnremovableBeanBuildItem> unremovable) {
+        if (!isClassPresent(AI_ENVIRONMENT)) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereAiEnvironmentProducer"));
+        unremovable.produce(UnremovableBeanBuildItem.beanTypes(DotName.createSimple(AI_ENVIRONMENT)));
     }
 
     /**

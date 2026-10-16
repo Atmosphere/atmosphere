@@ -101,11 +101,14 @@ public final class AtmosphereBootstrap {
     }
 
     /**
-     * Creates the application's {@code AiEnvironment} from the
-     * {@code atmosphere.ai.*} knobs of the Quarkus configuration and attaches it
-     * to the framework before the framework initializes, so the runtime
-     * resolved while the {@code @AiEndpoint} and {@code @Agent} classes
-     * register is the one {@code atmosphere.ai.runtime} names. A no-op when {@code atmosphere-ai} (an optional dependency) is
+     * Attaches the application's {@code AiEnvironment}, created from the
+     * {@code atmosphere.ai.*} knobs of the Quarkus configuration, to the
+     * framework before the framework initializes, so the runtime resolved while
+     * the {@code @AiEndpoint} and {@code @Agent} classes register is the one
+     * {@code atmosphere.ai.runtime} names and uses the native clients a bean
+     * bound into the environment. In a running application it is the
+     * {@code AiEnvironment} CDI bean ({@code AtmosphereAiEnvironmentProducer}).
+     * A no-op when {@code atmosphere-ai} (an optional dependency) is
      * absent; no type from it is linked before that check.
      *
      * @param framework the framework, created but not yet initialized
@@ -123,7 +126,8 @@ public final class AtmosphereBootstrap {
      * ({@link #verifyAiRuntimeSelection(AtmosphereFramework)}). When any of them
      * fails, the framework is destroyed before the failure is rethrown
      * ({@link #destroyAfterFailedStart}): its shutdown hooks run (closing the
-     * AI environment among them) and its threads stop, since no shutdown task
+     * AI environment among them when the framework created it; the CDI
+     * container closes the {@code AiEnvironment} bean) and its threads stop, since no shutdown task
      * was registered for a container that did not start, and in dev mode the
      * JVM outlives the failed start (Correctness Invariant #2).
      *
