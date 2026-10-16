@@ -11,8 +11,9 @@ name: "CI: Gate Self-Test"
 #
 # Path-filtered to the gate itself and to every file a case injects into
 # (INJECT_TRACKED in scripts/lib/prove_gate.sh, which fails when one is missing
-# here): the suite runs the full gate once per case, which is only worth paying
-# when the gate, its config or a file a case edits and asserts on changes. A refactor of one of those files can turn
+# from the push paths or from the pull_request paths here): the suite runs
+# the full gate once per case, which is only worth paying when the gate, its
+# config or a file a case edits and asserts on changes. A refactor of one of those files can turn
 # its case into a NO-OP (s_ai_stale asserts LlmReranker still holds the read it
 # rewrites), and that must surface on the change that caused it.
 

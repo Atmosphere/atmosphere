@@ -363,8 +363,26 @@ if selected "selftest-path-filter"; then
     if UNWATCHED=$(python3 - .github/workflows/gate-selftest.yml "${INJECT_TRACKED[@]}" <<'PY'
 import re, sys
 workflow, files = sys.argv[1], sys.argv[2:]
-text = open(workflow).read()
-globs = set(re.findall(r"^\s*-\s*'([^']+)'\s*$", text, re.M))
+
+# Each trigger keeps its own paths: a file missing from pull_request alone means
+# a PR that refactors it never runs the proof, though a push to main would.
+# Read by indentation (no PyYAML on the runner): a trigger is a two-space key
+# under `on:`, its globs the quoted list items until the next such key.
+TRIGGERS = ("push", "pull_request")
+globs, trigger, in_on = {t: [] for t in TRIGGERS}, None, False
+for line in open(workflow).read().split("\n"):
+    if re.match(r"^on:\s*$", line):
+        in_on = True
+        continue
+    if in_on and re.match(r"^\S", line):
+        break
+    key = re.match(r"^  (\w+):", line)
+    if in_on and key:
+        trigger = key.group(1)
+        continue
+    item = re.match(r"^\s+-\s*'([^']+)'\s*$", line)
+    if in_on and item and trigger in globs:
+        globs[trigger].append(item.group(1))
 
 def to_regex(glob):
     out, i = "", 0
@@ -377,8 +395,13 @@ def to_regex(glob):
             out += re.escape(glob[i]); i += 1
     return re.compile(out + r"\Z")
 
-patterns = [to_regex(g) for g in globs]
-missing = [f for f in files if not any(p.match(f) for p in patterns)]
+missing = []
+for t in TRIGGERS:
+    patterns = [to_regex(g) for g in globs[t]]
+    if not patterns:
+        missing.append(f"<{t}: no paths parsed>")
+        continue
+    missing += [f"{f} ({t})" for f in files if not any(p.match(f) for p in patterns)]
 print("\n".join(missing))
 sys.exit(1 if missing else 0)
 PY
