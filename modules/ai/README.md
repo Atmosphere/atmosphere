@@ -695,7 +695,14 @@ built-in embedding runtime shuts down its HTTP client, and the Anthropic, Cohere
 the HTTP client of the native client they built from the settings. A request already sent finishes;
 a later one fails. A native client or embedding model the application bound or offered is never
 closed, nor is a runtime instance the application created itself. The other applications are
-untouched. Framework code reads it with
+untouched. A runtime or embedding-runtime implementation written before `close()` was on those
+interfaces: one with its own `public void close()` is now called by every environment's registry,
+the process default's included, right away on each instance it loads and does not keep (unavailable,
+or, for an agent runtime, not the one `atmosphere.ai.runtime` selects) and, for each instance it
+handed out, when the environment closes, so a `close()` that releases a static or shared resource
+must stop doing so; one declaring `close() throws Exception` (also `AutoCloseable`) must drop the
+`throws` clause to compile.
+Framework code reads it with
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 
 The static API (`AiConfig.get()`, `AiConfig.knob(...)`, `AiConfig.configure(...)`,

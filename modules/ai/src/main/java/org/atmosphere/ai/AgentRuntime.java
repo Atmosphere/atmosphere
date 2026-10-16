@@ -102,6 +102,20 @@ public interface AgentRuntime {
      * built), and anything shared with another instance. A provider that
      * hands the same instance to several {@code ServiceLoader} lookups keeps
      * the default, which does nothing. Calling it again does nothing.
+     *
+     * <p>Compatibility with an implementation written before this method
+     * existed: one that declares its own {@code public void close()} (to
+     * release its resources itself, say) is now called by the environment
+     * without asking, on every resolution of every environment, the process
+     * default included, for each instance loaded and not kept, and on
+     * environment close for each instance handed out. A {@code close()} that
+     * releases something static or shared with other instances must move that
+     * release out of {@code close()}. One that declares
+     * {@code close() throws Exception} (an implementation that is also
+     * {@link AutoCloseable}) no longer compiles against this interface until
+     * the {@code throws} clause is dropped; already compiled, a checked
+     * exception it throws is logged and does not stop the close of the
+     * others.</p>
      */
     default void close() {
     }
