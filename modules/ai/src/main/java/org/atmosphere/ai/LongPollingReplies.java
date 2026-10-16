@@ -71,7 +71,9 @@ import java.util.function.Predicate;
  * it wrote that way to at most
  * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} clients, the first
  * ones, apart from the clients a poll carrying the run id was handed events
- * to, which these never make it forget.</p>
+ * to, which these never make it forget; a client past them is handed the
+ * run's retained events again on its next poll carrying the run id, and then
+ * takes a place among those clients.</p>
  *
  * <p>Bounds (Correctness Invariant #3), read from the init parameters of the
  * framework the session's connection belongs to:</p>

@@ -101,9 +101,13 @@ import java.util.function.Consumer;
  * received that way takes none of the places of the consumers {@link #claimNew}
  * or {@link #claim} handed events to, so the members of a room receiving a reply
  * never make the run forget one of those: the run remembers it for at most
- * {@link #maxReplayPositions()} other consumers, the first ones, and what a
- * consumer past them received does not count as handed to it: a claim hands
- * it the retained events again.
+ * {@link #maxReplayPositions()} other consumers, the first ones, for as long as
+ * the buffer lives, and what a consumer past them received does not count as
+ * handed to it: a claim hands it the retained events again, and it then takes a
+ * place like any consumer a claim handed events to. The members of a room
+ * receive the run id with the room's reply and claim with it, so a room with
+ * more long-polling members than {@link #maxReplayPositions()} past the first
+ * ones can push out every other consumer.
  *
  * <p>Both bounds are {@value #MAX_REPLAY_POSITIONS} by default; {@link #forRun}
  * reads them from the init parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
