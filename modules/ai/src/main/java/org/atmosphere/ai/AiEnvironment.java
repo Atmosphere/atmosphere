@@ -608,7 +608,9 @@ public final class AiEnvironment implements AutoCloseable {
      * releases what it created itself, such as the HTTP client of
      * {@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}, letting a
      * request already sent finish. A runtime instance the application created
-     * itself is not. The process default is never closed.
+     * itself is not. A runtime whose close fails is logged and does not stop
+     * the others or the steps after it; an {@link Error} is rethrown once every
+     * step ran. The process default is never closed.
      */
     @Override
     public void close() {
@@ -655,12 +657,16 @@ public final class AiEnvironment implements AutoCloseable {
                 builtHere.add(agentBuilt);
             }
         });
+        // The environment is already marked closed, so this close cannot be
+        // retried: every step runs even when an earlier one throws, and the
+        // first failure is rethrown at the end.
         var installed = pushed;
+        Throwable failure = null;
         if (installed != null) {
-            installed.close();
+            failure = closeStep(failure, installed::close);
         }
-        runtimes.clear();
-        embeddings.clear();
+        failure = closeStep(failure, runtimes::clear);
+        failure = closeStep(failure, embeddings::clear);
         // Bound and offered native clients belong to the application that
         // handed them over: dropped, never closed.
         boundClients.clear();
@@ -671,11 +677,37 @@ public final class AiEnvironment implements AutoCloseable {
         builtLineage = List.of();
         for (var settings : builtHere) {
             if (settings.client() instanceof OpenAiCompatibleClient client) {
-                client.shutdown();
+                failure = closeStep(failure, client::shutdown);
             }
         }
         runCloseActions();
         logger.debug("AI environment {} closed", name);
+        if (failure instanceof Error error) {
+            throw error;
+        }
+        if (failure instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        }
+    }
+
+    /**
+     * Run one step of {@link #close()}, keeping the first failure (later ones
+     * are added to it as suppressed) so the next steps still run.
+     *
+     * @return the failure to rethrow once every step ran, {@code null} if none
+     */
+    private Throwable closeStep(Throwable failure, Runnable step) {
+        try {
+            step.run();
+            return failure;
+        } catch (RuntimeException | Error e) {
+            logger.warn("AI environment {}: a close step failed: {}", name, e.toString(), e);
+            if (failure == null) {
+                return e;
+            }
+            failure.addSuppressed(e);
+            return failure;
+        }
     }
 
     /**

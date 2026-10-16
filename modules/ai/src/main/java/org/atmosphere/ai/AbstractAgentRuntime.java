@@ -220,7 +220,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         }
         try {
             closeNativeClient((C) client);
-        } catch (RuntimeException e) {
+        } catch (Exception | LinkageError e) {
             lifecycleLogger.warn("{}: failed to close its native client: {}", name(), e.getMessage(), e);
         }
     }

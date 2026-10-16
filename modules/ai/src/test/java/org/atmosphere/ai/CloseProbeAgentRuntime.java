@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProbeAgentRuntime.Client> {
 
     private static final Set<AiEnvironment> ENABLED = ConcurrentHashMap.newKeySet();
+    /** What {@link #close()} throws, after releasing its clients, in an environment. */
+    private static final Map<AiEnvironment, Throwable> CLOSE_FAILURES = new ConcurrentHashMap<>();
 
     /** A native client that records how often it was closed. */
     public static final class Client {
@@ -39,12 +42,23 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
         }
     }
 
-    static void enable(AiEnvironment environment) {
+    public static void enable(AiEnvironment environment) {
         ENABLED.add(environment);
     }
 
-    static void disable(AiEnvironment environment) {
+    public static void disable(AiEnvironment environment) {
         ENABLED.remove(environment);
+        CLOSE_FAILURES.remove(environment);
+    }
+
+    /**
+     * Make {@link #close()} throw {@code failure} in {@code environment}, even
+     * a checked exception, as a runtime compiled against the SPI before
+     * {@link AgentRuntime#close()} existed may ({@code implements AgentRuntime,
+     * AutoCloseable} with {@code close() throws Exception}).
+     */
+    public static void failClose(AiEnvironment environment, Throwable failure) {
+        CLOSE_FAILURES.put(environment, failure);
     }
 
     @Override
@@ -79,6 +93,23 @@ public final class CloseProbeAgentRuntime extends AbstractAgentRuntime<CloseProb
     @Override
     protected void closeNativeClient(Client client) {
         client.closes.incrementAndGet();
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        var failure = attachedEnvironment().map(CLOSE_FAILURES::get).orElse(null);
+        if (failure != null) {
+            throw CloseProbeAgentRuntime.<RuntimeException>sneakyThrow(failure);
+        }
+    }
+
+    // Throws a checked exception from a method that declares none, as code
+    // compiled against an older signature does at run time; the cast is
+    // unchecked by design.
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> T sneakyThrow(Throwable failure) throws T {
+        throw (T) failure;
     }
 
     /** The client this instance uses, building it as a dispatch would. */

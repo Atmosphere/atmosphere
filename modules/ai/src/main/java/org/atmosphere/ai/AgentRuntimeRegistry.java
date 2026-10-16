@@ -218,7 +218,22 @@ public final class AgentRuntimeRegistry {
             toClose = List.copyOf(handedOut);
             handedOut.clear();
         }
-        toClose.forEach(AgentRuntimeRegistry::close);
+        // close() logs a failed close; an Error still lets the others close.
+        Error failure = null;
+        for (var runtime : toClose) {
+            try {
+                close(runtime);
+            } catch (Error e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     private static boolean containsInstance(List<AgentRuntime> runtimes, AgentRuntime runtime) {
@@ -233,7 +248,10 @@ public final class AgentRuntimeRegistry {
     private static void close(AgentRuntime runtime) {
         try {
             runtime.close();
-        } catch (RuntimeException e) {
+        } catch (Exception | LinkageError e) {
+            // Exception: a runtime compiled before close() was on the SPI may
+            // throw a checked one from its own close(); LinkageError: one
+            // compiled against another version of a class close() needs.
             logger.warn("AgentRuntime {} failed to close: {}", runtime.name(), e.getMessage(), e);
         }
     }

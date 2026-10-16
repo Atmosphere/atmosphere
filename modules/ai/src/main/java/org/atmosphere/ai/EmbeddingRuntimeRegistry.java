@@ -157,13 +157,31 @@ public final class EmbeddingRuntimeRegistry {
             toClose = List.copyOf(handedOut);
             handedOut.clear();
         }
-        toClose.forEach(EmbeddingRuntimeRegistry::close);
+        // close() logs a failed close; an Error still lets the others close.
+        Error failure = null;
+        for (var runtime : toClose) {
+            try {
+                close(runtime);
+            } catch (Error e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     private static void close(EmbeddingRuntime runtime) {
         try {
             runtime.close();
-        } catch (RuntimeException e) {
+        } catch (Exception | LinkageError e) {
+            // Exception: a runtime compiled before close() was on the SPI may
+            // throw a checked one from its own close(); LinkageError: one
+            // compiled against another version of a class close() needs.
             logger.warn("EmbeddingRuntime {} failed to close: {}", runtime.name(), e.getMessage(), e);
         }
     }
