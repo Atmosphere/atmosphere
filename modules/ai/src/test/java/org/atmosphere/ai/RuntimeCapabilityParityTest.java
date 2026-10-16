@@ -136,7 +136,7 @@ class RuntimeCapabilityParityTest {
 
         // --- Verify: Progress event ---
         assertEquals(1, progressMessages.size());
-        assertEquals("Connecting to built-in...", progressMessages.get(0));
+        assertEquals("Connecting to gpt-4 via built-in...", progressMessages.get(0));
 
         // --- Verify: Tool was called ---
         assertTrue(toolCalled.get(), "Tool should have been called");

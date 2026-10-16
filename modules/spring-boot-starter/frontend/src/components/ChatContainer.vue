@@ -36,6 +36,13 @@ const props = defineProps<{
 const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, governanceFeedback, agentSteps, presenceCount, offlineSize, canQueueOffline } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport, props.room)
 const messagesContainer = ref<HTMLElement | null>(null)
 
+// "Agent Collaboration" only when agents of a fleet report steps this turn
+// (agent-step events, reset on every send). A single agent calling a tool is
+// a tool call: the 2026-10-16 sweep saw one get_weather call on the AG-UI
+// sample headed "Agent Collaboration" with no other agent involved.
+const toolSectionLabel = computed(() =>
+  Object.keys(agentSteps.value).length > 0 ? 'Agent Collaboration' : 'Tool Calls')
+
 /**
  * Index of the newest user message — the only turn the tool cards belong to.
  *
@@ -147,7 +154,7 @@ function handleSend(text: string) {
         </div>
         <!-- Show tool cards after user message, before assistant response -->
         <div v-if="idx === lastUserIndex && toolCalls.length > 0" class="tool-section" data-testid="tool-activity">
-          <div class="tool-section-label">Agent Collaboration</div>
+          <div class="tool-section-label">{{ toolSectionLabel }}</div>
           <ToolCard
             v-for="tc in toolCalls"
             :key="tc.id"

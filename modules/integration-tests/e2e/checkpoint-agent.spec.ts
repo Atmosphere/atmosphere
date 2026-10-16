@@ -392,7 +392,7 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     });
 
     // At least one frame must come back — the AI pipeline sends a
-    // "Connecting to built-in..." progress event immediately when the
+    // "Connecting to <model> via built-in..." progress event immediately when the
     // DispatchCoordinator's @Prompt streaming session starts. If zero
     // frames arrive, the handler is not mapped (regression).
     expect(frames.length).toBeGreaterThan(0);

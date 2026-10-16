@@ -115,7 +115,7 @@ Open http://localhost:8090 in your browser.
 | `CostMeteringInterceptor.java` | `AiInterceptor` for cost/latency tracking |
 | `application-routing-cost.yml` / `application-routing-latency.yml` | Offline cost/latency model-routing profiles |
 | `CostLatencyRoutingDeliveryTest.java` | Proves the router selects the expected model by cost vs latency |
-| Atmosphere Console | Tool cards render `tool-start`/`tool-result` live (Agent Collaboration section) |
+| Atmosphere Console | Tool cards render `tool-start`/`tool-result` live (Tool Calls section) |
 
 ## Architecture
 

@@ -360,6 +360,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
+     * The progress line a dispatch opens with: the model being contacted and
+     * the runtime contacting it. It used to read "Connecting to built-in...",
+     * naming the runtime as if it were the remote end.
+     */
+    final String connectingProgress(AgentExecutionContext context) {
+        var model = effectiveModelFor(context, null);
+        return model == null || model.isBlank()
+                ? "Connecting to the model via " + name() + "..."
+                : "Connecting to " + model + " via " + name() + "...";
+    }
+
+    /**
      * Resolve the effective model: an explicit {@code context.model()} wins,
      * else the framework-resolved {@link AiConfig} model, else the provider
      * default supplied by the adapter.
@@ -524,7 +536,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     private void dispatch(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient(context);
-        session.progress("Connecting to " + name() + "...");
+        session.progress(connectingProgress(context));
         // Install the cross-runtime ToolLoopGuard before fireStart so the guard
         // observes every onModelStart this runtime emits during the execute.
         // No-op when no ToolLoopPolicy is attached to context.metadata().
@@ -569,7 +581,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     private ExecutionHandle dispatchWithHandle(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient(context);
-        session.progress("Connecting to " + name() + "...");
+        session.progress(connectingProgress(context));
         // Same ToolLoopGuard install as #execute — keeps the cap behavior
         // identical across sync and cancel-aware entry points (Mode Parity).
         var effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);

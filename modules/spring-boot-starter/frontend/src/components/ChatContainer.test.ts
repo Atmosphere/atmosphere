@@ -8,6 +8,7 @@ import type { GovernanceFeedback } from '../lib/governanceFeedback'
 const messages = ref<ChatMessage[]>([])
 const toolCalls = ref<ToolCall[]>([])
 const governanceFeedback = ref<GovernanceFeedback | null>(null)
+const agentSteps = ref<Record<string, string>>({})
 
 vi.mock('../composables/useAtmosphereChat', () => ({
   useAtmosphereChat: () => ({
@@ -23,7 +24,7 @@ vi.mock('../composables/useAtmosphereChat', () => ({
     stats: ref(null),
     routing: ref({}),
     governanceFeedback,
-    agentSteps: ref({}),
+    agentSteps,
     presenceCount: ref(0),
     offlineSize: ref(0),
     canQueueOffline: ref(false),
@@ -93,6 +94,33 @@ describe('tool cards belong to the turn that made them', () => {
     await nextTick()
 
     expect(wrapper.findAll('[data-testid="tool-activity"]')).toHaveLength(0)
+  })
+})
+
+describe('tool section heading', () => {
+  it('labels a single-agent turn\'s tool calls as tool calls, not agent collaboration', async () => {
+    // The 2026-10-16 sweep: one get_weather call on the AG-UI sample rendered
+    // under an "Agent Collaboration" heading although no other agent took part.
+    messages.value = [turn('user', 'What is the weather in Paris?')]
+    toolCalls.value = [{ id: 't1', name: 'get_weather', args: { city: 'Paris' }, done: true }]
+    agentSteps.value = {}
+    const wrapper = mountContainer()
+    await nextTick()
+
+    const label = wrapper.get('[data-testid="tool-activity"] .tool-section-label').text()
+    expect(label).toBe('Tool Calls')
+    expect(label).not.toContain('Agent Collaboration')
+  })
+
+  it('keeps the agent collaboration heading when agents of a fleet report steps', async () => {
+    messages.value = [turn('user', 'Analyze the market')]
+    toolCalls.value = [{ id: 't1', name: 'web_search', args: {}, done: true }]
+    agentSteps.value = { research: 'completed', finance: 'running' }
+    const wrapper = mountContainer()
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="tool-activity"] .tool-section-label').text()).toBe('Agent Collaboration')
+    agentSteps.value = {}
   })
 })
 

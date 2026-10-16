@@ -207,7 +207,7 @@ class AbstractAgentRuntimeTest {
 
         assertTrue(runtime.doExecuteCalled);
         assertEquals(1, progressMessages.size());
-        assertEquals("Connecting to test-runtime...", progressMessages.get(0));
+        assertEquals("Connecting to gpt-4 via test-runtime...", progressMessages.get(0));
     }
 
     // -- Capability tests for BuiltInAgentRuntime --
