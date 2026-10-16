@@ -529,6 +529,11 @@ export default defineConfig({
       name: 'ai-cancel',
       testMatch: /ai-cancel\.spec\.ts/,
     },
+    // ── AI reattach grace across a page reload (WebSocket, SSE, long-polling) ──
+    {
+      name: 'ai-reattach-reload',
+      testMatch: /\/ai-reattach-reload\.spec\.ts/,
+    },
     // ── CLI runtime (verifies `atmosphere run` launches working console) ──
     {
       name: 'cli-runtime',

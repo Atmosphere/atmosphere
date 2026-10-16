@@ -52,11 +52,15 @@ jobs:
     - name: Package the LangChain4j variant of spring-boot-personal-assistant
       run: ./mvnw -B package -DskipTests -Dgpg.skip=true -Pruntime-langchain4j -pl samples/spring-boot-personal-assistant
 
+    # atmosphere.js/dist is the browser bundle the spring-boot-starter build
+    # produced (it runs `npm run build` there): ai-reattach-reload serves it to
+    # its test page, and the E2E job is a fresh checkout without it.
     - name: Package build output
       run: |
         tar czf /tmp/build-targets-sb${{ matrix.spring-boot-version }}.tar.gz \
           samples/*/target \
           modules/*/target \
+          atmosphere.js/dist \
           -C "$HOME" .m2/repository/org/atmosphere
 
     - name: Upload build output
@@ -100,7 +104,7 @@ jobs:
           - name: ai-ux-flows
             projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models,ai-structured-output,ai-jfr-observability,ai-tool-permission"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
+            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel,ai-reattach-reload"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,ai-gap-coverage,ai-confidence-elicitation,ai-decision-model"
           - name: ai-routing
