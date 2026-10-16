@@ -15,11 +15,16 @@
  */
 package org.atmosphere.ai.rag.spring;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -46,6 +51,36 @@ class SpringAiVectorStoreContextProviderTest {
         var results = provider.retrieve("test query", 5);
 
         assertTrue(results.isEmpty());
+    }
+
+    /**
+     * The framework calls retrieve() on every turn, available or not: the
+     * 2026-10-16 sweep saw spring-boot-rag-chat log this WARN once per turn.
+     */
+    @Test
+    void missingVectorStoreWarnsOncePerProviderThenLogsAtDebug() {
+        var providerLogger = (Logger) LoggerFactory.getLogger(SpringAiVectorStoreContextProvider.class);
+        var previous = providerLogger.getLevel();
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        providerLogger.addAppender(appender);
+        providerLogger.setLevel(Level.DEBUG);
+        try {
+            var provider = new SpringAiVectorStoreContextProvider();
+            for (int turn = 0; turn < 3; turn++) {
+                assertTrue(provider.retrieve("turn " + turn, 5).isEmpty());
+            }
+            var warns = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+            var debugs = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.DEBUG
+                            && e.getFormattedMessage().contains("VectorStore not configured"))
+                    .toList();
+            assertEquals(1, warns.size(), "expected one WARN for three turns, got " + warns);
+            assertEquals(2, debugs.size(), "later turns should log at DEBUG, got " + appender.list);
+        } finally {
+            providerLogger.detachAppender(appender);
+            providerLogger.setLevel(previous);
+        }
     }
 
     @Test

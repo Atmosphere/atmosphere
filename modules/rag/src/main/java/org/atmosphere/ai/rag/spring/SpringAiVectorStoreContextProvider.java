@@ -24,6 +24,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Bridges Spring AI's {@link VectorStore} to Atmosphere's {@link ContextProvider}.
@@ -46,6 +47,11 @@ public class SpringAiVectorStoreContextProvider implements ContextProvider {
     private static final Logger logger = LoggerFactory.getLogger(SpringAiVectorStoreContextProvider.class);
 
     private static volatile VectorStore vectorStore;
+
+    // A missing store is reported at WARN once per provider instance, then at
+    // DEBUG: the framework calls retrieve() every turn, and a WARN per turn for
+    // a state isAvailable() already reports is noise, not news.
+    private final AtomicBoolean missingStoreWarned = new AtomicBoolean();
 
     /**
      * Set the {@link VectorStore} to use for similarity search.
@@ -70,7 +76,11 @@ public class SpringAiVectorStoreContextProvider implements ContextProvider {
 
         var store = vectorStore;
         if (store == null) {
-            logger.warn("VectorStore not configured; returning empty results");
+            if (missingStoreWarned.compareAndSet(false, true)) {
+                logger.warn("VectorStore not configured; returning empty results");
+            } else {
+                logger.debug("VectorStore not configured; returning empty results");
+            }
             return List.of();
         }
 
