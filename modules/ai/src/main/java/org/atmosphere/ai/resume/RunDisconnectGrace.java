@@ -56,7 +56,9 @@ import java.util.function.BooleanSupplier;
  * client that closes the connection on purpose has left, and its run is
  * cancelled at once. A page that reloads or navigates away is a lost transport
  * on every transport: a WebSocket closes with 1001, an HTTP transport sends its
- * close message marked going-away.</p>
+ * close message marked going-away, and the Spring Boot WebTransport sidecar
+ * reports a session the browser closed with code 0, its stream unfinished, as
+ * 1001.</p>
  *
  * <p>Lifecycle (Correctness Invariant #1): the timer thread is a daemon owned by
  * this class, started on the first detach and stopped by {@link #shutdown()},
@@ -86,7 +88,11 @@ public final class RunDisconnectGrace {
      * {@code close()}), and a close the application made are a leave; a
      * cancelled connection (a lost network, a 1006, an idle eviction, a
      * container closing it), a WebSocket closed with 1001 (a browser leaving or
-     * reloading the page) and an HTTP transport's close message marked
+     * reloading the page; a WebTransport session reports the same 1001 for a
+     * close with code 0 that finds its stream unfinished, which is what a
+     * browser sends for such a page, while atmosphere.js {@code close()}
+     * finishes the stream first and reads as 1000) and an HTTP transport's
+     * close message marked
      * {@code X-Atmosphere-Close-Reason: going-away} (the beacon atmosphere.js
      * sends from {@code pagehide} over SSE, long-polling and streaming) are a
      * transport loss.

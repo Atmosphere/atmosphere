@@ -619,6 +619,11 @@ public class ReactorNettyTransportServer {
 
     /** A close the peer made on purpose: the client left (WebSocket 1000). */
     static final int NORMAL_CLOSURE = 1000;
+    /**
+     * The page that held the session went away: a reload, a navigation or a
+     * closed tab (WebSocket 1001). The client may come back for what it left.
+     */
+    static final int GOING_AWAY = 1001;
     /** The peer violated the capsule protocol (WebSocket 1002). */
     static final int PROTOCOL_ERROR = 1002;
     /** The session went away without a close (WebSocket 1006): a dropped client. */
@@ -628,13 +633,24 @@ public class ReactorNettyTransportServer {
 
     /**
      * The close code of a CLOSE_WEBTRANSPORT_SESSION capsule as the processor
-     * reads it: the application error code 0 ("no error", what
-     * {@code transport.close()} sends) is a normal close, any other code is
-     * passed through.
+     * reads it: the application error code 0 ("no error") is a page going
+     * away, any other code is passed through (1000 is a leave).
+     *
+     * <p>Code 0 is what Chrome sends when the page that holds the session
+     * reloads, navigates away or closes, with the session's bidi stream still
+     * open. atmosphere.js {@code disconnect()} sends it too, but only after it
+     * finished its bidi stream, which already closed the session as a leave
+     * (1000; the session closes once). So a code 0 that finds the session still
+     * open reads as the WebSocket 1001 a browser sends from a page going away,
+     * which the AI reattach grace treats as a lost transport. Like the HTTP
+     * transports' going-away close message, it is the client's word: a client
+     * that leaves on purpose without finishing its stream — or whose FIN
+     * arrives after its capsule — only has its run cancelled after the bounded
+     * grace rather than at once; a client sends 1000 to leave without its FIN.</p>
      */
     static int closeCode(long webTransportErrorCode) {
         if (webTransportErrorCode == 0) {
-            return NORMAL_CLOSURE;
+            return GOING_AWAY;
         }
         return (int) Math.min(webTransportErrorCode, Integer.MAX_VALUE);
     }
@@ -892,9 +908,10 @@ public class ReactorNettyTransportServer {
             if (isSessionStream) {
                 // FIN on the CONNECT stream terminates the session. Unread
                 // bytes are an incomplete capsule, never a message. Without a
-                // CLOSE capsule it is a close with code 0 (draft-ietf-webtrans-http3).
+                // CLOSE capsule it is a close with code 0 (draft-ietf-webtrans-http3),
+                // read as closeCode(0) reads it.
                 logger.debug("WebTransport CONNECT stream closed");
-                endSession(ctx, NORMAL_CLOSURE);
+                endSession(ctx, closeCode(0));
                 return;
             }
             // Flush any remaining buffered data as a final message

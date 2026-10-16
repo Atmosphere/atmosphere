@@ -26,6 +26,7 @@ import io.netty.handler.codec.quic.QuicStreamResetException;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
+import org.atmosphere.ai.resume.RunDisconnectGrace;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.Action;
@@ -33,6 +34,7 @@ import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebTransportProcessorFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -59,6 +62,14 @@ import static org.mockito.Mockito.mock;
  * CONNECT stream, atmosphere.js's FIN on its bidi stream) must reach
  * {@code @Disconnect} as closed by the client; a stream or connection that just
  * went away is a dropped client and must stay cancelled (Invariant #5).
+ *
+ * <p>The close code also decides whether an AI run the session started gets
+ * the reattach grace ({@link RunDisconnectGrace#isTransportLoss}). A page that
+ * reloads, navigates away or closes makes Chrome send a CLOSE capsule with code
+ * 0 and no reason, its bidi stream unfinished; atmosphere.js
+ * {@code disconnect()} finishes its bidi stream before it sends its capsule.
+ * The first is a page going away (a WebSocket's 1001), the second a client
+ * that left (1000).</p>
  */
 class WebTransportCloseCodeTest {
 
@@ -67,21 +78,31 @@ class WebTransportCloseCodeTest {
             new byte[] {0x68, 0x43, 0x15, 0x00, 0x00, 0x00, 0x00},
             "Client disconnect".getBytes(StandardCharsets.UTF_8));
 
+    /**
+     * What Chrome sends when the page holding the session reloads, navigates
+     * away or closes: code 0, no reason.
+     */
+    private static final byte[] PAGE_GONE_CAPSULE = {0x68, 0x43, 0x04, 0x00, 0x00, 0x00, 0x00};
+
     /** WT_BIDI_STREAM signal (0x41 as a 2-byte varint) + session id 0. */
     private static final byte[] BIDI_HEADER = {0x40, 0x41, 0x00};
 
     /** WEBTRANSPORT_SESSION_GONE, the reset code of a stream whose session ended. */
     private static final long SESSION_GONE = 0x170d7b68L;
 
-    /** The flags {@code @Disconnect} saw: {closedByClient, cancelled}. */
+    /** The flags {@code @Disconnect} saw: {closedByClient, cancelled, transportLoss}. */
     static final AtomicReference<boolean[]> SEEN = new AtomicReference<>();
+    /** The WebSocket close code of the event {@code @Disconnect} saw. */
+    static final AtomicReference<Integer> CLOSE_CODE = new AtomicReference<>();
 
     @ManagedService(path = "/atmosphere/wt-close")
     public static final class ChatService {
 
         @Disconnect
         public void onDisconnect(AtmosphereResourceEvent event) {
-            SEEN.set(new boolean[] {event.isClosedByClient(), event.isCancelled()});
+            SEEN.set(new boolean[] {event.isClosedByClient(), event.isCancelled(),
+                    RunDisconnectGrace.isTransportLoss(event)});
+            CLOSE_CODE.set(event instanceof AtmosphereResourceEventImpl impl ? impl.webSocketCloseCode() : null);
         }
     }
 
@@ -93,6 +114,7 @@ class WebTransportCloseCodeTest {
     @BeforeEach
     void setUp() throws Exception {
         SEEN.set(null);
+        CLOSE_CODE.set(null);
         framework = new AtmosphereFramework();
         framework.addAnnotationPackage(ChatService.class);
         framework.addInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE, "false");
@@ -169,6 +191,69 @@ class WebTransportCloseCodeTest {
         assertNotNull(seen, "@Disconnect must run after " + how);
         assertFalse(seen[0], how + " is not the client leaving");
         assertTrue(seen[1], how + " is an unexpected disconnect");
+    }
+
+    private void assertGrantedTheReattachGrace(String how) {
+        var seen = SEEN.get();
+        assertNotNull(seen, "@Disconnect must run after " + how);
+        assertTrue(seen[2], how + " is a page going away: its AI run gets the reattach grace");
+        assertEquals(1001, CLOSE_CODE.get(), how + " is reported as a WebSocket going-away close");
+    }
+
+    private void assertNotGrantedTheReattachGrace(String how) {
+        var seen = SEEN.get();
+        assertNotNull(seen, "@Disconnect must run after " + how);
+        assertFalse(seen[2], how + " is a client that left: its AI run is cancelled at once");
+    }
+
+    @Test
+    void pageReloadCapsuleGetsTheReattachGrace() {
+        // Observed from Chrome on a reload, a navigation and a tab close: the
+        // capsule arrives with the bidi stream unfinished.
+        connectStream.writeInbound(new DefaultHttp3DataFrame(Unpooled.wrappedBuffer(PAGE_GONE_CAPSULE)));
+        assertClosedByTheClient("a page that went away");
+        assertGrantedTheReattachGrace("a CLOSE capsule with code 0 and an unfinished bidi stream");
+    }
+
+    @Test
+    void pageReloadAfterASessionGoneResetGetsTheReattachGrace() {
+        bidiStream.pipeline().fireExceptionCaught(new QuicStreamResetException("session gone", SESSION_GONE));
+        connectStream.writeInbound(new DefaultHttp3DataFrame(Unpooled.wrappedBuffer(PAGE_GONE_CAPSULE)));
+        assertGrantedTheReattachGrace("a CLOSE capsule after the session-gone reset");
+    }
+
+    @Test
+    void connectStreamFinWithoutABidiFinGetsTheReattachGrace() {
+        // A FIN without a capsule is a CLOSE with code 0 (draft-ietf-webtrans-http3).
+        connectStream.pipeline().fireUserEventTriggered(ChannelInputShutdownEvent.INSTANCE);
+        assertGrantedTheReattachGrace("a FIN on the CONNECT stream with an unfinished bidi stream");
+    }
+
+    @Test
+    void atmosphereJsDisconnectIsALeaveWithoutTheGrace() {
+        // atmosphere.js disconnect(): writer.close() finishes the bidi stream,
+        // then transport.close({closeCode: 0, reason: 'Client disconnect'}).
+        bidiStream.pipeline().fireUserEventTriggered(ChannelInputShutdownEvent.INSTANCE);
+        connectStream.writeInbound(new DefaultHttp3DataFrame(Unpooled.wrappedBuffer(CLOSE_CAPSULE)));
+        connectStream.pipeline().fireUserEventTriggered(ChannelInputShutdownEvent.INSTANCE);
+        assertClosedByTheClient("atmosphere.js disconnect()");
+        assertNotGrantedTheReattachGrace("atmosphere.js disconnect()");
+        assertEquals(1000, CLOSE_CODE.get(), "atmosphere.js disconnect() is a normal close");
+    }
+
+    @Test
+    void closeCapsuleWithCode1000IsALeaveWithoutTheGrace() {
+        // A client that leaves without finishing its stream says so with the code.
+        connectStream.writeInbound(new DefaultHttp3DataFrame(Unpooled.wrappedBuffer(
+                new byte[] {0x68, 0x43, 0x04, 0x00, 0x00, 0x03, (byte) 0xe8})));
+        assertClosedByTheClient("a CLOSE capsule with code 1000");
+        assertNotGrantedTheReattachGrace("a CLOSE capsule with code 1000");
+    }
+
+    @Test
+    void droppedSessionGetsTheReattachGrace() {
+        bidiStream.close();
+        assertTrue(SEEN.get()[2], "a dropped session is a lost transport");
     }
 
     @Test
