@@ -69,11 +69,14 @@ import java.util.function.Predicate;
  * frames written after them: a later poll carrying the run id is handed the
  * frames the client missed, and those after them again. A run remembers what
  * it wrote that way to at most
- * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} clients, the first
- * ones, apart from the clients a poll carrying the run id was handed events
- * to, which these never make it forget; a client past them is handed the
- * run's retained events again on its next poll carrying the run id, and then
- * takes a place among those clients.</p>
+ * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} clients (a run
+ * broadcast to a room: as many as the room takes members), the least recently
+ * served forgotten first, apart from the clients a poll carrying the run id was
+ * handed events to, which these never make it forget; a forgotten client is
+ * handed the run's retained events again on its next poll carrying the run id,
+ * and then takes a place among those clients. A client gone for good (closed on
+ * purpose, or no poll of it for the parked-reply time to live) frees its place
+ * ({@link #discard(String, boolean)}).</p>
  *
  * <p>Bounds (Correctness Invariant #3), read from the init parameters of the
  * framework the session's connection belongs to:</p>
@@ -639,10 +642,24 @@ public final class LongPollingReplies {
      * and the room frames kept for it are dropped too.
      */
     public static void discard(String trackingId) {
+        discard(trackingId, false);
+    }
+
+    /**
+     * {@link #discard(String)}; when the client {@code departed} for good (it
+     * closed its connection on purpose, rather than lost it), every run also
+     * forgets its replay position ({@link RunEventReplayBuffer#forget}). A client
+     * that lost its connection may come back under its tracking id: its runs
+     * then hand it what it missed and nothing more.
+     */
+    public static void discard(String trackingId, boolean departed) {
         if (trackingId == null) {
             return;
         }
-        LongPollingRoomReplies.forget(trackingId);
+        LongPollingRoomReplies.forget(trackingId, departed);
+        if (departed) {
+            forgetRunPositions(trackingId);
+        }
         var entry = PARKED.get(trackingId);
         if (entry != null) {
             drop(trackingId, entry);
@@ -673,10 +690,21 @@ public final class LongPollingReplies {
         for (var e : PARKED.entrySet()) {
             if (now - e.getValue().touchedNanos > e.getValue().ttlNanos && drop(e.getKey(), e.getValue())) {
                 dropped++;
+                // No poll of it for the time to live: its client is gone.
+                forgetRunPositions(e.getKey());
                 logger.debug("No poll took the long-polling reply of {}; dropped", e.getKey());
             }
         }
         return dropped;
+    }
+
+    /** The client of {@code trackingId} is gone for good: every run forgets its replay position. */
+    static void forgetRunPositions(String trackingId) {
+        try {
+            org.atmosphere.ai.resume.RunRegistryHolder.get().forgetConsumer(trackingId);
+        } catch (RuntimeException e) {
+            logger.debug("Unable to forget the run replay positions of {}", trackingId, e);
+        }
     }
 
     private static boolean drop(String trackingId, Parked entry) {

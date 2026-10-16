@@ -292,6 +292,28 @@ public final class RunRegistry {
     }
 
     /**
+     * The client of tracking id {@code consumer} is gone for good: every run
+     * still replayable, live or finished, forgets its replay position
+     * ({@link RunEventReplayBuffer#forget}). Walks the live runs and at most
+     * {@link #MAX_RETAINED_COMPLETED} finished ones.
+     */
+    public void forgetConsumer(String consumer) {
+        if (consumer == null) {
+            return;
+        }
+        for (var run : runs.values()) {
+            run.replayBuffer().forget(consumer);
+        }
+        List<Retired> retired;
+        synchronized (completed) {
+            retired = List.copyOf(completed.values());
+        }
+        for (var run : retired) {
+            run.handle().replayBuffer().forget(consumer);
+        }
+    }
+
+    /**
      * All currently tracked runs; primarily for admin inspection. The
      * returned list is a snapshot — subsequent registrations are not
      * reflected.

@@ -95,14 +95,15 @@ already; a long-polling poll gets the
 buffered events its tracking id was not sent yet — as a replay, or in a
 long-polling reply of its own; after an event that does not count as sent
 (one it never received, a `broadcastReply` room frame not kept for it, or a
-reply received once the run already remembers the replies of 64 other tracking
-ids, init-param `org.atmosphere.ai.longPolling.maxReplayPositionsPerRun`;
-receiving one pushes out no tracking id a poll carrying the run id was sent
-events, but a poll carrying it that is sent events takes one of the run's 64
-places, and a tracking id pushed out of them is sent the retained events again),
+reply of a tracking id the run forgot: it remembers 16 tracking ids, a
+`broadcastReply` room's run as many as the room takes long-polling members
+(1,024 by default), the least recently served forgotten first, and a client
+gone for good frees its place; init-param
+`org.atmosphere.ai.longPolling.maxReplayPositionsPerRun` overrides both; a
+forgotten tracking id is sent the retained events again),
 every later event counts as not sent — in one reply, at once, and a
 later poll with nothing new waits: for the run's next event while the run is
-going (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (64) tracking
+going (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (16) tracking
 ids per run by default, init-param `org.atmosphere.ai.longPolling.maxWaitingPollsPerRun`
 for the runs an AI endpoint starts,
 which take none of the streaming reattaches' places; the poll of the prompter's

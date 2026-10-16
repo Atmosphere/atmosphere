@@ -128,21 +128,37 @@ class RunEventReplayBufferPositionsTest {
     }
 
     @Test
-    void framesOthersReceivedNeverPushOutTheFramesAConsumerReceivedFirst() {
+    void pastTheBoundTheConsumerLeastRecentlyServedAReplyIsForgottenFirst() {
         var buffer = new RunEventReplayBuffer();
         buffer.capture("streaming-text", "a");
         buffer.capture("streaming-text", "b");
         buffer.capture("complete", "");
-        buffer.handed("owner", 0, 2);
+        buffer.handed("first", 0, 2);
 
         for (int i = 0; i < RunEventReplayBuffer.MAX_REPLAY_POSITIONS; i++) {
             buffer.handed("member-" + i, 0, 2);
         }
 
-        assertTrue(buffer.claimNew("owner").isEmpty(), "the owner received every frame of the run");
-        assertEquals(3, buffer.claimNew("member-" + (RunEventReplayBuffer.MAX_REPLAY_POSITIONS - 1)).size(),
-                "past the bound, what a consumer received only as a reply is not remembered: it is handed"
-                        + " the retained events again");
+        assertTrue(buffer.claimNew("member-" + (RunEventReplayBuffer.MAX_REPLAY_POSITIONS - 1)).isEmpty(),
+                "a consumer that received every frame lately is remembered");
+        assertEquals(3, buffer.claimNew("first").size(), "past the bound, the consumer least recently served"
+                + " a reply is forgotten: it is handed the retained events again");
+    }
+
+    @Test
+    void aConsumerGoneForGoodFreesItsPlace() {
+        var buffer = new RunEventReplayBuffer(null, 16, 2, 2);
+        buffer.capture("streaming-text", "a");
+        buffer.capture("complete", "");
+        assertEquals(2, buffer.claimNew("owner").size());
+        buffer.handed("member", 0, 1);
+        assertEquals(2, buffer.rememberedConsumers());
+
+        buffer.forget("member");
+        buffer.forget("owner");
+
+        assertEquals(0, buffer.rememberedConsumers(), "a client gone for good takes no place");
+        assertEquals(2, buffer.claimNew("owner").size(), "one that comes back after all is handed the run again");
     }
 
     @Test

@@ -112,16 +112,15 @@ import java.util.concurrent.locks.ReentrantLock;
  * when they follow on, without a gap, from what the member was handed of the
  * run before: a frame that was not kept for the member (one that reached it only
  * while a poll of it waited, or not at all) leaves a gap, so a later poll of it
- * carrying the run id is handed that frame and those after it again. The run
- * remembers this for at most
- * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} members, the first
- * ones, apart from the clients a poll carrying the run id was handed events to,
- * which a member receiving the room's frames never makes it forget. A member
- * receives the run id with the room's reply, though, and its polls carry it: a
- * member past those is handed the run's retained events again on its first poll
- * carrying it, and then takes a place among those clients, pushing out the
- * least recently served past
- * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} of them. A poll of
+ * carrying the run id is handed that frame and those after it again. A run
+ * broadcast to a room remembers this, and what it handed a poll carrying its id,
+ * for as many clients as the room takes members ({@link #memberLimit},
+ * {@link RunEventReplayBuffer#forRoomRun}; the init parameter
+ * {@value RunEventReplayBuffer#MAX_REPLAY_POSITIONS_PARAM} overrides it), so the
+ * polls of a full room's members carrying the run id never push each other out.
+ * A member that leaves for good (no poll of it for its time to live, a close on
+ * purpose, its room destroyed) frees its place in every run; one that only lost
+ * its connection keeps it, to come back under its tracking id. A poll of
  * the prompter's own member carrying the run id that finds nothing new waits on
  * the run, so it listens to it and holds a pending reattach grace off as any
  * waiting poll does, but is written none of the run's events: the room's frames
@@ -250,17 +249,34 @@ public final class LongPollingRoomReplies {
         return room;
     }
 
-    /** {@code trackingId}'s client left: it is no longer a member of any room, and what was kept for it is dropped. */
-    static void forget(String trackingId) {
+    /**
+     * {@code trackingId}'s client left: it is no longer a member of any room, and
+     * what was kept for it is dropped. When it {@code departed} for good, rather
+     * than lost a connection it may come back on under the same id, the runs
+     * forget their replay positions of it too ({@link RunEventReplayBuffer#forget}).
+     */
+    static void forget(String trackingId, boolean departed) {
         if (trackingId == null) {
             return;
         }
         for (var room : ROOMS.values()) {
             var member = room.members.remove(trackingId);
             if (member != null) {
-                member.leave();
+                member.leave(departed);
             }
         }
+    }
+
+    /**
+     * The long-polling members a room takes at most: the
+     * {@value LongPollingReplies#MAX_PARKED_REPLIES_PARAM} init parameter of
+     * {@code config}, 1,024 by default. A run broadcast to a room remembers the
+     * replay positions of as many clients ({@link RunEventReplayBuffer#forRoomRun}).
+     *
+     * @param config the application; {@code null} for the default
+     */
+    public static int memberLimit(AtmosphereConfig config) {
+        return LongPollingReplies.Limits.of(config).maxParkedReplies();
     }
 
     /**
@@ -290,7 +306,7 @@ public final class LongPollingRoomReplies {
             }
             for (var member : room.getValue().members.values()) {
                 if (member.expired(now) && room.getValue().members.remove(member.trackingId, member)) {
-                    member.leave();
+                    member.leave(true);
                     left++;
                     logger.debug("Long-polling client {} left room {}: no poll of it for its time to live",
                             member.trackingId, room.getKey().getID());
@@ -627,7 +643,7 @@ public final class LongPollingRoomReplies {
             detach(b);
             for (var member : members.values()) {
                 if (members.remove(member.trackingId, member)) {
-                    member.leave();
+                    member.leave(true);
                 }
             }
         }
@@ -658,7 +674,7 @@ public final class LongPollingRoomReplies {
             for (var member : members.values()) {
                 if (member.expired(now)) {
                     if (members.remove(member.trackingId, member)) {
-                        member.leave();
+                        member.leave(true);
                         logger.debug("Long-polling client {} left room {}: no poll of it for its time to live",
                                 member.trackingId, b.getID());
                     }
@@ -709,7 +725,7 @@ public final class LongPollingRoomReplies {
                     var now = System.nanoTime();
                     for (var m : members.values()) {
                         if (m.expired(now) && members.remove(m.trackingId, m)) {
-                            m.leave();
+                            m.leave(true);
                         }
                     }
                 }
@@ -1060,8 +1076,24 @@ public final class LongPollingRoomReplies {
             mailbox.add(error);
         }
 
-        /** Left its room: what was kept for it is dropped, and nothing more is. */
-        void leave() {
+        /**
+         * Left its room: what was kept for it is dropped, and nothing more is.
+         * When it {@code departed} for good (no poll of it for its time to live,
+         * a close on purpose, its room destroyed), every run forgets its replay
+         * position too, so a run broadcast to the room remembers the members
+         * present, not every client that ever polled.
+         */
+        void leave(boolean departed) {
+            try {
+                drop();
+            } finally {
+                if (departed) {
+                    LongPollingReplies.forgetRunPositions(trackingId);
+                }
+            }
+        }
+
+        private void drop() {
             lock.lock();
             try {
                 gone = true;

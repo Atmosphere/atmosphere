@@ -89,8 +89,10 @@ import java.util.function.Consumer;
  * {@link #claim} hand each event to such a consumer once: the buffer remembers,
  * per consumer (a tracking id), the sequence of the last event it handed over,
  * for at most {@link #maxReplayPositions()} consumers per run, the least
- * recently used forgotten first. A forgotten consumer is handed the retained
- * events again. The frames a client received through a long-polling poll as a
+ * recently used forgotten first, and forgets a consumer gone for good
+ * ({@link #forget}: it left its room or closed its connection on purpose, or no
+ * poll of it was seen for its time to live). A forgotten consumer is handed the
+ * retained events again. The frames a client received through a long-polling poll as a
  * reply ({@code org.atmosphere.ai.LongPollingReplies}) count as handed to it
  * too ({@link #handed}), so a later poll of it carrying the run id is not
  * handed them again, as long as they follow on from what it was handed before
@@ -101,21 +103,51 @@ import java.util.function.Consumer;
  * received that way takes none of the places of the consumers {@link #claimNew}
  * or {@link #claim} handed events to, so the members of a room receiving a reply
  * never make the run forget one of those: the run remembers it for at most
- * {@link #maxReplayPositions()} other consumers, the first ones, for as long as
- * the buffer lives, and what a consumer past them received does not count as
+ * {@link #maxReplayPositions()} other consumers, the least recently served
+ * forgotten first, and what a forgotten consumer received does not count as
  * handed to it: a claim hands it the retained events again, and it then takes a
- * place like any consumer a claim handed events to. The members of a room
- * receive the run id with the room's reply and claim with it, so a room with
- * more long-polling members than {@link #maxReplayPositions()} past the first
- * ones can push out every other consumer.
+ * place like any consumer a claim handed events to.
  *
- * <p>Both bounds are {@value #MAX_REPLAY_POSITIONS} by default; {@link #forRun}
- * reads them from the init parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
- * {@value #MAX_WAITING_POLLS_PARAM} of the run's application. The runs an AI
- * endpoint ({@code @AiEndpoint}, {@code @Agent}, {@code @Coordinator}) starts
- * get their buffer from {@link #forRun}; the other constructors,
- * and so the buffers of runs {@link RunRegistry#rehydrate()} rebuilds, keep the
- * defaults.</p>
+ * <h2>Sizing</h2>
+ *
+ * A remembered consumer costs about one map entry: its tracking id (a
+ * {@code String} of up to 128 characters, 36 for the UUID atmosphere.js sends,
+ * about 80 bytes), a boxed sequence (16 bytes) and the entry of an ordered map
+ * (about 40 bytes, plus its slot), some 150 bytes; a consumer is in one of the
+ * two maps at most. The registry keeps the buffers of its live runs and of up to
+ * {@link RunRegistry#MAX_RETAINED_COMPLETED} (256) finished ones.
+ *
+ * <ul>
+ *   <li>A run whose reply reaches its own client only ({@link #forRun}) is
+ *       handed its id by that client alone: its consumers are that tracking id
+ *       and the few a reloaded page gives it, so it remembers
+ *       {@value #MAX_REPLAY_POSITIONS} by default, some 2.4 KB, about 600 KB for
+ *       256 finished runs.</li>
+ *   <li>Every member of a {@code broadcastReply} room is handed the run id with
+ *       the room's reply ({@link #forRoomRun}), and its polls carry it. Such a
+ *       run remembers as many consumers as the room takes long-polling members
+ *       ({@code LongPollingRoomReplies.memberLimit}, the init parameter
+ *       {@code org.atmosphere.ai.longPolling.maxParkedReplies}, 1,024 by
+ *       default), so a full room never pushes out its own members: about 150 KB
+ *       per run with 1,024 members present, some 38 MB if each of the 256
+ *       finished runs kept had a full room. A member that leaves for good frees
+ *       its place, so the bound counts the members present at once, not every
+ *       client that ever polled. Clients past the room's members (a long-polling
+ *       client the full room did not take, a member that lost its connection and
+ *       did not come back under its tracking id) are forgotten, least recently
+ *       served first.</li>
+ *   <li>Only the run's own client waits for the run's next event
+ *       ({@code RunReattachSupport}), so {@value #MAX_WAITING_POLLS} waiting polls
+ *       are enough for either kind of run.</li>
+ * </ul>
+ *
+ * <p>{@link #forRun} and {@link #forRoomRun} read the bounds from the init
+ * parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
+ * {@value #MAX_WAITING_POLLS_PARAM} of the run's application, which override
+ * these defaults. The runs an AI endpoint ({@code @AiEndpoint}, {@code @Agent},
+ * {@code @Coordinator}) starts get their buffer from them; the other
+ * constructors, and so the buffers of runs {@link RunRegistry#rehydrate()}
+ * rebuilds, keep the defaults of a run that reaches its own client only.</p>
  */
 public final class RunEventReplayBuffer {
 
@@ -128,23 +160,31 @@ public final class RunEventReplayBuffer {
     public static final int MAX_SUBSCRIBERS = 8;
 
     /**
-     * Default upper bound on the consumers whose replay position one run
-     * remembers; see {@link #MAX_REPLAY_POSITIONS_PARAM}.
+     * Default upper bound on the consumers whose replay position a run whose
+     * reply reaches its own client only remembers; see
+     * {@link #MAX_REPLAY_POSITIONS_PARAM}. Such a run's id is handed to that
+     * client alone: its consumers are its tracking id and the few a reloaded page
+     * gives it. A run broadcast to a room ({@link #forRoomRun}) is sized from the
+     * room's member limit instead.
      */
-    public static final int MAX_REPLAY_POSITIONS = 64;
+    public static final int MAX_REPLAY_POSITIONS = 16;
 
     /**
      * Default upper bound on the consumers whose long-polling poll waits for one
-     * run's next event: as many as the consumers whose replay position it
-     * remembers; see {@link #MAX_WAITING_POLLS_PARAM}.
+     * run's next event; see {@link #MAX_WAITING_POLLS_PARAM}. Only the run's own
+     * client waits ({@code RunReattachSupport}): the poll of another member of a
+     * room run never does, so a room run needs no more of them than a run that
+     * reaches its own client only.
      */
-    public static final int MAX_WAITING_POLLS = MAX_REPLAY_POSITIONS;
+    public static final int MAX_WAITING_POLLS = 16;
 
     /**
      * Init parameter: the consumers (long-polling tracking ids) whose replay
      * position one run remembers, and, apart from them, those whose frames
      * received as a long-polling reply it remembers ({@link #handed}); a
-     * positive integer, {@value #MAX_REPLAY_POSITIONS} by default.
+     * positive integer. When set, it overrides both defaults:
+     * {@value #MAX_REPLAY_POSITIONS} for a run that reaches its own client only,
+     * the room's member limit for a run broadcast to a room ({@link #forRoomRun}).
      */
     public static final String MAX_REPLAY_POSITIONS_PARAM = "org.atmosphere.ai.longPolling.maxReplayPositionsPerRun";
 
@@ -234,11 +274,16 @@ public final class RunEventReplayBuffer {
     /**
      * Guarded by {@code buffer}: consumer -> sequence of the last event whose
      * frame it received ({@link #handed}), for the consumers not in
-     * {@link #positions}; at most {@link #maxReplayPositions} of them, the first
-     * ones kept: one past them is not remembered. A claim moves the consumer to
-     * {@link #positions}.
+     * {@link #positions}; at most {@link #maxReplayPositions} of them, the least
+     * recently served forgotten first. A claim moves the consumer to
+     * {@link #positions}; a consumer gone for good ({@link #forget}) leaves both.
      */
-    private final Map<String, Long> receipts = new LinkedHashMap<>();
+    private final Map<String, Long> receipts = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
+            return size() > maxReplayPositions;
+        }
+    };
     /**
      * Guarded by {@code buffer}: the tracking ids a reattach of which was
      * refused for not owning the run, each warned about once; at most
@@ -332,7 +377,8 @@ public final class RunEventReplayBuffer {
     public static RunEventReplayBuffer forRoomRun(String runId, AtmosphereConfig config, String roomId) {
         Objects.requireNonNull(roomId, "roomId");
         return new RunEventReplayBuffer(runId, DEFAULT_CAPACITY,
-                positive(config, MAX_REPLAY_POSITIONS_PARAM, MAX_REPLAY_POSITIONS),
+                positive(config, MAX_REPLAY_POSITIONS_PARAM,
+                        org.atmosphere.ai.LongPollingRoomReplies.memberLimit(config)),
                 positive(config, MAX_WAITING_POLLS_PARAM, MAX_WAITING_POLLS), roomId);
     }
 
@@ -722,9 +768,10 @@ public final class RunEventReplayBuffer {
      * no replay can hand them. A position already past {@code last} stays.
      * Callers record the spans of one consumer in the order of their
      * {@code first}, so that one may follow on from another. For a consumer
-     * no claim handed events to, this is remembered only while fewer than
-     * {@link #maxReplayPositions()} other such consumers are, so it never
-     * makes the run forget a consumer a claim handed events to.
+     * no claim handed events to, this is remembered for at most
+     * {@link #maxReplayPositions()} such consumers, the least recently served
+     * forgotten first, so it never makes the run forget a consumer a claim
+     * handed events to.
      */
     public void handed(String consumer, long first, long last) {
         Objects.requireNonNull(consumer, "consumer");
@@ -739,11 +786,8 @@ public final class RunEventReplayBuffer {
             }
             if (positions.containsKey(consumer)) {
                 positions.put(consumer, last);
-            } else if (receipts.containsKey(consumer) || receipts.size() < maxReplayPositions) {
-                receipts.put(consumer, last);
             } else {
-                logger.trace("{} remembers what {} consumers received already; not what {} received",
-                        describe(), maxReplayPositions, consumer);
+                receipts.put(consumer, last);
             }
         }
     }
@@ -764,6 +808,31 @@ public final class RunEventReplayBuffer {
     private void claimed(String consumer, long sequence) {
         receipts.remove(consumer);
         positions.put(consumer, sequence);
+    }
+
+    /**
+     * {@code consumer} is gone for good (it left its room, or no poll of it was
+     * seen for its time to live): the run forgets its replay position, what it
+     * received and its waiting poll, so the bounds count the clients present,
+     * not every client that ever polled. A consumer that comes back after all is
+     * handed the retained events again.
+     */
+    public void forget(String consumer) {
+        if (consumer == null) {
+            return;
+        }
+        synchronized (buffer) {
+            positions.remove(consumer);
+            receipts.remove(consumer);
+            waitingPolls.remove(consumer);
+        }
+    }
+
+    /** The consumers whose replay position or received frames this run remembers; for tests. */
+    int rememberedConsumers() {
+        synchronized (buffer) {
+            return positions.size() + receipts.size();
+        }
     }
 
     /**

@@ -1593,7 +1593,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         DefaultStreamingSession.cleanupResource(uuid);
         // After the sessions are closed, so none of them parks a reply for the
         // departed client once its parked one is dropped.
-        LongPollingReplies.discard(uuid);
+        // A client that left on purpose is gone for good: its runs forget its
+        // replay positions too. One that lost its connection may poll again
+        // under the id, and is then handed what it missed and nothing more.
+        LongPollingReplies.discard(uuid, !transportLoss);
         // Cancels every model call still in flight on the connection — at once
         // for a client that left, after the reattach grace for one whose
         // connection was lost; a call it cuts short ends in a cancelled frame,

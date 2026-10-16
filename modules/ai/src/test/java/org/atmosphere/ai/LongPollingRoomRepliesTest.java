@@ -23,6 +23,7 @@ import org.atmosphere.ai.resume.RunEventCapturingSession;
 import org.atmosphere.ai.resume.RunEventReplayBuffer;
 import org.atmosphere.ai.resume.RunReattachSupport;
 import org.atmosphere.ai.resume.RunRegistry;
+import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.cache.BoundedMemoryCache;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -900,6 +901,92 @@ class LongPollingRoomRepliesTest {
         assertTrue(live.stream().anyMatch(f -> f.contains("approval-required")),
                 "the room delivers approval requests: " + live);
         assertEquals(0, buffer.subscriberCount(), "the run's end releases the reattach");
+    }
+
+    /**
+     * Every long-polling member of a room receives the run id with the room's
+     * reply, and its polls carry it. A run remembered what 64 tracking ids
+     * received and were handed, the first ones: the rest of a larger room were
+     * handed the retained frames they had received from their mailbox, and,
+     * claiming places, pushed each other out, so each poll of them carrying the
+     * run id was answered with the whole backlog again.
+     */
+    @Test
+    void moreThanAHundredMembersPollingWithTheRunIdNeverGetItsBacklogTwice() {
+        LongPollingRoomReplies.install(room);
+        var members = new ArrayList<AtmosphereResourceImpl>();
+        for (int i = 0; i < 130; i++) {
+            var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+            room.removeAtmosphereResource(member);
+            members.add(member);
+        }
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", "prompter", new ExecutionHandle.Settable(() -> { }),
+                RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+        assertEquals(LongPollingRoomReplies.memberLimit(config), run.replayBuffer().maxReplayPositions(),
+                "a room run remembers as many clients as the room takes members");
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), run.replayBuffer());
+        session.sendMetadata(RunReattachSupport.RUN_ID_HEADER, run.runId());
+        session.send("one. ");
+        session.send("two.");
+        awaitFrames(socket, 3);
+        for (var member : members) {
+            assertEquals(List.of("streaming-text:one. ", "streaming-text:two."), nextPoll(member).stream()
+                    .filter(f -> f.startsWith("streaming-text")).toList());
+        }
+
+        for (int round = 0; round < 2; round++) {
+            for (var member : members) {
+                var sink = new StringWriter();
+                var poll = suspendedPoll(member.uuid(), run.runId(), sink, new ArrayList<>());
+                assertEquals(0, RunReattachSupport.replayPendingRun(poll, registry),
+                        "member " + members.indexOf(member) + " received the run already, round " + round);
+                assertEquals("", sink.toString());
+            }
+        }
+        session.complete();
+        awaitComplete(socket);
+    }
+
+    /**
+     * A run broadcast to a room is sized from the room's member limit, and a
+     * member that leaves for good frees its place, so a full room never pushes
+     * out the members still present; a member that only lost its connection may
+     * come back under its tracking id and keeps its place.
+     */
+    @Test
+    void aMemberThatLeavesForGoodFreesItsReplayPositionAndOneThatLostItsConnectionKeepsIt() {
+        LongPollingRoomReplies.install(room);
+        var leaving = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(leaving);
+        var lost = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(lost);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        RunRegistryHolder.install(registry);
+        try {
+            var run = registry.register("agent", "anonymous", "prompter", new ExecutionHandle.Settable(() -> { }),
+                    RunEventReplayBuffer.forRoomRun(null, config, room.getID()), null);
+            var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket),
+                    run.replayBuffer());
+            session.send("one.");
+            session.complete();
+            awaitComplete(socket);
+            assertEquals(List.of("streaming-text:one.", "complete"), nextPoll(leaving));
+            assertEquals(List.of("streaming-text:one.", "complete"), nextPoll(lost));
+
+            LongPollingReplies.discard(lost.uuid(), false);
+            LongPollingReplies.discard(leaving.uuid(), true);
+
+            assertTrue(run.replayBuffer().claimNew(lost.uuid()).isEmpty(),
+                    "a client that lost its connection is remembered: it may come back under its id");
+            assertEquals(2, run.replayBuffer().claimNew(leaving.uuid()).size(),
+                    "a client gone for good is forgotten, by the finished run too");
+        } finally {
+            RunRegistryHolder.reset();
+        }
     }
 
     /** A streaming reattach of {@code trackingId} on the room carrying {@code runId}, its writes in {@code sink}. */
