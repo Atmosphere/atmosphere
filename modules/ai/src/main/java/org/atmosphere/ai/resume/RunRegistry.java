@@ -135,7 +135,8 @@ public final class RunRegistry {
     /**
      * Register a new run. Generates a fresh {@code runId} unless one is
      * supplied explicitly (for callers threading their own id through
-     * upstream protocols).
+     * upstream protocols). Its replay buffer has the default bounds
+     * ({@link RunEventReplayBuffer#RunEventReplayBuffer()}).
      */
     public AgentResumeHandle register(
             String agentId,
@@ -357,7 +358,11 @@ public final class RunRegistry {
      * events but the generation cannot continue), and its replay buffer is
      * re-seeded from the journal with original sequence numbers preserved.
      * The original {@code userId} is restored so {@code RunReattachSupport}
-     * still enforces caller-owns-run authorization (Invariant #6).
+     * still enforces caller-owns-run authorization (Invariant #6). The
+     * rebuilt buffers have the default long-polling bounds
+     * ({@link RunEventReplayBuffer#MAX_REPLAY_POSITIONS},
+     * {@link RunEventReplayBuffer#MAX_WAITING_POLLS}): the registry belongs to
+     * no application, so the init parameters of none apply to them.
      *
      * <p>Returns the number of runs rehydrated. A no-op (returns 0) when the
      * registry has no durable journal.</p>

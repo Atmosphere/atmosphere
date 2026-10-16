@@ -91,11 +91,13 @@ missed, up to the buffer's bounded capacity (oldest-evicted). On WebSocket,
 SSE and streaming, a reattach to a run still in flight also receives the
 run's later events through its terminal frame; a long-polling poll gets the
 buffered events its tracking id was not sent yet — as a replay, or in a
-long-polling reply of its own; after an event that never reached it, every
-later event counts as not sent — in one reply, at once, and a
+long-polling reply of its own; after an event that does not count as sent
+(one it never received, or a `broadcastReply` room frame not kept for it),
+every later event counts as not sent — in one reply, at once, and a
 later poll with nothing new waits: for the run's next event while the run is
 going (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (64) tracking
-ids per run by default, init-param `org.atmosphere.ai.longPolling.maxWaitingPollsPerRun`,
+ids per run by default, init-param `org.atmosphere.ai.longPolling.maxWaitingPollsPerRun`
+for the runs an AI endpoint starts,
 which take none of the streaming reattaches' places), else for a
 reply or its suspend timeout. A run that already
 finished stays replayable for the

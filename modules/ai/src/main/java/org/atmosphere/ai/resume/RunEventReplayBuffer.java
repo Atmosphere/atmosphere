@@ -94,13 +94,18 @@ import java.util.function.Consumer;
  * reply ({@code org.atmosphere.ai.LongPollingReplies}) count as handed to it
  * too ({@link #handed}), so a later poll of it carrying the run id is not
  * handed them again, as long as they follow on from what it was handed before
- * without a gap: frames that never reached it (dropped, expired, or sent only
- * while no poll of it waited) and every frame after them are handed to it
+ * without a gap: frames that do not count as handed to it (a reply dropped or
+ * expired before a poll took it, a room frame not kept for it, which reached it
+ * only if a poll of it waited) and every frame after them are handed to it
  * again, so it may receive some of these twice, but loses none.
  *
  * <p>Both bounds are {@value #MAX_REPLAY_POSITIONS} by default; {@link #forRun}
  * reads them from the init parameters {@value #MAX_REPLAY_POSITIONS_PARAM} and
- * {@value #MAX_WAITING_POLLS_PARAM} of the run's application.</p>
+ * {@value #MAX_WAITING_POLLS_PARAM} of the run's application. The runs an AI
+ * endpoint ({@code @AiEndpoint}, {@code @Agent}, {@code @Coordinator}) starts
+ * get their buffer from {@link #forRun}; the other constructors,
+ * and so the buffers of runs {@link RunRegistry#rehydrate()} rebuilds, keep the
+ * defaults.</p>
  */
 public final class RunEventReplayBuffer {
 
