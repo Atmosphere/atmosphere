@@ -18,8 +18,13 @@ package org.atmosphere.spring.boot;
 import java.util.List;
 import java.util.Map;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.endpoint.EndpointId;
 import org.springframework.boot.actuate.endpoint.web.ExposableWebEndpoint;
 import org.springframework.boot.actuate.endpoint.web.WebEndpointsSupplier;
@@ -103,6 +108,61 @@ class AtmosphereConsoleInfoEndpointMetricsTest {
 
         assertThat(result).containsEntry("hasMetrics", false);
         assertThat(result).doesNotContainKey("metricsPath");
+    }
+
+    /**
+     * An absent actuator is an expected state, not a failure: the probe reports
+     * it on one DEBUG line and keeps the stack for TRACE. The 2026-10-16 sweep
+     * found a full ClassNotFoundException stack in the log of
+     * spring-boot-agui-chat, which runs org.atmosphere at DEBUG.
+     */
+    @Test
+    void absentActuatorIsOneDebugLineWithTheStackOnlyAtTrace() {
+        var withoutActuator = new ClassLoader(getClass().getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+                if (name.startsWith("org.springframework.boot.actuate.")) {
+                    throw new ClassNotFoundException(name);
+                }
+                return super.loadClass(name, resolve);
+            }
+        };
+        var context = mock(ApplicationContext.class);
+        when(context.getClassLoader()).thenReturn(withoutActuator);
+        when(context.getEnvironment()).thenReturn(new MockEnvironment());
+        when(context.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean()))
+                .thenReturn(new String[0]);
+
+        var infoLogger = (Logger) LoggerFactory.getLogger(AtmosphereConsoleInfoEndpoint.class);
+        var previous = infoLogger.getLevel();
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        infoLogger.addAppender(appender);
+        infoLogger.setLevel(Level.TRACE);
+        try {
+            var result = new AtmosphereConsoleInfoEndpoint(
+                    new AtmosphereProperties(), framework(), context).info();
+            assertThat(result).containsEntry("hasMetrics", false);
+        } finally {
+            infoLogger.detachAppender(appender);
+            infoLogger.setLevel(previous);
+        }
+
+        var debug = appender.list.stream()
+                .filter(e -> e.getLevel() == Level.DEBUG
+                        && e.getFormattedMessage().contains("metrics web exposure"))
+                .toList();
+        assertThat(debug).as("one DEBUG line for the absent actuator").hasSize(1);
+        assertThat(debug.get(0).getThrowableProxy())
+                .as("the DEBUG line carries a stack: %s", debug.get(0).getFormattedMessage())
+                .isNull();
+        assertThat(debug.get(0).getFormattedMessage()).contains("ClassNotFoundException");
+        var trace = appender.list.stream()
+                .filter(e -> e.getLevel() == Level.TRACE
+                        && e.getFormattedMessage().contains("metrics web exposure"))
+                .toList();
+        assertThat(trace).as("the stack must still be available at TRACE").hasSize(1);
+        assertThat(trace.get(0).getThrowableProxy()).isNotNull();
     }
 
     /**

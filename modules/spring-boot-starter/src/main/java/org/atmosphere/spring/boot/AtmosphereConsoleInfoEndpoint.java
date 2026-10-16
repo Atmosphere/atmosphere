@@ -363,8 +363,11 @@ public class AtmosphereConsoleInfoEndpoint {
             return null;
         } catch (LinkageError | ReflectiveOperationException | RuntimeException e) {
             // ReflectiveOperationException covers the ClassNotFoundException
-            // thrown when spring-boot-actuator is simply absent.
-            logger.debug("Actuator metrics web exposure not resolvable", e);
+            // thrown when spring-boot-actuator is simply absent — an expected
+            // state on every host without it: one line at DEBUG, the stack
+            // only at TRACE.
+            logger.debug("Actuator metrics web exposure not resolvable ({})", e.toString());
+            logger.trace("Actuator metrics web exposure probe failure", e);
             return null;
         }
     }
