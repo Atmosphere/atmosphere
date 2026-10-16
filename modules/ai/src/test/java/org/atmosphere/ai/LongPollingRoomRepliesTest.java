@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import org.atmosphere.ai.cache.AiResponseCacheInspector;
 import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
+import org.atmosphere.ai.resume.RunDisconnectGrace;
 import org.atmosphere.ai.resume.RunEventCapturingSession;
 import org.atmosphere.ai.resume.RunEventReplayBuffer;
 import org.atmosphere.ai.resume.RunReattachSupport;
@@ -56,6 +57,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,6 +69,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -693,12 +696,12 @@ class LongPollingRoomRepliesTest {
 
     /**
      * A member's mailbox already delivers the rest of the run to its polls: a
-     * poll of it carrying the run id that waited for the run's next event too
-     * was written each later frame directly, while the room kept the same frame
+     * poll of it carrying the run id that was written the run's next event too
+     * received each later frame directly, while the room kept the same frame
      * for its next poll, so the client received every later frame twice.
      */
     @Test
-    void aRoomMembersPollCarryingTheRunIdDoesNotAlsoWaitForTheRunsNextFrame() {
+    void aRoomMembersPollCarryingTheRunIdIsNotAlsoWrittenTheRunsNextFrame() {
         LongPollingRoomReplies.install(room);
         var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
         room.removeAtmosphereResource(member);
@@ -730,6 +733,62 @@ class LongPollingRoomRepliesTest {
         assertTrue(resumed.isEmpty(), "the poll is left to the room: " + resumed);
         assertEquals(List.of("streaming-text:two.", "complete"), nextPoll(member));
         assertTrue(run.replayBuffer().claimNew(member.uuid()).isEmpty(), "the member received every frame of the run");
+    }
+
+    /**
+     * A room member's poll carrying the run id that finds nothing new is not
+     * written the run's frames, but still listens to the run while it waits:
+     * a prompter that reloaded mid-reply and polls again within the grace must
+     * not have its run cancelled when the grace ends while that poll waits,
+     * as a unicast long-polling client's waiting poll does not.
+     */
+    @Test
+    void aRoomMembersWaitingPollCarryingTheRunIdHoldsThePendingGraceOff() throws InterruptedException {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", "room-session", new ExecutionHandle.Settable(() -> { }),
+                new RunEventReplayBuffer(), null);
+        var buffer = run.replayBuffer();
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), buffer);
+        session.sendMetadata(RunReattachSupport.RUN_ID_HEADER, run.runId());
+        session.send("one.");
+        awaitFrames(socket, 2);
+        assertTrue(nextPoll(member).contains("streaming-text:one."));
+
+        var grace = Duration.ofMillis(300);
+        var cancelled = new AtomicBoolean();
+        System.setProperty(AiConfig.REATTACH_GRACE_PROPERTY, grace.toMillis() + "ms");
+        try {
+            // The prompter's page went away mid-reply: the run waits out the grace.
+            assertTrue(RunDisconnectGrace.detach(run.runId(), grace, () -> cancelled.set(true),
+                    () -> buffer.subscriberCount() > 0));
+            // Its new page polls with the run id; nothing is new for it, so the poll waits.
+            var sink = new StringWriter();
+            var resumed = new ArrayList<String>();
+            var poll = suspendedPoll(member.uuid(), run.runId(), sink, resumed);
+            room.addAtmosphereResource(member);
+            assertEquals(0, RunReattachSupport.replayPendingRun(poll, registry), "the member received all of the run");
+            assertEquals(1, buffer.subscriberCount(), "the member's waiting poll listens to the run");
+
+            Thread.sleep(grace.toMillis() * 3);
+            assertFalse(cancelled.get(), "a run a member's poll waits on must not be cancelled when the grace ends");
+
+            session.send("two.");
+            session.complete();
+            awaitComplete(socket);
+            assertEquals("", sink.toString(), "the room keeps the rest of the run for the member");
+            assertTrue(resumed.isEmpty(), "the poll is left to the room: " + resumed);
+            assertEquals(List.of("streaming-text:two.", "complete"), nextPoll(member),
+                    "the reattached member receives the rest of the answer through complete");
+            assertEquals(0, buffer.subscriberCount(), "the run's end releases the waiting poll");
+        } finally {
+            System.clearProperty(AiConfig.REATTACH_GRACE_PROPERTY);
+            RunDisconnectGrace.runEnded(run.runId());
+        }
     }
 
     /** A suspended long-polling poll of {@code trackingId} on the room carrying {@code runId}. */

@@ -284,8 +284,9 @@ public final class RunReattachSupport {
      * empty. A long-polling poll is written only the events not handed to its
      * tracking id yet, and resumed when any were written; with none it stays
      * suspended, returns {@code 0}, and is answered with the run's next event,
-     * if the run is still going, unless its client is a long-polling member of
-     * a {@code broadcastReply} room, whose frames reach its polls already.
+     * if the run is still going; the poll of a long-polling member of a
+     * {@code broadcastReply} room waits on the run too, but is written none of
+     * its events: the room's frames reach the member's polls already.
      *
      * @param resource the reconnecting resource
      * @param registry the registry to look the run id up in
@@ -404,9 +405,10 @@ public final class RunReattachSupport {
      * wait; past {@link RunEventReplayBuffer#maxWaitingPolls()} tracking ids
      * waiting, it is left to a reply or its suspend timeout. The poll of a
      * long-polling member of a {@code broadcastReply} room
-     * ({@code org.atmosphere.ai.LongPollingRoomReplies}) does not wait: the
-     * room's frames reach that poll, or are kept for the member's next one,
-     * already. Frames carry the event's own sequence, plus one,
+     * ({@code org.atmosphere.ai.LongPollingRoomReplies}) waits on the run as
+     * well, so it listens to it like any waiting poll, but is written none of
+     * the run's events: the room's frames reach that poll, or are kept for the
+     * member's next one, already, and the room resumes it. Frames carry the event's own sequence, plus one,
      * so the pieces a client gets over several polls number consistently.
      * While it waits it listens to the run, which keeps a pending grace from
      * firing; when it ends with the run still going and nobody else listening,
@@ -424,6 +426,13 @@ public final class RunReattachSupport {
         private final String broadcasterId;
         private final java.time.Duration grace;
         private final org.atmosphere.cpr.AtmosphereResourceEventListener endListener;
+        /**
+         * The listener of a room member's poll: it holds the run watched while
+         * the poll waits, and neither claims nor writes the run's events, which
+         * the room delivers to the member's polls. One per poll, so an older
+         * poll of the same tracking id ending never removes a newer one's wait.
+         */
+        private final java.util.function.Consumer<RunEvent> watchOnly;
         private boolean ended;
         private Runnable unsubscribe = () -> { };
 
@@ -438,6 +447,8 @@ public final class RunReattachSupport {
             this.filters = filters;
             this.broadcasterId = broadcasterId;
             this.grace = grace;
+            this.watchOnly = event -> logger.trace("Run {} event {} reaches the poll of room member {} through"
+                    + " the room", runId, event.sequence(), consumer);
             this.endListener = new org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onResume(org.atmosphere.cpr.AtmosphereResourceEvent event) {
@@ -461,11 +472,13 @@ public final class RunReattachSupport {
             // Subscribed before claiming: an event captured in between is either
             // claimed here or delivered to accept, and claimed once. A poll with
             // no tracking id does not wait: it takes what the run holds.
-            // Nor does the poll of a member of a room (a broadcastReply room): the
-            // room's frames reach its polls already, and the run's next frame
-            // written here as well would reach the client twice.
-            var subscription = consumer != null && !roomMember()
-                    ? buffer.awaitNext(consumer, this)
+            // The poll of a member of a room (a broadcastReply room) waits too,
+            // so the run counts as watched and a pending grace stands down, but
+            // is written nothing: the room's frames reach its polls already, and
+            // the run's next frame written here as well would reach the client
+            // twice. The room resumes the poll, which ends the wait.
+            var subscription = consumer != null
+                    ? buffer.awaitNext(consumer, roomMember() ? watchOnly : this)
                     : new RunEventReplayBuffer.Subscription(buffer.snapshot(), false, () -> { });
             unsubscribe = subscription.cancel();
             var claimed = consumer != null ? buffer.claimNew(consumer) : subscription.backlog();

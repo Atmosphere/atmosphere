@@ -100,11 +100,12 @@ events, but a poll carrying it that is sent events takes one of the run's 64
 places, and a tracking id pushed out of them is sent the retained events again),
 every later event counts as not sent — in one reply, at once, and a
 later poll with nothing new waits: for the run's next event while the run is
-going, unless its client is a long-polling member of a `broadcastReply` room,
-whose frames reach its polls already (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (64) tracking
+going (for polls of up to `RunEventReplayBuffer.MAX_WAITING_POLLS` (64) tracking
 ids per run by default, init-param `org.atmosphere.ai.longPolling.maxWaitingPollsPerRun`
 for the runs an AI endpoint starts,
-which take none of the streaming reattaches' places), else for a
+which take none of the streaming reattaches' places; the poll of a long-polling
+member of a `broadcastReply` room waits on the run too, but is written the room's
+frames, which reach its polls already, not the run's), else for a
 reply or its suspend timeout. A run that already
 finished stays replayable for the
 registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
