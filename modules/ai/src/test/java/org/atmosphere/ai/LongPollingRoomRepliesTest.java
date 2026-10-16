@@ -741,7 +741,8 @@ class LongPollingRoomRepliesTest {
     /**
      * A room member's poll carrying the run id that finds nothing new is not
      * written the run's frames, but still listens to the run while it waits:
-     * a prompter that reloaded mid-reply and polls again within the grace must
+     * a prompter that lost its connection mid-reply and polls again under its
+     * tracking id within the grace must
      * not have its run cancelled when the grace ends while that poll waits,
      * as a unicast long-polling client's waiting poll does not.
      */
@@ -859,7 +860,7 @@ class LongPollingRoomRepliesTest {
      * session ids.
      */
     @ParameterizedTest
-    @EnumSource(value = AtmosphereResource.TRANSPORT.class, names = {"WEBSOCKET", "SSE"})
+    @EnumSource(value = AtmosphereResource.TRANSPORT.class, names = {"WEBSOCKET", "SSE", "STREAMING"})
     void aStreamingRoomMemberReconnectingWithTheRunIdReceivesEachLaterFrameOnce(AtmosphereResource.TRANSPORT transport) {
         LongPollingRoomReplies.install(room);
         var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
@@ -948,6 +949,21 @@ class LongPollingRoomRepliesTest {
         }
         session.complete();
         awaitComplete(socket);
+    }
+
+    @Test
+    void theInitParametersOverrideTheBoundsOfARoomRun() {
+        params.put(RunEventReplayBuffer.MAX_REPLAY_POSITIONS_PARAM, "7");
+        params.put(RunEventReplayBuffer.MAX_WAITING_POLLS_PARAM, "3");
+        var buffer = RunEventReplayBuffer.forRoomRun(null, config, room.getID());
+        assertEquals(7, buffer.maxReplayPositions(), "the init parameter overrides the room's member limit");
+        assertEquals(3, buffer.maxWaitingPolls());
+        assertEquals(room.getID(), buffer.roomId());
+
+        params.remove(RunEventReplayBuffer.MAX_REPLAY_POSITIONS_PARAM);
+        params.put(LongPollingReplies.MAX_PARKED_REPLIES_PARAM, "200");
+        assertEquals(200, RunEventReplayBuffer.forRoomRun(null, config, room.getID()).maxReplayPositions(),
+                "without it, a room run remembers as many clients as the room takes members");
     }
 
     /**

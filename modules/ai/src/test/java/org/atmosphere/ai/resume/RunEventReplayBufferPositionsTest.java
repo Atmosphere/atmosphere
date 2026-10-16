@@ -149,15 +149,18 @@ class RunEventReplayBufferPositionsTest {
     void aConsumerGoneForGoodFreesItsPlace() {
         var buffer = new RunEventReplayBuffer(null, 16, 2, 2);
         buffer.capture("streaming-text", "a");
-        buffer.capture("complete", "");
+        buffer.capture("streaming-text", "b");
         assertEquals(2, buffer.claimNew("owner").size());
         buffer.handed("member", 0, 1);
         assertEquals(2, buffer.rememberedConsumers());
+        assertTrue(buffer.awaitNext("owner", event -> { }).live());
+        assertEquals(1, buffer.subscriberCount());
 
         buffer.forget("member");
         buffer.forget("owner");
 
         assertEquals(0, buffer.rememberedConsumers(), "a client gone for good takes no place");
+        assertEquals(0, buffer.subscriberCount(), "nor a waiting slot");
         assertEquals(2, buffer.claimNew("owner").size(), "one that comes back after all is handed the run again");
     }
 
