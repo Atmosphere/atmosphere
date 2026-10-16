@@ -1593,11 +1593,12 @@ public class AtmosphereAiAutoConfiguration {
                 : baseSettings.model();
         var builder = org.atmosphere.ai.routing.RoutingLlmClient.builder(
                 baseSettings.client(), defaultModel);
+        var aiEnvironment = attachment.environment();
         // Reused by ModelOptionProperties#toModelOption so cost/latency option
         // clients honor base-url/api-key (or their absence) identically to
         // content/model rules.
         java.util.function.BiFunction<String, String, org.atmosphere.ai.llm.LlmClient> resolver =
-                (baseUrl, apiKey) -> resolveRuleTarget(baseUrl, apiKey, baseSettings);
+                (baseUrl, apiKey) -> resolveRuleTarget(baseUrl, apiKey, baseSettings, aiEnvironment);
         int ruleCount = 0;
 
         // 1. content rules — most specific (matches on the user message body).
@@ -1609,7 +1610,7 @@ public class AtmosphereAiAutoConfiguration {
                 continue;
             }
             var keywords = java.util.List.copyOf(rule.getKeywords());
-            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings);
+            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings, aiEnvironment);
             builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.contentBased(
                     msg -> keywordsMatchCaseInsensitive(msg, keywords),
                     target, rule.getModel()));
@@ -1623,7 +1624,7 @@ public class AtmosphereAiAutoConfiguration {
                 continue;
             }
             var pattern = rule.getModelPattern();
-            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings);
+            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings, aiEnvironment);
             builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.modelBased(
                     m -> m != null && m.equalsIgnoreCase(pattern), target));
             ruleCount++;
@@ -1660,7 +1661,6 @@ public class AtmosphereAiAutoConfiguration {
         }
 
         var router = builder.build();
-        var aiEnvironment = attachment.environment();
         aiEnvironment.installClient(router);
         logger.info("Atmosphere AI routing enabled: wrapped resolved client in RoutingLlmClient with "
                 + "{} rule(s) [content={}, model={}, cost={}, latency={}], defaultModel={}",
@@ -1676,17 +1676,22 @@ public class AtmosphereAiAutoConfiguration {
      * {@link org.atmosphere.ai.llm.OpenAiCompatibleClient} (falling back to the
      * resolved base URL / key for the component the rule omits); otherwise it
      * reuses the framework-resolved client so the rule only changes the model
-     * name.
+     * name. A dedicated client takes the prompt-cache-key and logprobs modes of
+     * the context's application, as the resolved client did, rather than the
+     * modes the static API reads while it is built.
      */
     private static org.atmosphere.ai.llm.LlmClient resolveRuleTarget(
-            String ruleBaseUrl, String ruleApiKey, AiConfig.LlmSettings baseSettings) {
+            String ruleBaseUrl, String ruleApiKey, AiConfig.LlmSettings baseSettings,
+            AiEnvironment aiEnvironment) {
         var hasBaseUrl = ruleBaseUrl != null && !ruleBaseUrl.isBlank();
         var hasApiKey = ruleApiKey != null && !ruleApiKey.isBlank();
         if (!hasBaseUrl && !hasApiKey) {
             return baseSettings.client();
         }
         var clientBuilder = org.atmosphere.ai.llm.OpenAiCompatibleClient.builder()
-                .baseUrl(hasBaseUrl ? ruleBaseUrl : baseSettings.baseUrl());
+                .baseUrl(hasBaseUrl ? ruleBaseUrl : baseSettings.baseUrl())
+                .promptCacheKeyMode(aiEnvironment.resolvePromptCacheKeyMode())
+                .logprobsMode(aiEnvironment.resolveLogprobsMode());
         var key = hasApiKey ? ruleApiKey : baseSettings.apiKey();
         if (key != null && !key.isBlank()) {
             clientBuilder.apiKey(key);

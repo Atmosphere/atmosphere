@@ -16,13 +16,20 @@
 package org.atmosphere.spring.boot;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
+import org.atmosphere.ai.llm.LogprobsMode;
+import org.atmosphere.ai.llm.OpenAiCompatibleClient;
+import org.atmosphere.ai.llm.PromptCacheKeyMode;
 import org.atmosphere.ai.routing.RoutingLlmClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -282,5 +289,77 @@ class AtmosphereRoutingAutoConfigurationTest {
                             .as("a model rule with a blank pattern is skipped")
                             .isZero();
                 });
+    }
+
+    /**
+     * A rule with its own base URL gets a client of its own, built with the
+     * prompt-cache-key and logprobs modes of the context's application, not the
+     * modes the static API reads when the client is built. Here another
+     * application opens while this context starts (parallel startup, a lazy
+     * bean), so the static API reads the process default, which has neither
+     * knob set.
+     */
+    @Test
+    void aRuleClientOfItsOwnTakesTheContextsModesWhileAnotherApplicationRuns() {
+        contextRunner
+                .withUserConfiguration(AnotherApplicationOpensDuringStartup.class)
+                .withPropertyValues(
+                        "atmosphere.ai.logprobs=disabled",
+                        "atmosphere.ai.prompt-cache-key=disabled",
+                        "atmosphere.ai.routing.enabled=true",
+                        "atmosphere.ai.routing.content-rules[0].keywords[0]=code",
+                        "atmosphere.ai.routing.content-rules[0].model=gpt-4o",
+                        "atmosphere.ai.routing.content-rules[0].base-url=http://127.0.0.1:1/v1")
+                .run(context -> {
+                    try {
+                        var installer = context.getBean(
+                                AtmosphereAiAutoConfiguration.RoutingClientInstaller.class);
+                        var rule = (RoutingLlmClient.RoutingRule.ContentBased) rulesOf(installer.router()).get(0);
+                        var client = (OpenAiCompatibleClient) rule.target();
+
+                        assertThat(client.logprobsMode())
+                                .as("the rule client's logprobs mode is the context's")
+                                .isEqualTo(LogprobsMode.DISABLED);
+                        assertThat(client.promptCacheKeyMode())
+                                .as("the rule client's prompt-cache-key mode is the context's")
+                                .isEqualTo(PromptCacheKeyMode.DISABLED);
+                    } finally {
+                        AnotherApplicationOpensDuringStartup.closeIt();
+                    }
+                });
+    }
+
+    private static java.util.List<?> rulesOf(RoutingLlmClient router) throws ReflectiveOperationException {
+        var field = RoutingLlmClient.class.getDeclaredField("rules");
+        field.setAccessible(true);
+        return (java.util.List<?>) field.get(router);
+    }
+
+    /** Opens a second application's environment once this context's is attached. */
+    @Configuration(proxyBeanMethods = false)
+    static class AnotherApplicationOpensDuringStartup {
+
+        private static final java.util.concurrent.atomic.AtomicReference<AiEnvironment> OPENED =
+                new java.util.concurrent.atomic.AtomicReference<>();
+
+        @Bean
+        static BeanPostProcessor anotherApplicationOpens() {
+            return new BeanPostProcessor() {
+                @Override
+                public Object postProcessAfterInitialization(Object bean, String beanName) {
+                    if (bean instanceof AtmosphereAiAutoConfiguration.AiEnvironmentAttachment) {
+                        OPENED.set(AiEnvironment.create(java.util.Map.<String, String>of()::get));
+                    }
+                    return bean;
+                }
+            };
+        }
+
+        static void closeIt() {
+            var opened = OPENED.getAndSet(null);
+            if (opened != null) {
+                opened.close();
+            }
+        }
     }
 }
