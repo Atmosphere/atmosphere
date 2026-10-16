@@ -167,6 +167,27 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void initializedFrameworkServingNoHandlerAdvertisesNoChatEndpoint() {
+        // Parity with the Spring Boot 4 starter: an initialized framework that
+        // serves no handler names no endpoint, instead of the /atmosphere/ai-chat
+        // default nothing answers on (Runtime Truth).
+        var result = newInitializedEndpoint(new AtmosphereProperties(), Map.of()).info();
+        assertThat(result).containsEntry("hasChat", false);
+        assertThat(result).doesNotContainKey("endpoint");
+        assertThat(result).doesNotContainKey("mode");
+        assertThat(result).containsEntry("subtitle", "No chat endpoint");
+    }
+
+    @Test
+    void initializedFrameworkServingTheChatHandlerAdvertisesIt() {
+        var result = newInitializedEndpoint(new AtmosphereProperties(),
+                Map.of("/atmosphere/ai-chat", wrapperFor(new FakeAtmosphereAiHandler()))).info();
+        assertThat(result).containsEntry("hasChat", true);
+        assertThat(result).containsEntry("endpoint", "/atmosphere/ai-chat");
+        assertThat(result).containsEntry("mode", "ai");
+    }
+
+    @Test
     void noWrapperRegisteredFallsBackToAiMode() {
         assertThat(newEndpoint(new AtmosphereProperties(), Map.of()).info())
                 .containsEntry("mode", "ai");
@@ -176,6 +197,14 @@ class AtmosphereConsoleInfoEndpointModeTest {
                                                       Map<String, AtmosphereHandlerWrapper> handlers) {
         var framework = mock(AtmosphereFramework.class);
         when(framework.getAtmosphereHandlers()).thenReturn(handlers);
+        return new AtmosphereConsoleInfoEndpoint(properties, framework);
+    }
+
+    private AtmosphereConsoleInfoEndpoint newInitializedEndpoint(AtmosphereProperties properties,
+                                                                 Map<String, AtmosphereHandlerWrapper> handlers) {
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereHandlers()).thenReturn(handlers);
+        when(framework.initialized()).thenReturn(true);
         return new AtmosphereConsoleInfoEndpoint(properties, framework);
     }
 

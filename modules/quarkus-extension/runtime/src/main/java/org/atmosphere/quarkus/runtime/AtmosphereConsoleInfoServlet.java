@@ -33,8 +33,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Quarkus parity for {@code AtmosphereConsoleInfoEndpoint} from the Spring Boot
  * starter — serves {@code GET /api/console/info} so the bundled Atmosphere
- * Console UI gets the same {@code subtitle / endpoint / runtime / mode}
- * payload regardless of the host runtime.
+ * Console UI gets the same {@code subtitle / endpoint / hasChat / runtime / mode}
+ * payload regardless of the host runtime. {@code endpoint} and {@code mode} are
+ * present only when a chat endpoint is genuinely served ({@code hasChat}).
  *
  * <p>{@code mode} auto-detection mirrors the Spring path: classify the handler
  * registered at the resolved console endpoint by package prefix
@@ -88,19 +89,30 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         var framework = LazyAtmosphereConfigurator.getFramework();
 
         var endpoint = detectEndpoint(framework, consoleEndpoint);
-        var mode = detectMode(framework, endpoint);
+        // Whether a chat endpoint is genuinely served, in parity with the Spring
+        // starter: with none, the payload names no endpoint and says
+        // hasChat=false, so the Console shows the tabs that work instead of a
+        // chat stuck on "Connecting..." against a 404 (Runtime Truth — #5).
+        var hasChat = endpoint != null;
+        var mode = hasChat ? detectMode(framework, endpoint) : null;
         var runtime = detectRuntime();
 
         if (subtitle.isBlank()) {
             // Mode-aware default: broadcast samples don't borrow the AI runtime label.
-            subtitle = "broadcast".equals(mode) ? "Multi-client broadcast chat" : "Runtime: " + runtime;
+            subtitle = !hasChat ? "No chat endpoint"
+                    : "broadcast".equals(mode) ? "Multi-client broadcast chat" : "Runtime: " + runtime;
         }
 
         var payload = new LinkedHashMap<String, Object>();
         payload.put("subtitle", subtitle);
-        payload.put("endpoint", endpoint);
+        if (hasChat) {
+            payload.put("endpoint", endpoint);
+        }
+        payload.put("hasChat", hasChat);
         payload.put("runtime", runtime);
-        payload.put("mode", mode);
+        if (hasChat) {
+            payload.put("mode", mode);
+        }
         // Wire transport the console client should use, in parity with the
         // Spring starter (AtmosphereConsoleInfoEndpoint#detectTransport).
         // Validated against the adapter set the console actually ships — an
@@ -174,7 +186,14 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
     /** Default {@code @AiEndpoint} path when {@code atmosphere-ai} auto-registers one. */
     private static final String DEFAULT_AI_ENDPOINT = "/atmosphere/ai-chat";
 
-    private static String detectEndpoint(AtmosphereFramework framework, String configuredOverride) {
+    /**
+     * The endpoint the Console connects to: the configured override, else the
+     * handler the framework serves, else {@code null} once the framework is
+     * initialized and serves none (no chat endpoint). Before the framework is
+     * set or initialized nothing can be confirmed, so the default
+     * {@code @AiEndpoint} path stands. Package-visible for unit testing.
+     */
+    static String detectEndpoint(AtmosphereFramework framework, String configuredOverride) {
         if (configuredOverride != null && !configuredOverride.isBlank()) {
             return configuredOverride;
         }
@@ -206,7 +225,10 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         } catch (Exception e) {
             logger.debug("Could not enumerate handlers", e);
         }
-        return DEFAULT_AI_ENDPOINT;
+        // init() registers every annotated handler, so an initialized framework
+        // with no match serves no chat endpoint: report none rather than a
+        // default nothing answers on.
+        return framework.initialized() ? null : DEFAULT_AI_ENDPOINT;
     }
 
     /**

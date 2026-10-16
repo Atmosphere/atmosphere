@@ -146,6 +146,38 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void initializedFrameworkServingNoHandlerAdvertisesNoChatEndpoint() {
+        // The passivation sample turns the AI auto-configuration off and serves
+        // no Atmosphere handler: console info named /atmosphere/ai-chat anyway,
+        // and the Console sat on "Connecting..." against a 404 (Runtime Truth).
+        var result = newInitializedEndpoint(new AtmosphereProperties(), Map.of()).info();
+        assertThat(result).containsEntry("hasChat", false);
+        assertThat(result).doesNotContainKey("endpoint");
+        assertThat(result).doesNotContainKey("mode");
+        assertThat(result).containsEntry("subtitle", "No chat endpoint");
+    }
+
+    @Test
+    void initializedFrameworkServingTheChatHandlerAdvertisesIt() {
+        var result = newInitializedEndpoint(new AtmosphereProperties(),
+                Map.of("/atmosphere/ai-chat", wrapperFor(new FakeAtmosphereAiHandler()))).info();
+        assertThat(result).containsEntry("hasChat", true);
+        assertThat(result).containsEntry("endpoint", "/atmosphere/ai-chat");
+        assertThat(result).containsEntry("mode", "ai");
+    }
+
+    @Test
+    void explicitConsoleEndpointStandsWithoutARegisteredHandler() {
+        // atmosphere.console-endpoint is operator intent (foreign transports may
+        // serve it outside the Atmosphere handler map): reported as configured.
+        var props = new AtmosphereProperties();
+        props.setConsoleEndpoint("/grpc/chat");
+        var result = newInitializedEndpoint(props, Map.of()).info();
+        assertThat(result).containsEntry("hasChat", true);
+        assertThat(result).containsEntry("endpoint", "/grpc/chat");
+    }
+
+    @Test
     void transportDefaultsToAtmosphereWhenUnset() {
         // Every AI/broadcast sample leaves atmosphere.console-transport at its
         // default, so the console loads its built-in WS transport.
@@ -290,6 +322,19 @@ class AtmosphereConsoleInfoEndpointModeTest {
         when(framework.getAtmosphereHandlers()).thenReturn(handlers);
         // These tests pin mode/subtitle, not the capability flags; stub the
         // context so hasInteractions/hasVerifier resolve to false (no beans).
+        var context = mock(ApplicationContext.class);
+        when(context.getClassLoader()).thenReturn(getClass().getClassLoader());
+        when(context.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean()))
+                .thenReturn(new String[0]);
+        return new AtmosphereConsoleInfoEndpoint(properties, framework, context);
+    }
+
+    private AtmosphereConsoleInfoEndpoint newInitializedEndpoint(
+            AtmosphereProperties properties,
+            Map<String, AtmosphereHandlerWrapper> handlers) {
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereHandlers()).thenReturn(handlers);
+        when(framework.initialized()).thenReturn(true);
         var context = mock(ApplicationContext.class);
         when(context.getClassLoader()).thenReturn(getClass().getClassLoader());
         when(context.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean()))

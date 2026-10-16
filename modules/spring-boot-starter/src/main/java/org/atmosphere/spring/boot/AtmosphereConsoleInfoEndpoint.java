@@ -70,21 +70,33 @@ public class AtmosphereConsoleInfoEndpoint {
     public Map<String, Object> info() {
         var result = new LinkedHashMap<String, Object>();
         var endpoint = detectEndpoint();
-        var mode = detectMode(endpoint);
+        // Whether a chat endpoint is genuinely served. An application with no
+        // Atmosphere chat handler (e.g. the AI auto-configuration turned off and
+        // a runtime driven from a REST controller) reports hasChat=false and
+        // names no endpoint, so the Console shows the tabs that work instead of
+        // a chat stuck on "Connecting..." against a 404 (Runtime Truth — #5).
+        var hasChat = endpoint != null;
+        var mode = hasChat ? detectMode(endpoint) : null;
         var subtitle = properties.getConsoleSubtitle();
         if (subtitle == null || subtitle.isBlank()) {
             // Mode-aware default so broadcast samples (mcp-server, otel-chat,
             // anything mounting @ManagedService at /atmosphere/ai-chat) don't
             // inherit the AI runtime label, which would be honest about the
             // bundled console but not about the sample's actual shape.
-            subtitle = "broadcast".equals(mode)
+            subtitle = !hasChat ? "No chat endpoint"
+                    : "broadcast".equals(mode)
                     ? "Multi-client broadcast chat"
                     : "Runtime: " + detectRuntime();
         }
         result.put("subtitle", subtitle);
-        result.put("endpoint", endpoint);
+        if (hasChat) {
+            result.put("endpoint", endpoint);
+        }
+        result.put("hasChat", hasChat);
         result.put("runtime", detectRuntime());
-        result.put("mode", mode);
+        if (hasChat) {
+            result.put("mode", mode);
+        }
         // Wire transport the console client should use to reach this endpoint.
         // "atmosphere" (WS + long-polling) for every AI/broadcast sample; samples
         // exposing a foreign transport (grpc / a2a / ag-ui) opt in via
@@ -586,7 +598,8 @@ public class AtmosphereConsoleInfoEndpoint {
     /**
      * Auto-detects the best endpoint for the console. Prefers {@code @Agent}
      * endpoints (paths starting with {@code /atmosphere/agent/}) over the
-     * default {@code /atmosphere/ai-chat}.
+     * default {@code /atmosphere/ai-chat}. Returns {@code null} when the
+     * initialized framework serves no matching handler (no chat endpoint).
      */
     private String detectEndpoint() {
         // Explicit console endpoint override takes priority
@@ -622,6 +635,11 @@ public class AtmosphereConsoleInfoEndpoint {
         } catch (Exception e) {
             logger.debug("Framework not initialized yet, using configured default", e);
         }
-        return configuredPath;
+        // An initialized framework registers every annotated handler during
+        // init(), so no match by now means no chat endpoint is served: report
+        // none rather than the configured default nothing answers on. Before
+        // init() completes nothing can be confirmed yet, so the configured
+        // default stands, as it always has.
+        return framework.initialized() ? null : configuredPath;
     }
 }

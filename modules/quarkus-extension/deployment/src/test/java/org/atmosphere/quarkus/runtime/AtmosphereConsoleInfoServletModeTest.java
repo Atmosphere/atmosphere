@@ -81,6 +81,42 @@ class AtmosphereConsoleInfoServletModeTest {
     }
 
     @Test
+    void initializedFrameworkServingNoHandlerReportsNoChatEndpoint() {
+        // Parity with the Spring starter: once init() has registered every
+        // handler, none matching means no chat endpoint, not the
+        // /atmosphere/ai-chat default nothing answers on (Runtime Truth).
+        assertNull(AtmosphereConsoleInfoServlet.detectEndpoint(initialized(), ""));
+    }
+
+    @Test
+    void initializedFrameworkReportsTheHandlerItServes() {
+        var framework = initialized();
+        framework.getAtmosphereHandlers().put("/atmosphere/ai-chat", new AtmosphereHandlerWrapper(
+                null, new RoomHandler(), "/atmosphere/ai-chat", framework.getAtmosphereConfig()));
+        assertEquals("/atmosphere/ai-chat", AtmosphereConsoleInfoServlet.detectEndpoint(framework, ""));
+    }
+
+    @Test
+    void frameworkNotYetInitializedKeepsTheDefaultEndpoint() {
+        assertEquals("/atmosphere/ai-chat",
+                AtmosphereConsoleInfoServlet.detectEndpoint(new AtmosphereFramework(), ""));
+    }
+
+    @Test
+    void explicitConsoleEndpointStandsWithoutARegisteredHandler() {
+        assertEquals("/grpc/chat", AtmosphereConsoleInfoServlet.detectEndpoint(initialized(), "/grpc/chat"));
+    }
+
+    private static AtmosphereFramework initialized() {
+        return new AtmosphereFramework() {
+            @Override
+            public boolean initialized() {
+                return true;
+            }
+        };
+    }
+
+    @Test
     void pathTemplateResolvesTheHandlerItServes() {
         // "ai" is also the answer when nothing matches, so pin the resolved handler itself.
         var served = new Object();

@@ -66,22 +66,34 @@ public class AtmosphereConsoleInfoEndpoint {
     public Map<String, Object> info() {
         var result = new LinkedHashMap<String, Object>();
         var endpoint = detectEndpoint();
-        var mode = detectMode(endpoint);
+        // Whether a chat endpoint is genuinely served. An application with no
+        // Atmosphere chat handler (e.g. the AI auto-configuration turned off and
+        // a runtime driven from a REST controller) reports hasChat=false and
+        // names no endpoint, so the Console shows the tabs that work instead of
+        // a chat stuck on "Connecting..." against a 404 (Runtime Truth — #5).
+        var hasChat = endpoint != null;
+        var mode = hasChat ? detectMode(endpoint) : null;
         var subtitle = properties.getConsoleSubtitle();
         if (subtitle == null || subtitle.isBlank()) {
             // Mode-aware default, in parity with the Spring Boot 4 starter and
             // Quarkus: a broadcast endpoint (@ManagedService) does not inherit
             // the AI runtime label.
-            subtitle = "broadcast".equals(mode)
+            subtitle = !hasChat ? "No chat endpoint"
+                    : "broadcast".equals(mode)
                     ? "Multi-client broadcast chat"
                     : "Runtime: " + detectRuntime();
         }
         result.put("subtitle", subtitle);
-        result.put("endpoint", endpoint);
+        if (hasChat) {
+            result.put("endpoint", endpoint);
+        }
+        result.put("hasChat", hasChat);
         result.put("runtime", detectRuntime());
         // ai | broadcast, so the console renders honest empty-state copy; same
         // field and values as the Spring Boot 4 starter and Quarkus.
-        result.put("mode", mode);
+        if (hasChat) {
+            result.put("mode", mode);
+        }
         // Wire transport the console client should use, in parity with the
         // Spring Boot 4 starter (AtmosphereConsoleInfoEndpoint#detectTransport).
         // Validated against the adapter set the console actually ships — an
@@ -312,7 +324,9 @@ public class AtmosphereConsoleInfoEndpoint {
      * path or a registered handler, then an {@code @Agent} endpoint (paths
      * starting with {@code /atmosphere/agent/}), then any other registered
      * {@code /atmosphere/*} handler outside the admin surface (e.g. a
-     * {@code @ManagedService}), and finally the configured default.
+     * {@code @ManagedService}). Once the framework is initialized and none
+     * matches, no chat endpoint is served and this returns {@code null}; before
+     * that, the configured default.
      */
     private String detectEndpoint() {
         var configuredPath = properties.getAi().getPath();
@@ -343,7 +357,12 @@ public class AtmosphereConsoleInfoEndpoint {
         } catch (Exception e) {
             logger.debug("Framework not initialized yet, using configured default", e);
         }
-        return configuredPath;
+        // An initialized framework registers every annotated handler during
+        // init(), so no match by now means no chat endpoint is served: report
+        // none rather than the configured default nothing answers on. Before
+        // init() completes nothing can be confirmed yet, so the configured
+        // default stands, as it always has.
+        return framework.initialized() ? null : configuredPath;
     }
 
     /**
