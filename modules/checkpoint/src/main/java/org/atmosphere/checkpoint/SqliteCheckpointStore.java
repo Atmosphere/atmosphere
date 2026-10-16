@@ -69,6 +69,8 @@ public final class SqliteCheckpointStore implements CheckpointStore {
     /** Retained so the plaintext warning can name the file it is about. */
     private final String jdbcUrl;
     private final ReentrantLock lock = new ReentrantLock();
+    /** Guarded by {@link #lock}: the schema and the startup report run once per store. */
+    private boolean started;
     private final ObjectMapper mapper = new ObjectMapper();
     private final CopyOnWriteArrayList<CheckpointListener> listeners = new CopyOnWriteArrayList<>();
     @SuppressWarnings("unchecked")
@@ -142,10 +144,20 @@ public final class SqliteCheckpointStore implements CheckpointStore {
         return cipher != CheckpointCipher.NONE;
     }
 
+    /**
+     * Migrates the schema and reports the at-rest posture. Idempotent: a store
+     * handed to a component that starts it again (a
+     * {@code CheckpointingCoordinationJournal} starts the store it wraps) is
+     * not migrated or reported twice.
+     */
     @Override
     public void start() {
         lock.lock();
         try {
+            if (started) {
+                logger.debug("SqliteCheckpointStore at {} already started", jdbcUrl);
+                return;
+            }
             SchemaMigrations.migrate(connection, "checkpoints", List.of(
                     conn -> {
                         try (var stmt = conn.createStatement()) {
@@ -189,7 +201,9 @@ public final class SqliteCheckpointStore implements CheckpointStore {
                         + "runtime via CheckpointStore.encryptsAtRest(), so it can be asserted "
                         + "rather than trusted to this log line.", jdbcUrl);
             }
-            logger.info("SqliteCheckpointStore initialized (maxSnapshots={})", maxSnapshots);
+            started = true;
+            logger.info("SqliteCheckpointStore initialized at {} (maxSnapshots={})",
+                    jdbcUrl, maxSnapshots);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to create checkpoints table", e);
         } finally {

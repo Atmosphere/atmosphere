@@ -74,9 +74,14 @@ public class AtmosphereCheckpointAutoConfiguration {
     @Bean(initMethod = "start", destroyMethod = "stop")
     @ConditionalOnMissingBean(CheckpointStore.class)
     public InMemoryCheckpointStore checkpointStore() {
-        logger.warn("No CheckpointStore configured — using in-memory (lost on restart); "
-                + "configure SQLite (SqliteCheckpointStore from atmosphere-checkpoint) or "
-                + "Postgres (atmosphere-checkpoint-postgres) for production.");
+        // Names the bean: a store an application creates for itself (for instance
+        // the one a CheckpointingCoordinationJournal wraps) is a different store
+        // and reports its own lines, so this one must not read as the only one.
+        logger.warn("No CheckpointStore bean configured — the application's CheckpointStore "
+                + "bean (the one the admin Checkpoints view reads) is in-memory "
+                + "(lost on restart); stores the application creates itself are separate. "
+                + "Declare a CheckpointStore @Bean (SqliteCheckpointStore from "
+                + "atmosphere-checkpoint, or atmosphere-checkpoint-postgres) for production.");
         return new InMemoryCheckpointStore();
     }
 }

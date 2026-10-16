@@ -15,10 +15,17 @@
  */
 package org.atmosphere.checkpoint;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.atmosphere.checkpoint.coordinator.CheckpointingCoordinationJournal;
+import org.atmosphere.coordinator.journal.InMemoryCoordinationJournal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -47,6 +54,40 @@ class SqliteCheckpointStoreTest {
     @AfterEach
     void tearDown() {
         store.stop();
+    }
+
+    /**
+     * A store started by its creator and again by the journal that wraps it
+     * (the startup-team sample's shape) migrates and reports once: the second
+     * start used to log the plaintext warning and the init line a second time.
+     */
+    @Test
+    void aStoreStartedTwiceReportsOnce() {
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        var logger = (Logger) LoggerFactory.getLogger(SqliteCheckpointStore.class);
+        logger.addAppender(appender);
+        var twice = new SqliteCheckpointStore(tempDir.resolve("twice.db"));
+        var journal = new CheckpointingCoordinationJournal<>(new InMemoryCoordinationJournal(),
+                twice, CheckpointingCoordinationJournal.onAgentBoundaries(), event -> event);
+        try {
+            twice.start();
+            journal.start();
+
+            assertEquals(1, appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.WARN
+                            && e.getFormattedMessage().contains("PLAINTEXT")).count(),
+                    "plaintext warning once: " + appender.list);
+            assertEquals(1, appender.list.stream()
+                    .filter(e -> e.getFormattedMessage().startsWith("SqliteCheckpointStore initialized"))
+                    .count(), "init line once: " + appender.list);
+            var snapshot = WorkflowSnapshot.root("coord-twice", Map.of("step", "one"));
+            twice.save(snapshot);
+            assertTrue(twice.load(snapshot.id()).isPresent(), "the store still works");
+        } finally {
+            logger.detachAppender(appender);
+            journal.stop();
+        }
     }
 
     @Test

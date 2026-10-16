@@ -44,7 +44,7 @@ startup `WARN` so the development-grade choice is never mistaken for production:
   WARN, once the application is ready and only when no `@AiEndpoint` declares
   `contextProviders` either: *"No ContextProvider configured — using empty in-memory RAG provider…"*
 - **CheckpointStore** → an `InMemoryCheckpointStore` (lost on restart).
-  WARN: *"No CheckpointStore configured — using in-memory…"*
+  WARN: *"No CheckpointStore bean configured — the application's CheckpointStore bean … is in-memory…"*
 
 Both defaults are gated `@ConditionalOnMissingBean`, so an operator who declares
 their own `ContextProvider` (a Spring AI `VectorStore` bridge, pgvector, Qdrant…)
