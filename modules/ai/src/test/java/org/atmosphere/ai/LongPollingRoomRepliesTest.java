@@ -55,6 +55,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -1080,6 +1081,45 @@ class LongPollingRoomRepliesTest {
     }
 
     /**
+     * A WebSocket or SSE connection joins its room when it is suspended, and the
+     * handler replays the run it reattaches to after that: a frame of the run
+     * broadcast in between reached the member through the room and was replayed
+     * to it as well, twice and out of order. The replay writes the events up to
+     * the mark taken right after the suspend only.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void aFrameBroadcastBetweenTheRoomJoinAndTheReplayReachesTheMemberOnce(boolean prompter) {
+        LongPollingRoomReplies.install(room);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var memberId = "member-" + UUID.randomUUID();
+        var registry = new RunRegistry();
+        var run = registry.register("agent", "anonymous", prompter ? memberId : "prompter-" + UUID.randomUUID(),
+                new ExecutionHandle.Settable(() -> { }), RunEventReplayBuffer.forRoomRun(null, config, room.getID()),
+                null);
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(socket), run.replayBuffer());
+        session.send("one.");
+        awaitFrames(socket, 1);
+
+        // Suspended: the connection joins the room, and the handler marks how far the run got.
+        var member = subscriber(room, AtmosphereResource.TRANSPORT.WEBSOCKET, memberId);
+        var sink = new StringWriter();
+        var reattach = streamingReattach(memberId, AtmosphereResource.TRANSPORT.WEBSOCKET, run.runId(), sink);
+        RunReattachSupport.markRoomJoin(reattach, registry);
+        // A frame of the run broadcast before the handler replays the run.
+        session.send("two.");
+        awaitFrames(member, 1);
+        RunReattachSupport.replayPendingRun(reattach, registry);
+        session.complete();
+        awaitComplete(member);
+
+        assertEquals(List.of("streaming-text:one."), describe(lines(sink)),
+                "the replay writes what the member missed before it joined the room only");
+        assertEquals(List.of("streaming-text:two.", "complete"), frames(member),
+                "what the room broadcast after the member joined reaches it once, through the room");
+    }
+
+    /**
      * Every long-polling member of a room receives the run id with the room's
      * reply, and its polls carry it. A run remembered what 64 tracking ids
      * received and were handed, the first ones: the rest of a larger room were
@@ -1193,6 +1233,11 @@ class LongPollingRoomRepliesTest {
         when(resource.isSuspended()).thenReturn(true);
         when(resource.getBroadcaster()).thenReturn(room);
         when(resource.getAtmosphereConfig()).thenReturn(config);
+        var attributes = new ConcurrentHashMap<String, Object>();
+        doAnswer(invocation -> attributes.put(invocation.getArgument(0), invocation.getArgument(1)))
+                .when(request).setAttribute(anyString(), org.mockito.ArgumentMatchers.any());
+        when(request.getAttribute(RunReattachSupport.ROOM_JOIN_MARK_ATTRIBUTE))
+                .thenAnswer(invocation -> attributes.get(RunReattachSupport.ROOM_JOIN_MARK_ATTRIBUTE));
         try {
             when(resource.getResponse()).thenReturn(response);
             when(response.getWriter()).thenReturn(new PrintWriter(sink));

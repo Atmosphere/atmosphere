@@ -593,6 +593,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 deferredReleases.computeIfPresent(resource.uuid(),
                         (uuid, deferred) -> new DeferredRelease(deferred.runs(), true));
             }
+            if (resource.isSuspended() && resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING) {
+                // Suspended, the connection is a member of its room: the events of
+                // the run it reattaches to captured from now on reach it through
+                // the room, so its replay below writes those before this mark only.
+                // After the claim above, so a run ending meanwhile leaves its state.
+                org.atmosphere.ai.resume.RunReattachSupport.markRoomJoin(resource,
+                        org.atmosphere.ai.resume.RunRegistryHolder.get());
+            }
             if (!systemPrompt.isEmpty()) {
                 resource.getRequest().setAttribute(SYSTEM_PROMPT_ATTRIBUTE, systemPrompt);
             }

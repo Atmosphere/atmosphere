@@ -50,6 +50,7 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.stubbing.Answer;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -62,12 +63,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -224,6 +228,35 @@ class AiEndpointHandlerRoomRunTest {
         assertEquals(List.of("streaming-text:partial ", "cancelled:disconnect"), text(member));
     }
 
+    /**
+     * The handler marks how far the run had got once the reconnecting
+     * connection is suspended, a member of its room, and its replay of the run
+     * writes the events up to that mark only: a frame captured after it, before
+     * the replay, reaches the member through the room.
+     */
+    @Test
+    void theReplayOfAReconnectingRoomMemberStopsAtTheRunEventsBeforeItsSuspend() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var prompter = startRun(runtime, null);
+
+        lose(prompter);
+        var streamed = new AtomicInteger();
+        var out = new StringWriter();
+        reconnect(prompter.uuid(), null, out, invocation -> {
+            // The replay reading the run id: after the suspend, the run streamed on meanwhile.
+            if (StackWalker.getInstance().walk(frames -> frames.anyMatch(f -> f.getMethodName().equals("replayPendingRun")))
+                    && streamed.getAndIncrement() == 0) {
+                runtime.stream("between");
+            }
+            return RUN_ID.get();
+        });
+        assertEquals(1, streamed.get(), "the run streamed between the suspend and the replay");
+        assertEquals(List.of("streaming-text:partial "), describe(lines(out)),
+                "the frame captured after the member joined its room is left to the room");
+        runtime.finish();
+    }
+
     private void lose(AtmosphereResourceImpl prompter) throws Exception {
         handler.onStateChange(new AtmosphereResourceEventImpl(prompter, true, false));
         room.removeAtmosphereResource(prompter);
@@ -264,6 +297,11 @@ class AiEndpointHandlerRoomRunTest {
      * driven through the handler's connect path.
      */
     private void reconnect(String uuid, String user, StringWriter out) throws Exception {
+        reconnect(uuid, user, out, invocation -> RUN_ID.get());
+    }
+
+    /** As above, {@code runId} answering each read of the run id the connection carries. */
+    private void reconnect(String uuid, String user, StringWriter out, Answer<Object> runId) throws Exception {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         var response = mock(AtmosphereResponse.class);
@@ -278,7 +316,12 @@ class AiEndpointHandlerRoomRunTest {
         when(resource.addEventListener(any())).thenReturn(resource);
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute("ai.userId")).thenReturn(user);
-        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(RUN_ID.get());
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenAnswer(runId);
+        var attributes = new ConcurrentHashMap<String, Object>();
+        doAnswer(invocation -> attributes.put(invocation.getArgument(0), invocation.getArgument(1)))
+                .when(request).setAttribute(anyString(), any());
+        when(request.getAttribute(RunReattachSupport.ROOM_JOIN_MARK_ATTRIBUTE))
+                .thenAnswer(invocation -> attributes.get(RunReattachSupport.ROOM_JOIN_MARK_ATTRIBUTE));
         handler.onRequest(resource);
     }
 
@@ -394,6 +437,11 @@ class AiEndpointHandlerRoomRunTest {
             session.send("partial ");
             streaming.countDown();
             return settable;
+        }
+
+        /** The model streams {@code text}. */
+        void stream(String text) {
+            session.send(text);
         }
 
         /** The model finishes its answer. */

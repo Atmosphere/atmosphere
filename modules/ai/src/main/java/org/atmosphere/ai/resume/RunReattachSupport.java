@@ -98,6 +98,15 @@ public final class RunReattachSupport {
     /** HTTP header fallback for clients that bypass the interceptor. */
     public static final String RUN_ID_HEADER = "X-Atmosphere-Run-Id";
 
+    /**
+     * Request attribute {@link #markRoomJoin} sets: the sequence of the last
+     * event of the run a reconnecting connection carries the id of, read once
+     * the connection was suspended, and so had joined the room of a
+     * {@code broadcastReply} run. The room broadcasts the events after it to the
+     * connection, so its replay writes the events up to it only.
+     */
+    public static final String ROOM_JOIN_MARK_ATTRIBUTE = "org.atmosphere.ai.runRoomJoinMark";
+
     private static final Logger logger = LoggerFactory.getLogger(RunReattachSupport.class);
 
     /**
@@ -141,6 +150,54 @@ public final class RunReattachSupport {
 
     private RunReattachSupport() {
         // Static utility.
+    }
+
+    /**
+     * Record, on the request of {@code resource}, just suspended (so a member of
+     * its broadcaster), how far the run it carries the id of had got
+     * ({@link #ROOM_JOIN_MARK_ATTRIBUTE}). Every event of the run is captured
+     * before it is broadcast, so the events after the mark reach a member of the
+     * run's room through the room; a reattach that also replayed them wrote them
+     * twice, and out of order. A no-op without a run id or a replayable run.
+     *
+     * @param resource the connection, just suspended
+     * @param registry the registry to look the run id up in
+     */
+    public static void markRoomJoin(AtmosphereResource resource, RunRegistry registry) {
+        var runId = pendingRunId(resource);
+        if (runId == null || registry == null) {
+            return;
+        }
+        var run = registry.lookupReplayable(runId);
+        if (run.isEmpty()) {
+            return;
+        }
+        try {
+            resource.getRequest().setAttribute(ROOM_JOIN_MARK_ATTRIBUTE, run.get().replayBuffer().lastSequence());
+        } catch (RuntimeException e) {
+            logger.trace("Unable to mark when {} joined the room of run {}", resource.uuid(), runId, e);
+        }
+    }
+
+    /**
+     * The events of {@code backlog} a member of the run's room that joined it at
+     * {@link #ROOM_JOIN_MARK_ATTRIBUTE} did not receive through the room: those up
+     * to the mark; all of them when no mark was recorded.
+     */
+    private static java.util.List<RunEvent> beforeRoomJoin(AtmosphereResource resource,
+                                                           java.util.List<RunEvent> backlog) {
+        Object mark;
+        try {
+            mark = resource.getRequest() != null
+                    ? resource.getRequest().getAttribute(ROOM_JOIN_MARK_ATTRIBUTE) : null;
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read when {} joined its room", resource.uuid(), e);
+            mark = null;
+        }
+        if (!(mark instanceof Long joined)) {
+            return backlog;
+        }
+        return backlog.stream().filter(event -> event.sequence() <= joined).toList();
     }
 
     /**
@@ -695,7 +752,7 @@ public final class RunReattachSupport {
         var forwarder = new LiveForwarder(resource, handle, filtersFor(resource),
                 broadcasterId, grace, !roomMember);
         if (!own) {
-            return replayToBystander(resource, runId, handle, forwarder);
+            return replayToBystander(resource, runId, handle, forwarder, roomMember);
         }
         synchronized (forwarder) {
             var subscription = handle.replayBuffer().subscribe(forwarder::forward);
@@ -705,7 +762,9 @@ public final class RunReattachSupport {
             // disconnect noticed from now on finds a listener and runs no grace.
             RunDisconnectGrace.reattached(runId);
             var written = 0;
-            for (var event : subscription.backlog()) {
+            // A member of the room received the events after it joined through the room.
+            var backlog = roomMember ? beforeRoomJoin(resource, subscription.backlog()) : subscription.backlog();
+            for (var event : backlog) {
                 var outcome = forwarder.write(event);
                 if (outcome == Write.FAILED) {
                     break;
@@ -721,7 +780,7 @@ public final class RunReattachSupport {
             }
             logger.info("Reattach run {} for resource {}: replayed {}/{} event(s), "
                     + "following the rest of the run: {}", runId, resource.uuid(), written,
-                    subscription.backlog().size(), !forwarder.isCancelled());
+                    backlog.size(), !forwarder.isCancelled());
             return written;
         }
     }
@@ -732,8 +791,10 @@ public final class RunReattachSupport {
      * run to it, and the member neither rescinds nor holds off the run's grace.
      */
     private static int replayToBystander(AtmosphereResource resource, String runId,
-                                         AgentResumeHandle handle, LiveForwarder forwarder) {
-        var backlog = handle.replayBuffer().snapshot();
+                                         AgentResumeHandle handle, LiveForwarder forwarder, boolean roomMember) {
+        var snapshot = handle.replayBuffer().snapshot();
+        // A member of the room received the events after it joined through the room.
+        var backlog = roomMember ? beforeRoomJoin(resource, snapshot) : snapshot;
         var written = 0;
         synchronized (forwarder) {
             for (var event : backlog) {
