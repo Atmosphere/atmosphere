@@ -451,8 +451,15 @@ function scheduleDashboardRefresh() {
   refreshTimer = setTimeout(runDashboardRefresh, REFRESH_COALESCE_MS);
 }
 
-async function runDashboardRefresh() {
+function runDashboardRefresh() {
   refreshTimer = null;
+  refreshDashboard();
+}
+
+// The one way to refresh besides the first load and the socket opening: the
+// coalesced event refresh and the 15 s tick both go through it, so the two
+// never overlap.
+async function refreshDashboard() {
   if (refreshing) {
     refreshAgain = true;
     return;
@@ -533,7 +540,7 @@ function badge(text, color) {
 // Init
 loadDashboard();
 connectEventStream();
-setInterval(loadDashboard, 15000);
+setInterval(refreshDashboard, 15000);
 </script>
 </body>
 </html>
