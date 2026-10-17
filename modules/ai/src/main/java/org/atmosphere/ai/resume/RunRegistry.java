@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * at the {@code @Prompt} method's return for a session it ended, later for a
  * session the method returned leaving open ({@link #keepOpenAfterPrompt}),
  * which is ended by its own terminal frame, its prompter gone for good, an
- * operator's cancel, or the idle sweep of streaming sessions (idle, or open
+ * operator's cancel, the destroy of the endpoint that started it, or the idle sweep of streaming sessions (idle, or open
  * past {@code atmosphere.ai.session-ttl-ms} after the return). Retired runs are bounded by
  * {@link #MAX_RETAINED_COMPLETED} (oldest evicted first) and expire on access,
  * so they need no sweeper. Runs that never complete are removed by

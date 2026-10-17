@@ -197,6 +197,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private final ConcurrentHashMap<String, AtmosphereResource> liveConnections = new ConcurrentHashMap<>();
 
+    /**
+     * The sessions of the runs this endpoint left open after their
+     * {@code @Prompt} returned, until each run ends: {@link #destroy()} ends
+     * them. Bounded by the run registry's cap on such runs
+     * ({@link org.atmosphere.ai.resume.RunRegistry#keepOpenAfterPrompt}),
+     * each entry leaving when its run ends (Correctness Invariant #3).
+     */
+    private final java.util.Set<AiStreamingSession> leftOpenSessions = ConcurrentHashMap.newKeySet();
+
+    /** Guards {@link #sweeperHeld} and {@link #destroyed}. */
+    private final Object lifecycleLock = new Object();
+
+    /** Whether this endpoint holds the streaming-session sweeper ({@link StreamingSessionSweeper#acquire()}). */
+    private boolean sweeperHeld;
+
+    /** Set by {@link #destroy()}: the endpoint holds the sweeper no more, and ends the runs it leaves open. */
+    private volatile boolean destroyed;
+
     /** The long-polling clients whose connection is open: {@code @Ready} runs once per client. */
     private final LongPollingClients longPollingClients = new LongPollingClients(this::replacedByALiveConnection);
 
@@ -1121,6 +1139,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var session = new AiStreamingSession(traced, runtime,
                 effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
+        holdSweeper();
         AiStreamingSession.registerActive(session);
 
         // Thread the decoded multi-modal parts into the session so the next
@@ -1353,14 +1372,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * the session — idle, or open past the session TTL after this return —
      * ends it with the {@code cancelled} frame
      * ({@link AiStreamingSession#promptReturnedOpen()}), so the run never
-     * outlives its prompter, nor that lifetime. Such runs are capped per
+     * outlives its prompter, nor that lifetime; so does this endpoint's
+     * {@link #destroy()}. Such runs are capped per
      * registry ({@link org.atmosphere.ai.resume.RunRegistry#keepOpenAfterPrompt}):
      * past the cap the run ends at this return, as {@code complete}, its
      * session left to its own terminal frame or the idle sweep.
      *
      * @return {@code true} when the run was left open, to end with its session
      */
-    private static boolean endRunWithItsSession(AiStreamingSession session,
+    private boolean endRunWithItsSession(AiStreamingSession session,
                                                 org.atmosphere.ai.resume.RunEventReplayBuffer replay,
                                                 org.atmosphere.ai.ExecutionHandle.Settable run,
                                                 org.atmosphere.ai.resume.RunRegistry registry,
@@ -1372,11 +1392,50 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return false;
         }
         if (leftOpen) {
+            // The endpoint's destroy ends the run while it goes on.
+            leftOpenSessions.add(session);
+            replay.whenTerminated().whenComplete((end, failure) -> leftOpenSessions.remove(session));
             session.promptReturnedOpen();
+            if (destroyed) {
+                // Destroyed meanwhile: its walk of the left-open runs may have missed this one.
+                endLeftOpenRun(session);
+            }
         }
         // The replay holds the run's end by then, so the run's end records nothing more.
         replay.whenTerminated().thenRun(run::complete);
         return leftOpen;
+    }
+
+    /**
+     * Hold the process-wide streaming-session sweeper while this endpoint is
+     * live: taken with its first session, let go of by {@link #destroy()}, so
+     * the sweeper stops only once no endpoint uses it (Correctness
+     * Invariant #1). A destroyed endpoint takes no hold.
+     */
+    private void holdSweeper() {
+        synchronized (lifecycleLock) {
+            if (sweeperHeld || destroyed) {
+                return;
+            }
+            StreamingSessionSweeper.acquire();
+            sweeperHeld = true;
+        }
+    }
+
+    /**
+     * End a run this endpoint left open after its {@code @Prompt} returned,
+     * because the endpoint is destroyed: with the {@code cancelled} frame of
+     * {@link org.atmosphere.ai.RunCancelledException.Reason#OPERATOR} — the
+     * host tearing the endpoint down — which frees its place under the run
+     * registry's cap.
+     */
+    private static void endLeftOpenRun(AiStreamingSession session) {
+        try {
+            session.cancelInflight(org.atmosphere.ai.RunCancelledException.Reason.OPERATOR);
+        } catch (RuntimeException e) {
+            logger.warn("Could not end the left-open run of session {} on destroy: {}",
+                    session.sessionId(), e.toString(), e);
+        }
     }
 
     /**
@@ -1756,17 +1815,31 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Framework teardown: stop the shared streaming-session TTL sweeper and the
-     * reattach grace timer (symmetric with their lazy start — Invariant #1).
-     * Idempotent, and the sweeper restarts on the next registration, so
-     * multiple endpoint handlers being destroyed in any order is safe. Prompts
-     * still waiting for their client's next poll are refused at once rather
-     * than holding their request threads until the wait runs out.
+     * Framework teardown: end the runs this endpoint left open after their
+     * {@code @Prompt} returned (the {@code cancelled} frame {@code operator};
+     * no other endpoint's), let go of this endpoint's hold on the shared
+     * streaming-session TTL sweeper — which stops once no endpoint holds it,
+     * so destroying one endpoint, or another application's in the same JVM,
+     * leaves it sweeping for the endpoints still live (Invariant #1) — and
+     * stop the reattach grace timer. Idempotent. Prompts still waiting for
+     * their client's next poll are refused at once rather than holding their
+     * request threads until the wait runs out.
      */
     @Override
     public void destroy() {
         repollGate.shutdown();
-        StreamingSessionSweeper.shutdown();
+        boolean release;
+        synchronized (lifecycleLock) {
+            release = sweeperHeld;
+            sweeperHeld = false;
+            destroyed = true;
+        }
+        for (var session : List.copyOf(leftOpenSessions)) {
+            endLeftOpenRun(session);
+        }
+        if (release) {
+            StreamingSessionSweeper.release();
+        }
         // Runs waiting out a reattach grace are cancelled now, not left to a
         // timer that stops with the endpoint.
         org.atmosphere.ai.resume.RunDisconnectGrace.shutdown();

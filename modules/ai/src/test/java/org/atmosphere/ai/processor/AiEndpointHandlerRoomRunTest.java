@@ -113,6 +113,8 @@ class AiEndpointHandlerRoomRunTest {
     private DefaultBroadcasterFactory factory;
     private Broadcaster room;
     private AiEndpointHandler handler;
+    /** Handlers a test starts besides {@link #handler}, destroyed after it. */
+    private final List<AiEndpointHandler> otherHandlers = new CopyOnWriteArrayList<>();
     private final Map<String, List<String>> written = new ConcurrentHashMap<>();
     /** The connections {@link #reconnect} made, by tracking id. */
     private final Map<String, AtmosphereResource> reconnected = new ConcurrentHashMap<>();
@@ -143,6 +145,7 @@ class AiEndpointHandlerRoomRunTest {
         if (handler != null) {
             handler.destroy();
         }
+        otherHandlers.forEach(AiEndpointHandler::destroy);
         RunRegistryHolder.reset();
         room.destroy();
         factory.destroy();
@@ -551,6 +554,78 @@ class AiEndpointHandlerRoomRunTest {
                 completes ? org.atmosphere.ai.resume.EffectStatus.COMMITTED
                         : org.atmosphere.ai.resume.EffectStatus.FAILED);
         verify(journal, timeout(10_000)).releaseLease(RUN_ID.get(), "test-owner");
+    }
+
+    /**
+     * Destroying one endpoint ends the runs it left open after their
+     * {@code @Prompt} returned, with the cancelled frame of an operator, and
+     * no other endpoint's: the run another endpoint left open goes on, and
+     * the session sweeper, which that endpoint still uses, keeps running and
+     * still ends that run. The destroy stopped the process-wide sweeper and
+     * ended no run.
+     */
+    @Test
+    void destroyingAnEndpointEndsItsOwnLeftOpenRunsAndLeavesTheSweeperToTheOthers() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var other = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        otherHandlers.add(other);
+        other.dispatchPrompt(subscriber("alice"), "explain");
+        awaitRunId();
+        awaitPromptReturned();
+        var othersRun = RUN_ID.get();
+        RUN_ID.set(null);
+        handler = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        handler.dispatchPrompt(subscriber("bob"), "explain");
+        awaitRunId();
+        awaitPromptReturned();
+
+        handler.destroy();
+        handler = null;
+
+        awaitRunEnd();
+        assertEquals(List.of("streaming-text:only", "cancelled:operator"), replayed(),
+                "the destroyed endpoint's left-open run is ended");
+        assertTrue(RunRegistryHolder.get().lookup(othersRun).isPresent(), "another endpoint's run goes on");
+        assertTrue(sweeperRunning(), "the sweeper keeps running for the endpoint still live");
+        RUN_ID.set(othersRun);
+        sweep(1L);
+        awaitRunEnd();
+        assertEquals("cancelled:sweep", last(replayed()), "the sweep still ends the other endpoint's run");
+    }
+
+    /**
+     * The runs a destroyed endpoint left open free their places under the
+     * per-registry cap: a run another endpoint leaves open afterwards is
+     * kept open, not ended at its return.
+     */
+    @Test
+    void destroyingAnEndpointFreesTheCapPlacesOfItsLeftOpenRuns() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        System.setProperty(MAX_OPEN_PROPERTY, "1");
+        RunRegistryHolder.install(new org.atmosphere.ai.resume.RunRegistry());
+        handler = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        handler.dispatchPrompt(subscriber("alice"), "explain");
+        awaitRunId();
+        awaitPromptReturned();
+        handler.destroy();
+        handler = null;
+
+        RUN_ID.set(null);
+        var other = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        otherHandlers.add(other);
+        other.dispatchPrompt(subscriber("bob"), "explain");
+        awaitRunId();
+        awaitPromptReturned();
+
+        assertTrue(RunRegistryHolder.get().lookup(RUN_ID.get()).isPresent(),
+                "the destroyed endpoint's run freed its place: this run is left open");
+    }
+
+    /** Whether the process-wide streaming-session sweeper is scheduled. */
+    private static boolean sweeperRunning() throws Exception {
+        var running = org.atmosphere.ai.StreamingSessionSweeper.class.getDeclaredMethod("isRunning");
+        running.setAccessible(true);
+        return (boolean) running.invoke(null);
     }
 
     /**

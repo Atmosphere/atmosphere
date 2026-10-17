@@ -46,11 +46,15 @@ import java.util.concurrent.atomic.AtomicReference;
  * ({@link RunCancelledException.Reason#TIMEOUT}).</p>
  *
  * <p>Lifecycle (Correctness Invariant #1): the sweeper thread is a daemon,
- * started lazily on first session registration via {@link #ensureStarted()}
- * and stopped symmetrically via {@link #shutdown()} — invoked from
- * {@code AiEndpointHandler#destroy()} when the framework tears the endpoint
- * down. {@code shutdown()} is idempotent and the sweeper restarts on the
- * next registration, so an undeploy/redeploy cycle keeps sweeping.</p>
+ * started lazily on first session registration via {@link #ensureStarted()}.
+ * It is process-wide, so no one endpoint owns it: each {@code AiEndpointHandler}
+ * that registered a session holds it ({@link #acquire()}) and lets go of it
+ * when the framework destroys the endpoint ({@link #release()}), and the
+ * sweeper stops when the last holder lets go — the destroy of one endpoint,
+ * or of another application's in the same JVM, leaves it running for the
+ * endpoints still live. {@link #shutdown()} stops it whoever holds it. The
+ * sweeper restarts on the next registration, so an undeploy/redeploy cycle
+ * keeps sweeping.</p>
  */
 public final class StreamingSessionSweeper {
 
@@ -66,6 +70,12 @@ public final class StreamingSessionSweeper {
     static final long SWEEP_INTERVAL_MS = 60_000L;
 
     private static final AtomicReference<ScheduledExecutorService> SWEEPER = new AtomicReference<>();
+
+    /** Guards {@link #holders}. */
+    private static final Object HOLDERS_LOCK = new Object();
+
+    /** How many {@link #acquire()} calls no {@link #release()} answered yet. Guarded by {@link #HOLDERS_LOCK}. */
+    private static int holders;
 
     private StreamingSessionSweeper() {
     }
@@ -92,16 +102,47 @@ public final class StreamingSessionSweeper {
     }
 
     /**
-     * Stop the sweeper. Idempotent; whichever streaming session registers
-     * after this restarts it, so calling this from any one endpoint's
-     * teardown cannot strand sessions belonging to another still-live
-     * endpoint for long.
+     * Hold the sweeper: it is not stopped by {@link #release()} until this
+     * caller released it too. Each call is answered by one {@code release()}.
+     * It does not start the sweeper: the first session registration does.
+     */
+    public static void acquire() {
+        synchronized (HOLDERS_LOCK) {
+            holders++;
+        }
+    }
+
+    /**
+     * Let go of a hold {@link #acquire()} took: the last holder letting go
+     * stops the sweeper. A call with no hold left changes nothing.
+     */
+    public static void release() {
+        synchronized (HOLDERS_LOCK) {
+            if (holders == 0 || --holders > 0) {
+                return;
+            }
+            shutdown();
+        }
+    }
+
+    /**
+     * Stop the sweeper, whoever holds it. Idempotent; whichever streaming
+     * session registers after this restarts it. An endpoint's teardown lets
+     * go of its hold with {@link #release()} instead, so it never stops the
+     * sweeper under another endpoint still live.
      */
     public static void shutdown() {
         var executor = SWEEPER.getAndSet(null);
         if (executor != null) {
             executor.shutdownNow();
             logger.debug("AI streaming-session TTL sweeper stopped");
+        }
+    }
+
+    /** How many holds are taken. Visible for testing. */
+    static int holders() {
+        synchronized (HOLDERS_LOCK) {
+            return holders;
         }
     }
 

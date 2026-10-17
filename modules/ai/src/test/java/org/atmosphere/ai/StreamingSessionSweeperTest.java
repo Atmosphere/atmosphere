@@ -314,6 +314,31 @@ class StreamingSessionSweeperTest {
         session.complete();
     }
 
+    /**
+     * The sweeper is process-wide: one holder letting go of it while another
+     * still holds it leaves it running; the last holder letting go stops it.
+     * A release with no hold of its own changes nothing.
+     */
+    @Test
+    void theSweeperStopsWhenItsLastHolderLetsGo() {
+        var others = StreamingSessionSweeper.holders();
+        StreamingSessionSweeper.acquire();
+        StreamingSessionSweeper.acquire();
+        StreamingSessionSweeper.ensureStarted();
+
+        StreamingSessionSweeper.release();
+        assertTrue(StreamingSessionSweeper.isRunning(), "a holder is left: the sweeper keeps running");
+
+        StreamingSessionSweeper.release();
+        assertEquals(others, StreamingSessionSweeper.holders(), "each release answers one acquire");
+        assertEquals(others > 0, StreamingSessionSweeper.isRunning(),
+                "the sweeper stops once nobody holds it");
+        if (others == 0) {
+            StreamingSessionSweeper.release();
+            assertEquals(0, StreamingSessionSweeper.holders(), "a release with no hold left changes nothing");
+        }
+    }
+
     @Test
     void sweepPassIsSafeWhenRegistriesAreEmpty() {
         // The scheduled task must never throw — a failing pass would kill the
