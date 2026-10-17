@@ -808,6 +808,29 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
 
   # ─────────────────────────────────────────────
+  # After the GitHub release: publish the CLI archive it carries to SDKMAN
+  # ─────────────────────────────────────────────
+  publish-sdkman:
+    name: Publish CLI to SDKMAN
+    needs: [github-release]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: main
+
+    - name: Release, set default and announce on SDKMAN
+      env:
+        SDKMAN_CONSUMER_KEY: ${{ secrets.SDKMAN_CONSUMER_KEY }}
+        SDKMAN_CONSUMER_TOKEN: ${{ secrets.SDKMAN_CONSUMER_TOKEN }}
+        # A pre-release (4.0.0-RC1) is published but never made the default
+        SDKMAN_SET_DEFAULT: ${{ contains(inputs.release_version, '-') && 'false' || 'true' }}
+      run: ./cli/sdkman/publish.sh "${{ inputs.release_version }}"
+
+  # ─────────────────────────────────────────────
   # After the GitHub release: label the issues it fixed with its version
   # ─────────────────────────────────────────────
   label-fixed-issues:
