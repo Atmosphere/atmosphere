@@ -214,8 +214,8 @@
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.0.1",
     "@types/react": "^19.2.14",
-    "@vitest/coverage-v8": "^4.1.11",
-    "@vitest/ui": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.4",
+    "@vitest/ui": "^5.0.4",
     "eslint": "^10.1.0",
     "jsdom": "^30.0.1",
     "prettier": "^3.8.1",
@@ -224,9 +224,9 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "svelte": "^5.55.7",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.4",
     "vue": "^3.5.44"
   }
 }
