@@ -523,7 +523,8 @@ jobs:
     if: |
       always() && inputs.publish_js && inputs.dry_run == false &&
       needs.build-js.result == 'success' &&
-      (needs.release-maven.result == 'success' || needs.release-maven.result == 'skipped')
+      (needs.release-maven.result == 'success' ||
+       (inputs.js_only && needs.release-maven.result == 'skipped'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
