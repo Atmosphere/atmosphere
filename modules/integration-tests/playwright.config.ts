@@ -534,6 +534,11 @@ export default defineConfig({
       name: 'ai-reattach-reload',
       testMatch: /\/ai-reattach-reload\.spec\.ts/,
     },
+    // ── The Console reattaches to its in-flight answer across a page reload ──
+    {
+      name: 'ai-reattach-console',
+      testMatch: /\/ai-reattach-console\.spec\.ts/,
+    },
     // ── CLI runtime (verifies `atmosphere run` launches working console) ──
     {
       name: 'cli-runtime',

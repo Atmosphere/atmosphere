@@ -44,6 +44,9 @@ import {
  * The page (fixtures/ai-reattach-page.ts) is the real atmosphere.js browser bundle;
  * it keeps the run id in sessionStorage across the reload and subscribes again with
  * it as `request.runId`, as an application that resumes its conversation does. The
+ * "keeps the run id across the reload by itself" cases open it with `keep=library`:
+ * the page keeps nothing and the reloaded subscription reattaches with the run id
+ * atmosphere.js stored for the tab, over the streaming transport too. The
  * sample serves the page itself: with Playwright request interception (`page.route`)
  * on, Chromium aborts the `pagehide` beacon, so do not serve it that way.
  */
@@ -51,7 +54,7 @@ import {
 const ENDPOINT = '/atmosphere/agent/harness-model';
 const TOKENS = Array.from({ length: 12 }, (_, i) => `t${String(i).padStart(2, '0')} `);
 const TRANSPORTS = ['websocket', 'sse', 'long-polling'] as const;
-type Transport = typeof TRANSPORTS[number];
+type Transport = typeof TRANSPORTS[number] | 'streaming';
 
 // The sample's port, unless REATTACH_HARNESS_PORT names another: a host whose 8096
 // is taken can still run the spec.
@@ -161,9 +164,10 @@ function expectTransport(seen: { websockets: string[]; http: Set<string> }, tran
  * except its run id, handed over at once: mid-reply the page has the run id and no
  * text yet.
  */
-async function startRun(page: Page, transport: Transport, label: string, tokens: number)
+async function startRun(page: Page, transport: Transport, label: string, tokens: number,
+                        keep: 'page' | 'library' = 'page')
     : Promise<{ prompt: string; runId: string; before: PageLoad }> {
-  await openReattachPage(page, server.baseUrl, transport, ENDPOINT);
+  await openReattachPage(page, server.baseUrl, transport, ENDPOINT, keep);
   await waitForOpen(page);
   const prompt = `${label}-${transport}-${Date.now()}`;
   await sendPrompt(page, prompt);
@@ -254,6 +258,30 @@ test.describe('AI reattach grace across a page reload', () => {
       expect(count(after.frames, 'complete')).toBe(0);
       expect(after.frames.at(-1)?.type).toBe('cancelled');
       expect(texts(after.frames)).toEqual(TOKENS.slice(0, call!.tokens));
+      expectTransport(seen, transport);
+    });
+  }
+
+  // The same reload, with a page that keeps nothing: atmosphere.js stores the run
+  // id for the tab and the reloaded page's subscription reattaches with it.
+  for (const transport of [...TRANSPORTS, 'streaming'] as const) {
+    test(`${transport}: atmosphere.js keeps the run id across the reload by itself`, async ({ page }) => {
+      const seen = trackTransports(page);
+      const { prompt, runId } = await startRun(page, transport, 'library', 3, 'library');
+      expect((await modelCall(prompt))?.state, 'the reload must come before the answer ended').toBe('RUNNING');
+
+      await page.reload();
+      const after = await terminalLoad(page);
+
+      expect(after.load).toBe(2);
+      expect(after.reattachRunId, 'atmosphere.js must have stored the run id for the tab').toBe(runId);
+      expect(texts(after.frames)).toEqual(TOKENS);
+      expect(count(after.frames, 'complete')).toBe(1);
+      expect(count(after.frames, 'cancelled')).toBe(0);
+      expect((await modelCall(prompt))?.state).toBe('COMPLETED');
+      // The complete frame ended the run: the tab holds no run id any more.
+      expect(await page.evaluate((key) => sessionStorage.getItem(key),
+        `atmosphere.js:run-id:${server.baseUrl}${ENDPOINT}`)).toBeNull();
       expectTransport(seen, transport);
     });
   }

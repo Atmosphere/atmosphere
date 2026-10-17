@@ -175,6 +175,19 @@ WebSocket and WebTransport send none: closing the socket tells the server. A
 second `close()` sends nothing, and a failed close message is logged at debug
 level, never thrown.
 
+The run id an AI endpoint surfaces (the `X-Atmosphere-Run-Id` metadata frame)
+is re-sent on every reconnect until the run's terminal frame (`complete`,
+`error` or `cancelled`), and in a browser it is also kept in the tab's
+`sessionStorage`, under `atmosphere.js:run-id:` and the endpoint's origin and
+path (the query string, which may hold an auth token, left out). A subscription
+to that endpoint created in the tab afterwards — the page was reloaded mid-answer
+— connects with it, so the server, which keeps the run going for its reattach
+grace, replays the answer so far and streams the rest. The entry is removed on
+the terminal frame and by `close()`, which ends the run on the server. It works
+the same over every transport; where `sessionStorage` is missing or throws, the
+run id lives in memory only, as before. A `runId` set on the request is sent
+instead of the stored one.
+
 ## Examples
 
 ### Basic WebSocket Connection

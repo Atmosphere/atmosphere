@@ -128,6 +128,13 @@ export interface AtmosphereRequest {
    * resumes the in-flight run from its effect journal. Cleared when the run
    * reaches a terminal frame (complete/error) so a later reconnect does not
    * try to resume a finished run.
+   *
+   * In a browser the captured id is also kept in the tab's `sessionStorage`,
+   * keyed by the endpoint's origin and path, until the run's terminal frame
+   * (complete/error/cancelled) or a `close()` of the subscription; a
+   * subscription to that endpoint created in the tab, after a reload for
+   * instance, starts with it, so the page reattaches to the run it was
+   * receiving. A `runId` set here is sent instead of the stored one.
    */
   runId?: string | null;
   /**

@@ -104,7 +104,7 @@ jobs:
           - name: ai-ux-flows
             projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models,ai-structured-output,ai-jfr-observability,ai-tool-permission"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel,ai-reattach-reload"
+            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel,ai-reattach-reload,ai-reattach-console"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,ai-gap-coverage,ai-confidence-elicitation,ai-decision-model"
           - name: ai-routing

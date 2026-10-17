@@ -26,6 +26,7 @@ import type { OfflineQueue } from '../queue/offline-queue';
 import { logger } from '../utils/logger';
 import { AtmosphereProtocol } from '../utils/protocol';
 import { SEND_ERROR_NAME } from '../utils/send-error';
+import { clearRunId, loadRunId, saveRunId } from '../utils/run-id-store';
 import { computeReconnectDelay, maxReconnectAttempts } from '../utils/reconnect-delay';
 
 /**
@@ -59,6 +60,9 @@ export abstract class BaseTransport<T = unknown> {
     this.request = request;
     this.handlers = handlers;
     this.protocol = new AtmosphereProtocol();
+    // A run this tab was receiving when the page went away (a reload): the
+    // connect carries its id, so the server replays it and streams the rest.
+    this.protocol.runId = loadRunId(request.url);
     this.interceptors = interceptors;
   }
 
@@ -105,6 +109,16 @@ export abstract class BaseTransport<T = unknown> {
       return null;
     }
     return this.protocol.buildCloseUrl(this.request, goingAway);
+  }
+
+  /**
+   * Forget the run in flight: the client left on purpose (`close()`), which
+   * ends the run on the server, so neither a reconnect nor a reload of this
+   * tab must try to reattach to it.
+   */
+  forgetRunId(): void {
+    this.protocol.runId = null;
+    clearRunId(this.request.url);
   }
 
   /** Whether this connection has opened at least once. */
@@ -359,7 +373,9 @@ export abstract class BaseTransport<T = unknown> {
    * {@code X-Atmosphere-Run-Id} metadata frame onto the protocol (which persists
    * across reconnects, like the session token) so {@code buildParams} re-sends it
    * and the server resumes the in-flight run; cleared on a terminal frame so a
-   * later reconnect does not resume a finished run. Done here, at the transport,
+   * later reconnect does not resume a finished run. The id is kept in the tab's
+   * sessionStorage too (see {@code run-id-store}), so a page reloaded mid-answer
+   * reattaches to its run. Done here, at the transport,
    * so EVERY client benefits — the Atmosphere Console and other direct
    * {@code subscribe()} callers, not only the {@code subscribeStreaming()} helper.
    * A message may hold several newline-separated frames (a long-polling poll
@@ -386,9 +402,11 @@ export abstract class BaseTransport<T = unknown> {
       if (!msg) continue;
       if (msg.type === 'metadata' && msg.key === 'X-Atmosphere-Run-Id' && typeof msg.value === 'string') {
         this.protocol.runId = msg.value;
+        saveRunId(this.request.url, msg.value);
       } else if (this.protocol.runId !== null
           && (msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled')) {
         this.protocol.runId = null;
+        clearRunId(this.request.url);
       }
     }
   }

@@ -9,8 +9,8 @@ import { ROOT } from './packaged-build';
  * survives a reload the way an application keeps a conversation going: it stashes
  * the run id the server surfaces (the `X-Atmosphere-Run-Id` metadata frame) in
  * sessionStorage and, once reloaded, subscribes again with it as `request.runId`.
- * atmosphere.js keeps the run id in memory only, so a page that wants its run back
- * after a reload has to keep it itself; this page does no more than that.
+ * atmosphere.js also keeps the run id per tab in sessionStorage and reattaches by
+ * itself; with `keep=library` the page relies on that alone and keeps nothing.
  *
  * The sample serves the page and the atmosphere.js browser bundle itself, from a
  * directory added to its static locations ({@link reattachPageJvmArgs}), so the page's
@@ -78,12 +78,18 @@ const PAGE = `<!doctype html>
   var params = new URLSearchParams(location.search);
   var transport = params.get('transport');
   var endpoint = params.get('endpoint');
+  // keep=library: the page keeps nothing and leaves the run id to atmosphere.js,
+  // which stores it per tab under this key.
+  var libraryKeeps = params.get('keep') === 'library';
+  var libraryKey = 'atmosphere.js:run-id:' + location.origin + endpoint;
   var key = 'ai-reattach:' + transport;
   var state = JSON.parse(sessionStorage.getItem(key) || '{"runId":null,"loads":0}');
   state.loads += 1;
   sessionStorage.setItem(key, JSON.stringify(state));
   var load = {
-    load: state.loads, reattachRunId: state.runId, transport: transport,
+    load: state.loads,
+    reattachRunId: libraryKeeps ? sessionStorage.getItem(libraryKey) : state.runId,
+    transport: transport,
     opened: false, error: null, frames: []
   };
   window.__reattach = { load: load, subscription: null };
@@ -95,7 +101,7 @@ const PAGE = `<!doctype html>
     // As the Console does: a long-polling reply can carry several frames, which
     // the server writes back to back, and the length prefix is what splits them.
     trackMessageLength: true,
-    runId: state.runId
+    runId: libraryKeeps ? undefined : state.runId
   }, {
     open: function () { load.opened = true; },
     message: function (response) {
@@ -107,7 +113,7 @@ const PAGE = `<!doctype html>
         try { frame = JSON.parse(line); } catch (e) { return; }
         if (!frame || typeof frame.type !== 'string') return;
         load.frames.push(frame);
-        if (frame.type === 'metadata' && frame.key === 'X-Atmosphere-Run-Id') {
+        if (!libraryKeeps && frame.type === 'metadata' && frame.key === 'X-Atmosphere-Run-Id') {
           state.runId = frame.value;
           sessionStorage.setItem(key, JSON.stringify(state));
         }
@@ -161,10 +167,15 @@ export async function instrumentBeacons(page: Page, opts: { stripGoingAway?: boo
   }, opts.stripGoingAway === true);
 }
 
-/** Open the page for `transport` against the AI endpoint at `endpoint`. */
+/**
+ * Open the page for `transport` against the AI endpoint at `endpoint`. By default
+ * the page keeps the run id itself and subscribes with it as `request.runId`;
+ * with `keep: 'library'` it keeps nothing, and the run id a reloaded page
+ * reattaches with is the one atmosphere.js stored for the tab.
+ */
 export async function openReattachPage(page: Page, baseUrl: string, transport: string,
-                                       endpoint: string): Promise<void> {
-  const query = new URLSearchParams({ transport, endpoint });
+                                       endpoint: string, keep: 'page' | 'library' = 'page'): Promise<void> {
+  const query = new URLSearchParams({ transport, endpoint, keep });
   await page.goto(`${baseUrl}${REATTACH_PAGE_PATH}?${query}`);
 }
 
