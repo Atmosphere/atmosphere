@@ -29,6 +29,7 @@ export default defineConfig({
     // webtransport.test.ts when new websocket-reconnect tests land).
     pool: 'forks',
     isolate: true,
+    setupFiles: ['./tests/setup/clear-session-storage.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
