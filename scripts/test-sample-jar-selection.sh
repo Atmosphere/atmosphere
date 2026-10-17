@@ -426,7 +426,7 @@ case_fixture_boots_artifact() {
     for f in "$dir"/*.ts; do
         rel="${f#"$ROOT"/}"
         code="$(sed -E '/^[[:space:]]*(\*|\/\/|\/\*)/d' "$f")"
-        hit="$(grep -nE "spawn(Sync)?\([^)]*mvnw|[a-z-]+:(java|run|dev)\b" <<<"$code" | grep -vE '^[0-9]+:[^`]*Run: ' | head -1)"
+        hit="$(grep -nE "spawn(Sync)?\([^)]*mvnw|(^|[^.a-z-])[a-z-]+:(java|run|dev)\b" <<<"$code" | grep -vE '^[0-9]+:[^`]*Run: ' | head -1)"
         if [[ -n "$hit" ]]; then
             found=1
             fail "fixture_boots_artifact" "$rel boots through Maven at test time -> $hit"

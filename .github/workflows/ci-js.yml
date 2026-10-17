@@ -105,9 +105,12 @@ jobs:
         echo "Bundle size: $SIZE bytes"
         # Cap raised from 40KB → 50KB on 2026-05-12 after the resilience
         # suite (OfflineQueue, MessageHistorySync, ConnectionStatus,
-        # useOptimistic) legitimately grew the core surface.
-        if [ $SIZE -gt 51200 ]; then
-          echo "❌ Bundle size ($SIZE bytes) exceeds 50KB limit!"
+        # useOptimistic) legitimately grew the core surface. Raised again to
+        # 56KB on 2026-10-17: a reloaded page reattaching to its AI run and
+        # room prompts under an opaque member id (a synchronous SHA-256 for
+        # pages without crypto.subtle) grew it past 50KB.
+        if [ $SIZE -gt 57344 ]; then
+          echo "❌ Bundle size ($SIZE bytes) exceeds 56KB limit!"
           exit 1
         fi
         echo "✅ Bundle size OK: $SIZE bytes"
