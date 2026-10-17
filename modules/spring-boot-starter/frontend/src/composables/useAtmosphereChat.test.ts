@@ -496,6 +496,43 @@ describe('a broadcastReply room', () => {
     expect(bubbles(wrapper)).toEqual([])
   })
 
+  it("a Clear before the first token discards this client's turn, not another member's that overlaps it", async () => {
+    const { chat, wrapper } = await mountRoom()
+    chat.send('mine')
+    chat.clearMessages()
+
+    handlers.onEvent({ type: 'prompt', text: 'theirs', from: 'member-b', sessionId: 'sB', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'their answer', sessionId: 'sB', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 'sB', seq: 3 })
+    handlers.onEvent({ type: 'streaming-text', data: 'MY-LEAK', sessionId: 'sA', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 'sA', seq: 2 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'theirs' },
+      { user: false, text: 'their answer' },
+    ])
+  })
+
+  it("a Clear before the first token discards this client's turn named by its own echo, whichever turn ends first", async () => {
+    const { chat, wrapper } = await mountRoom()
+    chat.send('mine')
+    chat.clearMessages()
+
+    handlers.onEvent({ type: 'prompt', text: 'mine', from: SELF, sessionId: 'sA', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'MY-LEAK', sessionId: 'sA', seq: 2 })
+    handlers.onEvent({ type: 'prompt', text: 'theirs', from: 'member-b', sessionId: 'sB', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 'sA', seq: 3 })
+    handlers.onEvent({ type: 'streaming-text', data: 'their answer', sessionId: 'sB', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 'sB', seq: 3 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'theirs' },
+      { user: false, text: 'their answer' },
+    ])
+  })
+
   it("does not bring a cleared turn's late text back when another member's prompt arrives", async () => {
     const { chat, wrapper } = await mountRoom()
     chat.send('mine')

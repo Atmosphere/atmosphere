@@ -152,7 +152,9 @@ export interface StreamingHandlers {
   /**
    * Called when a member of an `@AiEndpoint(broadcastReply = true)` room sent
    * a prompt the room's admission let through: the server echoes it to every
-   * member as the turn's first frame, ahead of the reply. `from` is the opaque
+   * member before the model is called, ahead of the model's reply (a frame the
+   * `@Prompt` method sends itself before `stream()` can precede it). It is not
+   * echoed for a turn answered without `session.stream(prompt)`. `from` is the opaque
    * room member id of the member who sent it (`roomMemberId` of its tracking
    * id, never the tracking id); `own` is `true` when that is this connection's
    * (its UI usually shows its own prompt already).

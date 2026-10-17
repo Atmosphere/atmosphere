@@ -1166,7 +1166,9 @@ await handle.close();
 ```
 
 On an `@AiEndpoint(broadcastReply = true)` room, `onPrompt(text, from, own)` reports
-each member's prompt, which the server echoes to the room ahead of its reply
+a member's prompt that the server echoes to the room ahead of the model's reply
+(only for a turn its `@Prompt` method answers with `session.stream(prompt)`, once
+admitted)
 (`own` is `true` for this connection's own prompt); `useStreamingRN` takes the same
 `onPrompt` option.
 

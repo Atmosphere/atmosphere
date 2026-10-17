@@ -914,8 +914,7 @@ reply that outgrows a bound ends with an `error` frame in place of its frames;
 one no poll takes within its time to live is dropped.
 
 On an `@AiEndpoint(broadcastReply = true)` room every member also sees the
-prompt that started the reply, as the turn's first frame (after only the run-id
-metadata frame), ahead of the reply:
+prompt that started the reply, ahead of the model's reply:
 `{"type":"prompt","text":"<prompt>","from":"<sender's room member id>","sessionId":"<the turn's session>","seq":n}`.
 The prompt rides in `text`, never in `data`, so a client that does not know the
 type does not render it as reply text. `from` is the sender's room member id
@@ -933,7 +932,9 @@ prompt the member typed: the `@Prompt` method passes it to `session.stream(...)`
 as typed (compared after `strip()`), and that call passes the guardrails, the
 governance policies and a per-request scope (a prompt the room's scope refuses
 is never shown to the room, only its redirect). It is then sent before the
-model is called, so ahead of every reply frame whatever the reply is (text, an
+model is called, so ahead of every frame of the model's reply (only a frame the
+`@Prompt` method or a pre-stream hook writes before calling `stream(...)` can
+precede it) whatever the reply is (text, an
 image, a structured entity, a bare `complete`), with the text as admission left
 it (a guardrail's or policy's rewrite, a PII redaction, applied). Nothing is
 evaluated a second time for the echo, so stateful policies (rate and

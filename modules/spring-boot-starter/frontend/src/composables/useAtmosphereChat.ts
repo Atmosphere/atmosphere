@@ -140,15 +140,28 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // reset when the discarded stream terminates or a new send starts.
   let discardInFlightStream = false
   // The session of the stream being discarded, so a room turn that starts
-  // meanwhile (another member's prompt) still renders; null when unknown.
+  // meanwhile (another member's prompt) still renders; null while unknown (a
+  // Clear before this client's turn delivered a frame).
   let discardSessionId: string | null = null
   let lastStreamSessionId: string | null = null
+  // Sessions of other members' room turns, named by their prompt echo: never
+  // the turn a Clear discards while that turn's session is still unknown.
+  const otherMemberSessions = new Set<string>()
 
-  /** Whether `msg` belongs to the stream a clear discarded. */
+  /**
+   * Whether `msg` belongs to the stream a clear discarded. While that stream's
+   * session is unknown, the first session that is not another member's turn
+   * is taken as it, and only it is discarded from then on.
+   */
   function isDiscarded(msg: Record<string, unknown>): boolean {
     if (!discardInFlightStream) return false
     const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : null
-    return discardSessionId === null || sessionId === null || sessionId === discardSessionId
+    if (sessionId === null) return true
+    if (discardSessionId === null) {
+      if (otherMemberSessions.has(sessionId)) return false
+      discardSessionId = sessionId
+    }
+    return sessionId === discardSessionId
   }
 
   // Room prompts (broadcastReply): rendered once per turn, the turn named by
@@ -363,9 +376,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         const from = typeof msg.from === 'string' ? msg.from : ''
         const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : ''
         const turn = runOfSession.get(sessionId) ?? sessionId
+        const current = rememberOwnMemberId()
+        if (sessionId && from) {
+          if (from === current) {
+            // This connection's own turn: the one a Clear before its first
+            // frame meant to discard.
+            if (discardInFlightStream && discardSessionId === null) discardSessionId = sessionId
+          } else {
+            remember(otherMemberSessions, sessionId)
+          }
+        }
         if (!text || (turn && renderedPromptTurns.has(turn))) break
         if (turn) remember(renderedPromptTurns, turn)
-        const current = rememberOwnMemberId()
         if (from && from === current) break
         flushAssistant()
         currentAssistantMessage = null

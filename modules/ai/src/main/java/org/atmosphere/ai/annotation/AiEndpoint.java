@@ -367,7 +367,8 @@ public @interface AiEndpoint {
      * {@code strip()}) and that call's admission — guardrails, governance
      * policies, per-request scope — admits it: the room is then sent
      * {@code {"type":"prompt","text":<prompt>,"from":<sender's room member id>,"sessionId":..,"seq":n}}
-     * before the model is called, so ahead of any reply frame, with the text as
+     * before the model is called, so ahead of the model's reply (a frame the
+     * method sends before calling {@code stream} can precede it), with the text as
      * admission left it (a redaction applied), through the room's broadcast
      * filters. Nothing is evaluated a second time for it, so stateful policies
      * (rate, concurrency limits) count each turn once. It fails closed: a prompt
