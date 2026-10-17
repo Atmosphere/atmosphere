@@ -80,6 +80,17 @@ public final class RunDisconnectGrace {
     /** Status code of a WebSocket closed by a browser leaving or reloading the page. */
     private static final int GOING_AWAY = 1001;
 
+    /**
+     * The runs detached, by run id. In the framework an entry is created only
+     * by the departure of the connection a run started on (the
+     * {@code AiStreamingSession} of the run detaching it when that connection
+     * goes) and removed when the run ends, its cancel fires, or its grace is
+     * withdrawn: an entry stands for that connection being gone. A reattached
+     * client's departure only re-arms or fires an existing entry, never
+     * creates one ({@link #isTracked}). A reconnect under the same tracking id
+     * that registers the run's session as its own again reaches the same entry
+     * on its departure.
+     */
     private static final ConcurrentHashMap<String, Detached> RUNS = new ConcurrentHashMap<>();
     private static final AtomicReference<ScheduledExecutorService> SCHEDULER = new AtomicReference<>();
 
@@ -243,6 +254,17 @@ public final class RunDisconnectGrace {
         }
         RUNS.remove(runId, entry);
         return true;
+    }
+
+    /**
+     * Whether the run is tracked: the connection it started on went away and
+     * detached it, and the run has not ended since — whether its grace is
+     * armed, or stood down while a reattached client listens. A reattached
+     * client that stops listening decides for the run only then: while the
+     * connection the run started on is live, that connection's departure does.
+     */
+    public static boolean isTracked(String runId) {
+        return runId != null && RUNS.containsKey(runId);
     }
 
     /** Whether a cancel is pending for the run. */

@@ -750,10 +750,12 @@ public final class RunReattachSupport {
         // room's broadcaster: forwarding it too would write each frame twice.
         var roomMember = broadcasterId.equals(handle.replayBuffer().roomId());
         var forwarder = new LiveForwarder(resource, handle, filtersFor(resource),
-                broadcasterId, grace, !roomMember);
+                broadcasterId, grace, !roomMember, own);
         if (!own) {
             return replayToBystander(resource, runId, handle, forwarder, roomMember);
         }
+        int written;
+        boolean replayFailed;
         synchronized (forwarder) {
             var subscription = handle.replayBuffer().subscribe(forwarder::forward);
             forwarder.cancelWith(subscription.cancel());
@@ -766,19 +768,23 @@ public final class RunReattachSupport {
             // only drops that registration: this forwarder's own listener ends
             // the run once nobody listens and the connection it started on is gone.
             org.atmosphere.ai.AiStreamingSession.reattached(runId, resource.uuid());
-            var written = 0;
+            written = 0;
+            replayFailed = false;
             // A member of the room received the events after it joined through the room.
             var backlog = roomMember ? beforeRoomJoin(resource, subscription.backlog()) : subscription.backlog();
             for (var event : backlog) {
                 var outcome = forwarder.write(event);
                 if (outcome == Write.FAILED) {
+                    replayFailed = true;
                     break;
                 }
                 if (outcome == Write.WRITTEN) {
                     written++;
                 }
             }
-            if (subscription.live() && !forwarder.isCancelled()) {
+            if (subscription.live()) {
+                // Also after a failed write: the forwarder stops forwarding,
+                // but the connection's departure still decides for the run.
                 forwarder.attach();
             } else {
                 forwarder.cancel();
@@ -786,8 +792,12 @@ public final class RunReattachSupport {
             logger.info("Reattach run {} for resource {}: replayed {}/{} event(s), "
                     + "following the rest of the run: {}", runId, resource.uuid(), written,
                     backlog.size(), !forwarder.isCancelled());
-            return written;
         }
+        if (replayFailed) {
+            // Outside the forwarder's lock: the decision may cancel the run.
+            forwarder.writeFailed();
+        }
+        return written;
     }
 
     /**
@@ -823,12 +833,25 @@ public final class RunReattachSupport {
 
     /**
      * Writes one run's frames to one reattached resource and owns that
-     * subscription: it removes the buffer listener and its own resource
-     * listener on the terminal frame, on a failed write and on disconnect.
-     * When the resource disconnects while the run is still going and no other
-     * reattached client is listening, the run is detached again for the grace
-     * (a lost connection) or cancelled (a client that left on purpose), as the
-     * disconnect of the client that started it would.
+     * subscription: it removes the buffer listener on the terminal frame, on a
+     * failed write and when the resource goes away, and its own resource
+     * listener on the terminal frame and when the resource goes away.
+     *
+     * <p>The forwarder of the run's own client decides for the run each time
+     * that client stops listening while the run goes on and nobody else
+     * listens: a lost connection or a failed write (replayed or live) detaches
+     * the run again for the grace, and a leave — the client closing the
+     * connection on purpose, or the application closing it — cancels it. A
+     * failed write keeps the resource listener, so the connection's departure
+     * afterwards still decides: a leave then cancels the run at once, a loss
+     * keeps the grace the failure armed. The cancel itself runs once
+     * ({@link RunDisconnectGrace} runs a run's cancel at most once).</p>
+     *
+     * <p>It decides only for a run whose connection it started on is gone
+     * ({@link RunDisconnectGrace#isTracked}): while that connection is live,
+     * a reattached connection that stops listening changes nothing, and that
+     * connection's own departure decides. A forwarder of a member other than
+     * the run's own client never decides.</p>
      */
     private static final class LiveForwarder {
 
@@ -840,15 +863,20 @@ public final class RunReattachSupport {
         private final java.time.Duration grace;
         /** {@code false} for a member of the run's room: it listens to the run, the room writes it the frames. */
         private final boolean writesLive;
+        /** Whether it forwards to the run's own client, whose departure decides for the run. */
+        private final boolean own;
         private final org.atmosphere.cpr.AtmosphereResourceEventListener disconnectListener;
         private long seq;
         private boolean cancelled;
+        /** Set once the resource went away (a disconnect or a close), so its departure decides once. */
+        private boolean departed;
         private Runnable unsubscribe = () -> { };
 
         LiveForwarder(AtmosphereResource resource, AgentResumeHandle run,
                       java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
-                      String broadcasterId, java.time.Duration grace, boolean writesLive) {
+                      String broadcasterId, java.time.Duration grace, boolean writesLive, boolean own) {
             this.resource = resource;
+            this.own = own;
             this.writesLive = writesLive;
             this.runId = run.runId();
             this.run = run;
@@ -858,23 +886,51 @@ public final class RunReattachSupport {
             this.disconnectListener = new org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onDisconnect(org.atmosphere.cpr.AtmosphereResourceEvent event) {
-                    cancel();
-                    clientGone(event);
+                    departed(RunDisconnectGrace.isTransportLoss(event));
                 }
 
                 @Override
                 public void onClose(org.atmosphere.cpr.AtmosphereResourceEvent event) {
-                    cancel();
+                    // The resource routes a close the application makes here,
+                    // not to onDisconnect: a leave.
+                    departed(false);
                 }
             };
         }
 
-        /** The reattached client went away: the run is detached or cancelled once nobody listens. */
-        private void clientGone(org.atmosphere.cpr.AtmosphereResourceEvent event) {
-            if (run.isDone() || run.replayBuffer().subscriberCount() > 0) {
+        /** The resource went away: a lost connection ({@code loss}) or a leave. Decides once. */
+        private void departed(boolean loss) {
+            synchronized (this) {
+                if (departed) {
+                    return;
+                }
+                departed = true;
+            }
+            cancel();
+            decide(loss);
+        }
+
+        /** A write to the resource failed: it listens no more, as when its connection is lost. */
+        void writeFailed() {
+            stopForwarding();
+            decide(true);
+        }
+
+        /**
+         * The run's own client stopped listening: unless the run ended, someone
+         * else listens, or the connection the run started on is still live, the
+         * run is detached again for the grace ({@code loss}; cancelled at once
+         * when the grace is disabled) or cancelled (a leave).
+         */
+        private void decide(boolean loss) {
+            if (!own || run.isDone() || run.replayBuffer().subscriberCount() > 0) {
                 return;
             }
-            if (RunDisconnectGrace.isTransportLoss(event)) {
+            if (!RunDisconnectGrace.isTracked(runId)) {
+                // The connection the run started on is live: its departure decides.
+                return;
+            }
+            if (loss) {
                 if (!RunDisconnectGrace.redetach(runId, grace)) {
                     // Grace disabled: the run's own client is gone for good.
                     RunDisconnectGrace.expireNow(runId);
@@ -897,24 +953,32 @@ public final class RunReattachSupport {
         }
 
         /** Buffer listener: forward one live event, ending the subscription on a terminal one. */
-        synchronized void forward(RunEvent event) {
-            if (cancelled) {
-                return;
-            }
-            if (!writesLive) {
-                logger.trace("Run {} event {} reaches room member {} through the room", runId, event.sequence(),
-                        resource.uuid());
-                if (RunEventReplayBuffer.isTerminal(event.type())) {
-                    cancel();
+        void forward(RunEvent event) {
+            synchronized (this) {
+                if (cancelled) {
+                    return;
                 }
-                return;
+                if (!writesLive) {
+                    logger.trace("Run {} event {} reaches room member {} through the room", runId,
+                            event.sequence(), resource.uuid());
+                    if (RunEventReplayBuffer.isTerminal(event.type())) {
+                        cancel();
+                    }
+                    return;
+                }
+                var outcome = write(event);
+                if (outcome != Write.FAILED) {
+                    if (RunEventReplayBuffer.isTerminal(event.type())) {
+                        cancel();
+                    }
+                    return;
+                }
             }
-            if (write(event) == Write.FAILED || RunEventReplayBuffer.isTerminal(event.type())) {
-                cancel();
-            }
+            // Outside the lock: the decision may cancel the run.
+            writeFailed();
         }
 
-        /** Write one frame through the filter chain; a failed write cancels. */
+        /** Write one frame through the filter chain; a failed write stops the forwarding. */
         synchronized Write write(RunEvent event) {
             seq++;
             var msg = new org.atmosphere.ai.filter.AiStreamMessage(
@@ -934,17 +998,23 @@ public final class RunReattachSupport {
             } catch (java.io.IOException | RuntimeException e) {
                 logger.warn("Forwarding run {} to resource {} failed; stopping: {}",
                         runId, resource.uuid(), e.getMessage());
-                cancel();
+                stopForwarding();
                 return Write.FAILED;
             }
         }
 
-        synchronized void cancel() {
+        /** Stop forwarding the run's events: the buffer listener goes. Idempotent. */
+        synchronized void stopForwarding() {
             if (cancelled) {
                 return;
             }
             cancelled = true;
             unsubscribe.run();
+        }
+
+        /** Stop forwarding and remove the resource listener: no decision for the run follows. */
+        synchronized void cancel() {
+            stopForwarding();
             try {
                 resource.removeEventListener(disconnectListener);
             } catch (RuntimeException e) {

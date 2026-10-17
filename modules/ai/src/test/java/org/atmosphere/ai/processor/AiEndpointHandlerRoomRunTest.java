@@ -792,12 +792,6 @@ class AiEndpointHandlerRoomRunTest {
     }
 
     /**
-     * The handler marks how far the run had got once the reconnecting
-     * connection is suspended, a member of its room, and its replay of the run
-     * writes the events up to that mark only: a frame captured after it, before
-     * the replay, reaches the member through the room.
-     */
-    /**
      * In an authenticated room the prompter's other connection — another tab
      * of the same user, which read the run id from the room's reply — that
      * reattaches after a blip is the run's own client by its identity. That
@@ -861,6 +855,104 @@ class AiEndpointHandlerRoomRunTest {
         assertEquals("cancelled:disconnect", last(text(member)), "the room is told the run was cut short");
     }
 
+    /**
+     * The connection the run started on was lost and the prompter reattached
+     * on another one, which the application then closes: a close the
+     * application makes is a leave, so the run is cancelled at once — the
+     * listener the reattach holds is told of it as a close, not a disconnect.
+     */
+    @Test
+    void anApplicationClosingAReattachedConnectionAfterTheOneTheRunStartedOnWasLostCancelsTheRun()
+            throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var member = subscriber("bob");
+        var prompter = startRun(runtime, "alice");
+        lose(prompter);
+        var otherTab = "reloaded-" + UUID.randomUUID();
+        reconnect(otherTab, "alice", new PrintWriter(new StringWriter()));
+
+        closeByApplication(otherTab);
+
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "a close the application made is a leave");
+        awaitTerminal(member);
+        assertEquals("cancelled:disconnect", last(text(member)));
+    }
+
+    /**
+     * The replay to a reattached connection fails to write: that connection
+     * listens no more, so the run, whose own connection was lost, waits out
+     * its grace again at once, and the connection departing afterwards ends
+     * it as any reattached connection's departure does — at once when it
+     * leaves, keeping the grace when it is lost.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void aReattachWhoseReplayFailsToWriteLeavesTheRunToItsGraceAndItsDeparture(boolean leaves)
+            throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var member = subscriber("bob");
+        var prompter = startRun(runtime, "alice");
+        lose(prompter);
+        var otherTab = "reloaded-" + UUID.randomUUID();
+        var writer = new SwitchableWriter();
+        writer.fail = true;
+        reconnect(otherTab, "alice", new PrintWriter(writer));
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "a reattach whose replay failed listens no more: the run waits out its grace again");
+
+        depart(otherTab, leaves);
+
+        if (leaves) {
+            assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "the leave cancels the run at once");
+            awaitTerminal(member);
+            assertEquals("cancelled:disconnect", last(text(member)));
+        } else {
+            assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()), "the loss keeps the run's grace");
+            assertEquals(1, runtime.cancelled.getCount(), "the run waits out its grace");
+        }
+    }
+
+    /**
+     * A frame forwarded live to a reattached connection fails to write: the
+     * run, whose own connection was lost, waits out its grace again, and that
+     * connection leaving afterwards cancels it at once. The failed write
+     * removed the listener, so the leave reached nothing.
+     */
+    @Test
+    void aReattachWhoseLiveWriteFailsLeavesTheRunToItsGraceAndItsLeave() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        handler = newHandler(runtime, HeldEndpoint.class, false);
+        var prompter = subscriber("alice");
+        handler.dispatchPrompt(prompter, "explain");
+        assertTrue(runtime.streaming.await(10, TimeUnit.SECONDS));
+        awaitRunId();
+        lose(prompter);
+        var otherTab = "reloaded-" + UUID.randomUUID();
+        var writer = new SwitchableWriter();
+        reconnect(otherTab, "alice", new PrintWriter(writer));
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "the reattach rescinds the grace");
+
+        writer.fail = true;
+        runtime.stream("lost");
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "a reattach whose write failed listens no more: the run waits out its grace again");
+
+        depart(otherTab, true);
+
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "the leave cancels the run at once");
+        awaitRunEnd();
+        assertEquals("cancelled:disconnect", last(replayed()));
+    }
+
+    /**
+     * The handler marks how far the run had got once the reconnecting
+     * connection is suspended, a member of its room, and its replay of the run
+     * writes the events up to that mark only: a frame captured after it, before
+     * the replay, reaches the member through the room.
+     */
     @Test
     void theReplayOfAReconnectingRoomMemberStopsAtTheRunEventsBeforeItsSuspend() throws Exception {
         System.setProperty(GRACE_PROPERTY, "30s");
@@ -1022,18 +1114,28 @@ class AiEndpointHandlerRoomRunTest {
      * driven through the handler's connect path.
      */
     private void reconnect(String uuid, String user, StringWriter out) throws Exception {
+        reconnect(uuid, user, new PrintWriter(out), invocation -> RUN_ID.get());
+    }
+
+    /** As above, its response written through {@code out}. */
+    private void reconnect(String uuid, String user, PrintWriter out) throws Exception {
         reconnect(uuid, user, out, invocation -> RUN_ID.get());
     }
 
     /** As above, {@code runId} answering each read of the run id the connection carries. */
     private void reconnect(String uuid, String user, StringWriter out, Answer<Object> runId) throws Exception {
+        reconnect(uuid, user, new PrintWriter(out), runId);
+    }
+
+    /** As above, its response written through {@code out}. */
+    private void reconnect(String uuid, String user, PrintWriter out, Answer<Object> runId) throws Exception {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         var response = mock(AtmosphereResponse.class);
         when(resource.uuid()).thenReturn(uuid);
         when(resource.getRequest()).thenReturn(request);
         when(resource.getResponse()).thenReturn(response);
-        when(response.getWriter()).thenReturn(new PrintWriter(out));
+        when(response.getWriter()).thenReturn(out);
         when(resource.getAtmosphereConfig()).thenReturn(config);
         when(resource.getBroadcaster()).thenReturn(room);
         when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
@@ -1074,6 +1176,44 @@ class AiEndpointHandlerRoomRunTest {
         handler.onStateChange(event);
         for (var listener : List.copyOf(listeners.getOrDefault(uuid, List.of()))) {
             listener.onDisconnect(event);
+        }
+    }
+
+    /**
+     * The application closes the connection {@link #reconnect} made under
+     * {@code uuid}: the handler is told, and the listeners the connection
+     * holds are told of a close, as the resource notifies them.
+     */
+    private void closeByApplication(String uuid) throws Exception {
+        var event = mock(AtmosphereResourceEvent.class);
+        when(event.getResource()).thenReturn(reconnected.get(uuid));
+        when(event.isClosedByApplication()).thenReturn(true);
+        handler.onStateChange(event);
+        for (var listener : List.copyOf(listeners.getOrDefault(uuid, List.of()))) {
+            listener.onClose(event);
+        }
+    }
+
+    /** A writer that fails every write once {@link #fail} is set, as a broken connection's does. */
+    private static final class SwitchableWriter extends java.io.Writer {
+        volatile boolean fail;
+
+        @Override
+        public void write(char[] buffer, int offset, int length) throws java.io.IOException {
+            if (fail) {
+                throw new java.io.IOException("connection broken");
+            }
+        }
+
+        @Override
+        public void flush() throws java.io.IOException {
+            if (fail) {
+                throw new java.io.IOException("connection broken");
+            }
+        }
+
+        @Override
+        public void close() {
         }
     }
 
