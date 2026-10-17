@@ -120,17 +120,14 @@ class AiStreamingSessionLeftOpenTurnTest {
      * timeout.
      */
     @Test
-    void theSweepEndsALeftOpenTurnThatKeepsWritingPastTheTtlAfterItsReturn() throws Exception {
+    void theSweepEndsALeftOpenTurnThatKeepsWritingPastTheTtlAfterItsReturn() {
         var client = new CollectingSession();
         var buffer = new RunEventReplayBuffer();
         var session = session(new RunEventCapturingSession(client, buffer));
         session.promptReturnedOpen();
-        var ttlMs = 200L;
-        var until = System.currentTimeMillis() + ttlMs + 100L;
-        while (System.currentTimeMillis() < until) {
-            session.send("tick");
-            Thread.sleep(10);
-        }
+        var ttlMs = 60_000L;
+        // Returned longer ago than the TTL, and it wrote just now: never idle.
+        session.promptReturnedAtMillis = System.currentTimeMillis() - (ttlMs + 5_000L);
         session.send("tick");
 
         AiStreamingSession.sweepExpired(ttlMs);

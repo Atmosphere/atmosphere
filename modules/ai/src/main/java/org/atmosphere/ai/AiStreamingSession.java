@@ -802,8 +802,8 @@ public class AiStreamingSession implements StreamingSession {
      * The run {@code runId}'s own client reattached to it on the connection
      * {@code resourceUuid} (its tracking id, or a reloaded page's new one):
      * the run's session, while its turn goes on, is registered under that
-     * connection as under the one that started it. The idle sweep, an
-     * operator's cancel addressed to that connection (the admin plane's
+     * connection as under the one that started it. An operator's cancel
+     * addressed to that connection (the admin plane's
      * {@code cancel-inflight}) and approval responses arriving on it reach
      * the session, and the connection's own departure detaches the run again
      * or cancels it, as the departure of the one that started it would. The

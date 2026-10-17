@@ -761,9 +761,9 @@ public final class RunReattachSupport {
             // cancelled when the grace expires. After the subscription, so a
             // disconnect noticed from now on finds a listener and runs no grace.
             RunDisconnectGrace.reattached(runId);
-            // The run's session is registered under this connection too, so the
-            // idle sweep, an operator's cancel addressed to it and its own
-            // departure reach the run as they reached the connection it started on.
+            // The run's session is registered under this connection too, so an
+            // operator's cancel addressed to it and its own departure reach the
+            // run as they reached the connection it started on.
             org.atmosphere.ai.AiStreamingSession.reattached(runId, resource.uuid());
             var written = 0;
             // A member of the room received the events after it joined through the room.

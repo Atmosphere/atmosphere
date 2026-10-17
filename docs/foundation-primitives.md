@@ -101,10 +101,11 @@ open leaves the run going to the session's own terminal frame while the
 prompter is connected or within its grace, and the prompter gone for good
 cancels it then — or the idle sweep does, when the session stays idle
 (`cancelled` `sweep`) or is still open the session TTL after the method
-returned, however often it writes (`cancelled` `timeout`); the prompter's
-reattach registers the run's session under the connection it reattached on, so
-the sweep, an operator's cancel addressed to that connection and its departure
-reach the run; at most 1,024 such runs per registry are kept live
+returned, however often it writes (`cancelled` `timeout`), whatever became of
+the prompter's connection; the prompter's WebSocket, SSE or streaming reattach
+registers the run's session under the connection it reattached on, so an
+operator's cancel addressed to that connection and its departure reach the run;
+at most 1,024 such runs per registry are kept live
 (`atmosphere.ai.max-runs-open-after-prompt`), a run past that ending at the
 method's return, as `complete`; the room
 receives that frame too, the run's replay ends with it, and a room destroyed
