@@ -17,15 +17,19 @@ package org.atmosphere.ai;
 
 import org.atmosphere.ai.resume.RunEventCapturingSession;
 import org.atmosphere.ai.resume.RunEventReplayBuffer;
+import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -40,10 +44,19 @@ import static org.mockito.Mockito.when;
 class AiStreamingSessionLeftOpenTurnTest {
 
     private static final String UUID = "uuid-left-open-turn";
+    private static final String OTHER_UUID = "uuid-left-open-turn-reattached";
+    /** A TTL far above the age of anything a test does not age itself. */
+    private static final long TTL_MS = 60_000L;
+
+    /** The executions of the runs a test registered, completed after it. */
+    private final List<ExecutionHandle.Settable> runs = new CopyOnWriteArrayList<>();
 
     @AfterEach
     void cleanUp() {
         AiStreamingSession.removeAllForResource(UUID);
+        AiStreamingSession.removeAllForResource(OTHER_UUID);
+        runs.forEach(ExecutionHandle.Settable::complete);
+        RunRegistryHolder.reset();
     }
 
     /**
@@ -136,6 +149,112 @@ class AiStreamingSessionLeftOpenTurnTest {
         var end = buffer.terminal().orElseThrow();
         assertEquals("cancelled", end.type());
         assertEquals("timeout", end.payload(), "it ends cancelled for its timeout");
+    }
+
+    /**
+     * A turn left open whose connection was lost, its run detached for the
+     * grace, and that no client reattached to: the lost connection took its
+     * session out of the active sessions, so only its run reaches it. The
+     * idle sweep still ends it, with the cancelled frame of the sweep.
+     */
+    @Test
+    void theSweepReachesALeftOpenTurnWhoseConnectionWasLostThroughItsRunOnly() {
+        var client = new CollectingSession();
+        var buffer = new RunEventReplayBuffer();
+        var session = leftOpenRun(client, buffer);
+        var runId = session.runId().orElseThrow();
+        assertEquals(List.of(runId), AiStreamingSession.removeAllForResource(UUID, Duration.ofSeconds(30)),
+                "the lost connection detaches the run for the grace");
+        assertFalse(AiStreamingSession.resourceHasActiveSessions(UUID), "no active session is left for it");
+        session.lastActivityMillis = System.currentTimeMillis() - (TTL_MS + 5_000L);
+
+        AiStreamingSession.sweepExpired(TTL_MS);
+
+        assertTrue(client.isClosed(), "the idle sweep ends the turn");
+        var end = buffer.terminal().orElseThrow();
+        assertEquals("cancelled", end.type());
+        assertEquals("sweep", end.payload());
+    }
+
+    /**
+     * The same turn, never idle but still open past the session TTL after its
+     * {@code @Prompt} returned, is ended through its run with the cancelled
+     * frame of a timeout.
+     */
+    @Test
+    void theSweepEndsALeftOpenTurnPastItsLifetimeThroughItsRunAfterALostConnection() {
+        var client = new CollectingSession();
+        var buffer = new RunEventReplayBuffer();
+        var session = leftOpenRun(client, buffer);
+        AiStreamingSession.removeAllForResource(UUID, Duration.ofSeconds(30));
+        session.promptReturnedAtMillis = System.currentTimeMillis() - (TTL_MS + 5_000L);
+        session.send("tick");
+
+        AiStreamingSession.sweepExpired(TTL_MS);
+
+        assertTrue(client.isClosed(), "a turn writing on past its lifetime is ended");
+        var end = buffer.terminal().orElseThrow();
+        assertEquals("cancelled", end.type());
+        assertEquals("timeout", end.payload());
+    }
+
+    /**
+     * A turn its run's client reattached to on another connection is
+     * registered under that connection; when the turn ends on its own, that
+     * registration goes with it.
+     */
+    @Test
+    void aTurnEndingDropsTheRegistrationOfTheConnectionItsClientReattachedOn() {
+        var session = leftOpenRun(new CollectingSession(), new RunEventReplayBuffer());
+        AiStreamingSession.reattached(session.runId().orElseThrow(), OTHER_UUID);
+        assertTrue(AiStreamingSession.resourceHasActiveSessions(OTHER_UUID), "registered under the reattach");
+
+        session.complete();
+
+        assertFalse(AiStreamingSession.resourceHasActiveSessions(OTHER_UUID),
+                "the ended turn is registered under the connection it was reattached on no more");
+        assertFalse(AiStreamingSession.resourceHasActiveSessions(UUID));
+    }
+
+    /**
+     * A session whose run left the live runs while the session stays open —
+     * the run of a {@code @Prompt} returning open past the cap ends at the
+     * return, its session left to its own terminal frame — is reached through
+     * its run no more after the next sweep, so the run map holds the sessions
+     * of live runs only.
+     */
+    @Test
+    void theSweepForgetsTheSessionOfARunNoLongerLive() {
+        var run = new ExecutionHandle.Settable(null);
+        runs.add(run);
+        var handle = RunRegistryHolder.get().register("/left-open", "alice", UUID, run,
+                new RunEventReplayBuffer(), null);
+        var session = session(new CollectingSession());
+        session.setRunId(handle.runId());
+        assertTrue(AiStreamingSession.reachableThroughRun(handle.runId()));
+        run.complete();
+
+        AiStreamingSession.sweepExpired(TTL_MS);
+
+        assertFalse(session.isClosed(), "the session is not idle: the sweep leaves it open");
+        assertFalse(AiStreamingSession.reachableThroughRun(handle.runId()),
+                "the session of a run no longer live is dropped from the run map");
+    }
+
+    /**
+     * A session of a run registered in the run registry, whose run ends when
+     * the session sent its terminal frame, as the {@code @AiEndpoint} handler
+     * ends it, and whose {@code @Prompt} method returned with it open.
+     */
+    private AiStreamingSession leftOpenRun(CollectingSession client, RunEventReplayBuffer buffer) {
+        var run = new ExecutionHandle.Settable(null);
+        runs.add(run);
+        var handle = RunRegistryHolder.get().register("/left-open", "alice", UUID, run, buffer, null);
+        buffer.whenTerminated().thenRun(run::complete);
+        var session = session(new RunEventCapturingSession(client, buffer));
+        session.setRunId(handle.runId());
+        session.promptReturnedOpen();
+        return session;
     }
 
     private static AiStreamingSession session(StreamingSession delegate) {

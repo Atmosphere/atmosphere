@@ -437,9 +437,11 @@ class AiEndpointHandlerRoomRunTest {
      * A run left open after its {@code @Prompt} returned whose client lost its
      * connection and reattached within the grace — under its tracking id, or
      * a reloaded page's new one — is still reached by the idle sweep, which
-     * ends it with its cancelled frame. The lost connection took the session
-     * out of the sessions the sweep walks, and the reattach put nothing back:
-     * only the client leaving could end the run.
+     * ends it with its cancelled frame. The reattach registers the session
+     * under the connection it came back on, so the sweep finds it there; a
+     * run whose connection was lost and that nobody reattached to is reached
+     * through its run only
+     * ({@code AiStreamingSessionLeftOpenTurnTest#theSweepReachesALeftOpenTurnWhoseConnectionWasLostThroughItsRunOnly}).
      */
     @ParameterizedTest
     @ValueSource(booleans = {true, false})

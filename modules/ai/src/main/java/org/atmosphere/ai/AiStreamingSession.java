@@ -510,6 +510,11 @@ public class AiStreamingSession implements StreamingSession {
         return removed;
     }
 
+    /** Whether the run {@code runId} reaches a session through the run map. Visible for testing. */
+    static boolean reachableThroughRun(String runId) {
+        return RUN_SESSIONS.containsKey(runId);
+    }
+
     /**
      * Why the sweep ends {@code session}, or {@code null} while it may go on:
      * idle since before {@code cutoff}, or left open by its {@code @Prompt}
