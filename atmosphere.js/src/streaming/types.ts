@@ -29,11 +29,13 @@ export type StreamingMessageType =
  *   reattach within the server's reattach grace (or closed on purpose);
  * - `operator` — an operator cancelled the model call through the admin plane;
  * - `sweep` — the idle-session sweep reaped the session;
- * - `caller` — the server-side code that dispatched the run cancelled it.
+ * - `caller` — the server-side code that dispatched the run cancelled it;
+ * - `timeout` — the run's reply was still open when its lifetime after the
+ *   `@Prompt` method returned ran out.
  *
  * A server newer than this client may send another code, hence the open string.
  */
-export type CancelReason = 'disconnect' | 'operator' | 'sweep' | 'caller' | (string & {});
+export type CancelReason = 'disconnect' | 'operator' | 'sweep' | 'caller' | 'timeout' | (string & {});
 
 /**
  * Aggregated statistics for a streaming session, computed client-side

@@ -215,6 +215,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       case 'operator': return 'Run cancelled by an operator.'
       case 'sweep': return 'Run cancelled: the session expired.'
       case 'caller': return 'Run cancelled by the caller.'
+      case 'timeout': return 'Run cancelled: the reply ran past its time limit.'
       default:
         return typeof data === 'string' && data ? data : 'Run cancelled.'
     }
