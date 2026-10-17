@@ -74,7 +74,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * {"type":"complete","data":"Full response","sessionId":"abc-123","seq":5}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
  * {"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}
- * {"type":"prompt","text":"What is 2+2?","from":"&lt;prompter uuid&gt;","sessionId":"abc-123","seq":1}
+ * {"type":"prompt","text":"What is 2+2?","from":""from":"&lt;prompter uuid&gt;"lt;prompter room member id"from":"&lt;prompter uuid&gt;"gt;","sessionId":"abc-123","seq":1}
  * </pre>
  *
  * <p>The {@code prompt} frame is sent by a room session only ({@link #sendPrompt}).</p>

@@ -928,19 +928,19 @@ prompt, already on screen. The `@Prompt` method still runs once, on the
 sender's connection; the frame goes through the room's session, so every
 transport receives it the same way and the room's broadcast filters apply
 (`PiiRedactionFilter` redacts its `text`, `ContentSafetyFilter` redacts it or
-drops the frame). It is sent only once the turn is admitted: when
-`session.stream(...)` has passed the guardrails, the governance policies and a
-per-request scope (a prompt the room's scope refuses is never shown to the
-room, only its redirect), and, for a `@Prompt` method that answers without
-`session.stream(...)`, with its first reply text (`send`, a text `sendContent`, a
-`TextDelta` event or a `complete` carrying a summary — never progress, tool or
-handoff events), once the endpoint's request guardrails let the prompt through.
-When a guardrail or policy rewrote the message the method streamed as received
-(a PII redaction), the room is shown the rewritten text; when the method streams
-another text (a coordinator's synthesis, a context prefix), the typed prompt is
-screened by the request guardrails and the per-request scope on its own: blocked
-or redirected, it is not shown, rewritten, it is shown rewritten. Screening
-evaluates those guardrails once more, on the typed prompt. An approval answer is never echoed, nor is a prompt handed
+drops the frame). It is sent only when the turn's own admission admitted the
+prompt the member typed: the `@Prompt` method passes it to `session.stream(...)`
+as typed (compared after `strip()`), and that call passes the guardrails, the
+governance policies and a per-request scope (a prompt the room's scope refuses
+is never shown to the room, only its redirect). It is then sent before the
+model is called, so ahead of every reply frame whatever the reply is (text, an
+image, a structured entity, a bare `complete`), with the text as admission left
+it (a guardrail's or policy's rewrite, a PII redaction, applied). Nothing is
+evaluated a second time for the echo, so stateful policies (rate and
+concurrency limits, moderation calls, the decision log) see each turn once. It
+fails closed: a `@Prompt` method that answers without `session.stream(...)`, or
+streams another text (a coordinator's synthesis, a context prefix), shows the
+room no prompt. An approval answer is never echoed, nor is a prompt handed
 back undispatched, and an endpoint without `broadcastReply` sends no `prompt`
 frame. The frame is recorded with the run: a client that reattaches with the run
 id is replayed it, once, ahead of the reply (`from` is then the member id of

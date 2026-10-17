@@ -362,15 +362,20 @@ public @interface AiEndpoint {
      * would drive N redundant LLM calls and leak streams into tabs that never
      * asked anything.</p>
      *
-     * <p>Every member also sees the prompt: once the turn is admitted (by
-     * {@code session.stream(...)}'s guardrails, policies and per-request scope,
-     * or, for a {@code @Prompt} method that answers without it, with its first
-     * reply text, once the request guardrails let the prompt through), the room
-     * is sent
+     * <p>Every member also sees the prompt, when the {@code @Prompt} method
+     * passes it to {@code session.stream(...)} as typed (compared after
+     * {@code strip()}) and that call's admission — guardrails, governance
+     * policies, per-request scope — admits it: the room is then sent
      * {@code {"type":"prompt","text":<prompt>,"from":<sender's room member id>,"sessionId":..,"seq":n}}
-     * ahead of the reply, through the room's broadcast filters. A prompt the
-     * admission refuses and an approval answer are never shown to the room.
-     * The frame is replayed with the run to a client that reattaches.</p>
+     * before the model is called, so ahead of any reply frame, with the text as
+     * admission left it (a redaction applied), through the room's broadcast
+     * filters. Nothing is evaluated a second time for it, so stateful policies
+     * (rate, concurrency limits) count each turn once. It fails closed: a prompt
+     * the admission refuses, a {@code @Prompt} method that answers without
+     * {@code stream} or streams another text, and an approval answer show the
+     * room no prompt. {@code from} is {@link org.atmosphere.ai.RoomMemberIds#of}
+     * of the sender's tracking id, never the tracking id. The frame is replayed
+     * with the run to a client that reattaches.</p>
      *
      * <p>A long-polling member of the room receives the reply whole on its next
      * poll, as a client receives its own reply over long-polling, even when none

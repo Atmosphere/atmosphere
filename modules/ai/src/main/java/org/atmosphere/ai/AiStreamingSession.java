@@ -136,10 +136,9 @@ public class AiStreamingSession implements StreamingSession {
     /**
      * The echo of the turn's prompt to the room its reply is broadcast to, set
      * by the {@code @AiEndpoint(broadcastReply = true)} handler and sent at most
-     * once: when {@link #stream(String, List)} admits the turn, or with the
-     * first reply text of a {@code @Prompt} method that answers without
-     * {@code stream}; dropped by a {@code stream} call that refuses the turn,
-     * or when the guardrails refuse the prompt itself.
+     * once, by the first {@link #stream(String, List)} call, when it admits the
+     * prompt the member typed; dropped by a {@code stream} call that refuses the
+     * turn or streams another text, never sent without {@code stream}.
      */
     private final AtomicReference<PromptEcho> promptEcho = new AtomicReference<>();
     private final AtomicBoolean handoffInProgress = new AtomicBoolean();
@@ -1273,19 +1272,17 @@ public class AiStreamingSession implements StreamingSession {
 
     /**
      * Echo the turn's prompt to the room its reply is broadcast to, once the
-     * turn is admitted: when {@link #stream(String, List)} passed every
-     * admission step (the guardrails, the governance policies, a per-request
-     * scope), before the first reply frame; a {@code stream} call that refuses
-     * the turn drops the echo, so the room never sees a prompt its admission
-     * refused. A {@code @Prompt} method that answers without {@code stream}
-     * has its prompt echoed with its first reply text ({@code send}, a text
-     * {@code sendContent}, a {@link AiEvent.TextDelta}, a {@code complete}
-     * carrying a summary; never with progress, tool or handoff events), once the
-     * endpoint's request guardrails let it through. When a guardrail or policy
-     * rewrote the message the {@code @Prompt} method streamed as received (a PII
-     * redaction), the room is shown the rewritten text, as the model is; when
-     * the method streams another text, the typed prompt is screened by the
-     * guardrails and the per-request scope on its own: blocked, it is not shown.
+     * turn's own admission admitted it: when {@link #stream(String, List)},
+     * called with the prompt as the member typed it (compared after
+     * {@code strip()}), passed every admission step (the guardrails, the
+     * governance policies, a per-request scope), before the model is called and
+     * so before any reply frame, whatever the reply turns out to be (text, an
+     * image, a structured entity, a bare {@code complete}). The room is shown
+     * the prompt as admission left it (a guardrail's or policy's rewrite, such
+     * as a PII redaction). Nothing is evaluated a second time for the echo:
+     * a prompt that admission refused, a {@code @Prompt} method that answers
+     * without {@code stream}, and one that streams another text (a
+     * coordinator's synthesis, a context prefix) echo nothing — fail closed.
      *
      * <p>Set by the {@code @AiEndpoint} handler for a
      * {@code broadcastReply = true} endpoint only.</p>
@@ -1297,92 +1294,6 @@ public class AiStreamingSession implements StreamingSession {
     public void setPromptEcho(String text, java.util.function.Consumer<String> send) {
         java.util.Objects.requireNonNull(send, "send");
         promptEcho.set(text == null || text.isBlank() ? null : new PromptEcho(text, send));
-    }
-
-    /**
-     * Send the pending prompt echo, if any, ahead of reply text the
-     * {@code @Prompt} method sends without {@code stream}: its text is screened
-     * by the endpoint's request guardrails first ({@link #screenPromptEcho}).
-     */
-    private void releasePromptEcho() {
-        if (promptEcho.get() == null) {
-            return;
-        }
-        var echo = promptEcho.getAndSet(null);
-        if (echo != null) {
-            sendPromptEcho(echo, screenPromptEcho(echo.text(), null));
-        }
-    }
-
-    private void sendPromptEcho(PromptEcho echo, String text) {
-        if (text == null || text.isBlank()) {
-            logger.debug("Not echoing the prompt of {} to its room: its admission refused it", resource.uuid());
-            return;
-        }
-        echo.send().accept(text);
-    }
-
-    /**
-     * What the room may be shown of {@code text}, a prompt that did not go
-     * through this turn's admission as typed (sent ahead of reply text written
-     * without {@code stream}, or streamed as another text): {@code text} as the
-     * endpoint's request guardrails leave it, then as {@code requestScope}, the
-     * turn's per-request scope when there is one, leaves it; {@code null} when
-     * one of them blocks it, redirects it, or fails (fail closed).
-     */
-    private String screenPromptEcho(String text, ScopePolicy requestScope) {
-        AiRequest request;
-        try {
-            request = turnRequest(text);
-        } catch (RuntimeException e) {
-            logger.warn("Could not screen the prompt echo of {}; not showing it to the room", resource.uuid(), e);
-            return null;
-        }
-        for (var guardrail : guardrails) {
-            try {
-                var admitted = admittedScopeResult(guardrail, text);
-                var result = admitted != null ? admitted : guardrail.inspectRequest(request);
-                switch (result) {
-                    case AiGuardrail.GuardrailResult.Block block -> {
-                        logger.debug("Guardrail {} blocked the prompt echo: {}",
-                                guardrail.getClass().getSimpleName(), block.reason());
-                        return null;
-                    }
-                    case AiGuardrail.GuardrailResult.Modify modify -> {
-                        if (ScopePolicy.redirectText(modify.modifiedRequest()).isPresent()) {
-                            return null;
-                        }
-                        request = modify.modifiedRequest();
-                    }
-                    case AiGuardrail.GuardrailResult.Pass ignored -> { }
-                }
-            } catch (RuntimeException e) {
-                logger.warn("Guardrail {} failed on the prompt echo; not showing it to the room",
-                        guardrail.getClass().getName(), e);
-                return null;
-            }
-        }
-        if (requestScope != null) {
-            try {
-                switch (requestScope.evaluate(org.atmosphere.ai.governance.PolicyContext.preAdmission(request))) {
-                    case org.atmosphere.ai.governance.PolicyDecision.Deny ignored -> {
-                        return null;
-                    }
-                    case org.atmosphere.ai.governance.PolicyDecision.Transform transform -> {
-                        if (ScopePolicy.redirectText(transform.modifiedRequest()).isPresent()) {
-                            return null;
-                        }
-                        request = transform.modifiedRequest();
-                    }
-                    default -> { }
-                }
-            } catch (RuntimeException e) {
-                logger.warn("Request scope {} failed on the prompt echo; not showing it to the room",
-                        requestScope.name(), e);
-                return null;
-            }
-        }
-        return request.message();
     }
 
     @Override
@@ -1485,8 +1396,9 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
         // The message as the guardrails and policies left it (a PII redaction
-        // rewrote it): what the room is shown of a prompt streamed as received.
-        var admittedMessage = request.message();
+        // rewrote it), then as the per-request scope leaves it below: what the
+        // room is shown of a prompt streamed as received.
+        String echoText = request.message();
 
         // Pre-process: FIFO order (the before-admission interceptors already ran)
         for (var interceptor : interceptors) {
@@ -1551,6 +1463,10 @@ public class AiStreamingSession implements StreamingSession {
                             sendScopeRedirect(redirect.get());
                             return;
                         }
+                        if (!transform.modifiedRequest().message().equals(request.message())) {
+                            // The scope rewrote the prompt: the room is shown its rewrite.
+                            echoText = transform.modifiedRequest().message();
+                        }
                         request = transform.modifiedRequest();
                     }
                     case org.atmosphere.ai.governance.PolicyDecision.Prefer prefer -> {
@@ -1593,14 +1509,17 @@ public class AiStreamingSession implements StreamingSession {
             effectiveGuardrails = List.copyOf(augmented);
         }
 
-        // The turn is admitted: the room sees its prompt before the first reply
-        // frame, as admission left it. A @Prompt method that streams a text of
-        // its own (a coordinator's synthesis, a context prefix) still shows the
-        // room what the member typed, screened by the same steps first.
-        if (echo != null) {
-            sendPromptEcho(echo, message.strip().equals(echo.text().strip())
-                    ? admittedMessage
-                    : screenPromptEcho(echo.text(), requestScopePolicy));
+        // The turn is admitted: the room sees its prompt as admission left it,
+        // here, on this thread, before the model is called — so before any
+        // reply frame of the turn, whatever the reply is. Only the prompt the
+        // member typed was admitted: a @Prompt method that streams a text of
+        // its own (a coordinator's synthesis, a context prefix) echoes nothing,
+        // and nothing is evaluated again for the echo (stateful policies such
+        // as rate and concurrency limits count each turn once).
+        if (echo != null && message.strip().equals(echo.text().strip()) && !echoText.isBlank()) {
+            echo.send().accept(echoText);
+        } else if (echo != null) {
+            logger.debug("Not echoing the prompt of {}: the turn streamed another text", resource.uuid());
         }
 
         // Intent routing — after every admission step (guardrails, policies,
@@ -2119,7 +2038,6 @@ public class AiStreamingSession implements StreamingSession {
     @Override
     public void send(String text) {
         lastActivityMillis = System.currentTimeMillis();
-        releasePromptEcho();
         delegate.send(text);
     }
 
@@ -2132,9 +2050,6 @@ public class AiStreamingSession implements StreamingSession {
         // is typically a DefaultStreamingSession that can emit the binary
         // frame on the wire.
         lastActivityMillis = System.currentTimeMillis();
-        if (content instanceof Content.Text) {
-            releasePromptEcho();
-        }
         delegate.sendContent(content);
     }
 
@@ -2246,10 +2161,6 @@ public class AiStreamingSession implements StreamingSession {
         if (afterOpenTurnEnded("complete")) {
             return;
         }
-        if (summary != null && !summary.isEmpty()) {
-            // A reply carried whole by the terminal frame is a reply all the same.
-            releasePromptEcho();
-        }
         delegate.complete(summary);
     }
 
@@ -2351,11 +2262,6 @@ public class AiStreamingSession implements StreamingSession {
         if ((event instanceof AiEvent.Complete || event instanceof AiEvent.Error)
                 && (endCancelledCall() || afterOpenTurnEnded("terminal event"))) {
             return;
-        }
-        if (event instanceof AiEvent.TextDelta) {
-            // Only reply text shows the prompt: progress, tool and handoff
-            // events come before stream() has screened it.
-            releasePromptEcho();
         }
         delegate.emit(event);
     }

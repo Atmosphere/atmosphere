@@ -25,7 +25,9 @@ import { logger } from './logger';
  * for a client that comes back with it. The transport holds the id in memory
  * (`AtmosphereProtocol.runId`), which a reload wipes; this store keeps a copy
  * in the tab's `sessionStorage`, which survives the reload and nothing else
- * (another tab, a closed tab). It is written when the id arrives, removed on
+ * (another tab, a closed tab) — except a duplicated tab, which the browser
+ * starts with a copy of it, so the copy reattaches to the original's run as
+ * well. It is written when the id arrives, removed on
  * the run's terminal frame (`complete`, `error`, `cancelled`) and on a
  * deliberate `close()`, and read when a transport is created.
  *

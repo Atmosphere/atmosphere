@@ -399,7 +399,7 @@ describe('a broadcastReply room', () => {
       { user: true, text: 'what is 2+2?' },
       { user: false, text: 'four' },
     ])
-    expect(wrapper.find('[data-testid="message-author"]').text()).toContain('Member memb')
+    expect(wrapper.find('[data-testid="message-author"]').text()).toContain('Member member-b')
   })
 
   it('a second prompt ends the reply in progress, so the next reply does not run into it', async () => {
@@ -478,6 +478,22 @@ describe('a broadcastReply room', () => {
       { user: true, text: 'mine' },
       { user: true, text: 'theirs' },
     ])
+  })
+
+  it('a Clear before the first token of the next turn discards that turn', async () => {
+    const { chat, wrapper } = await mountRoom()
+    chat.send('one')
+    handlers.onEvent({ type: 'streaming-text', data: 'first answer', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 2 })
+    await nextTick()
+    chat.send('two')
+    chat.clearMessages()
+
+    handlers.onEvent({ type: 'streaming-text', data: 'leak', sessionId: 's2', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 's2', seq: 2 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([])
   })
 
   it("does not bring a cleared turn's late text back when another member's prompt arrives", async () => {

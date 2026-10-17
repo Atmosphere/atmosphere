@@ -300,7 +300,7 @@ class AiEndpointHandlerRoomRunTest {
         assertEquals(List.of("streaming-text:only", "cancelled:disconnect"), text(member),
                 "the prompter gone, the room is told the run ended");
         awaitRunEnd();
-        assertEquals(promptThen(text(member)), replayed(), "the replay ends with what the room received");
+        assertEquals(text(member), replayed(), "the replay ends with what the room received; a reply written without stream() shows no prompt");
         assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
                 "the run's end closed the session that broadcast it to the room");
     }
@@ -391,8 +391,8 @@ class AiEndpointHandlerRoomRunTest {
 
         assertEquals(List.of("streaming-text:async", "complete"), text(reader), "the reply reaches the client");
         awaitRunEnd();
-        assertEquals(toRoom ? promptThen(text(reader)) : text(reader), replayed(),
-                "the replay ends with what the client received; a room run's starts with its prompt");
+        assertEquals(text(reader), replayed(),
+                "the replay ends with what the client received; a reply written without stream() shows no prompt");
     }
 
     /**
@@ -413,7 +413,7 @@ class AiEndpointHandlerRoomRunTest {
 
         assertEquals(List.of("streaming-text:first", "cancelled:operator"), text(member),
                 "the room is told the run was cut short, and is sent nothing after it");
-        assertEquals(promptThen(text(member)), replayed(), "the replay ends with what the room received");
+        assertEquals(text(member), replayed(), "the replay ends with what the room received; a reply written without stream() shows no prompt");
     }
 
     /**

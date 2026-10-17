@@ -165,7 +165,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
 
   // This tab's room member ids (roomMemberId of each tracking id it had), kept
   // in sessionStorage so a prompt it sent before a reload, replayed with its
-  // run, renders as its own bubble rather than another member's.
+  // run, renders as its own bubble rather than another member's. A duplicated
+  // tab starts with a copy of the original's sessionStorage (these ids and the
+  // run id atmosphere.js keeps there), so it takes the original's prompts as its own.
   const OWN_MEMBER_IDS_KEY = 'atmosphere.console.roomMemberIds'
   const MAX_OWN_MEMBER_IDS = 8
   function ownMemberIds(): string[] {
@@ -373,7 +375,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           role: 'user',
           content: text,
           timestamp: Date.now(),
-          ...(from && !own ? { author: `Member ${from.slice(0, 4)}` } : {}),
+          ...(from && !own ? { author: `Member ${from.slice(0, 8)}` } : {}),
         }]
         break
       }
@@ -761,8 +763,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     streamStartedAt = Date.now()
     streamTokenCount = 0
     // A new prompt starts a stream the user wants to see, even if a discarded
-    // one never delivered its terminal event.
+    // one never delivered its terminal event. Its session is not known yet, so
+    // a Clear before its first token discards whatever streams next.
     discardInFlightStream = false
+    lastStreamSessionId = null
 
     // Broadcast and Room Protocol sends have no streamed AI reply — the room
     // echo renders as its own bubble ({type:'message'} or the event-less

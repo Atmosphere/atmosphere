@@ -89,7 +89,10 @@ export interface StreamingMessage {
   value?: unknown;
   /** The prompt of a `prompt` frame (a room member's prompt echoed to the room). */
   text?: string;
-  /** The tracking id of the room member who sent the prompt of a `prompt` frame. */
+  /**
+   * The room member id of the member who sent the prompt of a `prompt` frame:
+   * `roomMemberId` of its tracking id (server: `RoomMemberIds`), never the tracking id itself.
+   */
   from?: string;
   sessionId: string;
   seq: number;
@@ -149,9 +152,10 @@ export interface StreamingHandlers {
   /**
    * Called when a member of an `@AiEndpoint(broadcastReply = true)` room sent
    * a prompt the room's admission let through: the server echoes it to every
-   * member as the turn's first frame, ahead of the reply. `from` is the
-   * tracking id of the member who sent it; `own` is `true` when that is this
-   * connection (its UI usually shows its own prompt already).
+   * member as the turn's first frame, ahead of the reply. `from` is the opaque
+   * room member id of the member who sent it (`roomMemberId` of its tracking
+   * id, never the tracking id); `own` is `true` when that is this connection's
+   * (its UI usually shows its own prompt already).
    */
   onPrompt?: (text: string, from: string, own: boolean) => void;
   /** Called when the server signals progress (e.g. "Thinking…"). */

@@ -255,7 +255,7 @@ class AiEndpointHandlerBroadcastReplyTest {
     }
 
     @Test
-    void broadcastReplyTrue_promptOfAMethodAnsweringWithoutStreamPrecedesItsReply() throws Exception {
+    void broadcastReplyTrue_aMethodAnsweringWithoutStreamShowsNoPrompt() throws Exception {
         var originating = subscriber();
         var bystander = subscriber();
         var endpoint = new StubEndpoint();
@@ -265,12 +265,9 @@ class AiEndpointHandlerBroadcastReplyTest {
         handler.dispatchPrompt(originating, "hello room");
 
         awaitComplete(bystander);
-        var frames = parsed(bystander);
-        var prompts = ofType(frames, "prompt");
-        assertEquals(1, prompts.size(), "exactly one prompt frame: " + frames);
-        assertEquals("hello room", prompts.get(0).get("text").stringValue());
-        assertTrue(frames.indexOf(prompts.get(0)) < frames.indexOf(ofType(frames, "streaming-text").get(0)),
-                "the prompt precedes the reply: " + frames);
+        assertTrue(capture.received(bystander.uuid(), REPLY), "the reply reaches the room");
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "no admission ran on the prompt, so it is not shown: " + capture.framesFor(bystander.uuid()));
         assertEquals(1, endpoint.invocations.get());
     }
 
@@ -376,30 +373,9 @@ class AiEndpointHandlerBroadcastReplyTest {
     }
 
     @Test
-    void broadcastReplyTrue_aGuardrailBlockDropsTheEchoOfAPromptAnsweredWithoutStream() throws Exception {
+    void broadcastReplyTrue_aGuardrailModifyRewritesTheEchoOfTheStreamedPrompt() throws Exception {
         var bystander = subscriber();
-        ScriptedEndpoint.script = (message, session) -> {
-            session.send(REPLY);
-            session.complete();
-        };
-        var handler = newScriptedHandler(new WordGuardrail());
-        handler.setBroadcastReply(true);
-
-        handler.dispatchPrompt(subscriber(), "a forbidden question");
-
-        awaitComplete(bystander);
-        assertTrue(capture.received(bystander.uuid(), REPLY), "the reply reaches the room");
-        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
-                "a prompt the guardrail blocks is never shown: " + capture.framesFor(bystander.uuid()));
-    }
-
-    @Test
-    void broadcastReplyTrue_aGuardrailModifyRewritesTheEchoOfAPromptAnsweredWithoutStream() throws Exception {
-        var bystander = subscriber();
-        ScriptedEndpoint.script = (message, session) -> {
-            session.send(REPLY);
-            session.complete();
-        };
+        ScriptedEndpoint.script = (message, session) -> session.stream(message);
         var handler = newScriptedHandler(new WordGuardrail());
         handler.setBroadcastReply(true);
 
@@ -439,27 +415,118 @@ class AiEndpointHandlerBroadcastReplyTest {
         var handler = newScriptedHandler(new WordGuardrail());
         handler.setBroadcastReply(true);
 
-        handler.dispatchPrompt(subscriber(), "a forbidden question");
+        handler.dispatchPrompt(subscriber(), "a harmless question");
 
         awaitComplete(bystander);
         assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
-                "a handoff is not reply text: " + capture.framesFor(bystander.uuid()));
+                "a handoff is not an admission: " + capture.framesFor(bystander.uuid()));
     }
 
     @Test
-    void broadcastReplyTrue_aTypedPromptTheGuardrailBlocksIsNotShownWhenStreamCarriesAnotherText()
-            throws Exception {
+    void broadcastReplyTrue_aStreamOfAnotherTextShowsNoPrompt() throws Exception {
         var bystander = subscriber();
-        ScriptedEndpoint.script = (message, session) -> session.stream("Rephrase politely: the question");
+        ScriptedEndpoint.script = (message, session) -> session.stream("Rephrase politely: " + message);
         var handler = newScriptedHandler(new WordGuardrail());
         handler.setBroadcastReply(true);
 
-        handler.dispatchPrompt(subscriber(), "a forbidden question");
+        handler.dispatchPrompt(subscriber(), "a harmless question");
 
         awaitComplete(bystander);
         assertTrue(capture.received(bystander.uuid(), REPLY), "the composed turn runs");
         assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
-                "the typed prompt is screened on its own: " + capture.framesFor(bystander.uuid()));
+                "only the typed prompt was admitted, and it was not streamed: "
+                        + capture.framesFor(bystander.uuid()));
+    }
+
+    @Test
+    void broadcastReplyTrue_aStreamOfTheTypedPromptPaddedWithWhitespaceShowsIt() throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> session.stream("  " + message + "\n");
+        var handler = newScriptedHandler(new WordGuardrail());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "a harmless question");
+
+        awaitComplete(bystander);
+        var prompts = ofType(parsed(bystander), "prompt");
+        assertEquals(1, prompts.size(), capture.framesFor(bystander.uuid()).toString());
+        assertEquals("a harmless question", prompts.get(0).get("text").stringValue().strip());
+    }
+
+    @Test
+    void broadcastReplyTrue_theEchoPrecedesAReplyThatCarriesNoText() throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> session.stream(message);
+        var method = ScriptedEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class);
+        var handler = new AiEndpointHandler(new ScriptedEndpoint(), method, 30_000L, "base",
+                "/atmosphere/room/{room}", new CompletingRuntime(), List.of(), null,
+                AnnotatedLifecycle.scan(ScriptedEndpoint.class), null, List.of(), List.of(),
+                org.atmosphere.ai.AiMetrics.NOOP);
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "a harmless question");
+
+        awaitComplete(bystander);
+        var frames = parsed(bystander);
+        var prompts = ofType(frames, "prompt");
+        assertEquals(1, prompts.size(), "the admitted prompt is shown even with no reply text: " + frames);
+        assertTrue(frames.indexOf(prompts.get(0)) < frames.indexOf(ofType(frames, "complete").get(0)), frames.toString());
+    }
+
+    /**
+     * The echo adds no evaluation: a stateful governance policy (rate and
+     * concurrency limits) sees each room turn once, whichever way the
+     * {@code @Prompt} method answers, and a concurrency slot is released.
+     */
+    @Test
+    void broadcastReplyTrue_statefulPoliciesSeeEachTurnOnce() throws Exception {
+        var scripts = Map.<String, java.util.function.BiConsumer<String, StreamingSession>>of(
+                "streams the typed prompt", (message, session) -> session.stream(message),
+                "streams another text", (message, session) -> session.stream("Context: " + message),
+                "answers without stream", (message, session) -> {
+                    session.send(REPLY);
+                    session.complete();
+                });
+        var expectedHits = Map.of("streams the typed prompt", 1, "streams another text", 1,
+                "answers without stream", 0);
+        for (var path : List.of("streams another text", "answers without stream", "streams the typed prompt")) {
+            var rate = new org.atmosphere.ai.governance.RateLimitPolicy("rate", 100, java.time.Duration.ofMinutes(1));
+            var concurrency = new org.atmosphere.ai.governance.ConcurrencyLimitPolicy("concurrency", 10);
+            ScriptedEndpoint.script = scripts.get(path);
+            var method = ScriptedEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class);
+            var handler = new AiEndpointHandler(new ScriptedEndpoint(), method, 30_000L, "base",
+                    "/atmosphere/room/{room}", new ReplyingRuntime(), List.of(), null,
+                    AnnotatedLifecycle.scan(ScriptedEndpoint.class), null,
+                    List.of(new org.atmosphere.ai.governance.PolicyAsGuardrail(rate),
+                            new org.atmosphere.ai.governance.PolicyAsGuardrail(concurrency)),
+                    List.of(), org.atmosphere.ai.AiMetrics.NOOP);
+            handler.setBroadcastReply(true);
+            var prompter = subscriber();
+
+            handler.dispatchPrompt(prompter, "a harmless question");
+
+            awaitComplete(prompter);
+            var subject = "session:" + prompter.uuid();
+            assertEquals(expectedHits.get(path), rate.currentHits(subject),
+                    path + ": the rate limit counts the turn once, never the echo");
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (concurrency.inFlightFor(subject) != 0 && System.nanoTime() < deadline) {
+                Thread.sleep(20);
+            }
+            assertEquals(0, concurrency.inFlightFor(subject), path + ": no concurrency slot leaks");
+        }
+    }
+
+    /** Completes the turn without any reply text. */
+    private static final class CompletingRuntime implements AgentRuntime {
+        @Override public String name() { return "completing"; }
+        @Override public boolean isAvailable() { return true; }
+        @Override public int priority() { return 0; }
+        @Override public void configure(AiConfig.LlmSettings settings) { }
+        @Override
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            session.complete();
+        }
     }
 
     /** Blocks a message naming "forbidden"; rewrites "secret" to "[hidden]". */

@@ -32,7 +32,7 @@ import java.util.LinkedHashMap;
  * {"type":"complete","sessionId":"abc-123","seq":4}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
  * {"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}
- * {"type":"prompt","text":"What is 2+2?","from":"&lt;prompter uuid&gt;","sessionId":"abc-123","seq":1}
+ * {"type":"prompt","text":"What is 2+2?","from":""from":"&lt;prompter uuid&gt;"lt;prompter room member id"from":"&lt;prompter uuid&gt;"gt;","sessionId":"abc-123","seq":1}
  * </pre>
  *
  * <p>A {@code prompt} frame echoes a room member's prompt to an
