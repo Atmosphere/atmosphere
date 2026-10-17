@@ -52,9 +52,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * when the framework destroys the endpoint ({@link #release()}), and the
  * sweeper stops when the last holder lets go — the destroy of one endpoint,
  * or of another application's in the same JVM, leaves it running for the
- * endpoints still live. {@link #shutdown()} stops it whoever holds it. The
- * sweeper restarts on the next registration, so an undeploy/redeploy cycle
- * keeps sweeping.</p>
+ * endpoints still live. Once the last holder let go, a session registering
+ * does not start it again: only a new holder's sessions do (a redeploy), so
+ * an undeployed application leaves no sweeper thread behind. In a JVM where
+ * nothing ever held it (the library used without an endpoint) a session
+ * registering starts it as before. The endpoint's destroy no longer stops it
+ * unconditionally: a host tearing the process down calls
+ * {@link #shutdown()}, which stops it whoever holds it.</p>
  */
 public final class StreamingSessionSweeper {
 
@@ -77,6 +81,9 @@ public final class StreamingSessionSweeper {
     /** How many {@link #acquire()} calls no {@link #release()} answered yet. Guarded by {@link #HOLDERS_LOCK}. */
     private static int holders;
 
+    /** Set by the first {@link #acquire()}: from then on only a hold lets the sweeper start. Guarded by {@link #HOLDERS_LOCK}. */
+    private static boolean everHeld;
+
     private StreamingSessionSweeper() {
     }
 
@@ -85,7 +92,7 @@ public final class StreamingSessionSweeper {
      * registration paths; cheap when already started (a volatile read).
      */
     static void ensureStarted() {
-        if (SWEEPER.get() != null) {
+        if (SWEEPER.get() != null || !mayStart()) {
             return;
         }
         var candidate = Executors.newSingleThreadScheduledExecutor(
@@ -109,6 +116,19 @@ public final class StreamingSessionSweeper {
     public static void acquire() {
         synchronized (HOLDERS_LOCK) {
             holders++;
+            everHeld = true;
+        }
+    }
+
+    /**
+     * Whether a session registering may start the sweeper: while a holder
+     * holds it, or in a JVM where nothing ever held it (the AI library used
+     * without an endpoint, which still needs the leak guard). Once the last
+     * holder let go, nothing restarts it until a holder acquires it again.
+     */
+    private static boolean mayStart() {
+        synchronized (HOLDERS_LOCK) {
+            return holders > 0 || !everHeld;
         }
     }
 

@@ -221,7 +221,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /**
      * Whether this endpoint holds the streaming-session sweeper
      * ({@link StreamingSessionSweeper#acquire()}) and the reattach grace timer
-     * ({@link org.atmosphere.ai.resume.RunDisconnectGrace#acquire()}).
+     * ({@link org.atmosphere.ai.resume.RunDisconnectGrace#acquire()}): from
+     * its construction until {@link #destroy()}.
      */
     private boolean sweeperHeld;
 
@@ -381,6 +382,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                             ? java.util.List.copyOf(toolRegistry.allTools())
                             : java.util.List.of());
         }
+        // Last, so a constructor that throws holds nothing: the process-wide
+        // sweeper and grace timer, which every path of this endpoint may
+        // start (a prompt, a slash command's session, a reattach, a durable
+        // re-drive), are held until its destroy lets go (Invariant #1).
+        StreamingSessionSweeper.acquire();
+        org.atmosphere.ai.resume.RunDisconnectGrace.acquire();
+        sweeperHeld = true;
     }
 
     /**
@@ -1152,7 +1160,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var session = new AiStreamingSession(traced, runtime,
                 effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
-        holdSweeper();
         AiStreamingSession.registerActive(session);
 
         // Thread the decoded multi-modal parts into the session so the next
@@ -1421,23 +1428,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // The replay holds the run's end by then, so the run's end records nothing more.
         replay.whenTerminated().thenRun(run::complete);
         return leftOpen;
-    }
-
-    /**
-     * Hold the process-wide streaming-session sweeper and reattach grace timer
-     * while this endpoint is live: taken with its first session, let go of by
-     * {@link #destroy()}, so each stops only once no endpoint uses it
-     * (Correctness Invariant #1). A destroyed endpoint takes no hold.
-     */
-    private void holdSweeper() {
-        synchronized (lifecycleLock) {
-            if (sweeperHeld || destroyed) {
-                return;
-            }
-            StreamingSessionSweeper.acquire();
-            org.atmosphere.ai.resume.RunDisconnectGrace.acquire();
-            sweeperHeld = true;
-        }
     }
 
     /**
@@ -1843,6 +1833,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * cancel the runs it started that wait out a reattach grace (the
      * {@code cancelled} frame {@code operator}), letting go of its hold on the
      * shared grace timer the same way: other endpoints' graces stay armed.
+     * The destroy no longer stops the sweeper or the timer unconditionally: a
+     * host tearing the whole process down calls
+     * {@link StreamingSessionSweeper#shutdown()} and
+     * {@link org.atmosphere.ai.resume.RunDisconnectGrace#shutdown()}.
      * Idempotent. Prompts still waiting for
      * their client's next poll are refused at once rather than holding their
      * request threads until the wait runs out.

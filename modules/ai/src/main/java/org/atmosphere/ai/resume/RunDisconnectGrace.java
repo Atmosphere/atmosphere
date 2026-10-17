@@ -68,9 +68,12 @@ import java.util.function.BooleanSupplier;
  * ({@link #withdraw}) and cancelled those runs itself: the destroy of one
  * endpoint, or of another application's in the same JVM, leaves every other
  * run's grace armed. The last holder letting go stops the timer, as
- * {@link #shutdown()} does whoever holds it; a run still detached then is
- * cancelled at once rather than left waiting for a timer that is gone
- * (Invariant #2). Entries exist only for runs still in flight, and each one is
+ * {@link #shutdown()} — for a host tearing the process down — does whoever
+ * holds it; a run still detached then is cancelled at once rather than left
+ * waiting for a timer that is gone (Invariant #2), and nothing restarts the
+ * timer until a holder acquires it again: a run detached meanwhile is
+ * cancelled at once. In a JVM where nothing ever held it the first detach
+ * starts it, as before. Entries exist only for runs still in flight, and each one is
  * removed when its run ends (Invariant #3).</p>
  */
 public final class RunDisconnectGrace {
@@ -99,6 +102,9 @@ public final class RunDisconnectGrace {
 
     /** How many {@link #acquire()} calls no {@link #release()} answered yet. Guarded by {@link #HOLDERS_LOCK}. */
     private static int holders;
+
+    /** Set by the first {@link #acquire()}: from then on only a hold lets the timer start. Guarded by {@link #HOLDERS_LOCK}. */
+    private static boolean everHeld;
 
     private RunDisconnectGrace() {
     }
@@ -300,6 +306,7 @@ public final class RunDisconnectGrace {
     public static void acquire() {
         synchronized (HOLDERS_LOCK) {
             holders++;
+            everHeld = true;
         }
     }
 
@@ -315,6 +322,11 @@ public final class RunDisconnectGrace {
             }
         }
         shutdown();
+    }
+
+    /** Whether the timer thread is scheduled. Visible for testing. */
+    static boolean timerRunning() {
+        return SCHEDULER.get() != null;
     }
 
     /** How many holds are taken. Visible for testing. */
@@ -344,6 +356,13 @@ public final class RunDisconnectGrace {
     }
 
     private static ScheduledExecutorService scheduler() {
+        synchronized (HOLDERS_LOCK) {
+            if (holders == 0 && everHeld) {
+                // The last holder let go: nothing restarts the timer, and a run
+                // detached now has no grace to wait out (arm cancels it at once).
+                throw new RejectedExecutionException("the reattach grace timer is released");
+            }
+        }
         while (true) {
             var current = SCHEDULER.get();
             if (current != null) {

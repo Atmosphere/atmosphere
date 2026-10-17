@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -48,9 +49,22 @@ class StreamingSessionSweeperTest {
 
     private static final long TTL_MS = 60_000L;
 
+    /**
+     * Each test runs as a JVM with one endpoint holding the sweeper: the holds
+     * an earlier test took or let go of are reset first.
+     */
+    @BeforeEach
+    void holdTheSweeper() throws Exception {
+        var holders = StreamingSessionSweeper.class.getDeclaredField("holders");
+        holders.setAccessible(true);
+        holders.setInt(null, 0);
+        StreamingSessionSweeper.acquire();
+    }
+
     @AfterEach
     void clearProperty() {
         System.clearProperty(StreamingSessionSweeper.TTL_PROPERTY);
+        StreamingSessionSweeper.release();
     }
 
     private static AtmosphereResource resource(String uuid) {
@@ -321,8 +335,6 @@ class StreamingSessionSweeperTest {
      */
     @Test
     void theSweeperStopsWhenItsLastHolderLetsGo() {
-        var others = StreamingSessionSweeper.holders();
-        StreamingSessionSweeper.acquire();
         StreamingSessionSweeper.acquire();
         StreamingSessionSweeper.ensureStarted();
 
@@ -330,13 +342,35 @@ class StreamingSessionSweeperTest {
         assertTrue(StreamingSessionSweeper.isRunning(), "a holder is left: the sweeper keeps running");
 
         StreamingSessionSweeper.release();
-        assertEquals(others, StreamingSessionSweeper.holders(), "each release answers one acquire");
-        assertEquals(others > 0, StreamingSessionSweeper.isRunning(),
-                "the sweeper stops once nobody holds it");
-        if (others == 0) {
-            StreamingSessionSweeper.release();
-            assertEquals(0, StreamingSessionSweeper.holders(), "a release with no hold left changes nothing");
-        }
+        assertEquals(0, StreamingSessionSweeper.holders(), "each release answers one acquire");
+        assertFalse(StreamingSessionSweeper.isRunning(), "the sweeper stops once nobody holds it");
+        StreamingSessionSweeper.release();
+        assertEquals(0, StreamingSessionSweeper.holders(), "a release with no hold left changes nothing");
+        // The fixture's hold, let go of after the test.
+        StreamingSessionSweeper.acquire();
+    }
+
+    /**
+     * Once the last holder let go of the sweeper, nothing starts it again — a
+     * session registering, as one an endpoint's slash command starts — until
+     * a holder acquires it again: an undeployed application leaves no sweeper
+     * thread behind.
+     */
+    @Test
+    void nothingRestartsTheSweeperAfterItsLastHolderLetGoUntilAHolderAcquiresIt() {
+        StreamingSessionSweeper.ensureStarted();
+        assertTrue(StreamingSessionSweeper.isRunning());
+
+        StreamingSessionSweeper.release();
+        assertFalse(StreamingSessionSweeper.isRunning());
+        var session = new DefaultStreamingSession("after-release", resource("uuid-after-release"));
+        StreamingSessionSweeper.ensureStarted();
+        assertFalse(StreamingSessionSweeper.isRunning(), "a session registering does not restart it");
+
+        StreamingSessionSweeper.acquire();
+        StreamingSessionSweeper.ensureStarted();
+        assertTrue(StreamingSessionSweeper.isRunning(), "a new holder's session starts it again");
+        session.complete();
     }
 
     @Test

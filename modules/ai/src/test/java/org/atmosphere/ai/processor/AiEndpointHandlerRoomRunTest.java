@@ -657,6 +657,50 @@ class AiEndpointHandlerRoomRunTest {
         assertTrue(RunRegistryHolder.get().lookup(othersRun).isPresent(), "another endpoint's run goes on");
     }
 
+    /**
+     * The last endpoint destroyed stops the session sweeper and the reattach
+     * grace timer — also one that only answered slash commands, whose session
+     * ({@code StreamingSessions.start}) started the sweeper without a prompt —
+     * and cancels the run still waiting out a grace rather than leave it to a
+     * stopped timer; nothing restarts them afterwards. Its destroy left the
+     * sweeper thread running.
+     */
+    @Test
+    void theLastEndpointsDestroyStopsTheSweeperAndTheGraceTimer() throws Exception {
+        resetHolds(org.atmosphere.ai.StreamingSessionSweeper.class);
+        resetHolds(RunDisconnectGrace.class);
+        handler = newHandler(new HeldRuntime(), HeldEndpoint.class);
+        var command = org.atmosphere.ai.StreamingSessions.start(subscriber("alice"));
+        assertTrue(sweeperRunning(), "the command's session starts the sweeper");
+        var cancelled = new AtomicInteger();
+        RunDisconnectGrace.detach("run-waiting", java.time.Duration.ofMinutes(5), cancelled::incrementAndGet);
+        assertTrue(graceTimerRunning(), "a grace waits on the timer");
+
+        handler.destroy();
+        handler = null;
+
+        assertFalse(sweeperRunning(), "the last endpoint gone, the sweeper stops");
+        assertFalse(graceTimerRunning(), "the last endpoint gone, the grace timer stops");
+        assertEquals(1, cancelled.get(), "the run waiting on the stopped timer is cancelled");
+        org.atmosphere.ai.StreamingSessions.start(subscriber("bob"));
+        assertFalse(sweeperRunning(), "nothing restarts the sweeper");
+        command.complete();
+    }
+
+    /** Clears the holds earlier tests of this class left on {@code shared} (its {@code holders} count). */
+    private static void resetHolds(Class<?> shared) throws Exception {
+        var holders = shared.getDeclaredField("holders");
+        holders.setAccessible(true);
+        holders.setInt(null, 0);
+    }
+
+    /** Whether the process-wide reattach grace timer is scheduled. */
+    private static boolean graceTimerRunning() throws Exception {
+        var running = RunDisconnectGrace.class.getDeclaredMethod("timerRunning");
+        running.setAccessible(true);
+        return (boolean) running.invoke(null);
+    }
+
     /** Whether the process-wide streaming-session sweeper is scheduled. */
     private static boolean sweeperRunning() throws Exception {
         var running = org.atmosphere.ai.StreamingSessionSweeper.class.getDeclaredMethod("isRunning");

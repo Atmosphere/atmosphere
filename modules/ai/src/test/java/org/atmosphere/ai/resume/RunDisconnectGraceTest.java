@@ -17,6 +17,7 @@ package org.atmosphere.ai.resume;
 
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -38,9 +39,22 @@ import static org.mockito.Mockito.when;
  */
 class RunDisconnectGraceTest {
 
+    /**
+     * Each test runs as a JVM with one endpoint holding the grace timer: the
+     * holds an earlier test took or let go of are reset first.
+     */
+    @BeforeEach
+    void holdTheTimer() throws Exception {
+        var holders = RunDisconnectGrace.class.getDeclaredField("holders");
+        holders.setAccessible(true);
+        holders.setInt(null, 0);
+        RunDisconnectGrace.acquire();
+    }
+
     @AfterEach
     void tearDown() {
         RunDisconnectGrace.shutdown();
+        RunDisconnectGrace.release();
     }
 
     @Test
@@ -124,9 +138,7 @@ class RunDisconnectGraceTest {
      */
     @Test
     void theTimerStopsAndCancelsWhatWaitsOnItOnlyWhenItsLastHolderLetsGo() {
-        var others = RunDisconnectGrace.holders();
         var count = new AtomicInteger();
-        RunDisconnectGrace.acquire();
         RunDisconnectGrace.acquire();
         RunDisconnectGrace.detach("run-held", Duration.ofMinutes(5), count::incrementAndGet);
 
@@ -135,11 +147,32 @@ class RunDisconnectGraceTest {
         assertEquals(0, count.get());
 
         RunDisconnectGrace.release();
-        assertEquals(others, RunDisconnectGrace.holders(), "each release answers one acquire");
-        if (others == 0) {
-            assertEquals(1, count.get(), "the last holder gone, the run waiting on the timer is cancelled");
-            assertFalse(RunDisconnectGrace.isDetached("run-held"));
-        }
+        assertEquals(0, RunDisconnectGrace.holders(), "each release answers one acquire");
+        assertEquals(1, count.get(), "the last holder gone, the run waiting on the timer is cancelled");
+        assertFalse(RunDisconnectGrace.isDetached("run-held"));
+        assertFalse(RunDisconnectGrace.timerRunning(), "the timer is stopped");
+        // The fixture's hold, let go of after the test.
+        RunDisconnectGrace.acquire();
+    }
+
+    /**
+     * Once the last holder let go of the timer, nothing starts it again: a
+     * run detached then has no grace to wait out and is cancelled at once,
+     * until a holder acquires the timer again.
+     */
+    @Test
+    void nothingRestartsTheTimerAfterItsLastHolderLetGoUntilAHolderAcquiresIt() {
+        RunDisconnectGrace.release();
+        var count = new AtomicInteger();
+
+        assertTrue(RunDisconnectGrace.detach("run-unheld", Duration.ofMinutes(5), count::incrementAndGet));
+        assertEquals(1, count.get(), "no timer to wait on: the run is cancelled at once");
+        assertFalse(RunDisconnectGrace.timerRunning(), "the detach does not restart the timer");
+
+        RunDisconnectGrace.acquire();
+        RunDisconnectGrace.detach("run-held-again", Duration.ofMinutes(5), count::incrementAndGet);
+        assertTrue(RunDisconnectGrace.isDetached("run-held-again"), "a new holder's detach waits out its grace");
+        assertEquals(1, count.get());
     }
 
     /** Cancelling one run's pending grace leaves every other armed, and runs no expiry. */
