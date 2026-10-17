@@ -7,6 +7,128 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.75] - 2026-10-17
+
+### Added
+
+- every member of a broadcastReply room sees the prompts the others type
+- a page reloaded mid-answer reattaches to its AI run
+- name the timeout cancel reason in the client type and the Console
+- add a cancellable model call to the reattach harness
+- produce the application's AiEnvironment as a CDI bean
+
+### Fixed
+
+- a Clear before the first token discards this client's room turn, not another member's
+- a room prompt is echoed only from the admission of the turn that streams it
+- a reattached run streams like a turn the page started
+- Expo classroom derives the streamed reply instead of copying it per token
+- a handler a failed registration leaves unregistered lets go of its sweeper and timer holds
+- endpoints hold the sweeper and grace timer from construction; none restarts unheld
+- every way a reattached client stops listening decides for the run, once
+- an endpoint's destroy cancels only the reattach graces of the runs it started
+- an endpoint's destroy ends its own left-open runs and stops the sweeper only when unheld
+- a reattached connection departing ends the run only once the one it started on is gone
+- bound runs left open after their @Prompt returns and reach them after a reattach
+- a run whose @Prompt returns with its session open ends with that session
+- a room run ends for the room when its prompter leaves, its grace expires or the run ends
+- show the working tabs and no chat when the app serves no chat endpoint
+- redirect an unserved GET / to the Console with or without AI
+- log an absent actuator on one DEBUG line, stack at TRACE
+- advertise a chat endpoint only when a handler serves it
+- warn once per provider about a missing VectorStore, then log at DEBUG
+- a room member's reattach replays only the run events before it rejoined
+- the same user reattaching under a new tracking id owns its room run
+- a broadcastReply room run keeps broadcasting after its prompter's connection goes
+- a room run remembers as many replay positions as the room takes members
+- a refused run reattach warns once per run and tracking id, then logs at DEBUG
+- a WebSocket or SSE room member reconnecting with the run id gets each later frame once
+- only a room run's own client restarts or holds off its reattach grace
+- a broadcastReply room member's waiting run-id poll holds the reattach grace off again
+- a broadcastReply room member's run-id poll no longer waits on the run
+- room members' long-polling replies never make a run forget a client that polled with its id
+- a long-polling client's run replay keeps the frames it missed before a later one reached it
+- long-polling room replies under shared listeners; own replies end the run replay
+- route the 15 s dashboard tick through the same no-overlap refresh
+- give every Console form field an id and a name
+- label lone tool calls as Tool Calls; name the model in connect status
+- report a WebTransport sample ready only once its HTTP/3 server started
+- wait for a WebTransport sidecar that is still starting instead of staying on WebSocket
+- join rooms and topics with the suspended connection, not a per-frame resource
+- serve the agent card at agent-card.json with absolute interface URLs
+- name SendMessage in the unauthenticated-endpoint warning
+- report no cost for a model the ai-tools rate table does not list
+- start a SQLite store once and name the in-memory default as the bean
+- warn of the empty default ContextProvider only when no endpoint wired one
+- state the in-scope rule before quoting the scope redirect in the preamble
+- report an expected policy or guardrail denial without an ERROR stack trace
+- log an unloadable SMT solver on one DEBUG line, stack at TRACE
+- boot passivation-agent without the AI auto-config its runtime never uses
+- stop team-rooms logging raw chat text that can carry secrets
+- track handed-out runtimes by identity so an equal instance still hears of the close
+- run every AI environment close step when one throws a checked exception it does not declare
+- drop a closed runtime's built client and build clients outside the close lock
+- finish every step of an AI environment close when a runtime close fails
+- close the runtime and embedding instances an AI environment loaded when it closes
+- open no AI environment for an intent routing that brings its own decision model
+- let a shutdown hook be registered while destroy runs the hooks
+- report the long-term-memory screen tier the endpoint's interceptor actually runs
+- open no AI environment for a framework that was already destroyed
+- build the per-application LLM tiers through forEnvironment factories
+- screen a hand-built streaming session's request scope with its framework's application
+- admit a request scope with the framework's own AI environment
+- resolve scope, injection, moderation and intent tiers per application
+- pin the reattach harness Console endpoint through ai.path on both starters
+- keep the reattach harness on Tomcat 10.1 core under Spring Boot 3
+- hand a long-polling client its run id at once, not with the finished reply
+- read an atmosphere.js WebTransport close as a leave in either arrival order
+- report a WebTransport session the page left with its stream open as going-away
+- run a prompt on a connection only once its @Ready has run
+- answer prompts and slash commands of a transport=streaming client
+- fail the start when the application's AiEnvironment bean is not application-lived
+- offer the Quarkus model to the application's AiEnvironment
+- explain an AI-state read only by an allowlist match that covers the read
+
+### Changed
+
+- publish atmosphere.js only after the Maven release, unless the run is js-only
+- wait for the room member to receive the frame an @Prompt sent before asserting it
+- a dotted library key is not a Maven goal; atmosphere.js core cap 56KB
+- clear sessionStorage before each test
+- publish the CLI archive to SDKMAN after each GitHub release
+- a reattach's departure only drops the session's registration under it
+- pin the idle sweep reaching left-open runs through the run map
+- age the post-return lifetime directly; credit the run, not the reattach, for the sweep
+- a waiting room poll's grace test arms the grace once its poll is built
+- attach the solver-context Javadoc to its method
+- pin each path that frees a client's run replay positions
+- only a long-polling client leaving for good walks the runs, and once
+- pin room run bound overrides and freed waiting slots
+- room members polling with the run id take replay positions past the receipt bound
+- a run buffer's replay-position bound also bounds the replies it remembers
+- name the room frames a run replay re-sends and the runs the per-run bounds apply to
+- a run an AI endpoint starts carries its application's long-polling bounds and its own id
+- give the expired-piece replay test a parked-reply TTL a sweep cannot race
+- a destroyed broadcaster leaves no long-polling room behind
+- assert room joins log no unsuspended resource and Console fields carry id/name
+- coalesce the live-event dashboard refresh instead of three requests per event
+- say team-rooms picks the Console room with atmosphere.console-endpoint
+- say what the new AbstractAgentRuntime methods change for older subclasses
+- say the environment-close hook runs once, at close or when an instance is not kept
+- call onEnvironmentClose on runtimes at AI environment close, not close()
+- state what the new runtime close() changes for implementations written before it
+- assert the embedding HTTP client terminates when its AI environment closes
+- pin that a closed application's guardrails never reach a running one
+- pin that an environment whose shutdown hook came too late closes at once
+- stub one embedding per input and assert the RAG screen's embedding verdict
+- allow CDI's @Dependent and Quarkus LangChain4j's @ModelName in the doc-symbol gate
+- pin that an uninterrupted long-polling AI reply arrives once
+- browser-verify the AI reattach grace across a page reload
+- name WebTransport among the transports whose page reload gets the reattach grace
+- check a second framework's LangChain4j runtime has no Quarkus model
+- name the CDI container as what uninstalls the knobs after a failed start
+- pin that a second application does not inherit the Quarkus model
+
 ## [4.0.74] - 2026-10-16
 
 ### Added
