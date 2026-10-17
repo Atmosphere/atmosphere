@@ -103,8 +103,8 @@ cancels it then — or the idle sweep does, when the session stays idle
 (`cancelled` `sweep`) or is still open the session TTL after the method
 returned, however often it writes (`cancelled` `timeout`), whatever became of
 the prompter's connection — or the destroy of the endpoint that started it
-(`cancelled` `operator`), which leaves other endpoints' runs and the shared
-sweeper to them; the prompter's WebSocket, SSE or streaming reattach
+(`cancelled` `operator`), which leaves other endpoints' runs, their reattach
+graces and the shared sweeper and grace timer to them; the prompter's WebSocket, SSE or streaming reattach
 registers the run's session under the connection it reattached on, so an
 operator's cancel addressed to that connection reaches the run, and that
 connection departing ends it only once nobody else listens and the connection

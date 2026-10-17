@@ -621,6 +621,42 @@ class AiEndpointHandlerRoomRunTest {
                 "the destroyed endpoint's run freed its place: this run is left open");
     }
 
+    /**
+     * Destroying one endpoint cancels the runs it started that wait out a
+     * reattach grace, with the cancelled frame of an operator, and no other
+     * endpoint's: the run another endpoint started keeps its grace armed. The
+     * destroy cancelled every run waiting out a grace in the JVM.
+     */
+    @Test
+    void destroyingAnEndpointCancelsOnlyTheGracesOfTheRunsItStarted() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var othersRuntime = new HeldRuntime();
+        var other = newHandler(othersRuntime, HeldEndpoint.class, false);
+        otherHandlers.add(other);
+        var othersPrompter = subscriber("alice");
+        other.dispatchPrompt(othersPrompter, "explain");
+        assertTrue(othersRuntime.streaming.await(10, TimeUnit.SECONDS));
+        awaitRunId();
+        var othersRun = RUN_ID.get();
+        other.onStateChange(new AtmosphereResourceEventImpl(othersPrompter, true, false));
+        assertTrue(RunDisconnectGrace.isDetached(othersRun), "the other endpoint's run waits out its grace");
+        RUN_ID.set(null);
+        var runtime = new HeldRuntime();
+        var prompter = startRun(runtime, "bob");
+        lose(prompter);
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()), "this endpoint's run waits out its grace");
+
+        handler.destroy();
+        handler = null;
+
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "the destroyed endpoint's run is cancelled");
+        awaitRunEnd();
+        assertEquals("cancelled:operator", last(replayed()), "cancelled by the endpoint's teardown");
+        assertTrue(RunDisconnectGrace.isDetached(othersRun), "another endpoint's run keeps its grace");
+        assertEquals(1, othersRuntime.cancelled.getCount(), "another endpoint's run is not cancelled");
+        assertTrue(RunRegistryHolder.get().lookup(othersRun).isPresent(), "another endpoint's run goes on");
+    }
+
     /** Whether the process-wide streaming-session sweeper is scheduled. */
     private static boolean sweeperRunning() throws Exception {
         var running = org.atmosphere.ai.StreamingSessionSweeper.class.getDeclaredMethod("isRunning");

@@ -116,6 +116,48 @@ class RunDisconnectGraceTest {
         assertEquals(0, RunDisconnectGrace.size());
     }
 
+    /**
+     * The grace timer is process-wide: one holder letting go of it while
+     * another holds it leaves every pending grace armed; the last holder
+     * letting go stops the timer and cancels the runs still waiting on it,
+     * rather than leave them to a timer that is gone.
+     */
+    @Test
+    void theTimerStopsAndCancelsWhatWaitsOnItOnlyWhenItsLastHolderLetsGo() {
+        var others = RunDisconnectGrace.holders();
+        var count = new AtomicInteger();
+        RunDisconnectGrace.acquire();
+        RunDisconnectGrace.acquire();
+        RunDisconnectGrace.detach("run-held", Duration.ofMinutes(5), count::incrementAndGet);
+
+        RunDisconnectGrace.release();
+        assertTrue(RunDisconnectGrace.isDetached("run-held"), "a holder is left: the grace stays armed");
+        assertEquals(0, count.get());
+
+        RunDisconnectGrace.release();
+        assertEquals(others, RunDisconnectGrace.holders(), "each release answers one acquire");
+        if (others == 0) {
+            assertEquals(1, count.get(), "the last holder gone, the run waiting on the timer is cancelled");
+            assertFalse(RunDisconnectGrace.isDetached("run-held"));
+        }
+    }
+
+    /** Cancelling one run's pending grace leaves every other armed, and runs no expiry. */
+    @Test
+    void withdrawTakesOneRunsPendingGraceOnly() {
+        var count = new AtomicInteger();
+        RunDisconnectGrace.detach("run-mine", Duration.ofMinutes(5), count::incrementAndGet);
+        RunDisconnectGrace.detach("run-theirs", Duration.ofMinutes(5), count::incrementAndGet);
+
+        assertTrue(RunDisconnectGrace.withdraw("run-mine"), "a pending grace is withdrawn");
+        assertFalse(RunDisconnectGrace.withdraw("run-mine"), "once");
+
+        assertFalse(RunDisconnectGrace.isDetached("run-mine"));
+        assertTrue(RunDisconnectGrace.isDetached("run-theirs"), "another run keeps its grace");
+        assertEquals(0, count.get(), "the caller cancels the run itself: no expiry runs");
+        RunDisconnectGrace.runEnded("run-theirs");
+    }
+
     @Test
     void aReattachRacingTheExpiryEitherRescindsOrFiresNeverBoth() throws Exception {
         for (int i = 0; i < 300; i++) {

@@ -61,8 +61,14 @@ import java.util.function.BooleanSupplier;
  * reason, its stream unfinished, as 1001.</p>
  *
  * <p>Lifecycle (Correctness Invariant #1): the timer thread is a daemon owned by
- * this class, started on the first detach and stopped by {@link #shutdown()},
- * which the endpoint handler calls on destroy; a run still detached then is
+ * this class and shared by every endpoint in the JVM, started on the first
+ * detach. Each endpoint handler that served a prompt holds it
+ * ({@link #acquire()}) and lets go of it on destroy ({@link #release()}),
+ * having withdrawn the pending graces of the runs it started
+ * ({@link #withdraw}) and cancelled those runs itself: the destroy of one
+ * endpoint, or of another application's in the same JVM, leaves every other
+ * run's grace armed. The last holder letting go stops the timer, as
+ * {@link #shutdown()} does whoever holds it; a run still detached then is
  * cancelled at once rather than left waiting for a timer that is gone
  * (Invariant #2). Entries exist only for runs still in flight, and each one is
  * removed when its run ends (Invariant #3).</p>
@@ -76,6 +82,12 @@ public final class RunDisconnectGrace {
 
     private static final ConcurrentHashMap<String, Detached> RUNS = new ConcurrentHashMap<>();
     private static final AtomicReference<ScheduledExecutorService> SCHEDULER = new AtomicReference<>();
+
+    /** Guards {@link #holders}. */
+    private static final Object HOLDERS_LOCK = new Object();
+
+    /** How many {@link #acquire()} calls no {@link #release()} answered yet. Guarded by {@link #HOLDERS_LOCK}. */
+    private static int holders;
 
     private RunDisconnectGrace() {
     }
@@ -215,6 +227,24 @@ public final class RunDisconnectGrace {
         return entry != null && entry.disarm();
     }
 
+    /**
+     * Take back the pending cancel of a run waiting out its grace, without
+     * running it: its owner cancels the run itself (an endpoint destroyed
+     * while the run waits). A run not waiting out a grace — ended, never
+     * detached, or listened to by a reattached client — is left as it is.
+     *
+     * @return {@code true} when a pending cancel was withdrawn; the caller
+     *         then cancels the run
+     */
+    public static boolean withdraw(String runId) {
+        var entry = runId != null ? RUNS.get(runId) : null;
+        if (entry == null || !entry.withdraw()) {
+            return false;
+        }
+        RUNS.remove(runId, entry);
+        return true;
+    }
+
     /** Whether a cancel is pending for the run. */
     public static boolean isDetached(String runId) {
         var entry = runId != null ? RUNS.get(runId) : null;
@@ -242,8 +272,42 @@ public final class RunDisconnectGrace {
     }
 
     /**
-     * Stop the timer thread and cancel every run still detached at once.
-     * Idempotent; the next detach starts the timer again.
+     * Hold the grace timer: {@link #release()} does not stop it until this
+     * caller released it too. Each call is answered by one {@code release()}.
+     */
+    public static void acquire() {
+        synchronized (HOLDERS_LOCK) {
+            holders++;
+        }
+    }
+
+    /**
+     * Let go of a hold {@link #acquire()} took: the last holder letting go
+     * stops the timer and cancels every run still detached
+     * ({@link #shutdown()}). A call with no hold left changes nothing.
+     */
+    public static void release() {
+        synchronized (HOLDERS_LOCK) {
+            if (holders == 0 || --holders > 0) {
+                return;
+            }
+        }
+        shutdown();
+    }
+
+    /** How many holds are taken. Visible for testing. */
+    static int holders() {
+        synchronized (HOLDERS_LOCK) {
+            return holders;
+        }
+    }
+
+    /**
+     * Stop the timer thread and cancel every run still detached at once,
+     * whoever holds the timer: process teardown. An endpoint's destroy
+     * withdraws its own runs' graces and lets go of its hold with
+     * {@link #release()} instead. Idempotent; the next detach starts the
+     * timer again.
      */
     public static void shutdown() {
         var scheduler = SCHEDULER.getAndSet(null);
@@ -393,6 +457,21 @@ public final class RunDisconnectGrace {
             } catch (RuntimeException e) {
                 logger.warn("Cancelling run {} after its reattach grace failed: {}",
                         runId, e.toString(), e);
+            }
+            return true;
+        }
+
+        /** Take back a pending cancel without running it. */
+        synchronized boolean withdraw() {
+            if (done || !armed) {
+                return false;
+            }
+            done = true;
+            armed = false;
+            generation++;
+            if (timer != null) {
+                timer.cancel(false);
+                timer = null;
             }
             return true;
         }

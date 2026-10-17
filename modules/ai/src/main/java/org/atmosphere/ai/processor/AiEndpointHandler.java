@@ -206,10 +206,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private final java.util.Set<AiStreamingSession> leftOpenSessions = ConcurrentHashMap.newKeySet();
 
+    /**
+     * The sessions of the runs this endpoint started, by run id, until each
+     * run ends: {@link #destroy()} cancels those still waiting out a reattach
+     * grace, and no other endpoint's. As bounded as the live runs of the run
+     * registry, each entry leaving when its run ends (Correctness
+     * Invariant #3).
+     */
+    private final ConcurrentHashMap<String, AiStreamingSession> startedRuns = new ConcurrentHashMap<>();
+
     /** Guards {@link #sweeperHeld} and {@link #destroyed}. */
     private final Object lifecycleLock = new Object();
 
-    /** Whether this endpoint holds the streaming-session sweeper ({@link StreamingSessionSweeper#acquire()}). */
+    /**
+     * Whether this endpoint holds the streaming-session sweeper
+     * ({@link StreamingSessionSweeper#acquire()}) and the reattach grace timer
+     * ({@link org.atmosphere.ai.resume.RunDisconnectGrace#acquire()}).
+     */
     private boolean sweeperHeld;
 
     /** Set by {@link #destroy()}: the endpoint holds the sweeper no more, and ends the runs it leaves open. */
@@ -1239,6 +1252,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var handle = registry.register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
         session.setRunId(handle.runId());
+        // The endpoint's destroy reaches the run while it goes on.
+        startedRuns.put(handle.runId(), session);
+        runExecutionHandle.whenDone().whenComplete((ignored, failure) ->
+                startedRuns.remove(handle.runId(), session));
         // Late-bind the tape run to the registry-minted identity so the taped
         // run joins the RunRegistry / EffectJournal runId (provenance). The
         // setRunId metadata frame above buffered pre-bind and is re-keyed here.
@@ -1398,7 +1415,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             session.promptReturnedOpen();
             if (destroyed) {
                 // Destroyed meanwhile: its walk of the left-open runs may have missed this one.
-                endLeftOpenRun(session);
+                endRunOnDestroy(session);
             }
         }
         // The replay holds the run's end by then, so the run's end records nothing more.
@@ -1407,10 +1424,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Hold the process-wide streaming-session sweeper while this endpoint is
-     * live: taken with its first session, let go of by {@link #destroy()}, so
-     * the sweeper stops only once no endpoint uses it (Correctness
-     * Invariant #1). A destroyed endpoint takes no hold.
+     * Hold the process-wide streaming-session sweeper and reattach grace timer
+     * while this endpoint is live: taken with its first session, let go of by
+     * {@link #destroy()}, so each stops only once no endpoint uses it
+     * (Correctness Invariant #1). A destroyed endpoint takes no hold.
      */
     private void holdSweeper() {
         synchronized (lifecycleLock) {
@@ -1418,18 +1435,20 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 return;
             }
             StreamingSessionSweeper.acquire();
+            org.atmosphere.ai.resume.RunDisconnectGrace.acquire();
             sweeperHeld = true;
         }
     }
 
     /**
-     * End a run this endpoint left open after its {@code @Prompt} returned,
-     * because the endpoint is destroyed: with the {@code cancelled} frame of
+     * End a run this endpoint started — left open after its {@code @Prompt}
+     * returned, or waiting out a reattach grace — because the endpoint is
+     * destroyed: with the {@code cancelled} frame of
      * {@link org.atmosphere.ai.RunCancelledException.Reason#OPERATOR} — the
-     * host tearing the endpoint down — which frees its place under the run
-     * registry's cap.
+     * host tearing the endpoint down — which also frees the place of a
+     * left-open run under the run registry's cap.
      */
-    private static void endLeftOpenRun(AiStreamingSession session) {
+    private static void endRunOnDestroy(AiStreamingSession session) {
         try {
             session.cancelInflight(org.atmosphere.ai.RunCancelledException.Reason.OPERATOR);
         } catch (RuntimeException e) {
@@ -1821,7 +1840,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * streaming-session TTL sweeper — which stops once no endpoint holds it,
      * so destroying one endpoint, or another application's in the same JVM,
      * leaves it sweeping for the endpoints still live (Invariant #1) — and
-     * stop the reattach grace timer. Idempotent. Prompts still waiting for
+     * cancel the runs it started that wait out a reattach grace (the
+     * {@code cancelled} frame {@code operator}), letting go of its hold on the
+     * shared grace timer the same way: other endpoints' graces stay armed.
+     * Idempotent. Prompts still waiting for
      * their client's next poll are refused at once rather than holding their
      * request threads until the wait runs out.
      */
@@ -1835,14 +1857,20 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             destroyed = true;
         }
         for (var session : List.copyOf(leftOpenSessions)) {
-            endLeftOpenRun(session);
+            endRunOnDestroy(session);
+        }
+        // The runs this endpoint started that wait out a reattach grace are
+        // cancelled now, not left to a timer it stops holding; other
+        // endpoints' graces stay armed.
+        for (var run : List.copyOf(startedRuns.entrySet())) {
+            if (org.atmosphere.ai.resume.RunDisconnectGrace.withdraw(run.getKey())) {
+                endRunOnDestroy(run.getValue());
+            }
         }
         if (release) {
             StreamingSessionSweeper.release();
+            org.atmosphere.ai.resume.RunDisconnectGrace.release();
         }
-        // Runs waiting out a reattach grace are cancelled now, not left to a
-        // timer that stops with the endpoint.
-        org.atmosphere.ai.resume.RunDisconnectGrace.shutdown();
         liveConnections.clear();
         super.destroy();
     }
