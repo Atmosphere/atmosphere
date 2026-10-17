@@ -40,7 +40,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * live session is never reaped — only sessions idle longer than
  * {@link #ttlMs()} (default 30 minutes, override via the
  * {@value #TTL_PROPERTY} system property) are removed, mirroring the
- * MCP session TTL and {@code RunRegistry} defaults.</p>
+ * MCP session TTL and {@code RunRegistry} defaults. A turn whose
+ * {@code @Prompt} method returned with its session open is also ended once
+ * it is open longer than that TTL after the return, however often it writes
+ * ({@link RunCancelledException.Reason#TIMEOUT}).</p>
  *
  * <p>Lifecycle (Correctness Invariant #1): the sweeper thread is a daemon,
  * started lazily on first session registration via {@link #ensureStarted()}

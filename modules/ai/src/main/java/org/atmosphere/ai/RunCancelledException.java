@@ -49,6 +49,12 @@ public final class RunCancelledException extends CancellationException {
         /** The idle-session sweep reaped the session. */
         SWEEP("sweep",
                 "Run cancelled: the session expired before the model call finished"),
+        /**
+         * A run whose {@code @Prompt} method returned with its session still
+         * open outlived the time it may run on after that return.
+         */
+        TIMEOUT("timeout",
+                "Run cancelled: it was still open past its time limit after its @Prompt method returned"),
         /** The code that dispatched the run cancelled it (an interrupted pipeline caller). */
         CALLER("caller",
                 "Run cancelled: the caller cancelled the model call before it finished");

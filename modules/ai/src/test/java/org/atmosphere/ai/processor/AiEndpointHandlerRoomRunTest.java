@@ -77,6 +77,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -96,6 +99,7 @@ class AiEndpointHandlerRoomRunTest {
 
     private static final String GRACE_PROPERTY = "atmosphere.ai.reattach.grace";
     private static final String PATH = "/ai/room-run";
+    private static final String MAX_OPEN_PROPERTY = "atmosphere.ai.max-runs-open-after-prompt";
 
     static final AtomicReference<String> RUN_ID = new AtomicReference<>();
     /** Counted down once a self-writing {@code @Prompt} sent its first text. */
@@ -128,6 +132,9 @@ class AiEndpointHandlerRoomRunTest {
     @AfterEach
     void tearDown() {
         System.clearProperty(GRACE_PROPERTY);
+        System.clearProperty(MAX_OPEN_PROPERTY);
+        org.atmosphere.ai.resume.DurableRunSpineHolder.reset();
+        org.atmosphere.ai.resume.DurableRunScopeHolder.clear();
         if (handler != null) {
             handler.destroy();
         }
@@ -397,6 +404,176 @@ class AiEndpointHandlerRoomRunTest {
         assertEquals(List.of("streaming-text:first", "cancelled:operator"), text(member),
                 "the room is told the run was cut short, and is sent nothing after it");
         assertEquals(text(member), replayed(), "the replay ends with what the room received");
+    }
+
+    /**
+     * An operator cancelling a run whose reply reaches its own client only,
+     * and whose {@code @Prompt} method returned with the session open, ends
+     * it with the cancelled frame of the operator.
+     */
+    @Test
+    void anOperatorCancelEndsAUnicastRunWhosePromptReturnedOpen() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        handler = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        var prompter = subscriber(null);
+        handler.dispatchPrompt(prompter, "explain");
+        awaitRunId();
+        awaitPromptReturned();
+
+        assertTrue(org.atmosphere.ai.AiStreamingSession.resourceHasActiveSessions(prompter.uuid()));
+        org.atmosphere.ai.AiStreamingSession.cancelInflightForResource(prompter.uuid());
+        awaitRunEnd();
+
+        assertEquals(List.of("streaming-text:only", "cancelled:operator"), replayed(),
+                "the operator's cancel ends the run, as cancelled");
+    }
+
+    /**
+     * A run left open after its {@code @Prompt} returned whose client lost its
+     * connection and reattached within the grace — under its tracking id, or
+     * a reloaded page's new one — is still reached by the idle sweep, which
+     * ends it with its cancelled frame. The lost connection took the session
+     * out of the sessions the sweep walks, and the reattach put nothing back:
+     * only the client leaving could end the run.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void theIdleSweepReachesALeftOpenRunAfterItsClientReattached(boolean sameId) throws Exception {
+        var reattached = startLeftOpenRunThenReattach(sameId);
+
+        sweep(1L);
+        awaitRunEnd();
+
+        assertEquals("cancelled:sweep", last(replayed()), "the sweep ends the reattached run");
+        assertFalse(org.atmosphere.ai.AiStreamingSession.resourceHasActiveSessions(reattached),
+                "the ended run's session is registered under no tracking id");
+    }
+
+    /**
+     * The same run is reached by an operator's cancel addressed to the
+     * connection its client reattached on, as the admin plane's
+     * {@code cancel-inflight} addresses it: it is found (no 404) and ended
+     * with the cancelled frame of the operator.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void anOperatorCancelReachesALeftOpenRunAfterItsClientReattached(boolean sameId) throws Exception {
+        var reattached = startLeftOpenRunThenReattach(sameId);
+
+        assertTrue(org.atmosphere.ai.AiStreamingSession.resourceHasActiveSessions(reattached),
+                "the admin plane finds the reattached run's session");
+        org.atmosphere.ai.AiStreamingSession.cancelInflightForResource(reattached);
+        awaitRunEnd();
+
+        assertEquals("cancelled:operator", last(replayed()), "the operator's cancel ends the reattached run");
+    }
+
+    /**
+     * Runs left open after their {@code @Prompt} returned are capped per
+     * registry: past the cap, a run whose method returns open ends at the
+     * return, as {@code complete}, and leaves the live runs; a left-open run
+     * that ends frees its place.
+     */
+    @Test
+    void aRunReturningOpenPastTheCapEndsAtItsReturn() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        System.setProperty(MAX_OPEN_PROPERTY, "1");
+        RunRegistryHolder.install(new org.atmosphere.ai.resume.RunRegistry());
+        handler = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        var first = subscriber(null);
+        handler.dispatchPrompt(first, "explain");
+        awaitRunId();
+        awaitPromptReturned();
+        var firstRun = RUN_ID.get();
+        assertTrue(RunRegistryHolder.get().lookup(firstRun).isPresent(), "the first run is left open");
+
+        RUN_ID.set(null);
+        handler.dispatchPrompt(subscriber(null), "explain");
+        awaitRunId();
+        awaitPromptReturned();
+        awaitRunEnd();
+        assertEquals(List.of("streaming-text:only", "complete"), replayed(),
+                "past the cap the run ends at its return, as complete");
+        assertTrue(RunRegistryHolder.get().lookup(firstRun).isPresent(), "the run left open first goes on");
+
+        var secondRun = RUN_ID.get();
+        RUN_ID.set(firstRun);
+        leave(first);
+        awaitRunEnd();
+        RUN_ID.set(null);
+        handler.dispatchPrompt(subscriber(null), "explain");
+        awaitRunId();
+        awaitPromptReturned();
+        assertTrue(RunRegistryHolder.get().lookup(RUN_ID.get()).isPresent(),
+                "the left-open run that ended freed its place");
+        assertFalse(RUN_ID.get().equals(secondRun));
+    }
+
+    /**
+     * A durable run whose {@code @Prompt} returned with its session open is
+     * marked terminal, and its lease released, when the run really ends — as
+     * succeeded only when its session completed — not when the method
+     * returned: the run still writes, and its journaled seams still record.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void aDurableRunLeftOpenIsMarkedTerminalAtItsRealEnd(boolean completes) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var journal = mock(org.atmosphere.ai.resume.EffectJournal.class,
+                org.mockito.AdditionalAnswers.delegatesTo(new org.atmosphere.ai.resume.InMemoryEffectJournal()));
+        org.atmosphere.ai.resume.DurableRunSpineHolder.install(new org.atmosphere.ai.resume.DurableRunSpine(
+                journal, new org.atmosphere.ai.resume.DurableRunConfig(true, java.time.Duration.ofMinutes(5), true),
+                "test-owner"));
+        handler = newHandler(new HeldRuntime(),
+                completes ? WritingAfterItReturnsEndpoint.class : ReturningEndpoint.class, false);
+        var prompter = subscriber("alice");
+        handler.dispatchPrompt(prompter, "explain");
+        awaitRunId();
+        awaitPromptReturned();
+
+        verify(journal, never()).markTerminal(anyString(), any());
+        verify(journal, never()).releaseLease(anyString(), anyString());
+        if (completes) {
+            RESUME.get().countDown();
+        } else {
+            leave(prompter);
+        }
+        awaitRunEnd();
+
+        verify(journal, timeout(10_000)).markTerminal(RUN_ID.get(),
+                completes ? org.atmosphere.ai.resume.EffectStatus.COMMITTED
+                        : org.atmosphere.ai.resume.EffectStatus.FAILED);
+        verify(journal, timeout(10_000)).releaseLease(RUN_ID.get(), "test-owner");
+    }
+
+    /**
+     * Starts a run whose {@code @Prompt} returns with its session open, its
+     * reply reaching its client only, loses that client's connection and
+     * reattaches it within the grace with the run id: under the same tracking
+     * id ({@code sameId}) or a reloaded page's new one, authenticated as the
+     * run's owner. Returns the tracking id it reattached under.
+     */
+    private String startLeftOpenRunThenReattach(boolean sameId) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        handler = newHandler(new HeldRuntime(), ReturningEndpoint.class, false);
+        var prompter = subscriber("alice");
+        handler.dispatchPrompt(prompter, "explain");
+        awaitRunId();
+        awaitPromptReturned();
+        lose(prompter);
+        var uuid = sameId ? prompter.uuid() : "reloaded-" + UUID.randomUUID();
+        reconnect(uuid, "alice", new StringWriter());
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "the reattach rescinds the grace");
+        assertTrue(RunRegistryHolder.get().lookup(RUN_ID.get()).isPresent(), "the reattached run goes on");
+        return uuid;
+    }
+
+    /** One idle sweep of the AI sessions with {@code ttlMs}, as the session sweeper runs it. */
+    private static void sweep(long ttlMs) throws Exception {
+        Thread.sleep(ttlMs + 5);
+        var sweep = org.atmosphere.ai.AiStreamingSession.class.getDeclaredMethod("sweepExpired", long.class);
+        sweep.setAccessible(true);
+        sweep.invoke(null, ttlMs);
     }
 
     /**

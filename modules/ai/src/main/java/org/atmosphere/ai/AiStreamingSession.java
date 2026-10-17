@@ -79,6 +79,18 @@ public class AiStreamingSession implements StreamingSession {
             new ConcurrentHashMap<>();
 
     /**
+     * The sessions of the runs registered with the {@code RunRegistry}, keyed
+     * by run id ({@link #setRunId}): how the reattach of a run's own client
+     * ({@link #reattached(String, String)}) and the idle sweep reach a run's
+     * session once a lost connection took it out of {@link #ACTIVE_SESSIONS}.
+     * An entry leaves when its session's turn ends, or, for a session that
+     * never ends its turn, at the first sweep after its run left the live
+     * runs, so the map holds at most the sessions of live runs (Correctness
+     * Invariant #3).
+     */
+    private static final ConcurrentHashMap<String, AiStreamingSession> RUN_SESSIONS = new ConcurrentHashMap<>();
+
+    /**
      * Request attribute key under which the active {@link StreamingSession} is stored.
      * The stored value is the composed decorator target for the current turn — the
      * same session {@link AiInterceptor#beforeCompletion} receives as a parameter.
@@ -240,6 +252,30 @@ public class AiStreamingSession implements StreamingSession {
      */
     private volatile boolean promptReturnedOpen;
 
+    /**
+     * When the {@code @Prompt} method returned leaving the session open
+     * (epoch millis): the idle sweep ends such a turn once it is open longer
+     * than the session TTL after that return, however often it writes.
+     * Package-private volatile so tests can age it.
+     */
+    volatile long promptReturnedAtMillis;
+
+    /**
+     * Set by the first terminal frame forwarded to the delegate of a turn
+     * whose {@code @Prompt} method returned open: a terminal call after it
+     * (the writer completing a turn already cancelled) reaches neither the
+     * delegate nor the metrics and tracing decorators under it.
+     */
+    private final AtomicBoolean openTurnEnded = new AtomicBoolean();
+
+    /**
+     * The tracking ids, other than its own resource's, this session was
+     * registered under in {@link #ACTIVE_SESSIONS} because the run's own
+     * client reattached to it on another connection
+     * ({@link #reattached(String, String)}); removed with the session.
+     */
+    private final java.util.Set<String> reattachedUnder = ConcurrentHashMap.newKeySet();
+
     /** Message of a client that disconnected while its model call was in flight. */
     public static final String CANCELLED_BY_DISCONNECT = RunCancelledException.Reason.DISCONNECT.message();
     /** Message of a model call an operator cancelled through the admin plane. */
@@ -389,21 +425,32 @@ public class AiStreamingSession implements StreamingSession {
      * on approval routing, and pending approvals time out after minutes, not
      * the 30-minute default TTL.
      *
-     * @param ttlMs the idle TTL in milliseconds
+     * <p>A turn whose {@code @Prompt} method returned with the session open
+     * ({@link #promptReturnedOpen()}) is reached through its run, also once a
+     * lost connection took it out of the active sessions: it is ended with
+     * the {@code cancelled} frame of the sweep when idle longer than
+     * {@code ttlMs}, and with that of {@link RunCancelledException.Reason#TIMEOUT}
+     * once open longer than {@code ttlMs} after that return, however often it
+     * writes.</p>
+     *
+     * @param ttlMs the idle TTL in milliseconds; also how long a turn may stay
+     *              open after its {@code @Prompt} method returned
      * @return the number of sessions removed
      */
     static int sweepExpired(long ttlMs) {
-        var cutoff = System.currentTimeMillis() - ttlMs;
+        var now = System.currentTimeMillis();
+        var cutoff = now - ttlMs;
         var removed = 0;
         for (var entry : ACTIVE_SESSIONS.entrySet()) {
             var sessions = entry.getValue();
             for (var session : sessions) {
-                if (session.lastActivityMillis >= cutoff || !sessions.remove(session)) {
+                var reason = expiry(session, cutoff);
+                if (reason == null || !sessions.remove(session)) {
                     continue;
                 }
                 removed++;
                 try {
-                    session.cancelInflight(RunCancelledException.Reason.SWEEP);
+                    session.cancelInflight(reason);
                 } catch (RuntimeException e) {
                     logger.trace("cancelInflight threw during TTL sweep for {}: {}",
                             entry.getKey(), e.getMessage(), e);
@@ -417,7 +464,65 @@ public class AiStreamingSession implements StreamingSession {
                 ACTIVE_SESSIONS.remove(entry.getKey(), sessions);
             }
         }
+        return removed + sweepRunSessions(cutoff);
+    }
+
+    /**
+     * The part of {@link #sweepExpired} that reaches turns through their run:
+     * a turn left open past its idle TTL or its lifetime after the
+     * {@code @Prompt} return ({@code cutoff} for both) is ended, and the
+     * entry of a session whose turn ended, or whose run is no longer live, is
+     * dropped.
+     */
+    private static int sweepRunSessions(long cutoff) {
+        var removed = 0;
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        for (var entry : RUN_SESSIONS.entrySet()) {
+            var session = entry.getValue();
+            if (session.terminated.get()) {
+                RUN_SESSIONS.remove(entry.getKey(), session);
+                continue;
+            }
+            if (!session.promptReturnedOpen) {
+                if (registry.lookup(entry.getKey()).isEmpty()) {
+                    // Its run ended (or another registry holds it): nothing reaches it through the run.
+                    RUN_SESSIONS.remove(entry.getKey(), session);
+                }
+                continue;
+            }
+            var reason = expiry(session, cutoff);
+            if (reason == null) {
+                continue;
+            }
+            removed++;
+            try {
+                session.cancelInflight(reason);
+            } catch (RuntimeException e) {
+                logger.trace("cancelInflight threw during TTL sweep for run {}: {}",
+                        entry.getKey(), e.getMessage(), e);
+            }
+            session.fireTerminate();
+            removeActiveSession(session);
+            RUN_SESSIONS.remove(entry.getKey(), session);
+            logger.debug("Swept AI session of run {} left open after its @Prompt returned ({})",
+                    entry.getKey(), reason.wire());
+        }
         return removed;
+    }
+
+    /**
+     * Why the sweep ends {@code session}, or {@code null} while it may go on:
+     * idle since before {@code cutoff}, or left open by its {@code @Prompt}
+     * method since before it.
+     */
+    private static RunCancelledException.Reason expiry(AiStreamingSession session, long cutoff) {
+        if (session.lastActivityMillis < cutoff) {
+            return RunCancelledException.Reason.SWEEP;
+        }
+        if (session.promptReturnedOpen && session.promptReturnedAtMillis < cutoff) {
+            return RunCancelledException.Reason.TIMEOUT;
+        }
+        return null;
     }
 
     /**
@@ -518,6 +623,8 @@ public class AiStreamingSession implements StreamingSession {
         }
         var detached = new java.util.ArrayList<String>();
         for (var session : sessions) {
+            // A session its run's client reattached to on this connection is no longer registered under it.
+            session.reattachedUnder.remove(resourceUuid);
             try {
                 var detachedRun = session.detachForReattach(grace);
                 if (detachedRun != null) {
@@ -596,7 +703,9 @@ public class AiStreamingSession implements StreamingSession {
      * ({@link RunCancelledException.Reason#DISCONNECT}: it left, or its grace
      * expired), an operator cancelled the turn
      * ({@link RunCancelledException.Reason#OPERATOR}), or the idle sweep reaps
-     * the session ({@link RunCancelledException.Reason#SWEEP}). The room, the
+     * the session ({@link RunCancelledException.Reason#SWEEP}, or
+     * {@link RunCancelledException.Reason#TIMEOUT} for a turn open past its
+     * lifetime after the {@code @Prompt} return). The room, the
      * client and the run's replay are told the run was cut short, the session
      * is closed, and what is sent on it after that is dropped. A model call in
      * flight ends the turn with that frame itself.</p>
@@ -609,8 +718,12 @@ public class AiStreamingSession implements StreamingSession {
         // stream() VT publishing its handle after this read still observes
         // the cancel intent and self-cancels post-publish. The reason is
         // recorded before the latch, so the stream() that sees the latch
-        // sees the reason.
-        pendingCancelReason.compareAndSet(null, reason);
+        // sees the reason. The caller's own cancel only cuts a call short: a
+        // later reason that ends the turn (the prompter gone, an operator,
+        // the sweep) takes its place, so the method returning open still ends
+        // the turn for it; any other first reason is kept.
+        pendingCancelReason.accumulateAndGet(reason, (first, next) ->
+                first == null || first == RunCancelledException.Reason.CALLER ? next : first);
         cancelPending.set(true);
         var handle = this.currentHandle;
         var inFlight = handle != null && !handle.isDone();
@@ -667,9 +780,14 @@ public class AiStreamingSession implements StreamingSession {
      * {@link #cancelInflight(RunCancelledException.Reason)} for the prompter
      * gone, an operator or the idle sweep that finds no model call in flight
      * then ends the turn with the {@code cancelled} frame, so the run does not
-     * outlive its prompter.
+     * outlive its prompter; so does the sweep, with the {@code cancelled}
+     * frame of {@link RunCancelledException.Reason#TIMEOUT}, once the turn is
+     * open longer than the session TTL after this call, however often it
+     * writes. Terminal calls made after the turn ended are dropped, so its
+     * metrics and tracing record one end.
      */
     public void promptReturnedOpen() {
+        promptReturnedAtMillis = System.currentTimeMillis();
         promptReturnedOpen = true;
         // A prompter that went for good, an operator or the sweep while the
         // method still ran (a turn not broadcast to a room is not ended then)
@@ -681,9 +799,46 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * The run {@code runId}'s own client reattached to it on the connection
+     * {@code resourceUuid} (its tracking id, or a reloaded page's new one):
+     * the run's session, while its turn goes on, is registered under that
+     * connection as under the one that started it. The idle sweep, an
+     * operator's cancel addressed to that connection (the admin plane's
+     * {@code cancel-inflight}) and approval responses arriving on it reach
+     * the session, and the connection's own departure detaches the run again
+     * or cancels it, as the departure of the one that started it would. The
+     * registration goes when the turn ends or that connection departs.
+     *
+     * @param runId        the run reattached to
+     * @param resourceUuid the tracking id of the connection it reattached on
+     */
+    public static void reattached(String runId, String resourceUuid) {
+        if (runId == null || resourceUuid == null) {
+            return;
+        }
+        var session = RUN_SESSIONS.get(runId);
+        if (session == null || session.terminated.get() || session.resource == null) {
+            return;
+        }
+        session.lastActivityMillis = System.currentTimeMillis();
+        if (!resourceUuid.equals(session.resource.uuid())) {
+            session.reattachedUnder.add(resourceUuid);
+        }
+        ACTIVE_SESSIONS.computeIfAbsent(resourceUuid, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
+                .addIfAbsent(session);
+        StreamingSessionSweeper.ensureStarted();
+        if (session.terminated.get()) {
+            // The turn ended meanwhile: its terminal path may have run before this registration.
+            removeActiveSession(session);
+        }
+    }
+
+    /**
      * @param resourceUuid the atmosphere resource UUID
      * @return {@code true} if at least one {@link AiStreamingSession} is
-     *     registered for that uuid; {@code false} otherwise. Used by the admin
+     *     registered for that uuid — the run's own client reattached on it
+     *     included ({@link #reattached(String, String)}); {@code false}
+     *     otherwise. Used by the admin
      *     {@code cancel-inflight} endpoint to distinguish "no such session"
      *     (404) from "session present, cancellation fired" (200).
      */
@@ -702,6 +857,10 @@ public class AiStreamingSession implements StreamingSession {
      * an operator wants to abort the upstream call (refunding tokens,
      * releasing approval futures) but keep the socket open for the next
      * turn.
+     *
+     * <p>A session the run's own client reattached to on that connection is
+     * registered under it ({@link #reattached(String, String)}), so the cancel
+     * reaches it there too.</p>
      *
      * <p>Contrast with {@link #removeAllForResource} which is fired from the
      * full disconnect path — that variant cancels AND drops the map entry
@@ -737,7 +896,15 @@ public class AiStreamingSession implements StreamingSession {
         if (session == null || session.resource == null) {
             return;
         }
-        var uuid = session.resource.uuid();
+        // Also the connections its run's client reattached on.
+        for (var reattachedUuid : session.reattachedUnder) {
+            session.reattachedUnder.remove(reattachedUuid);
+            removeActiveSession(session, reattachedUuid);
+        }
+        removeActiveSession(session, session.resource.uuid());
+    }
+
+    private static void removeActiveSession(AiStreamingSession session, String uuid) {
         if (uuid == null) {
             return;
         }
@@ -908,6 +1075,13 @@ public class AiStreamingSession implements StreamingSession {
         // The atmosphere.js streaming client captures this key into request.runId
         // and re-sends it as the X-Atmosphere-Run-Id query parameter on reconnect.
         if (runId != null && !runId.isBlank()) {
+            // The run reaches its session from now on, until its turn ends.
+            if (!terminated.get()) {
+                RUN_SESSIONS.put(runId, this);
+                if (terminated.get()) {
+                    RUN_SESSIONS.remove(runId, this);
+                }
+            }
             delegate.sendMetadata(
                     org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER, runId);
         }
@@ -1835,6 +2009,10 @@ public class AiStreamingSession implements StreamingSession {
         if (!terminated.compareAndSet(false, true)) {
             return;
         }
+        var id = this.runId;
+        if (id != null) {
+            RUN_SESSIONS.remove(id, this);
+        }
         for (var resource : terminateHooks) {
             closeQuietly(resource);
         }
@@ -1879,6 +2057,9 @@ public class AiStreamingSession implements StreamingSession {
         fireBeforeCompletion();
         fireTerminate();
         removeActiveSession(this);
+        if (afterOpenTurnEnded("complete")) {
+            return;
+        }
         delegate.complete();
     }
 
@@ -1895,6 +2076,9 @@ public class AiStreamingSession implements StreamingSession {
         fireBeforeCompletion();
         fireTerminate();
         removeActiveSession(this);
+        if (afterOpenTurnEnded("complete")) {
+            return;
+        }
         delegate.complete(summary);
     }
 
@@ -1917,8 +2101,27 @@ public class AiStreamingSession implements StreamingSession {
         // runtime reports the cancel as a failure of its own: one terminal
         // frame, the cancelled one.
         var reason = cancelledReason.getAndSet(null);
+        if (afterOpenTurnEnded("error")) {
+            return;
+        }
         delegate.error(reason != null && !(t instanceof RunCancelledException)
                 ? new RunCancelledException(reason) : t);
+    }
+
+    /**
+     * Whether a terminal call comes after the end of a turn whose
+     * {@code @Prompt} method returned with the session open, the end its
+     * session already forwarded (a writer completing a turn that was
+     * cancelled): it is dropped, so the decorators under this session —
+     * metrics and tracing among them — see the turn end once. The first
+     * terminal call of such a turn claims its end.
+     */
+    private boolean afterOpenTurnEnded(String call) {
+        if (!promptReturnedOpen || openTurnEnded.compareAndSet(false, true)) {
+            return false;
+        }
+        logger.trace("Dropping a {} of session {}: its turn already ended", call, sessionId());
+        return true;
     }
 
     /**
@@ -1975,7 +2178,7 @@ public class AiStreamingSession implements StreamingSession {
     public void emit(AiEvent event) {
         lastActivityMillis = System.currentTimeMillis();
         if ((event instanceof AiEvent.Complete || event instanceof AiEvent.Error)
-                && endCancelledCall()) {
+                && (endCancelledCall() || afterOpenTurnEnded("terminal event"))) {
             return;
         }
         delegate.emit(event);

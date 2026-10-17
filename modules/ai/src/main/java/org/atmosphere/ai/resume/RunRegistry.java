@@ -41,7 +41,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * handle's future completes it leaves the live set ({@link #lookup} no longer
  * finds it) but stays replayable through {@link #lookupReplayable} for the
  * registry TTL, so a client that reconnects after the run finished still
- * receives its tail and terminal event. Retired runs are bounded by
+ * receives its tail and terminal event. The execution of an
+ * {@code @AiEndpoint} run completes when its session sent its terminal frame:
+ * at the {@code @Prompt} method's return for a session it ended, later for a
+ * session the method returned leaving open ({@link #keepOpenAfterPrompt}),
+ * which is ended by its own terminal frame, its prompter gone for good, an
+ * operator's cancel, or the idle sweep of streaming sessions (idle, or open
+ * past {@code atmosphere.ai.session-ttl-ms} after the return). Retired runs are bounded by
  * {@link #MAX_RETAINED_COMPLETED} (oldest evicted first) and expire on access,
  * so they need no sweeper. Runs that never complete are removed by
  * {@link #sweepExpired}, which nothing in the framework schedules — an
@@ -60,7 +66,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * No hard cap on registered runs today; applications that need one wrap
  * the registry and reject registrations above a configured limit. The
- * {@link #sweepExpired} TTL is the primary leak guard.
+ * {@link #sweepExpired} TTL is the primary leak guard. The runs whose
+ * {@code @Prompt} method returned leaving their session open are capped,
+ * per registry, at {@value #DEFAULT_MAX_OPEN_AFTER_PROMPT} by default
+ * ({@value #MAX_OPEN_AFTER_PROMPT_PROPERTY}): past that, such a run ends at
+ * its method's return, as {@code complete} ({@link #keepOpenAfterPrompt}).
  */
 public final class RunRegistry {
 
@@ -84,6 +94,18 @@ public final class RunRegistry {
     /** Upper bound on finished runs kept replayable (Correctness Invariant #3). */
     public static final int MAX_RETAINED_COMPLETED = 256;
 
+    /**
+     * System property: how many runs whose {@code @Prompt} method returned
+     * leaving their session open one registry keeps live at once; a positive
+     * integer, {@value #DEFAULT_MAX_OPEN_AFTER_PROMPT} by default. Read when
+     * the registry is built: the registry is process-wide and belongs to no
+     * one application, so no application's init-params apply to it.
+     */
+    public static final String MAX_OPEN_AFTER_PROMPT_PROPERTY = "atmosphere.ai.max-runs-open-after-prompt";
+
+    /** Default of {@link #MAX_OPEN_AFTER_PROMPT_PROPERTY} (Correctness Invariant #3). */
+    public static final int DEFAULT_MAX_OPEN_AFTER_PROMPT = 1024;
+
     private final Map<String, AgentResumeHandle> runs = new ConcurrentHashMap<>();
     /** Finished runs still replayable, oldest first. Guarded by itself. */
     private final LinkedHashMap<String, Retired> completed = new LinkedHashMap<>();
@@ -93,6 +115,12 @@ public final class RunRegistry {
     private final Clock clock;
     private final Duration ttl;
     private final RunJournal journal;
+    private final int maxOpenAfterPrompt;
+    /** Ids of the live runs kept open after their {@code @Prompt} returned. Guarded by itself for admission. */
+    private final java.util.Set<String> openAfterPrompt = ConcurrentHashMap.newKeySet();
+    /** The cap's WARN is logged once per registry, then at DEBUG. */
+    private final java.util.concurrent.atomic.AtomicBoolean openAfterPromptCapWarned =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     public RunRegistry() {
         this(Clock.systemUTC(), DEFAULT_TTL, RunJournal.NOOP);
@@ -116,6 +144,69 @@ public final class RunRegistry {
         }
         this.ttl = ttl;
         this.journal = journal != null ? journal : RunJournal.NOOP;
+        this.maxOpenAfterPrompt = readMaxOpenAfterPrompt();
+    }
+
+    private static int readMaxOpenAfterPrompt() {
+        var raw = System.getProperty(MAX_OPEN_AFTER_PROMPT_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            return DEFAULT_MAX_OPEN_AFTER_PROMPT;
+        }
+        try {
+            var parsed = Integer.parseInt(raw.trim());
+            if (parsed > 0) {
+                return parsed;
+            }
+        } catch (NumberFormatException e) {
+            logger.trace("Malformed {}={}", MAX_OPEN_AFTER_PROMPT_PROPERTY, raw, e);
+        }
+        logger.warn("Ignoring {}={}: not a positive integer, using the default {}",
+                MAX_OPEN_AFTER_PROMPT_PROPERTY, raw, DEFAULT_MAX_OPEN_AFTER_PROMPT);
+        return DEFAULT_MAX_OPEN_AFTER_PROMPT;
+    }
+
+    /**
+     * How many runs whose {@code @Prompt} method returned leaving their
+     * session open this registry keeps live at once
+     * ({@value #MAX_OPEN_AFTER_PROMPT_PROPERTY}).
+     */
+    public int maxOpenAfterPrompt() {
+        return maxOpenAfterPrompt;
+    }
+
+    /**
+     * Ask to keep {@code run} live after its {@code @Prompt} method returned
+     * leaving its session open, until its execution completes. Granted while
+     * fewer than {@link #maxOpenAfterPrompt()} runs of this registry are kept
+     * so; a run that ends frees its place. Refused past that: the caller ends
+     * the run at the return, and the refusal is logged at WARN once per
+     * registry, then at DEBUG (Correctness Invariant #3).
+     *
+     * @param run a live run of this registry
+     * @return {@code true} when the run may stay live past its method's return
+     */
+    public boolean keepOpenAfterPrompt(AgentResumeHandle run) {
+        Objects.requireNonNull(run, "run");
+        synchronized (openAfterPrompt) {
+            if (openAfterPrompt.size() >= maxOpenAfterPrompt) {
+                if (openAfterPromptCapWarned.compareAndSet(false, true)) {
+                    logger.warn("{} runs are live after their @Prompt method returned leaving the session open, "
+                            + "the most one registry keeps ({}): run {} and the next past the cap end at "
+                            + "their method's return, as complete; further refusals are logged at DEBUG",
+                            openAfterPrompt.size(), MAX_OPEN_AFTER_PROMPT_PROPERTY, run.runId());
+                } else {
+                    logger.debug("Run {} ends at its @Prompt method's return: {} runs are kept open already ({})",
+                            run.runId(), openAfterPrompt.size(), MAX_OPEN_AFTER_PROMPT_PROPERTY);
+                }
+                return false;
+            }
+            openAfterPrompt.add(run.runId());
+        }
+        if (run.isDone()) {
+            // It ended meanwhile: its end may have run before it took the place.
+            openAfterPrompt.remove(run.runId());
+        }
+        return true;
     }
 
     /**
@@ -194,6 +285,7 @@ public final class RunRegistry {
             // A run that ended on its own within a reattach grace must not be
             // cancelled by that grace's timer later.
             RunDisconnectGrace.runEnded(id);
+            openAfterPrompt.remove(id);
             endRun(handle, err);
             retire(handle);
             removeFromJournal(id);
@@ -336,6 +428,7 @@ public final class RunRegistry {
             if (entry.getValue().createdAt().isBefore(cutoff)
                     || entry.getValue().isDone()) {
                 if (runs.remove(entry.getKey(), entry.getValue())) {
+                    openAfterPrompt.remove(entry.getKey());
                     endRemovedRun(entry.getValue(), "Run expired after the registry TTL of " + ttl);
                     removed++;
                     removeFromJournal(entry.getKey());
@@ -353,6 +446,7 @@ public final class RunRegistry {
     public void unregister(String runId) {
         var removed = runs.remove(runId);
         if (removed != null) {
+            openAfterPrompt.remove(runId);
             endRemovedRun(removed, "Run was unregistered");
         }
         synchronized (completed) {
@@ -369,6 +463,7 @@ public final class RunRegistry {
      */
     public void clear() {
         runs.clear();
+        openAfterPrompt.clear();
         synchronized (completed) {
             completed.clear();
         }

@@ -1216,7 +1216,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             }
         });
         recordConnectionOwner(resource);
-        var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        var handle = registry.register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
         session.setRunId(handle.runId());
         // Late-bind the tape run to the registry-minted identity so the taped
@@ -1238,8 +1239,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // Single terminal flag for the durable spine: set true only when the
         // @Prompt body returned normally, read in finally so completeDrive runs
         // exactly once on every exit path (success, error, Error, timeout-via-
-        // interrupt) — releasing the lease and marking the run terminal.
+        // interrupt) — releasing the lease and marking the run terminal. A run
+        // the body left open (leftOpen) completes its drive at its real end
+        // instead, succeeded only when its session completed.
         final boolean[] durableSuccess = {false};
+        final boolean[] leftOpen = {false};
         if (suspendTimeout > 0) {
             // Read before the prompt thread starts, so the session's deadline
             // is never later than the watchdog's below: an intent confirmation
@@ -1267,7 +1271,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     session.stream(promptText);
                 }
                 durableSuccess[0] = true;
-                endRunWithItsSession(session, replayBuffer, runExecutionHandle);
+                leftOpen[0] = endRunWithItsSession(session, replayBuffer, runExecutionHandle, registry, handle);
             } catch (Throwable t) {
                 // Throwable, not Exception: an Error the @Prompt path throws
                 // without reflection wrapping it must end the run too, or its
@@ -1296,7 +1300,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     throw err;
                 }
             } finally {
-                durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
+                if (leftOpen[0]) {
+                    durableScope.ifPresent(c -> replayBuffer.whenTerminated().whenComplete((end, failure) ->
+                            completeDurableDrive(durableSpine, c,
+                                    end != null && "complete".equals(end.type()))));
+                } else {
+                    durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
+                }
                 businessMdc.keySet().forEach(org.slf4j.MDC::remove);
                 binding.close();
             }
@@ -1340,18 +1350,47 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * session still sends and ends with the one it ends with, and the run's
      * prompter keeps its reattach grace meanwhile. The prompter gone for good
      * (a leave, an expired grace), an operator's cancel or the idle sweep of
-     * the session ends it with the {@code cancelled} frame
+     * the session — idle, or open past the session TTL after this return —
+     * ends it with the {@code cancelled} frame
      * ({@link AiStreamingSession#promptReturnedOpen()}), so the run never
-     * outlives its prompter.
+     * outlives its prompter, nor that lifetime. Such runs are capped per
+     * registry ({@link org.atmosphere.ai.resume.RunRegistry#keepOpenAfterPrompt}):
+     * past the cap the run ends at this return, as {@code complete}, its
+     * session left to its own terminal frame or the idle sweep.
+     *
+     * @return {@code true} when the run was left open, to end with its session
      */
-    private static void endRunWithItsSession(AiStreamingSession session,
-                                             org.atmosphere.ai.resume.RunEventReplayBuffer replay,
-                                             org.atmosphere.ai.ExecutionHandle.Settable run) {
-        if (!replay.isTerminated()) {
+    private static boolean endRunWithItsSession(AiStreamingSession session,
+                                                org.atmosphere.ai.resume.RunEventReplayBuffer replay,
+                                                org.atmosphere.ai.ExecutionHandle.Settable run,
+                                                org.atmosphere.ai.resume.RunRegistry registry,
+                                                org.atmosphere.ai.resume.AgentResumeHandle handle) {
+        var leftOpen = !replay.isTerminated();
+        if (leftOpen && !registry.keepOpenAfterPrompt(handle)) {
+            // Past the cap the run ends now, as complete: the registry records it in the replay.
+            run.complete();
+            return false;
+        }
+        if (leftOpen) {
             session.promptReturnedOpen();
         }
-        // The replay already holds the end, so the run's end records nothing more.
+        // The replay holds the run's end by then, so the run's end records nothing more.
         replay.whenTerminated().thenRun(run::complete);
+        return leftOpen;
+    }
+
+    /**
+     * Complete the durable drive of a run left open at its real end. Runs on
+     * the thread that ended the run: a failure is logged, not thrown into it.
+     */
+    private static void completeDurableDrive(org.atmosphere.ai.resume.DurableRunSpine spine,
+                                             org.atmosphere.ai.resume.DurableRunContext context,
+                                             boolean success) {
+        try {
+            spine.completeDrive(context, success);
+        } catch (RuntimeException e) {
+            logger.warn("Could not complete the durable drive of run {}: {}", context.runId(), e.toString(), e);
+        }
     }
 
     /**
