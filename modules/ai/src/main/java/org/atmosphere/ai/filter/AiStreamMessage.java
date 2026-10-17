@@ -32,15 +32,26 @@ import java.util.LinkedHashMap;
  * {"type":"complete","sessionId":"abc-123","seq":4}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
  * {"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}
+ * {"type":"prompt","text":"What is 2+2?","from":"&lt;prompter uuid&gt;","sessionId":"abc-123","seq":1}
  * </pre>
  *
- * @param type      message type: "streaming-text", "progress", "metadata", "complete", "error" or "cancelled"
+ * <p>A {@code prompt} frame echoes a room member's prompt to an
+ * {@code @AiEndpoint(broadcastReply = true)} room: the prompt is in {@code text}
+ * (never {@code data}, which a client that does not know the type renders as
+ * reply text) and {@code from} is the room member id of the member who sent it
+ * ({@link org.atmosphere.ai.RoomMemberIds}), never its tracking id.</p>
+ *
+ * @param type      message type: "streaming-text", "progress", "metadata", "complete", "error",
+ *                  "cancelled" or "prompt"
  * @param data      the streaming text data, progress message, error description, or the cancel
  *                  reason code of a "cancelled" frame (null for bare "complete")
  * @param sessionId the streaming session identifier
  * @param seq       monotonically increasing sequence number within a session
  * @param key       metadata key (only for "metadata" messages, null otherwise)
  * @param value     metadata value (only for "metadata" messages, null otherwise)
+ * @param text      the prompt of a "prompt" frame, null otherwise
+ * @param from      the room member id of the member who sent the prompt of a
+ *                  "prompt" frame, null otherwise
  */
 public record AiStreamMessage(
         String type,
@@ -48,10 +59,33 @@ public record AiStreamMessage(
         String sessionId,
         long seq,
         String key,
-        Object value
+        Object value,
+        String text,
+        String from
 ) {
 
+    /** The type of the frame that echoes a room member's prompt to the room. */
+    public static final String PROMPT_TYPE = "prompt";
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** A message of any type but {@code prompt}: it carries no {@code text} or {@code from}. */
+    public AiStreamMessage(String type, String data, String sessionId, long seq, String key, Object value) {
+        this(type, data, sessionId, seq, key, value, null, null);
+    }
+
+    /**
+     * The {@code prompt} frame echoing {@code text}, sent by the room member {@code from}.
+     *
+     * @param text      the prompt
+     * @param from      the room member id of the member who sent it
+     * @param sessionId the session of the turn the prompt starts
+     * @param seq       the frame's sequence number in that session
+     * @return the frame
+     */
+    public static AiStreamMessage prompt(String text, String from, String sessionId, long seq) {
+        return new AiStreamMessage(PROMPT_TYPE, null, sessionId, seq, null, null, text, from);
+    }
 
     /**
      * Parse a JSON string into an {@code AiStreamMessage}.
@@ -73,6 +107,8 @@ public record AiStreamMessage(
         var sessionId = node.has("sessionId") ? node.get("sessionId").stringValue() : null;
         var seq = node.has("seq") ? node.get("seq").asLong() : 0L;
         var key = node.has("key") ? node.get("key").stringValue() : null;
+        var text = node.has("text") && !node.get("text").isNull() ? node.get("text").stringValue() : null;
+        var from = node.has("from") && !node.get("from").isNull() ? node.get("from").stringValue() : null;
 
         Object value = null;
         if (node.has("value")) {
@@ -80,7 +116,7 @@ public record AiStreamMessage(
             value = extractValue(valueNode);
         }
 
-        return new AiStreamMessage(type, data, sessionId, seq, key, value);
+        return new AiStreamMessage(type, data, sessionId, seq, key, value, text, from);
     }
 
     /**
@@ -99,6 +135,12 @@ public record AiStreamMessage(
         }
         if (value != null) {
             map.put("value", value);
+        }
+        if (text != null) {
+            map.put("text", text);
+        }
+        if (from != null) {
+            map.put("from", from);
         }
         if (sessionId != null) {
             map.put("sessionId", sessionId);
@@ -137,6 +179,11 @@ public record AiStreamMessage(
         return "progress".equals(type);
     }
 
+    /** Whether this frame echoes a room member's prompt. */
+    public boolean isPrompt() {
+        return PROMPT_TYPE.equals(type);
+    }
+
     /**
      * Create a new message with the data field replaced.
      *
@@ -144,7 +191,7 @@ public record AiStreamMessage(
      * @return a copy of this message with updated data
      */
     public AiStreamMessage withData(String newData) {
-        return new AiStreamMessage(type, newData, sessionId, seq, key, value);
+        return new AiStreamMessage(type, newData, sessionId, seq, key, value, text, from);
     }
 
     /**
@@ -154,7 +201,17 @@ public record AiStreamMessage(
      * @return a copy of this message with updated seq
      */
     public AiStreamMessage withSeq(long newSeq) {
-        return new AiStreamMessage(type, data, sessionId, newSeq, key, value);
+        return new AiStreamMessage(type, data, sessionId, newSeq, key, value, text, from);
+    }
+
+    /**
+     * Create a new message with the prompt text replaced.
+     *
+     * @param newText the new prompt text
+     * @return a copy of this message with updated text
+     */
+    public AiStreamMessage withText(String newText) {
+        return new AiStreamMessage(type, data, sessionId, seq, key, value, newText, from);
     }
 
     private static Object extractValue(JsonNode valueNode) {

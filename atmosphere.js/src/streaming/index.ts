@@ -22,6 +22,7 @@ import { parseToolPart } from './tool-part';
 import { Atmosphere } from '../core/atmosphere';
 import { ConnectionStatus } from '../resilience';
 import { isSendError } from '../utils/send-error';
+import { roomMemberId } from '../utils/room-member-id';
 
 /**
  * Creates a streaming subscription to an Atmosphere endpoint that speaks the
@@ -59,6 +60,8 @@ export async function subscribeStreaming(
   let routing: RoutingInfo = {};
 
   const connectionStatus = new ConnectionStatus({ initialTransport: request.transport });
+  // Read by the message handler, which may run before subscribe() resolves.
+  let subscription: Subscription | null = null;
 
   const sub: Subscription = await atmosphere.subscribe<string>(request, connectionStatus.wrap({
     open: () => {
@@ -95,6 +98,14 @@ export async function subscribeStreaming(
       const msg = parseStreamingMessage(raw);
       if (!msg) return;
 
+      if (msg.type === 'prompt') {
+        // A room member's prompt, whatever turn it opens: reported as is,
+        // without changing which session this handle follows.
+        const from = msg.from ?? '';
+        handlers.onPrompt?.(msg.text ?? '', from, !!from && from === roomMemberId(subscription?.uuid));
+        return;
+      }
+
       // Track session ID from first message
       if (!sessionId) sessionId = msg.sessionId;
 
@@ -124,6 +135,7 @@ export async function subscribeStreaming(
       }
     },
   }));
+  subscription = sub;
 
   const resetSession = () => {
     sessionId = null;

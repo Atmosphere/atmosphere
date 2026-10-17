@@ -17,8 +17,8 @@ import { test, expect } from '@playwright/test';
 
 /**
  * E2E contract for the ai-classroom sample's headline: one student asks, and
- * EVERY student in the same room sees the AI reply stream — the collaborative
- * broadcast (@AiEndpoint(broadcastReply = true)).
+ * EVERY student in the same room sees the question and the AI reply stream —
+ * the collaborative broadcast (@AiEndpoint(broadcastReply = true)).
  *
  * REQUIRES: samples/spring-boot-ai-classroom running KEYLESS on port 8080
  * (no LLM key → deterministic DemoAgentRuntime replies; the fan-out is a
@@ -53,11 +53,17 @@ test.describe('ai-classroom: room broadcast fan-out', () => {
       // Observer joins first and only listens — it never sends a prompt.
       const observer = new WebSocket(url);
       const observerText: string[] = [];
+      // Every JSON frame the observer receives, in order (a WebSocket message
+      // may carry a length prefix, or several newline-separated frames).
+      const observerFrames: Record<string, unknown>[] = [];
       let observerComplete = false;
       observer.onmessage = (e) => {
         const s = String(e.data);
         if (s.includes('"streaming-text"')) observerText.push(s);
         if (s.includes('"type":"complete"')) observerComplete = true;
+        for (const part of s.replace(/^\d+\|/, '').split('\n')) {
+          try { observerFrames.push(JSON.parse(part)); } catch { /* not a JSON frame */ }
+        }
       };
       if (!(await open(observer))) return { error: 'observer failed to open' };
 
@@ -74,10 +80,18 @@ test.describe('ai-classroom: room broadcast fan-out', () => {
       const uniqueSeqs = new Set(seqs).size;
       observer.close();
       asker.close();
+      const prompts = observerFrames.filter((f) => f.type === 'prompt');
+      const firstPrompt = observerFrames.findIndex((f) => f.type === 'prompt');
+      const firstText = observerFrames.findIndex((f) => f.type === 'streaming-text');
       return {
         observerTextFrames: observerText.length,
         observerUniqueSeqs: uniqueSeqs,
         observerComplete,
+        promptFrames: prompts.length,
+        promptText: prompts[0]?.text,
+        promptFrom: prompts[0]?.from,
+        promptData: prompts[0]?.data,
+        promptBeforeReply: firstPrompt >= 0 && (firstText < 0 || firstPrompt < firstText),
       };
     }, ROOM);
 
@@ -89,6 +103,46 @@ test.describe('ai-classroom: room broadcast fan-out', () => {
     // Exactly-once delivery: no frame is duplicated to the observer.
     expect(result.observerUniqueSeqs).toBe(result.observerTextFrames);
     expect(result.observerComplete, 'the observer must see the terminal complete frame').toBe(true);
+    // The observer also sees what the asker typed: one "type":"prompt" frame,
+    // the prompt in text (never data), from the asker, ahead of the reply.
+    expect(result.promptFrames, "the observer must receive the asker's prompt once").toBe(1);
+    expect(result.promptText).toBe('What is 5 times 5?');
+    // Its sender by room member id (32 hex characters), never by tracking id.
+    expect(String(result.promptFrom), 'the prompt frame names its sender by room member id')
+        .toMatch(/^[0-9a-f]{32}$/);
+    expect(result.promptData, 'the prompt rides in text, never data').toBeUndefined();
+    expect(result.promptBeforeReply, 'the prompt arrives before the first reply frame').toBe(true);
+  });
+
+  test("the Console shows a classmate's question as a user bubble on the observer's page", async ({ browser, baseURL }) => {
+    // Two students, each in a browser context of their own (their own
+    // connection), both picking the math room in the Console.
+    const askerContext = await browser.newContext();
+    const observerContext = await browser.newContext();
+    try {
+      const asker = await askerContext.newPage();
+      const observer = await observerContext.newPage();
+      for (const page of [observer, asker]) {
+        await page.goto(`${baseURL}/atmosphere/console/`);
+        await page.getByTestId('pick-math').click();
+        await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
+      }
+
+      // Unique per run, with no digit run the classroom's PII policy would redact.
+      const question = `What is six times seven, ${Math.random().toString(36).replace(/[0-9.]/g, '')}?`;
+      await asker.getByTestId('chat-input').fill(question);
+      await asker.getByTestId('chat-send').click();
+
+      // The observer never typed anything, yet the question appears as a user
+      // bubble, followed by the reply in an assistant bubble.
+      await expect(observer.locator('.message--user', { hasText: question })).toHaveCount(1, { timeout: 15_000 });
+      await expect(observer.locator('.message--assistant').last()).not.toBeEmpty({ timeout: 15_000 });
+      // The asker shows its own question once: its echo is skipped.
+      await expect(asker.locator('.message--user', { hasText: question })).toHaveCount(1);
+    } finally {
+      await askerContext.close();
+      await observerContext.close();
+    }
   });
 
   test('a member of a DIFFERENT room does not receive the reply', async ({ page, baseURL }) => {

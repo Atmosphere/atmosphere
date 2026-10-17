@@ -222,6 +222,349 @@ class AiEndpointHandlerBroadcastReplyTest {
                 "the bystander receives nothing: " + capture.framesFor(bystander.uuid()));
     }
 
+    @Test
+    void broadcastReplyTrue_everyMemberSeesThePromptOnceBeforeTheReply() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        StreamingEndpoint.invocations.set(0);
+
+        var handler = newStreamingHandler(List.of());
+        handler.setBroadcastReply(true);
+        handler.dispatchPrompt(originating, "what is a prime number?");
+
+        awaitComplete(bystander);
+        awaitComplete(originating);
+        assertEquals(1, StreamingEndpoint.invocations.get(), "@Prompt runs once, on the sender's connection");
+        for (var member : List.of(bystander, originating)) {
+            var frames = parsed(member);
+            var prompts = ofType(frames, "prompt");
+            assertEquals(1, prompts.size(), "exactly one prompt frame: " + frames);
+            var prompt = prompts.get(0);
+            assertEquals("what is a prime number?", prompt.get("text").stringValue());
+            assertEquals(org.atmosphere.ai.RoomMemberIds.of(originating.uuid()), prompt.get("from").stringValue(),
+                    "from is the asker's room member id");
+            assertFalse(capture.framesFor(member.uuid()).stream().anyMatch(f -> f.contains(originating.uuid())),
+                    "no frame the room receives carries the asker's tracking id: " + frames);
+            assertFalse(prompt.has("data"), "the prompt rides in text, never data: " + prompt);
+            var firstText = ofType(frames, "streaming-text").get(0);
+            assertTrue(frames.indexOf(prompt) < frames.indexOf(firstText),
+                    "the prompt precedes the first reply frame: " + frames);
+            assertEquals(firstText.get("sessionId").stringValue(), prompt.get("sessionId").stringValue(),
+                    "the prompt belongs to the turn's session");
+        }
+    }
+
+    @Test
+    void broadcastReplyTrue_promptOfAMethodAnsweringWithoutStreamPrecedesItsReply() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        var endpoint = new StubEndpoint();
+        var handler = newHandler(endpoint);
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(originating, "hello room");
+
+        awaitComplete(bystander);
+        var frames = parsed(bystander);
+        var prompts = ofType(frames, "prompt");
+        assertEquals(1, prompts.size(), "exactly one prompt frame: " + frames);
+        assertEquals("hello room", prompts.get(0).get("text").stringValue());
+        assertTrue(frames.indexOf(prompts.get(0)) < frames.indexOf(ofType(frames, "streaming-text").get(0)),
+                "the prompt precedes the reply: " + frames);
+        assertEquals(1, endpoint.invocations.get());
+    }
+
+    @Test
+    void broadcastReplyFalse_noPromptFrameIsSent() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        var handler = newStreamingHandler(List.of());
+
+        handler.dispatchPrompt(originating, "what is a prime number?");
+
+        awaitComplete(originating);
+        // Byte-identical to the per-client output before room prompts existed.
+        var frames = capture.framesFor(originating.uuid());
+        var first = JSON.readTree(frames.get(0));
+        var sessionId = first.get("sessionId").stringValue();
+        var runId = first.get("value").stringValue();
+        assertEquals(List.of(
+                "{\"type\":\"metadata\",\"key\":\"X-Atmosphere-Run-Id\",\"value\":\"" + runId
+                        + "\",\"sessionId\":\"" + sessionId + "\",\"seq\":1}",
+                "{\"type\":\"streaming-text\",\"data\":\"" + REPLY + "\",\"sessionId\":\"" + sessionId
+                        + "\",\"seq\":2}",
+                "{\"type\":\"complete\",\"sessionId\":\"" + sessionId + "\",\"seq\":3}"), frames,
+                "a per-client endpoint's frames are unchanged");
+        Thread.sleep(300);
+        assertTrue(capture.framesFor(bystander.uuid()).isEmpty(), "the bystander receives nothing");
+    }
+
+    @Test
+    void broadcastReplyTrue_anApprovalAnswerIsNeverEchoed() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        StreamingEndpoint.invocations.set(0);
+        var handler = newStreamingHandler(List.of());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(originating, "/__approval/unknown-id/approve");
+
+        Thread.sleep(300);
+        assertEquals(0, StreamingEndpoint.invocations.get(), "an approval answer is not a prompt");
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "an approval answer is never shown to the room: " + capture.framesFor(bystander.uuid()));
+        assertTrue(ofType(parsed(originating), "prompt").isEmpty());
+    }
+
+    @Test
+    void broadcastReplyTrue_aPromptTheRoomsScopeRefusesIsNeverShownToTheRoom() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        var handler = newStreamingHandler(List.of(new MathRoomScope()));
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(originating, "help me with writing source code please");
+
+        awaitComplete(bystander);
+        assertTrue(capture.received(bystander.uuid(), MathRoomScope.REDIRECT),
+                "the room sees the scope's redirect: " + capture.framesFor(bystander.uuid()));
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "a refused prompt is never echoed: " + capture.framesFor(bystander.uuid()));
+        assertTrue(ofType(parsed(originating), "prompt").isEmpty());
+    }
+
+    @Test
+    void broadcastReplyTrue_aPromptTheRoomsScopeAdmitsIsShownToTheRoom() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        var handler = newStreamingHandler(List.of(new MathRoomScope()));
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(originating, "what is the derivative of x squared?");
+
+        awaitComplete(bystander);
+        var prompts = ofType(parsed(bystander), "prompt");
+        assertEquals(1, prompts.size(), "an admitted prompt is echoed: " + capture.framesFor(bystander.uuid()));
+        assertEquals("what is the derivative of x squared?", prompts.get(0).get("text").stringValue());
+    }
+
+    @Test
+    void broadcastReplyTrue_theRoomIsShownThePromptAsAGuardrailRewroteIt() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        org.atmosphere.ai.AiGuardrail redact = new org.atmosphere.ai.AiGuardrail() {
+            @Override
+            public GuardrailResult inspectRequest(org.atmosphere.ai.AiRequest request) {
+                return new GuardrailResult.Modify(
+                        request.withMessage(request.message().replace("alice@example.com", "[redacted-email]")));
+            }
+        };
+        var method = StreamingEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class);
+        var handler = new AiEndpointHandler(new StreamingEndpoint(), method, 30_000L, "base",
+                "/atmosphere/room/{room}", new ReplyingRuntime(), List.of(), null,
+                AnnotatedLifecycle.scan(StreamingEndpoint.class), null, List.of(redact), List.of(),
+                org.atmosphere.ai.AiMetrics.NOOP);
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(originating, "mail alice@example.com the answer");
+
+        awaitComplete(bystander);
+        var prompts = ofType(parsed(bystander), "prompt");
+        assertEquals(1, prompts.size(), capture.framesFor(bystander.uuid()).toString());
+        assertEquals("mail [redacted-email] the answer", prompts.get(0).get("text").stringValue(),
+                "the room sees what the model sees, not the address the guardrail removed");
+    }
+
+    @Test
+    void broadcastReplyTrue_aGuardrailBlockDropsTheEchoOfAPromptAnsweredWithoutStream() throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> {
+            session.send(REPLY);
+            session.complete();
+        };
+        var handler = newScriptedHandler(new WordGuardrail());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "a forbidden question");
+
+        awaitComplete(bystander);
+        assertTrue(capture.received(bystander.uuid(), REPLY), "the reply reaches the room");
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "a prompt the guardrail blocks is never shown: " + capture.framesFor(bystander.uuid()));
+    }
+
+    @Test
+    void broadcastReplyTrue_aGuardrailModifyRewritesTheEchoOfAPromptAnsweredWithoutStream() throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> {
+            session.send(REPLY);
+            session.complete();
+        };
+        var handler = newScriptedHandler(new WordGuardrail());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "my secret plan");
+
+        awaitComplete(bystander);
+        var prompts = ofType(parsed(bystander), "prompt");
+        assertEquals(1, prompts.size(), capture.framesFor(bystander.uuid()).toString());
+        assertEquals("my [hidden] plan", prompts.get(0).get("text").stringValue());
+    }
+
+    @Test
+    void broadcastReplyTrue_progressBeforeABlockedStreamShowsNothing() throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> {
+            session.progress("Thinking...");
+            session.stream(message);
+        };
+        var handler = newScriptedHandler(new WordGuardrail());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "a forbidden question");
+
+        awaitFrame(bystander, "\"type\":\"error\"");
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "progress does not show the prompt before stream() refuses it: "
+                        + capture.framesFor(bystander.uuid()));
+    }
+
+    @Test
+    void broadcastReplyTrue_aHandoffEventDoesNotShowThePrompt() throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> {
+            session.emit(new org.atmosphere.ai.AiEvent.Handoff("tutor", "grader", "routed"));
+            session.complete();
+        };
+        var handler = newScriptedHandler(new WordGuardrail());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "a forbidden question");
+
+        awaitComplete(bystander);
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "a handoff is not reply text: " + capture.framesFor(bystander.uuid()));
+    }
+
+    @Test
+    void broadcastReplyTrue_aTypedPromptTheGuardrailBlocksIsNotShownWhenStreamCarriesAnotherText()
+            throws Exception {
+        var bystander = subscriber();
+        ScriptedEndpoint.script = (message, session) -> session.stream("Rephrase politely: the question");
+        var handler = newScriptedHandler(new WordGuardrail());
+        handler.setBroadcastReply(true);
+
+        handler.dispatchPrompt(subscriber(), "a forbidden question");
+
+        awaitComplete(bystander);
+        assertTrue(capture.received(bystander.uuid(), REPLY), "the composed turn runs");
+        assertTrue(ofType(parsed(bystander), "prompt").isEmpty(),
+                "the typed prompt is screened on its own: " + capture.framesFor(bystander.uuid()));
+    }
+
+    /** Blocks a message naming "forbidden"; rewrites "secret" to "[hidden]". */
+    static final class WordGuardrail implements org.atmosphere.ai.AiGuardrail {
+        @Override
+        public GuardrailResult inspectRequest(org.atmosphere.ai.AiRequest request) {
+            if (request.message().contains("forbidden")) {
+                return new GuardrailResult.Block("forbidden");
+            }
+            if (request.message().contains("secret")) {
+                return new GuardrailResult.Modify(request.withMessage(request.message().replace("secret", "[hidden]")));
+            }
+            return new GuardrailResult.Pass();
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/room/{room}", broadcastReply = true)
+    static final class ScriptedEndpoint {
+
+        static volatile java.util.function.BiConsumer<String, StreamingSession> script;
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+            script.accept(message, session);
+        }
+    }
+
+    private AiEndpointHandler newScriptedHandler(org.atmosphere.ai.AiGuardrail guardrail) throws NoSuchMethodException {
+        var method = ScriptedEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class);
+        return new AiEndpointHandler(new ScriptedEndpoint(), method, 30_000L, "base",
+                "/atmosphere/room/{room}", new ReplyingRuntime(), List.of(), null,
+                AnnotatedLifecycle.scan(ScriptedEndpoint.class), null, List.of(guardrail), List.of(),
+                org.atmosphere.ai.AiMetrics.NOOP);
+    }
+
+    private void awaitFrame(AtmosphereResource resource, String text) throws InterruptedException {
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            if (capture.received(resource.uuid(), text)) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("no " + text + " frame for " + resource.uuid() + ": "
+                + capture.framesFor(resource.uuid()));
+    }
+
+    private static final tools.jackson.databind.ObjectMapper JSON = new tools.jackson.databind.ObjectMapper();
+
+    private List<tools.jackson.databind.JsonNode> parsed(AtmosphereResource resource) {
+        var nodes = new java.util.ArrayList<tools.jackson.databind.JsonNode>();
+        for (var frame : capture.framesFor(resource.uuid())) {
+            try {
+                nodes.add(JSON.readTree(frame));
+            } catch (RuntimeException e) {
+                // not a JSON frame
+            }
+        }
+        return nodes;
+    }
+
+    private static List<tools.jackson.databind.JsonNode> ofType(List<tools.jackson.databind.JsonNode> frames,
+                                                              String type) {
+        return frames.stream()
+                .filter(f -> f.has("type") && type.equals(f.get("type").stringValue()))
+                .toList();
+    }
+
+    private AiEndpointHandler newStreamingHandler(List<AiInterceptor> interceptors) throws NoSuchMethodException {
+        var method = StreamingEndpoint.class.getDeclaredMethod(
+                "onPrompt", String.class, StreamingSession.class);
+        return new AiEndpointHandler(new StreamingEndpoint(), method, 30_000L, "base",
+                "/atmosphere/room/{room}", new ReplyingRuntime(), interceptors,
+                null, AnnotatedLifecycle.scan(StreamingEndpoint.class));
+    }
+
+    /** Installs a per-request math-room scope, as the classroom sample's interceptor does. */
+    static final class MathRoomScope implements AiInterceptor {
+        static final String REDIRECT = "This is the math room - ask me about mathematics.";
+
+        @Override
+        public org.atmosphere.ai.AiRequest preProcess(org.atmosphere.ai.AiRequest request,
+                                                      AtmosphereResource resource) {
+            return request.withMetadata(Map.of(
+                    org.atmosphere.ai.governance.scope.ScopePolicy.REQUEST_SCOPE_METADATA_KEY,
+                    new org.atmosphere.ai.governance.scope.ScopeConfig("Mathematics tutoring",
+                            List.of("writing source code"),
+                            org.atmosphere.ai.annotation.AgentScope.Breach.POLITE_REDIRECT, REDIRECT,
+                            org.atmosphere.ai.annotation.AgentScope.Tier.RULE_BASED, 0.45,
+                            false, false, "")));
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/room/{room}", broadcastReply = true)
+    static final class StreamingEndpoint {
+
+        static final AtomicInteger invocations = new AtomicInteger();
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+            invocations.incrementAndGet();
+            session.stream(message);
+        }
+    }
+
     private static final String PREFERRED = "open a CHG ticket and run release-bot";
 
     private static void recordPrefer(String conversationId) {

@@ -148,6 +148,34 @@ class LongPollingRoomRepliesTest {
                 "no frame kept for the long-polling member may also be written to its poll: " + frames(waiting));
     }
 
+    /**
+     * The echo of the prompt that started a room run is the turn's first frame,
+     * under the turn's session id: the long-polling member's next poll is
+     * handed it with the reply, in one response, and an SSE member streams it
+     * ahead of the reply, as every member of the room does.
+     */
+    @Test
+    void thePromptEchoReachesALongPollingMemberWithTheReplyInOnePollAndAnSseMemberAheadOfIt() {
+        var waiting = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        var sse = subscriber(AtmosphereResource.TRANSPORT.SSE);
+        var run = new RunEventReplayBuffer();
+
+        var session = new RunEventCapturingSession(StreamingSessions.startRoomBroadcast(sse), run);
+        session.sendPrompt("what is 2+2?", RoomMemberIds.of(sse.uuid()));
+        session.send("four.");
+        session.complete();
+        awaitComplete(sse);
+
+        var expected = List.of("prompt:what is 2+2? from " + RoomMemberIds.of(sse.uuid()), "streaming-text:four.", "complete");
+        assertEquals(expected, frames(sse), "the SSE member streams the prompt ahead of the reply");
+        assertTrue(frames(waiting).isEmpty(), "the waiting poll is answered by the room's mailbox only");
+        var poll = nextPollRaw(waiting);
+        assertEquals(expected, describe(poll), "one poll hands the long-polling member the prompt and the reply");
+        assertEquals(1, bySession(poll).size(), "the prompt belongs to the reply's session: " + poll);
+        assertTrue(run.claimNew(waiting.uuid()).isEmpty(),
+                "the member received the prompt from its mailbox: a poll carrying the run id is not handed it again");
+    }
+
     @Test
     void aLongPollingMemberBetweenPollsWhenTheReplyStartsReceivesItWhole() {
         LongPollingRoomReplies.install(room);
@@ -1805,7 +1833,9 @@ class LongPollingRoomRepliesTest {
         for (var frame : json) {
             try {
                 var msg = AiStreamMessage.parse(frame);
-                out.add(msg == null ? frame : msg.data() == null ? msg.type() : msg.type() + ":" + msg.data());
+                out.add(msg == null ? frame
+                        : msg.isPrompt() ? "prompt:" + msg.text() + " from " + msg.from()
+                        : msg.data() == null ? msg.type() : msg.type() + ":" + msg.data());
             } catch (RuntimeException e) {
                 out.add(frame);
             }

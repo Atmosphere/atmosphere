@@ -40,6 +40,29 @@ public class PiiRedactionFilterTest {
     }
 
     @Test
+    public void testRedactsTheTextOfARoomPromptEcho() throws Exception {
+        var raw = new RawMessage(AiStreamMessage.prompt("mail me at user@example.com", "member-1", "s1", 1).toJson());
+
+        var action = filter.filter("b1", raw, raw);
+
+        assertEquals(BroadcastAction.ACTION.CONTINUE, action.action());
+        var out = AiStreamMessage.parse(((RawMessage) action.message()).message().toString());
+        assertEquals("prompt", out.type());
+        assertEquals("mail me at [REDACTED]", out.text());
+        assertEquals("member-1", out.from());
+        assertNull(out.data(), "the prompt stays in text");
+    }
+
+    @Test
+    public void testPassesACleanRoomPromptEchoThroughUnchanged() {
+        var raw = new RawMessage(AiStreamMessage.prompt("what is 2+2?", "member-1", "s1", 1).toJson());
+
+        var action = filter.filter("b1", raw, raw);
+
+        assertSame(raw, action.message());
+    }
+
+    @Test
     public void testRedactsEmail() {
         assertEquals("[REDACTED]", filter.redact("user@example.com"));
     }

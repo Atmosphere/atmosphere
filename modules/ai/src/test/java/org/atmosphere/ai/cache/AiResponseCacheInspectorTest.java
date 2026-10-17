@@ -39,6 +39,13 @@ class AiResponseCacheInspectorTest {
     }
 
     @Test
+    void aRoomPromptIsCachedWithTheReplyItAnswers() {
+        var inspector = new AiResponseCacheInspector();
+        var json = org.atmosphere.ai.filter.AiStreamMessage.prompt("what is 2+2?", "member-1", "s1", 1).toJson();
+        assertTrue(inspector.inspect(new BroadcastMessage(new RawMessage(json))));
+    }
+
+    @Test
     void progressMessageSkippedByDefault() {
         var inspector = new AiResponseCacheInspector();
         var json = "{\"type\":\"progress\",\"message\":\"Thinking...\"}";

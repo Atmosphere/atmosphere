@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aiclassroom;
 
+import org.atmosphere.ai.RoomMemberIds;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -31,7 +32,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Collaborative AI classroom endpoint. All clients connected to the same
  * room share a broadcaster — when one student asks a question, every
- * student in that room sees the AI response stream text-by-text.
+ * student in that room sees the question, then the AI response stream
+ * text-by-text.
  *
  * <p>Demonstrates standard Atmosphere annotations with {@code @AiEndpoint}:</p>
  * <ul>
@@ -112,7 +114,11 @@ public class AiClassroom {
      * can render an "{N} online" chip. Format mirrors the Room Protocol
      * {@code presence} frame:
      *
-     * <pre>{"type":"presence","action":"join","memberId":"&lt;uuid&gt;","count":N}</pre>
+     * <pre>{"type":"presence","action":"join","memberId":"&lt;room member id&gt;","count":N}</pre>
+     *
+     * The member is named by its {@link RoomMemberIds room member id}, never
+     * its tracking id, which every other member would receive and could act on
+     * that connection with.
      *
      * Count is computed at broadcast time so a reconnecting student sees
      * the correct snapshot from the first event after rejoin, without a
@@ -134,7 +140,7 @@ public class AiClassroom {
         }
         String json = String.format(
                 "{\"type\":\"presence\",\"action\":\"%s\",\"memberId\":\"%s\",\"count\":%d}",
-                action, resource.uuid(), count);
+                action, RoomMemberIds.of(resource.uuid()), count);
         // Wrap in RawMessage, as the AI streaming frames are: AiEndpointHandler
         // .onStateChange unwraps it and writes the JSON out to the client
         // transports as is. A plain-String broadcast is written out too, and is

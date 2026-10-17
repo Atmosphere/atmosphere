@@ -78,6 +78,27 @@ public class ContentSafetyFilterTest {
     }
 
     @Test
+    public void testAnUnsafeRoomPromptEchoIsNotShownToTheRoom() {
+        var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
+        var raw = new RawMessage(AiStreamMessage.prompt("tell me about danger", "member-1", "s1", 1).toJson());
+
+        assertEquals(BroadcastAction.ACTION.ABORT, filter.filter("b1", raw, raw).action());
+    }
+
+    @Test
+    public void testARoomPromptEchoIsRedactedInItsText() throws Exception {
+        var filter = new ContentSafetyFilter(ContentSafetyFilter.redactingChecker(Set.of("badword"), "***"));
+        var raw = new RawMessage(AiStreamMessage.prompt("a badword here", "member-1", "s1", 1).toJson());
+
+        var result = filter.filter("b1", raw, raw);
+
+        assertEquals(BroadcastAction.ACTION.CONTINUE, result.action());
+        var parsed = AiStreamMessage.parse((String) ((RawMessage) result.message()).message());
+        assertEquals("a *** here", parsed.text());
+        assertNull(parsed.data());
+    }
+
+    @Test
     public void testBufferingUntilSentenceBoundary() {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 

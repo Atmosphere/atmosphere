@@ -83,6 +83,10 @@ public final class StreamingSessions {
      * handler (the originating resource), so the model is invoked exactly once
      * per prompt — only the reply delivery changes.</p>
      *
+     * <p>The prompt reaches the room through the session too, as its
+     * {@code prompt} frame ({@link DefaultStreamingSession#sendPrompt}), which
+     * the {@code @AiEndpoint} handler sends once the turn is admitted.</p>
+     *
      * <p>The room's long-polling members receive the reply whole, on their next
      * poll, within the bounds of a long-polling reply, whether or not the
      * framework shares broadcaster listeners between broadcasters; see

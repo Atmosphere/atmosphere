@@ -19,7 +19,7 @@
  * {@code DefaultStreamingSession}.
  */
 export type StreamingMessageType =
-  | 'streaming-text' | 'complete' | 'error' | 'cancelled' | 'progress' | 'metadata';
+  | 'streaming-text' | 'complete' | 'error' | 'cancelled' | 'progress' | 'metadata' | 'prompt';
 
 /**
  * Why the server cut a run short, carried as the `data` of its terminal
@@ -87,6 +87,10 @@ export interface StreamingMessage {
   data?: string;
   key?: string;
   value?: unknown;
+  /** The prompt of a `prompt` frame (a room member's prompt echoed to the room). */
+  text?: string;
+  /** The tracking id of the room member who sent the prompt of a `prompt` frame. */
+  from?: string;
   sessionId: string;
   seq: number;
   /** AiEvent type name (e.g., "text-delta", "tool-start"). Present only in AiEvent format. */
@@ -142,6 +146,14 @@ export type ToolPart =
 export interface StreamingHandlers {
   /** Called for each streaming text fragment received from the LLM. */
   onStreamingText?: (text: string, seq: number) => void;
+  /**
+   * Called when a member of an `@AiEndpoint(broadcastReply = true)` room sent
+   * a prompt the room's admission let through: the server echoes it to every
+   * member as the turn's first frame, ahead of the reply. `from` is the
+   * tracking id of the member who sent it; `own` is `true` when that is this
+   * connection (its UI usually shows its own prompt already).
+   */
+  onPrompt?: (text: string, from: string, own: boolean) => void;
   /** Called when the server signals progress (e.g. "Thinking…"). */
   onProgress?: (message: string, seq: number) => void;
   /** Called when the stream completes, with an optional summary. */

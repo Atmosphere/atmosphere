@@ -78,7 +78,10 @@ public class AiResponseCacheInspector implements BroadcasterCacheInspector {
                 || streamMessage.isComplete()
                 || streamMessage.isError()
                 || streamMessage.isCancelled()
-                || streamMessage.isProgress())) {
+                || streamMessage.isProgress()
+                // A broadcastReply room's question: a member restored from the
+                // cache gets the reply with the prompt it answers.
+                || streamMessage.isPrompt())) {
             return false;
         }
 

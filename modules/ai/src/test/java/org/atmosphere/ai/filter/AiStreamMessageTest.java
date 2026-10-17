@@ -42,6 +42,20 @@ public class AiStreamMessageTest {
     }
 
     @Test
+    public void testPromptFrameCarriesItsPromptInTextAndRoundTrips() throws Exception {
+        var json = AiStreamMessage.prompt("What is 2+2?", "member-1", "abc-123", 1).toJson();
+
+        assertEquals("{\"type\":\"prompt\",\"text\":\"What is 2+2?\",\"from\":\"member-1\","
+                + "\"sessionId\":\"abc-123\",\"seq\":1}", json);
+        var msg = AiStreamMessage.parse(json);
+        assertTrue(msg.isPrompt());
+        assertEquals("What is 2+2?", msg.text());
+        assertEquals("member-1", msg.from());
+        assertNull(msg.data());
+        assertEquals(json, msg.toJson());
+    }
+
+    @Test
     public void testParseMetadataMessage() throws Exception {
         var json = """
                 {"type":"metadata","key":"model","value":"gpt-4","sessionId":"abc-123","seq":3}""";

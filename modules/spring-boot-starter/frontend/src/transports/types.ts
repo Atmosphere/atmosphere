@@ -79,6 +79,13 @@ export interface ChatTransportOptions {
  */
 export interface ChatTransport {
   readonly name: ConsoleTransportName
+  /**
+   * The server's tracking id for this connection (the `AtmosphereResource`
+   * uuid), when the transport knows it: a room's `prompt` echo carries its
+   * sender's id in `from`, so this tab tells its own prompt from another
+   * member's. Undefined for transports that have none.
+   */
+  readonly uuid?: string
   connect(): Promise<void>
   disconnect(): void
   /** Send a user chat message in the transport's dialect. */

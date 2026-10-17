@@ -106,6 +106,16 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             return handleStreamEnd(broadcasterId, msg, rawMessage);
         }
 
+        if (msg.isPrompt() && msg.text() != null) {
+            // A room member's prompt echoed to the room arrives whole, in one frame.
+            var redacted = redact(msg.text());
+            if (!redacted.equals(msg.text())) {
+                logger.debug("PII redacted in the prompt echo of session {}", msg.sessionId());
+                return new BroadcastAction(new RawMessage(msg.withText(redacted).toJson()));
+            }
+            return new BroadcastAction(rawMessage);
+        }
+
         // Pass through metadata, progress
         return new BroadcastAction(rawMessage);
     }

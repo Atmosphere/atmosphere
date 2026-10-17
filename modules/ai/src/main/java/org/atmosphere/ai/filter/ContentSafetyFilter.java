@@ -130,7 +130,28 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
             return handleStreamEnd(broadcasterId, msg, rawMessage);
         }
 
+        if (msg.isPrompt() && msg.text() != null) {
+            return handlePrompt(msg, rawMessage);
+        }
+
         return new BroadcastAction(rawMessage);
+    }
+
+    /**
+     * A room member's prompt echoed to the room, checked whole: an unsafe one
+     * is not shown to the room (the turn's reply is checked on its own).
+     */
+    private BroadcastAction handlePrompt(AiStreamMessage msg, RawMessage rawMessage) {
+        return switch (checker.check(msg.text())) {
+            case SafetyResult.Safe() -> new BroadcastAction(rawMessage);
+            case SafetyResult.Unsafe(var reason) -> {
+                logger.warn("Content safety violation in the prompt echo of session {}: {}",
+                        msg.sessionId(), reason);
+                yield new BroadcastAction(BroadcastAction.ACTION.ABORT, rawMessage);
+            }
+            case SafetyResult.Redacted(var cleanText) ->
+                    new BroadcastAction(new RawMessage(msg.withText(cleanText).toJson()));
+        };
     }
 
     private BroadcastAction handleStreamingText(AiStreamMessage msg) {

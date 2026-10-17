@@ -343,6 +343,23 @@ public final class RunReattachSupport {
     }
 
     /**
+     * The wire frame replaying {@code event} of run {@code handle} as frame
+     * {@code seq} of session {@code runId}: the same shape the live path wrote.
+     * A {@code prompt} event (its payload the prompt text) is the
+     * {@code prompt} frame, its prompt in {@code text} and the room member id
+     * ({@link org.atmosphere.ai.RoomMemberIds}) of the member who sent it, the
+     * run's own client, in {@code from} — never its tracking id.
+     */
+    static org.atmosphere.ai.filter.AiStreamMessage replayFrame(RunEvent event, AgentResumeHandle handle,
+                                                              String runId, long seq) {
+        if (org.atmosphere.ai.filter.AiStreamMessage.PROMPT_TYPE.equals(event.type())) {
+            return org.atmosphere.ai.filter.AiStreamMessage.prompt(event.payload(),
+                    org.atmosphere.ai.RoomMemberIds.of(handle.sessionId()), runId, seq);
+        }
+        return new org.atmosphere.ai.filter.AiStreamMessage(event.type(), event.payload(), runId, seq, null, null);
+    }
+
+    /**
      * Resolve the reconnecting caller's user id from the same attribute
      * chain {@link org.atmosphere.ai.processor.AiEndpointHandler}
      * populates on the dispatch path ({@code ai.userId}, then
@@ -482,8 +499,7 @@ public final class RunReattachSupport {
             var batch = new StringBuilder();
             for (var ev : replayed) {
                 seq++;
-                var msg = new org.atmosphere.ai.filter.AiStreamMessage(
-                        ev.type(), ev.payload(), runId, seq, null, null);
+                var msg = replayFrame(ev, handle, runId, seq);
                 var json = applyFilters(filters, broadcasterId, msg.toJson());
                 if (json != null) {
                     batch.append(json).append('\n');
@@ -655,8 +671,7 @@ public final class RunReattachSupport {
             var batch = new StringBuilder();
             var written = 0;
             for (var event : events) {
-                var msg = new org.atmosphere.ai.filter.AiStreamMessage(
-                        event.type(), event.payload(), runId, event.sequence() + 1, null, null);
+                var msg = replayFrame(event, run, runId, event.sequence() + 1);
                 var json = applyFilters(filters, broadcasterId, msg.toJson());
                 if (json != null) {
                     batch.append(json).append('\n');
@@ -981,8 +996,7 @@ public final class RunReattachSupport {
         /** Write one frame through the filter chain; a failed write stops the forwarding. */
         synchronized Write write(RunEvent event) {
             seq++;
-            var msg = new org.atmosphere.ai.filter.AiStreamMessage(
-                    event.type(), event.payload(), runId, seq, null, null);
+            var msg = replayFrame(event, run, runId, seq);
             var json = applyFilters(filters, broadcasterId, msg.toJson());
             if (json == null) {
                 return Write.FILTERED;

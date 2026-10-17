@@ -32,6 +32,7 @@ const timeString = computed(() => {
     <div class="message-body">
       <div class="message-content" v-html="formattedContent()"></div>
       <div class="message-meta">
+        <span v-if="message.author" class="message-author" data-testid="message-author">{{ message.author }} · </span>
         <span class="message-time">{{ timeString }}</span>
       </div>
     </div>
@@ -107,6 +108,7 @@ const timeString = computed(() => {
   padding: 0 0.25rem;
 }
 
+.message-author,
 .message-time {
   font-size: 0.6875rem;
   color: var(--text-tertiary);

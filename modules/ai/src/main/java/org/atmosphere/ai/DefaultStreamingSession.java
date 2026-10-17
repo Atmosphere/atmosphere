@@ -74,7 +74,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * {"type":"complete","data":"Full response","sessionId":"abc-123","seq":5}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
  * {"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}
+ * {"type":"prompt","text":"What is 2+2?","from":"&lt;prompter uuid&gt;","sessionId":"abc-123","seq":1}
  * </pre>
+ *
+ * <p>The {@code prompt} frame is sent by a room session only ({@link #sendPrompt}).</p>
  */
 public final class DefaultStreamingSession implements StreamingSession {
 
@@ -510,6 +513,31 @@ public final class DefaultStreamingSession implements StreamingSession {
                 broadcast(toJson(msg));
             }
         }
+    }
+
+    /**
+     * Echo a room member's prompt to the room this session broadcasts to, as the
+     * {@code prompt} frame
+     * {@code {"type":"prompt","text":<prompt>,"from":<member>,"sessionId":..,"seq":n}}:
+     * the prompt is in {@code text}, not {@code data}, so a client that does not
+     * know the type does not render it as reply text. It runs through the room's
+     * broadcast filters like every frame of the session. A session that does not
+     * broadcast to a room sends nothing: a prompt is echoed to the room only.
+     *
+     * @param text the prompt
+     * @param from the room member id ({@link RoomMemberIds}) of the member who sent it
+     */
+    public void sendPrompt(String text, String from) {
+        if (!broadcastToRoom) {
+            logger.debug("Not echoing a prompt on session {}: it does not broadcast to a room", sessionId);
+            return;
+        }
+        if (closed.get()) {
+            logger.debug("Dropping the prompt echo of closed session {}", sessionId);
+            return;
+        }
+        broadcast(org.atmosphere.ai.filter.AiStreamMessage.prompt(text, from, sessionId,
+                sequence.incrementAndGet()).toJson());
     }
 
     String resourceUuid() {

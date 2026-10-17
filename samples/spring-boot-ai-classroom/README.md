@@ -1,6 +1,6 @@
 # AI Classroom
 
-**Real-time collaborative AI streaming** — multiple clients in the same room see the AI response stream text-by-text, simultaneously.
+**Real-time collaborative AI streaming** — multiple clients in the same room see each other's questions and the AI response stream text-by-text, simultaneously.
 
 This sample demonstrates what makes Atmosphere unique: **broadcasting streamed LLM texts to multiple connected clients** using a single `@AiEndpoint` annotation.
 
@@ -39,6 +39,7 @@ This sample demonstrates what makes Atmosphere unique: **broadcasting streamed L
 ```java
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "skill:classroom",
+        broadcastReply = true,
         interceptors = { RoomContextInterceptor.class })
 public class AiClassroom {
 
@@ -48,6 +49,8 @@ public class AiClassroom {
     }
 }
 ```
+
+`broadcastReply = true` is what makes the room shared: the `@Prompt` method runs once, on the asking student's connection, and every student in the room receives the question — a `{"type":"prompt","text":...,"from":<asker's room member id>}` frame, sent once the room's scope admitted it (a question the room refuses is never shown, only its redirect) — followed by the one streamed reply. The Console shows a classmate's question as a user bubble.
 
 The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 

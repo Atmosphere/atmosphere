@@ -1126,11 +1126,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         resource.getAtmosphereConfig(), roomIdOf(resource))
                 : org.atmosphere.ai.resume.RunEventReplayBuffer.forRun(runId,
                         resource.getAtmosphereConfig());
-        StreamingSession delegate = new org.atmosphere.ai.resume.RunEventCapturingSession(
+        var capturing = new org.atmosphere.ai.resume.RunEventCapturingSession(
                 roomBroadcast
                         ? StreamingSessions.startRoomBroadcast(resource)
                         : StreamingSessions.start(resource),
                 replayBuffer);
+        StreamingSession delegate = capturing;
         final var aiEnvironment = environmentFor(resource);
         var settings = aiEnvironment.settings();
         var model = endpointModel != null ? endpointModel
@@ -1309,6 +1310,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 // A breach streams the inbound message, which renders the
                 // recorded block or redirect through the session.
                 if (session.admitScope(promptText)) {
+                    if (roomBroadcast) {
+                        // Every member of the room sees what this one asked, as
+                        // the turn's first frame, once the turn is admitted (the
+                        // session decides when: see setPromptEcho). Recorded with
+                        // the run, so a client that reattaches is replayed it.
+                        // An approval answer never gets here (the fast path
+                        // above), nor does a prompt a breach refused.
+                        // Named by its room member id: the tracking id is a capability.
+                        var from = org.atmosphere.ai.RoomMemberIds.of(resource.uuid());
+                        session.setPromptEcho(promptText, text -> capturing.sendPrompt(text, from));
+                    }
                     invokePrompt(promptText, session, resource);
                 } else {
                     session.stream(promptText);

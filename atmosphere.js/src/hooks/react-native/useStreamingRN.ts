@@ -65,6 +65,12 @@ export interface UseStreamingRNOptions {
   onFailureToReconnect?: () => void;
   /** Called on streaming error (governance denial, transport failure, etc.). */
   onError?: (error: string) => void;
+  /**
+   * Called with a room member's prompt on an `@AiEndpoint(broadcastReply = true)`
+   * room, ahead of its reply; `own` is `true` for this connection's own prompt.
+   * See `StreamingHandlers.onPrompt`.
+   */
+  onPrompt?: (text: string, from: string, own: boolean) => void;
 }
 
 /**
@@ -194,7 +200,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   const {
     request, enabled = true, backgroundBehavior = 'keep-alive',
     onOpen, onClose, onReconnect, onReopen,
-    onClientTimeout, onTransportFailure, onFailureToReconnect, onError,
+    onClientTimeout, onTransportFailure, onFailureToReconnect, onError, onPrompt,
   } = options;
 
   const [streamingTexts, setStreamingTexts] = useState<string[]>([]);
@@ -235,11 +241,11 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   // when callers pass fresh closures every render.
   const lifecycleRef = useRef({
     onOpen, onClose, onReconnect, onReopen,
-    onClientTimeout, onTransportFailure, onFailureToReconnect, onError,
+    onClientTimeout, onTransportFailure, onFailureToReconnect, onError, onPrompt,
   });
   lifecycleRef.current = {
     onOpen, onClose, onReconnect, onReopen,
-    onClientTimeout, onTransportFailure, onFailureToReconnect, onError,
+    onClientTimeout, onTransportFailure, onFailureToReconnect, onError, onPrompt,
   };
 
   // --- Core streaming subscription ---
@@ -287,6 +293,9 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
             if (cancelled) return;
             setIsStreaming(true);
             setStreamingTexts((prev) => [...prev, text]);
+          },
+          onPrompt: (text, from, own) => {
+            if (!cancelled) lifecycleRef.current.onPrompt?.(text, from, own);
           },
           onProgress: (msg) => {
             if (!cancelled) setProgress(msg);

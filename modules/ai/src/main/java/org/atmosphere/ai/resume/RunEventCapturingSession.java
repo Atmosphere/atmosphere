@@ -18,9 +18,11 @@ package org.atmosphere.ai.resume;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.AiException;
 import org.atmosphere.ai.Content;
+import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.DelegatingStreamingSession;
 import org.atmosphere.ai.RunCancelledException;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.filter.AiStreamMessage;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,8 +42,10 @@ import java.util.function.Consumer;
  * {@code send}, {@code sendContent} with a text part, or an
  * {@link AiEvent.TextDelta}; the terminal frame as {@code complete},
  * {@code error} (a {@link RunCancelledException} is captured as the
- * {@code cancelled} frame), {@link AiEvent.Complete} or {@link AiEvent.Error}. Other
- * frames (metadata, progress, tool events) are not captured.</p>
+ * {@code cancelled} frame), {@link AiEvent.Complete} or {@link AiEvent.Error}; the
+ * echo of the run's prompt to a {@code broadcastReply} room as
+ * {@link #sendPrompt}. Other frames (metadata, progress, tool events) are not
+ * captured.</p>
  *
  * <p>The capture happens BEFORE the delegate write so the client sees
  * the live stream unchanged and a disconnect between the buffer write
@@ -110,6 +114,28 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
             return;
         }
         writing(position, s -> s.send(text));
+    }
+
+    /**
+     * Echo the prompt that started the run to the room the run's reply is
+     * broadcast to ({@link DefaultStreamingSession#sendPrompt}), recording it as
+     * the run's {@code prompt} event (payload: the prompt text) so a client that
+     * reattaches to the run is replayed it, once, with the reply. Nothing is sent
+     * or recorded when the delegate is not a room session, the text is empty or
+     * the run already ended.
+     *
+     * @param text the prompt
+     * @param from the room member id ({@link org.atmosphere.ai.RoomMemberIds}) of the member who sent it
+     */
+    public void sendPrompt(String text, String from) {
+        if (!(delegate instanceof DefaultStreamingSession leaf) || text == null || text.isEmpty()) {
+            return;
+        }
+        var event = buffer.captureIfOpen(AiStreamMessage.PROMPT_TYPE, text);
+        if (event == null || delegate.isClosed()) {
+            return;
+        }
+        writing(new RunEventReplayBuffer.Position(buffer, event.sequence()), s -> leaf.sendPrompt(text, from));
     }
 
     @Override

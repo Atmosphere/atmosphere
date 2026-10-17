@@ -1,5 +1,5 @@
 import { ref, computed, watch, onMounted, onUnmounted, type Ref } from 'vue'
-import { ConnectionStatus } from 'atmosphere.js'
+import { ConnectionStatus, roomMemberId } from 'atmosphere.js'
 import { useOfflineQueue } from 'atmosphere.js/vue'
 import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
 import { mergeRoutingMetadata, normalizeMetadataFrame, type RoutingMetadata } from '../lib/routingMetadata'
@@ -13,6 +13,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  /** Who sent a user message this tab did not: another member of the room. */
+  author?: string
 }
 
 export interface PendingApproval {
@@ -137,6 +139,56 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // conversation and must not resurrect an assistant bubble. Set on clear,
   // reset when the discarded stream terminates or a new send starts.
   let discardInFlightStream = false
+  // The session of the stream being discarded, so a room turn that starts
+  // meanwhile (another member's prompt) still renders; null when unknown.
+  let discardSessionId: string | null = null
+  let lastStreamSessionId: string | null = null
+
+  /** Whether `msg` belongs to the stream a clear discarded. */
+  function isDiscarded(msg: Record<string, unknown>): boolean {
+    if (!discardInFlightStream) return false
+    const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : null
+    return discardSessionId === null || sessionId === null || sessionId === discardSessionId
+  }
+
+  // Room prompts (broadcastReply): rendered once per turn, the turn named by
+  // its run id (a live echo's session maps to it through the run-id metadata
+  // frame; a replayed echo carries it as its session).
+  const RUN_ID_KEY = 'X-Atmosphere-Run-Id'
+  const MAX_TRACKED_TURNS = 64
+  const runOfSession = new Map<string, string>()
+  const renderedPromptTurns = new Set<string>()
+  function remember(set: Set<string>, value: string) {
+    set.add(value)
+    if (set.size > MAX_TRACKED_TURNS) set.delete(set.values().next().value as string)
+  }
+
+  // This tab's room member ids (roomMemberId of each tracking id it had), kept
+  // in sessionStorage so a prompt it sent before a reload, replayed with its
+  // run, renders as its own bubble rather than another member's.
+  const OWN_MEMBER_IDS_KEY = 'atmosphere.console.roomMemberIds'
+  const MAX_OWN_MEMBER_IDS = 8
+  function ownMemberIds(): string[] {
+    try {
+      const raw = sessionStorage.getItem(OWN_MEMBER_IDS_KEY)
+      const ids = raw ? JSON.parse(raw) : []
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
+    } catch {
+      return []
+    }
+  }
+  /** Record this connection's member id; returns it ('' while unknown). */
+  function rememberOwnMemberId(): string {
+    const id = roomMemberId(transport?.uuid)
+    if (!id) return ''
+    const ids = ownMemberIds()
+    if (!ids.includes(id)) {
+      try {
+        sessionStorage.setItem(OWN_MEMBER_IDS_KEY, JSON.stringify([...ids, id].slice(-MAX_OWN_MEMBER_IDS)))
+      } catch { /* storage unavailable: own prompts after a reload show as a member's */ }
+    }
+    return id
+  }
 
   /**
    * Turn whatever shape the server emits for an error into a compact
@@ -237,7 +289,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     switch (type) {
       case 'streaming-text':
       case 'text-delta':
-        if (discardInFlightStream) break
+        if (isDiscarded(msg)) break
+        if (typeof msg.sessionId === 'string') lastStreamSessionId = msg.sessionId
         // A reply this client did not send() for — a run it reattached to
         // after a reload, a room reply — streams like one it did: the turn is
         // in flight until its complete/error/cancelled frame.
@@ -252,7 +305,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         )
         break
       case 'complete': {
-        if (discardInFlightStream) {
+        if (isDiscarded(msg)) {
           discardInFlightStream = false
           break
         }
@@ -268,7 +321,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         break
       }
       case 'error': {
-        if (discardInFlightStream) {
+        if (isDiscarded(msg)) {
           discardInFlightStream = false
           break
         }
@@ -287,12 +340,41 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       case 'cancelled': {
         // The run's one terminal frame when the server cut it short: the
         // answer so far stays, marked as cut off — not an error.
-        if (discardInFlightStream) {
+        if (isDiscarded(msg)) {
           discardInFlightStream = false
           break
         }
         appendToAssistant(`\n\n*${cancelledNotice(msg.data)}*`)
         finalizeAssistant()
+        break
+      }
+      case 'prompt': {
+        // A room member's prompt (@AiEndpoint(broadcastReply = true)), echoed
+        // to the room as the turn's first frame, and replayed with the run to
+        // a client that reattaches. `from` is the sender's room member id,
+        // never its tracking id. Rendered once per turn: this connection's own
+        // prompt is already on screen (the optimistic bubble send() added); a
+        // prompt this tab sent before a reload comes back as its own bubble;
+        // another member's becomes a user bubble labelled with its member id.
+        // The reply that follows opens a bubble of its own.
+        const text = typeof msg.text === 'string' ? msg.text : ''
+        const from = typeof msg.from === 'string' ? msg.from : ''
+        const sessionId = typeof msg.sessionId === 'string' ? msg.sessionId : ''
+        const turn = runOfSession.get(sessionId) ?? sessionId
+        if (!text || (turn && renderedPromptTurns.has(turn))) break
+        if (turn) remember(renderedPromptTurns, turn)
+        const current = rememberOwnMemberId()
+        if (from && from === current) break
+        flushAssistant()
+        currentAssistantMessage = null
+        const own = !!from && ownMemberIds().includes(from)
+        messages.value = [...messages.value, {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: text,
+          timestamp: Date.now(),
+          ...(from && !own ? { author: `Member ${from.slice(0, 4)}` } : {}),
+        }]
         break
       }
       case 'progress':
@@ -306,6 +388,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         // DefaultStreamingSession), normalized here into a keyed record;
         // frames without a top-level key fall back to a data payload map.
         // The same record feeds the per-turn governance guidance panel.
+        if (msg.key === RUN_ID_KEY && typeof msg.value === 'string' && typeof msg.sessionId === 'string') {
+          // A turn's run id: its prompt replayed on a reattach comes under it.
+          runOfSession.set(msg.sessionId, msg.value)
+          if (runOfSession.size > MAX_TRACKED_TURNS) {
+            runOfSession.delete(runOfSession.keys().next().value as string)
+          }
+        }
         const frame = normalizeMetadataFrame(msg)
         routing.value = mergeRoutingMetadata(routing.value, frame)
         governanceFeedback.value = mergeGovernanceFeedback(governanceFeedback.value, frame)
@@ -638,6 +727,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         onRawText: appendToAssistant,
       })
       await transport.connect()
+      rememberOwnMemberId()
     } catch (e) {
       // Transport construction/connect failed terminally (e.g. the reported
       // transport's adapter isn't in this build). Fail loud, not blank.
@@ -679,6 +769,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // frame). The wire envelope itself is the transport's dialect concern.
     // Offline sends stream nothing until the queue drains on reopen.
     isStreaming.value = !broadcastMode.value && !room && !offlineSend
+    rememberOwnMemberId()
     transport.send(text.trim())
   }
 
@@ -716,6 +807,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // bubble and the empty state would never return.
     if (isStreaming.value) {
       discardInFlightStream = true
+      discardSessionId = lastStreamSessionId
       isStreaming.value = false
     }
     messages.value = []

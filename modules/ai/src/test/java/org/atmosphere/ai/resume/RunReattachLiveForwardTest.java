@@ -119,6 +119,48 @@ class RunReattachLiveForwardTest {
         }
     }
 
+    /**
+     * The prompt that started a room run is the run's first event: a client
+     * that reattaches mid-run, the prompter or another member, is replayed it
+     * once, as the {@code prompt} frame (the prompt in {@code text}, the
+     * prompter's tracking id in {@code from}), ahead of the reply.
+     */
+    @Test
+    void aMidRunReattachIsReplayedTheRoomRunsPromptOnceAheadOfTheReply() {
+        var registry = new RunRegistry();
+        var execution = new ExecutionHandle.Settable(() -> { });
+        var handle = registry.register("harness", "anonymous", "prompter",
+                execution, RunEventReplayBuffer.forRoomRun(null, null, "room"), null);
+        var buffer = handle.replayBuffer();
+        buffer.capture("prompt", "what is 2+2?");
+        buffer.capture("streaming-text", "fo");
+        try {
+            for (var tracking : List.of("bystander", "prompter")) {
+                var out = new StringWriter();
+                var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+                when(resource.uuid()).thenReturn(tracking);
+                assertEquals(2, RunReattachSupport.replayPendingRun(resource, registry), tracking);
+                if ("prompter".equals(tracking)) {
+                    // The prompter listens to the rest of the run: no second prompt follows.
+                    buffer.capture("streaming-text", "ur");
+                    buffer.capture("complete", "");
+                }
+                var frames = frames(out);
+                var prompts = frames.stream().filter(f -> f.contains("\"type\":\"prompt\"")).toList();
+                assertEquals(1, prompts.size(), tracking + " is replayed the prompt once: " + frames);
+                assertTrue(prompts.get(0).contains("\"text\":\"what is 2+2?\""), prompts.get(0));
+                assertTrue(prompts.get(0).contains("\"from\":\"" + org.atmosphere.ai.RoomMemberIds.of("prompter") + "\""),
+                        prompts.get(0));
+                assertFalse(prompts.get(0).contains("\"prompter\""), "never the tracking id: " + prompts.get(0));
+                assertFalse(prompts.get(0).contains("\"data\""), "never in data: " + prompts.get(0));
+                assertEquals(frames.get(0), prompts.get(0), "the prompt comes first: " + frames);
+            }
+        } finally {
+            execution.complete();
+            RunDisconnectGrace.runEnded(handle.runId());
+        }
+    }
+
     @Test
     void aReconnectAfterTheRunFinishedStillReplaysItsTail() {
         var registry = new RunRegistry();

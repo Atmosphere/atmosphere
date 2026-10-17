@@ -113,6 +113,11 @@ export class AtmosphereChatTransport implements ChatTransport {
     private readonly handlers: ChatTransportHandlers,
   ) {}
 
+  /** The live subscription's tracking id (`X-Atmosphere-tracking-id`), if any. */
+  get uuid(): string | undefined {
+    return this.subscription?.uuid
+  }
+
   async connect(): Promise<void> {
     const { options, handlers } = this
     this.atmosphere = new Atmosphere({ logLevel: 'debug' })

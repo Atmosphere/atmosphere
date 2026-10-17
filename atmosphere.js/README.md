@@ -1165,6 +1165,11 @@ console.log('Session:', handle.sessionId);
 await handle.close();
 ```
 
+On an `@AiEndpoint(broadcastReply = true)` room, `onPrompt(text, from, own)` reports
+each member's prompt, which the server echoes to the room ahead of its reply
+(`own` is `true` for this connection's own prompt); `useStreamingRN` takes the same
+`onPrompt` option.
+
 For framework-specific wrappers, see `useStreaming` (React/Vue) and `createStreamingStore` (Svelte) in the [Framework Hooks](#framework-hooks) section above.
 
 ### Lifecycle hooks (resilience)

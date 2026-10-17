@@ -300,7 +300,7 @@ class AiEndpointHandlerRoomRunTest {
         assertEquals(List.of("streaming-text:only", "cancelled:disconnect"), text(member),
                 "the prompter gone, the room is told the run ended");
         awaitRunEnd();
-        assertEquals(text(member), replayed(), "the replay ends with what the room received");
+        assertEquals(promptThen(text(member)), replayed(), "the replay ends with what the room received");
         assertTrue(DefaultStreamingSession.deliveryForSession(sessionIdOf(member)).isEmpty(),
                 "the run's end closed the session that broadcast it to the room");
     }
@@ -366,7 +366,8 @@ class AiEndpointHandlerRoomRunTest {
         assertEquals(List.of("streaming-text:partial ", "streaming-text:rest", "complete"), text(reader),
                 "the whole answer reaches the client");
         awaitRunEnd();
-        assertEquals(text(reader), replayed(), "the replay ends with what the client received");
+        assertEquals(toRoom ? promptThen(text(reader)) : text(reader), replayed(),
+                "the replay ends with what the client received; a room run's starts with its prompt");
     }
 
     /**
@@ -390,7 +391,8 @@ class AiEndpointHandlerRoomRunTest {
 
         assertEquals(List.of("streaming-text:async", "complete"), text(reader), "the reply reaches the client");
         awaitRunEnd();
-        assertEquals(text(reader), replayed(), "the replay ends with what the client received");
+        assertEquals(toRoom ? promptThen(text(reader)) : text(reader), replayed(),
+                "the replay ends with what the client received; a room run's starts with its prompt");
     }
 
     /**
@@ -411,7 +413,7 @@ class AiEndpointHandlerRoomRunTest {
 
         assertEquals(List.of("streaming-text:first", "cancelled:operator"), text(member),
                 "the room is told the run was cut short, and is sent nothing after it");
-        assertEquals(text(member), replayed(), "the replay ends with what the room received");
+        assertEquals(promptThen(text(member)), replayed(), "the replay ends with what the room received");
     }
 
     /**
@@ -807,7 +809,7 @@ class AiEndpointHandlerRoomRunTest {
 
         runtime.finish();
         awaitTerminal(member);
-        assertEquals(List.of("streaming-text:partial "), describe(lines(out)),
+        assertEquals(List.of("prompt:explain", "streaming-text:partial "), describe(lines(out)),
                 "the reloaded page is replayed what it missed; the room delivers it the rest");
         assertEquals(List.of("streaming-text:partial ", "streaming-text:rest", "complete"), text(member));
     }
@@ -828,7 +830,7 @@ class AiEndpointHandlerRoomRunTest {
         lose(prompter);
         var out = new StringWriter();
         reconnect("reloaded-" + UUID.randomUUID(), null, out);
-        assertEquals(List.of("streaming-text:partial "), describe(lines(out)), "the reloaded page gets the replay");
+        assertEquals(List.of("prompt:explain", "streaming-text:partial "), describe(lines(out)), "the reloaded page gets the replay");
         assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
                 "an anonymous room's run is cancelled when the grace ends, a reloaded prompter or not");
         awaitTerminal(member);
@@ -1015,7 +1017,7 @@ class AiEndpointHandlerRoomRunTest {
             return RUN_ID.get();
         });
         assertEquals(1, streamed.get(), "the run streamed between the suspend and the replay");
-        assertEquals(List.of("streaming-text:partial "), describe(lines(out)),
+        assertEquals(List.of("prompt:explain", "streaming-text:partial "), describe(lines(out)),
                 "the frame captured after the member joined its room is left to the room");
         runtime.finish();
     }
@@ -1128,6 +1130,17 @@ class AiEndpointHandlerRoomRunTest {
         return run.replayBuffer().snapshot().stream()
                 .map(e -> e.payload() == null || e.payload().isEmpty() ? e.type() : e.type() + ":" + e.payload())
                 .toList();
+    }
+
+    /**
+     * What a room run's replay holds for {@code frames} received: the echo of
+     * the prompt that started the run ("explain"), its first event, then them.
+     */
+    private static List<String> promptThen(List<String> frames) {
+        var out = new ArrayList<String>();
+        out.add("prompt:explain");
+        out.addAll(frames);
+        return out;
     }
 
     private static String last(List<String> frames) {
@@ -1324,7 +1337,8 @@ class AiEndpointHandlerRoomRunTest {
         var out = new ArrayList<String>();
         for (var frame : json) {
             var msg = AiStreamMessage.parse(frame);
-            out.add(msg == null ? frame : msg.data() == null || msg.data().isEmpty() ? msg.type()
+            out.add(msg == null ? frame : msg.isPrompt() ? "prompt:" + msg.text()
+                    : msg.data() == null || msg.data().isEmpty() ? msg.type()
                     : msg.type() + ":" + msg.data());
         }
         return out;

@@ -8,6 +8,8 @@ import type { ChatTransportHandlers } from '../transports'
 // feed it the exact frames a server emits, without a socket.
 let handlers: ChatTransportHandlers
 const sent: string[] = []
+// The tracking id the mocked transport reports; undefined for one that has none.
+let transportUuid: string | undefined = 'tab-self'
 
 vi.mock('../transports', () => ({
   createChatTransport: vi.fn(async (
@@ -18,6 +20,7 @@ vi.mock('../transports', () => ({
     handlers = h
     queueMicrotask(() => h.onOpen?.())
     return {
+      get uuid() { return transportUuid },
       connect: async () => {},
       send: (text: string) => { sent.push(text) },
       close: () => {},
@@ -27,6 +30,7 @@ vi.mock('../transports', () => ({
 
 import { useAtmosphereChat } from './useAtmosphereChat'
 import ChatInput from '../components/ChatInput.vue'
+import ChatMessage from '../components/ChatMessage.vue'
 
 /**
  * Mount the composable inside a component that actually renders the messages.
@@ -347,5 +351,151 @@ describe('a reply this client did not send for', () => {
 
     handlers.onEvent?.({ type: 'streaming-text', data: 'late' })
     expect(chat.isStreaming.value).toBe(false)
+  })
+})
+
+describe('a broadcastReply room', () => {
+  // roomMemberId('tab-self') and roomMemberId('tab-before-reload'): the room
+  // names members by these, never by their tracking ids.
+  const SELF = '8b41605f4f4f611de1d4907b3de0e97f'
+  const BEFORE_RELOAD = 'b9474c500e478a9a54e86202cb07a7c8'
+
+  beforeEach(() => {
+    transportUuid = 'tab-self'
+    sessionStorage.clear()
+  })
+
+  /** Every message through the real ChatMessage bubble, as ChatContainer renders it. */
+  async function mountRoom() {
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    const wrapper = mount(defineComponent({
+      setup() {
+        const chat = useAtmosphereChat('/atmosphere/classroom/math')
+        state.chat = chat
+        return () => h('div', chat.messages.value.map(m => h(ChatMessage, { message: m, key: m.id })))
+      },
+    }))
+    await nextTick()
+    await new Promise(resolve => queueMicrotask(() => resolve(null)))
+    return { chat: state.chat!, wrapper }
+  }
+
+  type Bubble = { classes(): string[]; find(s: string): { text(): string } }
+  const bubbles = (wrapper: { findAll: (s: string) => Bubble[] }) =>
+    wrapper.findAll('[data-testid="message-bubble"]').map(b => ({
+      user: b.classes().includes('message--user'),
+      text: b.find('.message-content').text(),
+    }))
+
+  it("renders another member's prompt as a user bubble, and its reply in a bubble of its own", async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'prompt', text: 'what is 2+2?', from: 'member-b-uuid', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'four', sessionId: 's1', seq: 3 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 4 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'what is 2+2?' },
+      { user: false, text: 'four' },
+    ])
+    expect(wrapper.find('[data-testid="message-author"]').text()).toContain('Member memb')
+  })
+
+  it('a second prompt ends the reply in progress, so the next reply does not run into it', async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'prompt', text: 'first?', from: 'member-b-uuid', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'one', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'prompt', text: 'second?', from: 'member-c-uuid', sessionId: 's2', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'two', sessionId: 's2', seq: 2 })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'first?' },
+      { user: false, text: 'one' },
+      { user: true, text: 'second?' },
+      { user: false, text: 'two' },
+    ])
+  })
+
+  it('skips the echo of its own prompt: the optimistic bubble is already there', async () => {
+    const { chat, wrapper } = await mountRoom()
+    chat.send('my question')
+    await nextTick()
+
+    handlers.onEvent({ type: 'prompt', text: 'my question', from: SELF, sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'answer', sessionId: 's1', seq: 3 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 4 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'my question' },
+      { user: false, text: 'answer' },
+    ])
+  })
+
+  it('renders a prompt replayed on a reattach once, without splitting the reply under way', async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-1', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'prompt', text: 'q?', from: 'member-b', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'par', sessionId: 's1', seq: 3 })
+    // The reattach replays the run under its run id.
+    handlers.onEvent({ type: 'prompt', text: 'q?', from: 'member-b', sessionId: 'run-1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'tial', sessionId: 's1', seq: 4 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 5 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'q?' },
+      { user: false, text: 'partial' },
+    ])
+  })
+
+  it('renders its own prompt replayed after a reload as its own bubble, with no member label', async () => {
+    sessionStorage.setItem('atmosphere.console.roomMemberIds', JSON.stringify([BEFORE_RELOAD]))
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'prompt', text: 'asked before the reload', from: BEFORE_RELOAD, sessionId: 'run-9', seq: 1 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([{ user: true, text: 'asked before the reload' }])
+    expect(wrapper.find('[data-testid="message-author"]').exists()).toBe(false)
+  })
+
+  it('renders every room prompt when its transport has no tracking id', async () => {
+    transportUuid = undefined
+    const { chat, wrapper } = await mountRoom()
+    chat.send('mine')
+    await nextTick()
+
+    handlers.onEvent({ type: 'prompt', text: 'theirs', from: SELF, sessionId: 's1', seq: 1 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'mine' },
+      { user: true, text: 'theirs' },
+    ])
+  })
+
+  it("does not bring a cleared turn's late text back when another member's prompt arrives", async () => {
+    const { chat, wrapper } = await mountRoom()
+    chat.send('mine')
+    handlers.onEvent({ type: 'streaming-text', data: 'cleared ', sessionId: 's1', seq: 1 })
+    await nextTick()
+    chat.clearMessages()
+
+    handlers.onEvent({ type: 'prompt', text: 'theirs?', from: 'member-b', sessionId: 's2', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'late', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'reply', sessionId: 's2', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's2', seq: 3 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'theirs?' },
+      { user: false, text: 'reply' },
+    ])
   })
 })

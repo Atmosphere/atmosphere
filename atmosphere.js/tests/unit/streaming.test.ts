@@ -98,6 +98,99 @@ describe('parseStreamingMessage', () => {
   it('should return null for unknown type', () => {
     expect(parseStreamingMessage('{"type":"unknown","sessionId":"a","seq":1}')).toBeNull();
   });
+
+  it('should parse a room prompt echo, its prompt in text', () => {
+    const raw = '{"type":"prompt","text":"What is 2+2?","from":"member-a","sessionId":"abc-123","seq":1}';
+    expect(parseStreamingMessage(raw)).toEqual({
+      type: 'prompt',
+      text: 'What is 2+2?',
+      from: 'member-a',
+      sessionId: 'abc-123',
+      seq: 1,
+    });
+  });
+});
+
+describe('subscribeStreaming room prompts', () => {
+  let capturedHandlers: SubscriptionHandlers<string>;
+  const frame = (body: string) => capturedHandlers.message!({
+    responseBody: body,
+    status: 200,
+    reasonPhrase: 'OK',
+    messages: [],
+    headers: {},
+    state: 'messageReceived',
+    transport: 'websocket',
+    error: null,
+  });
+
+  async function subscribe(handlers: StreamingHandlers) {
+    const subscription = {
+      id: 'sub-1',
+      uuid: 'me',
+      state: 'connected' as const,
+      push: vi.fn(),
+      close: vi.fn().mockResolvedValue(undefined),
+      suspend: vi.fn(),
+      resume: vi.fn().mockResolvedValue(undefined),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+    const atmosphere = {
+      subscribe: vi.fn().mockImplementation((_req, h) => {
+        capturedHandlers = h;
+        return Promise.resolve(subscription);
+      }),
+    } as unknown as Atmosphere;
+    return subscribeStreaming(atmosphere, { url: '/ai/room', transport: 'websocket' }, handlers);
+  }
+
+  it("fires onPrompt with another member's prompt ahead of its reply", async () => {
+    const calls: string[] = [];
+    await subscribe({
+      onPrompt: (text, from, own) => calls.push(`prompt:${text}:${from}:${own}`),
+      onStreamingText: (text) => calls.push(`text:${text}`),
+    });
+
+    frame('{"type":"prompt","text":"What is 2+2?","from":"member-a","sessionId":"turn-1","seq":2}');
+    frame('{"type":"streaming-text","data":"four","sessionId":"turn-1","seq":3}');
+
+    expect(calls).toEqual(['prompt:What is 2+2?:member-a:false', 'text:four']);
+  });
+
+  it('reports a later turn\'s prompt without leaving the session it follows', async () => {
+    const onPrompt = vi.fn();
+    const onStreamingText = vi.fn();
+    await subscribe({ onPrompt, onStreamingText });
+
+    frame('{"type":"streaming-text","data":"mine","sessionId":"turn-1","seq":1}');
+    frame('{"type":"prompt","text":"other?","from":"member-b","sessionId":"turn-2","seq":1}');
+    frame('{"type":"streaming-text","data":" too","sessionId":"turn-1","seq":2}');
+
+    expect(onPrompt).toHaveBeenCalledWith('other?', 'member-b', false);
+    expect(onStreamingText).toHaveBeenLastCalledWith(' too', 2);
+  });
+
+  it('flags the echo of its own prompt', async () => {
+    const onPrompt = vi.fn();
+    const onStreamingText = vi.fn();
+    await subscribe({ onPrompt, onStreamingText });
+
+    // The room names this connection (tracking id "me") by its room member id.
+    frame('{"type":"prompt","text":"hi","from":"08f7d7455edbd74a611646548809f1e8","sessionId":"turn-1","seq":2}');
+
+    expect(onPrompt).toHaveBeenCalledWith('hi', '08f7d7455edbd74a611646548809f1e8', true);
+    expect(onStreamingText).not.toHaveBeenCalled();
+  });
+
+  it('does not take a frame naming its raw tracking id for its own prompt', async () => {
+    const onPrompt = vi.fn();
+    await subscribe({ onPrompt });
+
+    frame('{"type":"prompt","text":"hi","from":"me","sessionId":"turn-1","seq":2}');
+
+    expect(onPrompt).toHaveBeenCalledWith('hi', 'me', false);
+  });
 });
 
 describe('subscribeStreaming', () => {

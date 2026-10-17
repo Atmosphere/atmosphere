@@ -362,6 +362,16 @@ public @interface AiEndpoint {
      * would drive N redundant LLM calls and leak streams into tabs that never
      * asked anything.</p>
      *
+     * <p>Every member also sees the prompt: once the turn is admitted (by
+     * {@code session.stream(...)}'s guardrails, policies and per-request scope,
+     * or, for a {@code @Prompt} method that answers without it, with its first
+     * reply text, once the request guardrails let the prompt through), the room
+     * is sent
+     * {@code {"type":"prompt","text":<prompt>,"from":<sender's room member id>,"sessionId":..,"seq":n}}
+     * ahead of the reply, through the room's broadcast filters. A prompt the
+     * admission refuses and an approval answer are never shown to the room.
+     * The frame is replayed with the run to a client that reattaches.</p>
+     *
      * <p>A long-polling member of the room receives the reply whole on its next
      * poll, as a client receives its own reply over long-polling, even when none
      * of its polls waited while the reply ran, within the bounds of a
