@@ -186,40 +186,35 @@ function Classroom({
       console.error('[atmosphere] reconnect attempts exhausted'),
   });
 
-  // Update assistant message as tokens arrive
-  useEffect(() => {
-    if (!fullText) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      if (last && last.role === 'assistant' && !last.complete) {
-        return [
-          ...prev.slice(0, -1),
-          { role: 'assistant', text: fullText, complete: false },
-        ];
-      }
-      return [...prev, { role: 'assistant', text: fullText, complete: false }];
-    });
-  }, [fullText]);
+  // The reply being streamed is derived from fullText at render time, never
+  // copied into `messages` per token: a setState in an effect on every token
+  // chains one commit into the next and, on a fast long reply, React stops it
+  // with "Maximum update depth exceeded". `committedLength` is how much of
+  // fullText already sits in `messages` as a finished reply.
+  const [committedLength, setCommittedLength] = useState(0);
+  const liveText = fullText.slice(committedLength);
 
-  // Mark assistant message complete when streaming stops
+  // When the stream stops, the reply joins `messages` once, as finished.
   useEffect(() => {
-    if (!isStreaming && fullText) {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last && last.role === 'assistant' && !last.complete) {
-          return [...prev.slice(0, -1), { ...last, complete: true }];
-        }
-        return prev;
-      });
-    }
-  }, [isStreaming, fullText]);
+    if (isStreaming || !liveText) return;
+    setMessages((prev) => [...prev, { role: 'assistant', text: liveText, complete: true }]);
+    setCommittedLength(fullText.length);
+  }, [isStreaming, liveText, fullText.length]);
+
+  const shownMessages = useMemo<Message[]>(
+    () =>
+      liveText
+        ? [...messages, { role: 'assistant', text: liveText, complete: !isStreaming }]
+        : messages,
+    [messages, liveText, isStreaming],
+  );
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (messages.length > 0) {
+    if (shownMessages.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages, fullText]);
+  }, [shownMessages]);
 
   // Once the queue drains, the "Queued" footnote on those bubbles is stale.
   useEffect(() => {
@@ -237,7 +232,10 @@ function Classroom({
 
     // Only clear the previous turn when this one is actually going out; a
     // queued send leaves the last answer on screen.
-    if (canSend) reset();
+    if (canSend) {
+      reset();
+      setCommittedLength(0);
+    }
 
     const result = send(text);
     if (result.outcome === 'rejected') {
@@ -308,7 +306,7 @@ function Classroom({
 
       {/* Atmosphere resilience badge — shows transport, reconnect attempt, fallback flag. */}
       <View style={styles.statusRow}>
-        <ConnectionStatusBadgeRN status={connectionStatus} />
+        <ConnectionStatusBadgeRN status={connectionStatus} textStyle={styles.statusText} />
       </View>
 
       {/* Connection status. Gated on canSend, not isConnected: the stream is
@@ -345,7 +343,7 @@ function Classroom({
       >
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={shownMessages}
           renderItem={renderMessage}
           keyExtractor={(_item, index) => String(index)}
           contentContainerStyle={styles.messagesList}
@@ -575,6 +573,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'flex-start',
     backgroundColor: ATMOSPHERE.bgCard,
+  },
+  statusText: {
+    color: ATMOSPHERE.textPrimary,
   },
 
   // Banners
