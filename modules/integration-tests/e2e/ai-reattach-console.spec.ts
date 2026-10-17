@@ -129,10 +129,23 @@ test.describe('Console reattaches to the in-flight answer across a reload', () =
       await page.reload();
       await expect(page.getByText(/^Connected\b/).first()).toBeVisible({ timeout: 20_000 });
 
+      // While the rest streams in, the reattached run is a turn in flight, as
+      // one the page started: the streaming indicator shows and Send is off,
+      // even with a question typed.
+      const indicator = page.locator('.streaming-indicator');
+      const sendButton = page.getByTestId('chat-send');
+      await page.getByTestId('chat-input').fill('a question typed while the answer streams');
+      await expect(indicator, 'the reattached run must show as streaming').toBeVisible({ timeout: 15_000 });
+      expect((await modelCall(prompt))?.state, 'the streaming state must be seen mid-answer').toBe('RUNNING');
+      await expect(sendButton, 'Send must be off while the reattached answer streams').toBeDisabled();
+
       // The rest of the answer arrives in the reloaded Console: one assistant
       // bubble holding the whole answer, nothing repeated, no cancellation.
       await expect.poll(async () => (await assistantTexts(page)).join('\n'),
         { timeout: 20_000, message: 'the reloaded Console never rendered the whole answer' }).toContain('t11');
+      // The complete frame ends the turn: idle again, Send back on.
+      await expect(indicator, 'the Console must be idle after complete').toBeHidden({ timeout: 5_000 });
+      await expect(sendButton, 'Send must be back on after complete').toBeEnabled();
       const bubbles = await assistantTexts(page);
       expect(bubbles.length, `one assistant bubble: ${JSON.stringify(bubbles)}`).toBe(1);
       expect(bubbles[0].replace(/\s+/g, ' ').trim()).toBe(ANSWER);

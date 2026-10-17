@@ -292,3 +292,60 @@ describe('a prompt the server never took', () => {
     expect(chat.connectionState.value).toBe('error')
   })
 })
+
+describe('a reply this client did not send for', () => {
+  beforeEach(() => { sent.length = 0 })
+
+  // After a reload the Console reattaches to the run it was receiving: the
+  // server replays it and streams the rest, with no send() on this page. The
+  // Console must be in the same streaming state as for a turn it started, and
+  // idle again on the run's terminal frame.
+  for (const terminal of [
+    { type: 'complete' },
+    { type: 'error', data: 'boom' },
+    { type: 'cancelled', data: 'disconnect' },
+  ]) {
+    it(`streams like a turn of its own until the ${terminal.type} frame`, async () => {
+      const { chat, wrapper } = await mountChat()
+      expect(chat.isStreaming.value).toBe(false)
+
+      handlers.onEvent?.({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-1' })
+      expect(chat.isStreaming.value).toBe(false)
+      handlers.onEvent?.({ type: 'streaming-text', data: 't00 ' })
+      await nextTick()
+      expect(chat.isStreaming.value).toBe(true)
+      handlers.onEvent?.({ type: 'streaming-text', data: 't01' })
+      expect(chat.isStreaming.value).toBe(true)
+
+      handlers.onEvent?.(terminal)
+      await nextTick()
+      expect(chat.isStreaming.value).toBe(false)
+      expect(rendered(wrapper)).toMatch(/^t00 t01/)
+    })
+  }
+
+  it('disables sending while the reattached reply streams, as for a turn it started', async () => {
+    const { chat } = await mountChat()
+    const input = mount(ChatInput, { props: { disabled: false, isStreaming: chat.isStreaming.value } })
+    await input.find('textarea').setValue('next question')
+
+    handlers.onEvent?.({ type: 'streaming-text', data: 'replayed ' })
+    await input.setProps({ isStreaming: chat.isStreaming.value })
+    expect(input.find('[data-testid="chat-send"]').attributes('disabled')).toBeDefined()
+
+    handlers.onEvent?.({ type: 'complete' })
+    await input.setProps({ isStreaming: chat.isStreaming.value })
+    expect(input.find('[data-testid="chat-send"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('does not stream again for the late text of a conversation the user cleared', async () => {
+    const { chat } = await mountChat()
+    chat.send('hello')
+    handlers.onEvent?.({ type: 'streaming-text', data: 'partial ' })
+    chat.clearMessages()
+    expect(chat.isStreaming.value).toBe(false)
+
+    handlers.onEvent?.({ type: 'streaming-text', data: 'late' })
+    expect(chat.isStreaming.value).toBe(false)
+  })
+})

@@ -238,6 +238,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       case 'streaming-text':
       case 'text-delta':
         if (discardInFlightStream) break
+        // A reply this client did not send() for — a run it reattached to
+        // after a reload, a room reply — streams like one it did: the turn is
+        // in flight until its complete/error/cancelled frame.
+        isStreaming.value = true
         streamTokenCount += 1
         appendToAssistant(
           typeof msg.data === 'string'
