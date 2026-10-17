@@ -202,6 +202,32 @@ class AiEndpointIntentRoutingTest {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
+    void aHandlerLeftUnregisteredByAFailingProviderLetsGoOfItsHolds() throws Exception {
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.newClassInstance(eq(Object.class), any())).thenReturn(new BrokenEndpoint());
+        when(framework.newClassInstance(eq(IntentRoutingProvider.class), eq(BrokenRoutes.class)))
+                .thenReturn(new BrokenRoutes());
+        int sweeperHolders = holders(org.atmosphere.ai.StreamingSessionSweeper.class);
+        int graceHolders = holders(org.atmosphere.ai.resume.RunDisconnectGrace.class);
+
+        new AiEndpointProcessor().handle(framework, (Class) BrokenEndpoint.class);
+
+        // Nothing registered the handler, so nothing would ever destroy it: a
+        // hold it kept would pin the sweeper and grace timer threads for good.
+        assertEquals(sweeperHolders, holders(org.atmosphere.ai.StreamingSessionSweeper.class),
+                "the unregistered handler let go of its sweeper hold");
+        assertEquals(graceHolders, holders(org.atmosphere.ai.resume.RunDisconnectGrace.class),
+                "the unregistered handler let go of its grace-timer hold");
+    }
+
+    private static int holders(Class<?> type) throws Exception {
+        var method = type.getDeclaredMethod("holders");
+        method.setAccessible(true);
+        return (int) method.invoke(null);
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     void openAiAndBatchSurfacesRouteWithTheEndpointsRouting() throws Exception {
         // Drive the processor with both surfaces enabled and send a request
         // through each registered handler: without the endpoint's routing the

@@ -138,6 +138,10 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
+        // A handler holds the shared session sweeper and grace timer from its
+        // construction; one built here but never registered is destroyed below,
+        // since nothing else would ever let go of its holds.
+        AiEndpointHandler unregistered = null;
         try {
             var annotation = annotatedClass.getAnnotation(AiEndpoint.class);
             if (annotation == null) {
@@ -325,6 +329,7 @@ public class AiEndpointProcessor implements Processor<Object> {
                     runtime, interceptors, memory, lifecycle,
                     toolRegistry, guardrails, contextProviders, metrics,
                     broadcastFilters, endpointModel, injectables);
+            unregistered = handler;
 
             // RAG over-fetch + rerank: resolved once per endpoint from the
             // org.atmosphere.ai.rag.* init-params (mirrors CompactionConfig).
@@ -426,6 +431,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             // No-op when no decorators are on the classpath.
             var registeredHandler = applyDecorators(handler, instance, framework, annotation.path());
             framework.addAtmosphereHandler(annotation.path(), registeredHandler, frameworkInterceptors);
+            unregistered = null;
 
             // Opt-in OpenAI-compatible serving (atmosphere.ai.openai.enabled):
             // expose this endpoint as a chat-completions "model" through a
@@ -470,6 +476,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             throw e;
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);
+        } finally {
+            if (unregistered != null) {
+                unregistered.destroy();
+            }
         }
     }
 
