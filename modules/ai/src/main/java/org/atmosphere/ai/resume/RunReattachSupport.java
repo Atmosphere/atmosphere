@@ -762,8 +762,9 @@ public final class RunReattachSupport {
             // disconnect noticed from now on finds a listener and runs no grace.
             RunDisconnectGrace.reattached(runId);
             // The run's session is registered under this connection too, so an
-            // operator's cancel addressed to it and its own departure reach the
-            // run as they reached the connection it started on.
+            // operator's cancel addressed to it reaches the run. Its departure
+            // only drops that registration: this forwarder's own listener ends
+            // the run once nobody listens and the connection it started on is gone.
             org.atmosphere.ai.AiStreamingSession.reattached(runId, resource.uuid());
             var written = 0;
             // A member of the room received the events after it joined through the room.
