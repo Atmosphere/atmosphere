@@ -283,6 +283,9 @@ class AiEndpointHandlerRoomRunTest {
         handler.dispatchPrompt(prompter, "explain");
         awaitRunId();
         awaitPromptReturned();
+        // The room's broadcaster delivers on its own threads: the frame the
+        // @Prompt sent may reach the member after the method returned.
+        awaitText(member, 1);
 
         assertEquals(List.of("streaming-text:only"), text(member), "no end is sent while the prompter is connected");
         assertTrue(RunRegistryHolder.get().lookup(RUN_ID.get()).isPresent(),
@@ -1308,6 +1311,18 @@ class AiEndpointHandlerRoomRunTest {
             }
         }
         throw new AssertionError("no text frame for " + r.uuid());
+    }
+
+    /** Waits for {@code r} to have received at least {@code count} text or terminal frames. */
+    private void awaitText(AtmosphereResource r, int count) throws InterruptedException {
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            if (text(r).size() >= count) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("fewer than " + count + " frames for " + r.uuid() + ": " + written.get(r.uuid()));
     }
 
     private void awaitTerminal(AtmosphereResource r) throws InterruptedException {
