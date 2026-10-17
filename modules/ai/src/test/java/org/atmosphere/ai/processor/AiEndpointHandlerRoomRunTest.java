@@ -114,6 +114,11 @@ class AiEndpointHandlerRoomRunTest {
     private Broadcaster room;
     private AiEndpointHandler handler;
     private final Map<String, List<String>> written = new ConcurrentHashMap<>();
+    /** The connections {@link #reconnect} made, by tracking id. */
+    private final Map<String, AtmosphereResource> reconnected = new ConcurrentHashMap<>();
+    /** The listeners added to each of them, by tracking id. */
+    private final Map<String, List<org.atmosphere.cpr.AtmosphereResourceEventListener>> listeners =
+            new ConcurrentHashMap<>();
 
     @BeforeEach
     void setUp() {
@@ -679,6 +684,70 @@ class AiEndpointHandlerRoomRunTest {
      * writes the events up to that mark only: a frame captured after it, before
      * the replay, reaches the member through the room.
      */
+    /**
+     * In an authenticated room the prompter's other connection — another tab
+     * of the same user, which read the run id from the room's reply — that
+     * reattaches after a blip is the run's own client by its identity. That
+     * connection leaving, or losing its connection, while the one the run
+     * started on is still live is no reason to end the run: the room still
+     * receives it through its {@code complete}. Its departure cancelled the
+     * run at once (a leave) or when the grace expired (a loss).
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void thePromptersOtherConnectionThatReattachedThenDepartsLeavesTheRoomRunGoing(boolean leaves)
+            throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var member = subscriber("bob");
+        var prompter = startRun(runtime, "alice");
+        var otherTab = "other-tab-" + UUID.randomUUID();
+        reconnect(otherTab, "alice", new StringWriter());
+
+        depart(otherTab, leaves);
+
+        // Waits past the grace: a loss treated as the prompter's would cancel the run meanwhile.
+        assertFalse(runtime.cancelled.await(1_500, TimeUnit.MILLISECONDS),
+                "the run its prompter is still connected for is not cancelled");
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "no grace runs for it");
+        assertTrue(RunRegistryHolder.get().lookup(RUN_ID.get()).isPresent(), "the run goes on");
+        runtime.finish();
+        awaitTerminal(member);
+        assertEquals(List.of("streaming-text:partial ", "streaming-text:rest", "complete"), text(member),
+                "the room receives the run through its complete");
+        assertTrue(room.getAtmosphereResources().contains(prompter));
+    }
+
+    /**
+     * The connection the run started on was lost and the prompter reattached
+     * on another one: that connection departing in turn ends the run as the
+     * prompter's departure does — at once when it leaves, when the grace
+     * expires when it is lost.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void aReattachedConnectionDepartingAfterTheOneTheRunStartedOnWasLostEndsTheRun(boolean leaves)
+            throws Exception {
+        System.setProperty(GRACE_PROPERTY, leaves ? "30s" : "300ms");
+        var runtime = new HeldRuntime();
+        var member = subscriber("bob");
+        var prompter = startRun(runtime, "alice");
+        lose(prompter);
+        var otherTab = "reloaded-" + UUID.randomUUID();
+        reconnect(otherTab, "alice", new StringWriter());
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "the reattach rescinds the grace");
+
+        depart(otherTab, leaves);
+
+        if (!leaves) {
+            assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()), "a lost connection detaches the run again");
+        }
+        // Well within the 30s grace for a leave: it is cancelled at once.
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS), "the prompter gone, the run is cancelled");
+        awaitTerminal(member);
+        assertEquals("cancelled:disconnect", last(text(member)), "the room is told the run was cut short");
+    }
+
     @Test
     void theReplayOfAReconnectingRoomMemberStopsAtTheRunEventsBeforeItsSuspend() throws Exception {
         System.setProperty(GRACE_PROPERTY, "30s");
@@ -856,7 +925,15 @@ class AiEndpointHandlerRoomRunTest {
         when(resource.getBroadcaster()).thenReturn(room);
         when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
         when(resource.isSuspended()).thenReturn(true);
-        when(resource.addEventListener(any())).thenReturn(resource);
+        doAnswer(invocation -> {
+            listeners.computeIfAbsent(uuid, k -> new CopyOnWriteArrayList<>()).add(invocation.getArgument(0));
+            return resource;
+        }).when(resource).addEventListener(any());
+        doAnswer(invocation -> {
+            listeners.getOrDefault(uuid, List.of()).remove(invocation.getArgument(0));
+            return resource;
+        }).when(resource).removeEventListener(any());
+        reconnected.put(uuid, resource);
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute("ai.userId")).thenReturn(user);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenAnswer(runId);
@@ -866,6 +943,25 @@ class AiEndpointHandlerRoomRunTest {
         when(request.getAttribute(RunReattachSupport.ROOM_JOIN_MARK_ATTRIBUTE))
                 .thenAnswer(invocation -> attributes.get(RunReattachSupport.ROOM_JOIN_MARK_ATTRIBUTE));
         handler.onRequest(resource);
+    }
+
+    /**
+     * The connection {@link #reconnect} made under {@code uuid} departs: it
+     * leaves ({@code leaves}, closed by the client with the 1000 of a
+     * WebSocket) or its connection is lost. The handler and the listeners the
+     * connection holds are told, as the resource notifies them.
+     */
+    private void depart(String uuid, boolean leaves) throws Exception {
+        var resource = reconnected.get(uuid);
+        var event = mock(AtmosphereResourceEvent.class);
+        when(event.getResource()).thenReturn(resource);
+        when(event.isClosedByClient()).thenReturn(leaves);
+        when(event.isCancelled()).thenReturn(!leaves);
+        assertEquals(!leaves, RunDisconnectGrace.isTransportLoss(event));
+        handler.onStateChange(event);
+        for (var listener : List.copyOf(listeners.getOrDefault(uuid, List.of()))) {
+            listener.onDisconnect(event);
+        }
     }
 
     /** Records what the broadcaster writes to each subscriber. */

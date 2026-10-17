@@ -609,6 +609,11 @@ public class AiStreamingSession implements StreamingSession {
      * the {@code cancelled} frame of {@link RunCancelledException.Reason#DISCONNECT}
      * (Correctness Invariant #2).</p>
      *
+     * <p>A session registered under the connection only because its run's
+     * own client reattached on it ({@link #reattached(String, String)}) is
+     * neither detached nor cancelled: that registration is dropped, and the
+     * run goes on while the connection it started on is live.</p>
+     *
      * @param resourceUuid the atmosphere resource UUID (may be null)
      * @param grace        how long a reattachable run keeps going; zero cancels at once
      * @return the ids of the runs detached rather than cancelled
@@ -623,8 +628,14 @@ public class AiStreamingSession implements StreamingSession {
         }
         var detached = new java.util.ArrayList<String>();
         for (var session : sessions) {
-            // A session its run's client reattached to on this connection is no longer registered under it.
-            session.reattachedUnder.remove(resourceUuid);
+            // A session its run's client reattached to on this connection is
+            // no longer registered under it, and nothing more: the connection
+            // the run started on may still be live. The reattach's own
+            // listener detaches the run again or cancels it when nobody is
+            // left listening and that connection is gone too.
+            if (session.reattachedUnder.remove(resourceUuid)) {
+                continue;
+            }
             try {
                 var detachedRun = session.detachForReattach(grace);
                 if (detachedRun != null) {
@@ -805,9 +816,13 @@ public class AiStreamingSession implements StreamingSession {
      * connection as under the one that started it. An operator's cancel
      * addressed to that connection (the admin plane's
      * {@code cancel-inflight}) and approval responses arriving on it reach
-     * the session, and the connection's own departure detaches the run again
-     * or cancels it, as the departure of the one that started it would. The
-     * registration goes when the turn ends or that connection departs.
+     * the session. A connection other than the one that started the run
+     * departing drops its registration and nothing more: the run's end is
+     * the business of the connection it started on, and of the reattach's
+     * own listener, which detaches the run again (a lost connection) or
+     * cancels it (a leave) when nobody else listens and the connection it
+     * started on is gone too. The registration goes when the turn ends or
+     * that connection departs.
      *
      * @param runId        the run reattached to
      * @param resourceUuid the tracking id of the connection it reattached on

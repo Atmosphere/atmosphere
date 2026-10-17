@@ -104,7 +104,9 @@ cancels it then — or the idle sweep does, when the session stays idle
 returned, however often it writes (`cancelled` `timeout`), whatever became of
 the prompter's connection; the prompter's WebSocket, SSE or streaming reattach
 registers the run's session under the connection it reattached on, so an
-operator's cancel addressed to that connection and its departure reach the run;
+operator's cancel addressed to that connection reaches the run, and that
+connection departing ends it only once nobody else listens and the connection
+the run started on is gone too;
 at most 1,024 such runs per registry are kept live
 (`atmosphere.ai.max-runs-open-after-prompt`), a run past that ending at the
 method's return, as `complete`; the room
