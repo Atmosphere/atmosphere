@@ -889,6 +889,9 @@ class AiEndpointHandlerReattachGraceTest {
                 HeldEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
                 30_000L, "", "/ai/grace", runtime, List.<AiInterceptor>of(),
                 memory, AnnotatedLifecycle.scan(HeldEndpoint.class));
+        // The replay is read right after the connection opened: run it on the
+        // opening thread (AiEndpointHandlerReattachOffOpenThreadTest covers the default).
+        handler.webSocketReattachExecutor(Runnable::run);
     }
 
     /**

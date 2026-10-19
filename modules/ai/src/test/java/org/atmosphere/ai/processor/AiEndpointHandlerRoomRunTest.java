@@ -1092,6 +1092,9 @@ class AiEndpointHandlerRoomRunTest {
                 30_000L, "", PATH, runtime, List.<AiInterceptor>of(), null,
                 AnnotatedLifecycle.scan(endpoint));
         h.setBroadcastReply(toRoom);
+        // The replay is read right after the connection opened: run it on the
+        // opening thread (AiEndpointHandlerReattachOffOpenThreadTest covers the default).
+        h.webSocketReattachExecutor(Runnable::run);
         return h;
     }
 

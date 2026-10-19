@@ -171,6 +171,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final PromptMethodInvoker promptInvoker;
     private final PromptRepollGate repollGate;
     /**
+     * Runs the reattach of a WebSocket connection (its run's replay, then the
+     * rest of the run): never on the thread that opened the connection. A
+     * container may open it on its I/O event loop (Quarkus opens a JSR 356
+     * WebSocket on a Vert.x event loop), where a write waits for the previous
+     * send to complete and that completion runs on the same loop: the replay's
+     * writes would block the loop until the write timeout, then fail.
+     */
+    private volatile java.util.concurrent.Executor webSocketReattach = Thread::startVirtualThread;
+    /**
      * Tracking id of a lost connection -> the release of its conversation memory
      * and tape state, waiting for the runs its loss detached to end. Bounded by
      * those runs: an entry is removed when the last of them ends.
@@ -656,7 +665,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // The poll of a long-polling client whose reply is still running, or
             // waits for its next poll, is not a reconnection: that reply reaches it
             // in full, and replaying the run here would hand it the frames twice.
-            if (resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING
+            if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
+                // Off the thread that opened the connection: see webSocketReattach.
+                webSocketReattach.execute(() -> {
+                    try {
+                        reattachPendingRun(resource);
+                    } catch (RuntimeException e) {
+                        logger.warn("Reattach of WebSocket {} to its run failed", resource.uuid(), e);
+                    }
+                });
+            } else if (resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING
                     || !LongPollingReplies.inFlight(resource.uuid())
                     && !LongPollingReplies.hasParked(resource.uuid(), parkedOwner -> true)) {
                 reattachPendingRun(resource);
@@ -753,6 +771,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // runs are on, re-drive it from the journal to this client.
             maybeResumeCrashedRun(resource, registry);
         }
+    }
+
+    /**
+     * Run the reattach of a WebSocket connection with {@code executor} rather
+     * than on a virtual thread; a test that reads the replay right after the
+     * connection opened runs it on the opening thread.
+     */
+    void webSocketReattachExecutor(java.util.concurrent.Executor executor) {
+        this.webSocketReattach = java.util.Objects.requireNonNull(executor, "executor");
     }
 
     /**
