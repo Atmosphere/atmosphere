@@ -8,6 +8,10 @@ Run samples, scaffold projects, and explore the Atmosphere framework from your t
 curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
 ```
 
+The installer installs the CLI and `samples.json` of its own release (the
+`atmosphere-<version>` tag it prints as `Installer v<version>`). Set
+`ATMOSPHERE_INSTALL_REF=<branch-or-tag>` to install another ref, e.g. `main`.
+
 Or with Homebrew:
 
 ```bash

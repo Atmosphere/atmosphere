@@ -9,7 +9,21 @@ set -e
 VERSION="4.0.75"
 INSTALL_DIR="${ATMOSPHERE_INSTALL_DIR:-/usr/local/bin}"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
-BASE_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli"
+
+# The CLI and samples.json come from the release this installer belongs to: the
+# tag atmosphere-$VERSION, so "Installer v$VERSION" installs CLI $VERSION. The
+# release workflow sets VERSION to each release, so the installer on main names
+# the latest release. A SNAPSHOT installer has no tag and takes main.
+# ATMOSPHERE_INSTALL_REF picks another branch or tag.
+if [ -n "${ATMOSPHERE_INSTALL_REF:-}" ]; then
+    INSTALL_REF="$ATMOSPHERE_INSTALL_REF"
+else
+    case "$VERSION" in
+        *SNAPSHOT*) INSTALL_REF="main" ;;
+        *)          INSTALL_REF="atmosphere-$VERSION" ;;
+    esac
+fi
+BASE_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/$INSTALL_REF/cli"
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
@@ -84,12 +98,14 @@ install_cli() {
     ok "Created $ATMOSPHERE_HOME"
 
     # Download CLI script and samples.json
-    info "Downloading CLI..."
+    info "Downloading CLI ($INSTALL_REF)..."
     tmp_dir=$(mktemp -d)
     trap 'rm -rf "$tmp_dir"' EXIT
 
-    download "$BASE_URL/atmosphere" "$tmp_dir/atmosphere"
-    download "$BASE_URL/samples.json" "$tmp_dir/samples.json"
+    download "$BASE_URL/atmosphere" "$tmp_dir/atmosphere" \
+        || die "could not download the CLI from $INSTALL_REF ($BASE_URL/atmosphere)"
+    download "$BASE_URL/samples.json" "$tmp_dir/samples.json" \
+        || die "could not download samples.json from $INSTALL_REF ($BASE_URL/samples.json)"
 
     chmod +x "$tmp_dir/atmosphere"
 

@@ -2111,6 +2111,75 @@ fi
 
 printf "\n"
 
+# ── install.sh: the CLI comes from the installer's own release ─────────────
+# The curl installer prints "Installer v<VERSION>" but used to download main's
+# cli/atmosphere and samples.json whatever release it belonged to. A shimmed
+# curl records every URL the installer fetches, so no network is used.
+printf "${BOLD}install.sh (fetches its own release)${RESET}\n"
+
+INSTALLER="$SCRIPT_DIR/install.sh"
+inst_tmp=$(mktemp -d)
+mkdir -p "$inst_tmp/bin" "$inst_tmp/dest"
+cat > "$inst_tmp/bin/curl" <<'SHIM'
+#!/bin/sh
+# Records the URL and writes a stub to the -o destination.
+dest="" url=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -o) dest="$2"; shift 2 ;;
+        -*) shift ;;
+        *)  url="$1"; shift ;;
+    esac
+done
+printf '%s\n' "$url" >> "$INSTALL_TEST_URLS"
+printf '#!/bin/sh\n' > "$dest"
+SHIM
+chmod +x "$inst_tmp/bin/curl"
+
+# Runs an installer script with the shim first on PATH; prints the fetched URLs.
+run_installer() {
+    script="$1"; shift
+    : > "$inst_tmp/urls"
+    env PATH="$inst_tmp/bin:$PATH" INSTALL_TEST_URLS="$inst_tmp/urls" \
+        ATMOSPHERE_INSTALL_DIR="$inst_tmp/dest" ATMOSPHERE_HOME="$inst_tmp/home" \
+        "$@" sh "$script" install > "$inst_tmp/out" 2>&1 || true
+    cat "$inst_tmp/urls"
+}
+
+inst_version=$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$INSTALLER")
+raw="https://raw.githubusercontent.com/Atmosphere/atmosphere"
+case "$inst_version" in
+    *SNAPSHOT*) inst_ref="main" ;;
+    *)          inst_ref="atmosphere-$inst_version" ;;
+esac
+
+urls=$(run_installer "$INSTALLER")
+assert_contains "$urls" "$raw/$inst_ref/cli/atmosphere" \
+    "install.sh v$inst_version fetches the CLI from $inst_ref"
+assert_contains "$urls" "$raw/$inst_ref/cli/samples.json" \
+    "install.sh v$inst_version fetches samples.json from $inst_ref"
+if [ "$inst_ref" != "main" ]; then
+    assert_not_contains "$urls" "$raw/main/" "a release installer does not fetch from main"
+fi
+
+# A development (SNAPSHOT) installer has no release tag to fetch from: main.
+sed 's/^VERSION="[^"]*"$/VERSION="9.9.9-SNAPSHOT"/' "$INSTALLER" > "$inst_tmp/install-snapshot.sh"
+urls=$(run_installer "$inst_tmp/install-snapshot.sh")
+assert_contains "$urls" "$raw/main/cli/atmosphere" "a SNAPSHOT installer fetches the CLI from main"
+
+# A pinned release installer fetches that release's tag.
+sed 's/^VERSION="[^"]*"$/VERSION="9.9.9"/' "$INSTALLER" > "$inst_tmp/install-release.sh"
+urls=$(run_installer "$inst_tmp/install-release.sh")
+assert_contains "$urls" "$raw/atmosphere-9.9.9/cli/atmosphere" "a 9.9.9 installer fetches the CLI from atmosphere-9.9.9"
+assert_contains "$urls" "$raw/atmosphere-9.9.9/cli/samples.json" "a 9.9.9 installer fetches samples.json from atmosphere-9.9.9"
+
+# ATMOSPHERE_INSTALL_REF overrides the ref (e.g. to try a branch).
+urls=$(run_installer "$inst_tmp/install-release.sh" ATMOSPHERE_INSTALL_REF=my-branch)
+assert_contains "$urls" "$raw/my-branch/cli/atmosphere" "ATMOSPHERE_INSTALL_REF overrides the ref"
+
+rm -rf "$inst_tmp"
+printf "\n"
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 total=$((PASS + FAIL))
 printf "${BOLD}Results: %s passed, %s failed${RESET} (out of %s)\n\n" "$PASS" "$FAIL" "$total"
