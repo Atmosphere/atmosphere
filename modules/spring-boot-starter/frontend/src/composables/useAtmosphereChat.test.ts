@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import type { ChatTransportHandlers } from '../transports'
@@ -351,6 +351,57 @@ describe('a reply this client did not send for', () => {
 
     handlers.onEvent?.({ type: 'streaming-text', data: 'late' })
     expect(chat.isStreaming.value).toBe(false)
+  })
+})
+
+describe('session stats describe one turn', () => {
+  // 2026-10-19 sweep (classroom): a page that received another member's turn
+  // showed "236 chunks · 34765ms", its own 27-chunk turn plus the member's 209,
+  // timed from its own send. Each turn's stats count that turn alone.
+  let now = 0
+  beforeEach(() => {
+    sent.length = 0
+    transportUuid = 'tab-self'
+    sessionStorage.clear()
+    now = 1_000
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+  })
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it("counts another member's turn on its own, timed from its prompt", async () => {
+    const { chat } = await mountChat()
+    chat.send('mine')
+    handlers.onEvent({ type: 'streaming-text', data: 'a', sessionId: 's1' })
+    handlers.onEvent({ type: 'streaming-text', data: 'b', sessionId: 's1' })
+    now = 2_000
+    handlers.onEvent({ type: 'complete', sessionId: 's1' })
+    expect(chat.stats.value).toMatchObject({ totalStreamingTexts: 2, elapsedMs: 1_000 })
+
+    now = 30_000
+    handlers.onEvent({ type: 'prompt', text: 'theirs?', from: 'member-b-uuid', sessionId: 's2', seq: 1 })
+    now = 30_100
+    for (const t of ['x', 'y', 'z']) handlers.onEvent({ type: 'streaming-text', data: t, sessionId: 's2' })
+    now = 30_400
+    handlers.onEvent({ type: 'complete', sessionId: 's2' })
+
+    expect(chat.stats.value).toMatchObject({ totalStreamingTexts: 3, elapsedMs: 400 })
+  })
+
+  it('counts a reply it did not send for from its first chunk', async () => {
+    // A run reattached after a reload, or a turn whose prompt echo never came.
+    const { chat } = await mountChat()
+    chat.send('mine')
+    handlers.onEvent({ type: 'streaming-text', data: 'a', sessionId: 's1' })
+    now = 2_000
+    handlers.onEvent({ type: 'complete', sessionId: 's1' })
+
+    now = 50_000
+    handlers.onEvent({ type: 'streaming-text', data: 'p', sessionId: 's2' })
+    handlers.onEvent({ type: 'streaming-text', data: 'q', sessionId: 's2' })
+    now = 50_250
+    handlers.onEvent({ type: 'complete', sessionId: 's2' })
+
+    expect(chat.stats.value).toMatchObject({ totalStreamingTexts: 2, elapsedMs: 250 })
   })
 })
 

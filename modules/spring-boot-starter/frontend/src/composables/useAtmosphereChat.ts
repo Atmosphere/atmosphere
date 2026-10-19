@@ -132,8 +132,17 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   let reactivityTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectAttempts = 0
   const MAX_RECONNECT_ON_CLOSE = 10
+  // The stats of the turn in flight: its start (0 while none) and its chunks.
+  // Each turn counts alone: one this page sent from send(), another member's
+  // from its prompt echo, any other reply (a reattached run) from its first
+  // chunk. They used to start only in send(), so a turn the page received
+  // added to the last one it sent, timed from that send.
   let streamStartedAt = 0
   let streamTokenCount = 0
+  function startTurnStats() {
+    streamStartedAt = Date.now()
+    streamTokenCount = 0
+  }
   // Clear-during-stream guard: when the user clears the conversation while a
   // reply is still streaming, the late deltas belong to the cleared
   // conversation and must not resurrect an assistant bubble. Set on clear,
@@ -310,6 +319,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         // after a reload, a room reply — streams like one it did: the turn is
         // in flight until its complete/error/cancelled frame.
         isStreaming.value = true
+        if (streamStartedAt === 0) startTurnStats()
         streamTokenCount += 1
         appendToAssistant(
           typeof msg.data === 'string'
@@ -391,6 +401,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         if (from && from === current) break
         flushAssistant()
         currentAssistantMessage = null
+        // A turn this connection did not send starts here.
+        startTurnStats()
         const own = !!from && ownMemberIds().includes(from)
         messages.value = [...messages.value, {
           id: crypto.randomUUID(),
@@ -683,6 +695,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
     currentAssistantMessage = null
     isStreaming.value = false
+    streamStartedAt = 0
     // The prompt was answered (or its connection closed): a later refused send
     // is not this prompt.
     lastSentUserMessageId = null
@@ -782,8 +795,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     agentSteps.value = {}
     governanceFeedback.value = null
     stats.value = null
-    streamStartedAt = Date.now()
-    streamTokenCount = 0
+    startTurnStats()
     // A new prompt starts a stream the user wants to see, even if a discarded
     // one never delivered its terminal event. Its session is not known yet, so
     // a Clear before its first token discards whatever streams next.
