@@ -129,10 +129,11 @@ public class RoomContextInterceptor implements AiInterceptor {
                         + "Answer questions clearly and concisely. Keep responses under 300 words.",
                 new ScopeConfig(
                         "General educational assistance — broad-band tutoring across "
-                                + "academic subjects",
+                                + "academic subjects, including lessons, worked examples and "
+                                + "study skills",
                         List.of("medical diagnosis", "legal advice", "financial advice"),
                         AgentScope.Breach.POLITE_REDIRECT,
-                        "I can only help with general educational topics.",
+                        "Sorry, I can't help with that request here.",
                         AgentScope.Tier.RULE_BASED, 0.45,
                         false, false, ""));
         return new RoomScopesConfig.Rooms("general", Map.of("general", general));

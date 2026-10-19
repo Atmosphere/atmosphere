@@ -127,7 +127,10 @@ class ClassroomGovernanceE2ETest {
     @Test
     void goal1_scopeCarriesPerRoomRedirectMessage() {
         var science = rooms.byKey().get("science").scope();
-        assertTrue(science.redirectMessage().contains("science room"),
+        var general = rooms.byKey().get("general").scope();
+        assertEquals("That is outside this room's subject — please ask it in another room.",
+                science.redirectMessage(), "per-room redirect messages must survive YAML load");
+        assertEquals("Sorry, I can't help with that request here.", general.redirectMessage(),
                 "per-room redirect messages must survive YAML load");
     }
 

@@ -8,6 +8,19 @@
 # Atmosphere is the only JVM framework with per-request scope install
 # (via REQUEST_SCOPE_METADATA_KEY) — YAML-backed per-room scope turns
 # that Java-only pattern into an ops-controllable configuration surface.
+#
+# The wording matters to the model, not only to the guardrail. The framework
+# quotes purpose, forbiddenTopics and redirectMessage into the system prompt
+# and tells the model to reply with exactly the redirect when a request is
+# out of scope; the scope guardrail does the actual enforcement. Measured on
+# qwen2.5:3b and qwen2.5:7b, three wordings made the model refuse in-scope
+# questions, so avoid them:
+#   - a redirect that names the room's subject ("ask me about a mathematics
+#     topic"): for a math question it reads as the answer;
+#   - a forbidden topic that starts with "writing": it matches "Write a
+#     lesson on ...";
+#   - a purpose that leaves out lessons and worked examples.
+# RoomPromptContractTest pins these rules.
 
 version: "1.0"
 default: general
@@ -20,12 +33,14 @@ rooms:
       responses under 300 words.
     purpose: >
       Mathematics tutoring — arithmetic, algebra, calculus, geometry,
-      statistics, proof technique
+      statistics, proof technique, including lessons, worked examples and
+      step-by-step solutions
     forbiddenTopics:
-      - writing source code
+      - debugging or writing source code in a programming language
       - programming tutorials
+      - poems, stories or other creative writing
     onBreach: POLITE_REDIRECT
-    redirectMessage: "This is the math room — ask me about a mathematics topic instead."
+    redirectMessage: "That is outside this room's subject — please ask it in another room."
     tier: RULE_BASED
     similarityThreshold: 0.45
 
@@ -36,13 +51,14 @@ rooms:
       over cleverness. Keep responses under 300 words.
     purpose: >
       Software engineering mentoring — programming languages, debugging,
-      algorithms, design patterns, testing
+      algorithms, design patterns, testing, including lessons, worked
+      examples and code samples
     forbiddenTopics:
       - medical advice
       - legal advice
       - financial advice
     onBreach: POLITE_REDIRECT
-    redirectMessage: "This is the code room — ask me about a programming topic instead."
+    redirectMessage: "That is outside this room's subject — please ask it in another room."
     tier: RULE_BASED
     similarityThreshold: 0.45
 
@@ -53,13 +69,14 @@ rooms:
       accessible. Keep responses under 300 words.
     purpose: >
       Science education — physics, chemistry, biology, earth science,
-      scientific method
+      scientific method, including lessons, worked examples and experiments
     forbiddenTopics:
-      - writing source code
+      - debugging or writing source code in a programming language
       - programming tutorials
       - medical diagnosis
+      - poems, stories or other creative writing
     onBreach: POLITE_REDIRECT
-    redirectMessage: "This is the science room — ask me about a scientific topic instead."
+    redirectMessage: "That is outside this room's subject — please ask it in another room."
     tier: RULE_BASED
     similarityThreshold: 0.45
 
@@ -69,12 +86,12 @@ rooms:
       concisely. Keep responses under 300 words.
     purpose: >
       General educational assistance — broad-band tutoring across
-      academic subjects
+      academic subjects, including lessons, worked examples and study skills
     forbiddenTopics:
       - medical diagnosis
       - legal advice
       - financial advice
     onBreach: POLITE_REDIRECT
-    redirectMessage: "I can only help with general educational topics."
+    redirectMessage: "Sorry, I can't help with that request here."
     tier: RULE_BASED
     similarityThreshold: 0.45

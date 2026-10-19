@@ -107,19 +107,39 @@ scopes, all swappable from YAML.
 # atmosphere-classroom-scopes.yaml (excerpt)
 rooms:
   math:
-    purpose: Mathematics tutoring — algebra, calculus, geometry, statistics
+    purpose: >
+      Mathematics tutoring — arithmetic, algebra, calculus, geometry,
+      statistics, proof technique, including lessons, worked examples and
+      step-by-step solutions
     forbiddenTopics:
-      - writing source code
-    redirectMessage: "This is the math room — ask me about a mathematics topic."
+      - debugging or writing source code in a programming language
+      - programming tutorials
+      - poems, stories or other creative writing
+    redirectMessage: "That is outside this room's subject — please ask it in another room."
     tier: RULE_BASED
   code:
-    purpose: Software engineering mentoring — languages, debugging, algorithms
+    purpose: >
+      Software engineering mentoring — programming languages, debugging,
+      algorithms, design patterns, testing, including lessons, worked
+      examples and code samples
     forbiddenTopics:
       - medical advice
       - legal advice
-    redirectMessage: "This is the code room — ask me about a programming topic."
+    redirectMessage: "That is outside this room's subject — please ask it in another room."
     tier: RULE_BASED
 ```
+
+The framework also quotes `purpose`, `forbiddenTopics` and `redirectMessage`
+into the system prompt, and tells the model to answer an out-of-scope request
+with exactly the redirect, so their wording changes what the model answers.
+On qwen2.5:3b, a redirect that named the room's subject ("This is the math
+room — ask me about a mathematics topic instead.") was sent back for 15 of 30
+in-scope math questions ("Explain the product rule and the chain rule with
+five worked examples."). A forbidden topic starting with "writing" did the
+same to "Write a lesson on …" on qwen2.5:7b. Keep redirects free of the room's
+subject, keep forbidden topics from matching what students ask for, and name
+lessons and worked examples in the purpose; `RoomPromptContractTest` pins these
+rules. The guardrail, not the model, is what keeps a room on topic.
 
 ### Additional framework-level governance (separate from per-room scope)
 
