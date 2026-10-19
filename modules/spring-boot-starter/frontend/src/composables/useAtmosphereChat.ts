@@ -761,7 +761,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           connectionState.value = 'disconnected'
         },
         onEvent: handleStreamingEvent,
-        onRawText: appendToAssistant,
+        // A broadcast endpoint's bare text frame is a message of its own (two
+        // `posted` broadcasts rendered as one "postedposted" bubble: broadcast
+        // mode has no terminal frame to end a bubble). An AI reply's bare text
+        // deltas still stream into the bubble in progress.
+        onRawText: (text: string) => broadcastMode.value
+          ? appendBroadcastMessage(text)
+          : appendToAssistant(text),
       })
       await transport.connect()
       rememberOwnMemberId()

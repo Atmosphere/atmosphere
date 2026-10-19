@@ -354,6 +354,51 @@ describe('a reply this client did not send for', () => {
   })
 })
 
+describe('a broadcast endpoint', () => {
+  // 2026-10-19 sweep (spring-boot-low-level-handlers): two `posted` broadcasts,
+  // bare text frames, rendered as one bubble "postedposted". Each broadcast is
+  // a message of its own; only an AI reply streams into one bubble.
+  async function mountBroadcast() {
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    const wrapper = mount(defineComponent({
+      setup() {
+        const chat = useAtmosphereChat('/atmosphere/managed/ops', 'broadcast')
+        state.chat = chat
+        return () => h('div', chat.messages.value
+          .filter(m => m.role === 'assistant')
+          .map(m => h('p', { class: 'assistant', key: m.id }, m.content)))
+      },
+    }))
+    await nextTick()
+    await new Promise(resolve => queueMicrotask(() => resolve(null)))
+    return { chat: state.chat!, wrapper }
+  }
+
+  it('renders each bare text broadcast as its own bubble', async () => {
+    const { chat, wrapper } = await mountBroadcast()
+    chat.send('hello')
+    handlers.onRawText('posted')
+    await nextTick()
+    handlers.onRawText('posted')
+    await new Promise(resolve => setTimeout(resolve, 60))
+    await nextTick()
+
+    expect(wrapper.findAll('p.assistant').map(p => p.text())).toEqual(['posted', 'posted'])
+  })
+
+  it('still streams bare text deltas of an AI reply into one bubble', async () => {
+    const { chat, wrapper } = await mountChat()
+    chat.send('hello')
+    handlers.onRawText('one ')
+    await nextTick()
+    handlers.onRawText('two')
+    handlers.onEvent({ type: 'complete' })
+    await nextTick()
+
+    expect(wrapper.findAll('p.assistant').map(p => p.text())).toEqual(['one two'])
+  })
+})
+
 describe('session stats describe one turn', () => {
   // 2026-10-19 sweep (classroom): a page that received another member's turn
   // showed "236 chunks · 34765ms", its own 27-chunk turn plus the member's 209,
