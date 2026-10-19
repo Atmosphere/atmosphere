@@ -79,3 +79,21 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* TeX math in replies, rendered as MathML (lib/markdown.ts) */
+.math-display {
+  display: block;
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.math math {
+  font-size: 1.1em;
+}
+
+.math-source {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+}
