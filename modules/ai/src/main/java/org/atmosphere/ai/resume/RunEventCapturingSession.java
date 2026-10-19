@@ -268,6 +268,21 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         return null;
     }
 
+    /**
+     * Whether the run is over: its replay recorded its end. Not whether the
+     * client this session wrote to is gone: a connection's loss closes the leaf
+     * session, but the run it detached goes on for the reattach grace, into its
+     * replay, and a producer that stops once its session reports closed (the
+     * built-in client stops reading the model's stream, with no terminal frame)
+     * would leave a reattached client a run that neither grows nor ends. The
+     * run's end comes from its own terminal call or, for a client that never
+     * comes back, from the cancel the grace runs (Correctness Invariant #2).
+     */
+    @Override
+    public boolean isClosed() {
+        return buffer.isTerminated();
+    }
+
     // Terminal events go through end: the first one ends the run, so a run
     // that already timed out or completed does not record a second, and the
     // delegate is written one terminal frame, the one of the run's end.
