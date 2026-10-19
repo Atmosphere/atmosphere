@@ -169,16 +169,29 @@ public class WeatherTimeAgent {
                     + "Configure LLM_API_KEY to enable real AI responses.";
         } else if (lower.contains("weather")) {
             return "For weather queries, please use the 'get-weather' skill with a specific location. "
-                    + "Example: {\"skillId\": \"get-weather\", \"location\": \"Montreal\"}";
+                    + "Example SendMessage params: " + skillCallExample("get-weather", "location", "Montreal");
         } else if (lower.contains("time")) {
             return "For time queries, please use the 'get-time' skill with a timezone. "
-                    + "Example: {\"skillId\": \"get-time\", \"timezone\": \"America/New_York\"}";
+                    + "Example SendMessage params: " + skillCallExample("get-time", "timezone", "America/New_York");
         } else {
             return "I received your message: \"" + message + "\". "
                     + "This is a demo response. Configure LLM_API_KEY for your chosen "
                     + "provider (OpenAI / Gemini / Anthropic / Cohere / Ollama / etc.) "
                     + "to get real AI-powered answers via the A2A protocol.";
         }
+    }
+
+    /**
+     * The {@code SendMessage} params that call {@code skillId} with one argument,
+     * in the shape the A2A handler reads: the skill id in
+     * {@code message.metadata.skillId}, the skill's parameters in
+     * {@code arguments}. A parameter placed beside {@code skillId} is never
+     * bound, so the call would run without it.
+     */
+    private static String skillCallExample(String skillId, String param, String value) {
+        return "{\"message\":{\"role\":\"ROLE_USER\",\"parts\":[{\"text\":\"" + value + "\"}],"
+                + "\"messageId\":\"m1\",\"metadata\":{\"skillId\":\"" + skillId + "\"}},"
+                + "\"arguments\":{\"" + param + "\":\"" + value + "\"}}";
     }
 
     /**

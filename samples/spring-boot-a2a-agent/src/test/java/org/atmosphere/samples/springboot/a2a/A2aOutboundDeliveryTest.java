@@ -22,9 +22,14 @@ import org.junit.jupiter.api.Timeout;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -157,6 +162,48 @@ class A2aOutboundDeliveryTest {
             // ...but it must still be a helpful, generic hint.
             assertTrue(result.text().contains("Invalid timezone"),
                     "failure must still carry a generic IANA-format hint; got: " + result.text());
+        }
+    }
+
+    /**
+     * The demo replies tell a caller how to call the parameterised skills. A hint
+     * is only useful if it shows the shape the handler reads: the skill id in
+     * {@code message.metadata.skillId} and the skill's arguments in
+     * {@code arguments}. Each hint's JSON is sent verbatim as the
+     * {@code SendMessage} params and must complete the skill.
+     */
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void demoHintsShowAShapeTheSkillsAccept() throws Exception {
+        assertHintWorks("what time is it?", "Current time in America/New_York");
+        assertHintWorks("what is the weather?", "Weather for Montreal");
+    }
+
+    private void assertHintWorks(String question, String expectedArtifact) throws Exception {
+        String hint;
+        try (var transport = new A2aAgentTransport("atmosphere-assistant", a2aEndpoint())) {
+            AgentResult reply = transport.send("atmosphere-assistant", "ask",
+                    Map.of("message", question));
+            assertTrue(reply.success(), "ask must succeed; got: " + reply.text());
+            hint = reply.text();
+        }
+        int start = hint.indexOf('{');
+        int end = hint.lastIndexOf('}');
+        assertTrue(start >= 0 && end > start, "the demo reply must carry a JSON example; got: " + hint);
+        var params = hint.substring(start, end + 1);
+
+        var body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\",\"params\":" + params + "}";
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(HttpRequest.newBuilder(URI.create(a2aEndpoint()))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(body))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, response.statusCode(), "SendMessage must be accepted; body: " + response.body());
+            assertTrue(response.body().contains("TASK_STATE_COMPLETED"),
+                    "the hint's shape must complete the skill; sent " + params + ", got: " + response.body());
+            assertTrue(response.body().contains(expectedArtifact),
+                    "the skill must answer from the hint's arguments; got: " + response.body());
         }
     }
 }
