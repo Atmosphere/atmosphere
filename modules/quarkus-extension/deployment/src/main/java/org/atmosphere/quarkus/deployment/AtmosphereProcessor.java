@@ -108,6 +108,29 @@ class AtmosphereProcessor {
     }
 
     /**
+     * Index the optional {@code atmosphere-ai} jar so its
+     * {@code @AtmosphereAnnotation} processor — {@code AiEndpointProcessor},
+     * which turns an {@code @AiEndpoint} class into a streaming AI endpoint — is
+     * in the Jandex index and registered as an annotation handler. Without it
+     * the scan still finds the application's {@code @AiEndpoint} class, but no
+     * handler is registered for the annotation and the endpoint is dropped with
+     * only a TRACE log. Gated on the application declaring an
+     * {@code @AiEndpoint} class, for the same native-image reason as the
+     * {@code atmosphere-agent} indexing below. An {@code @AiEndpoint} declared in
+     * a dependency jar rather than the application still needs that jar indexed
+     * ({@code quarkus.index-dependency}), as for {@code @Agent}.
+     */
+    @BuildStep
+    void indexOptionalAiModule(ApplicationIndexBuildItem applicationIndex,
+                               BuildProducer<IndexDependencyBuildItem> indexDependency) {
+        var aiEndpoint = DotName.createSimple("org.atmosphere.ai.annotation.AiEndpoint");
+        if (applicationIndex.getIndex().getAnnotations(aiEndpoint).isEmpty()) {
+            return;
+        }
+        indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-ai"));
+    }
+
+    /**
      * Index the optional {@code atmosphere-agent} and {@code atmosphere-mcp} jars
      * so their {@code @AtmosphereAnnotation} processors — notably
      * {@code AgentProcessor}, which turns an {@code @Agent} class into MCP / A2A /
