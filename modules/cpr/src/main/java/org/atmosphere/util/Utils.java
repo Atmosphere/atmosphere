@@ -118,6 +118,49 @@ public final class Utils {
         }
     }
 
+    /**
+     * The name of the transport a resource's client is connected with, for
+     * reports (admin, MCP, tracing, logs). It is
+     * {@link AtmosphereResource#transport()}'s name, except for a WebTransport
+     * session: it is bridged onto the WebSocket processor and runs with
+     * {@link AtmosphereResource.TRANSPORT#WEBSOCKET} semantics, so
+     * {@code transport()} says {@code WEBSOCKET} while the client is on
+     * HTTP/3. Such a resource carries {@link FrameworkConfig#WEBTRANSPORT_SESSION}
+     * and is reported as {@code WEBTRANSPORT}.
+     *
+     * @param r the resource
+     * @return the upper-case transport name, {@code UNDEFINED} when unknown
+     */
+    public static String transportName(AtmosphereResource r) {
+        if (webTransportSession(r)) {
+            return HeaderConfig.WEBTRANSPORT_TRANSPORT.toUpperCase(java.util.Locale.ROOT);
+        }
+        var transport = r.transport();
+        return transport == null ? AtmosphereResource.TRANSPORT.UNDEFINED.name() : transport.name();
+    }
+
+    private static boolean webTransportSession(AtmosphereResource r) {
+        if (r instanceof AtmosphereResourceImpl impl) {
+            // getRequest(false): a report may run after the request went out of
+            // scope (a disconnect); the snapshot the WebSocket took at open
+            // outlives the request's own attributes, which destroy() clears.
+            var request = impl.getRequest(false);
+            if (request != null && request.getAttribute(FrameworkConfig.WEBTRANSPORT_SESSION) != null) {
+                return true;
+            }
+            var webSocket = impl.webSocket();
+            return webSocket != null && webSocket.attributes() != null
+                    && webSocket.attributes().get(FrameworkConfig.WEBTRANSPORT_SESSION) != null;
+        }
+        try {
+            var request = r.getRequest();
+            return request != null && request.getAttribute(FrameworkConfig.WEBTRANSPORT_SESSION) != null;
+        } catch (IllegalStateException e) {
+            LOGGER.trace("Request of {} no longer in scope", r.uuid(), e);
+            return false;
+        }
+    }
+
     public static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
         return switch (t) {
             case LONG_POLLING -> true;

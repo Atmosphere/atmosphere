@@ -205,4 +205,13 @@ public interface FrameworkConfig {
      * {@link org.atmosphere.interceptor.MessageAckInterceptor}.
      */
     String MESSAGE_ID = "org.atmosphere.message.id";
+    /**
+     * Request attribute marking a connection that arrived over WebTransport
+     * (HTTP/3) and is bridged onto the WebSocket processor. Such a resource
+     * reports {@link AtmosphereResource.TRANSPORT#WEBSOCKET} from
+     * {@link AtmosphereResource#transport()}, the semantics it runs with;
+     * {@link org.atmosphere.util.Utils#transportName(AtmosphereResource)}
+     * reads this marker to report the transport the client actually uses.
+     */
+    String WEBTRANSPORT_SESSION = FrameworkConfig.class.getName() + ".webTransportSession";
 }

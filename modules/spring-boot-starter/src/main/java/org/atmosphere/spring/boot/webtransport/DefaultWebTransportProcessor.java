@@ -129,6 +129,11 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
         // Create a response backed by the bridge WebSocket so writes go through the session
         var bridgeResponse = AtmosphereResponseImpl.newInstance(config, request, bridge);
         bridgeResponse.delegateToNativeResponse(false);
+        // The WebSocket processor rewrites X-Atmosphere-Transport to websocket,
+        // the semantics this session runs with; the marker lets reports name
+        // the transport the client is on (Utils.transportName). Set before
+        // open so the WebSocket's attribute snapshot carries it to every frame.
+        request.setAttribute(org.atmosphere.cpr.FrameworkConfig.WEBTRANSPORT_SESSION, Boolean.TRUE);
         wsProcessor.open(bridge, request, bridgeResponse);
         if (customProtocol != null) {
             customProtocol.onOpen(session);

@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.util.Utils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -273,7 +274,7 @@ public final class FrameworkController {
     private Map<String, Object> resourceSummary(AtmosphereResource r) {
         var info = new LinkedHashMap<String, Object>();
         info.put("uuid", r.uuid());
-        info.put("transport", r.transport().name());
+        info.put("transport", Utils.transportName(r));
         info.put("isSuspended", r.isSuspended());
         info.put("isResumed", r.isResumed());
         return info;

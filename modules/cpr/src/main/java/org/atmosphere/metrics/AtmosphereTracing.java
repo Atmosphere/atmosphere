@@ -29,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +92,7 @@ public class AtmosphereTracing extends AtmosphereInterceptorAdapter {
         Span span = tracer.spanBuilder("atmosphere " + method + " " + path)
                 .setSpanKind(SpanKind.SERVER)
                 .setAttribute(ATTR_UUID, r.uuid())
-                .setAttribute(ATTR_TRANSPORT, r.transport().name())
+                .setAttribute(ATTR_TRANSPORT, Utils.transportName(r))
                 .startSpan();
 
         if (r.getBroadcaster() != null) {

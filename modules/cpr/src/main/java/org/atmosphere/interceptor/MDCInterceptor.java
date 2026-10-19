@@ -18,6 +18,7 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.util.Utils;
 import org.slf4j.MDC;
 
 /**
@@ -39,7 +40,7 @@ public class MDCInterceptor extends AtmosphereInterceptorAdapter {
 
         MDC.put(MDC_UUID, r.uuid());
         if (r.transport() != null) {
-            MDC.put(MDC_TRANSPORT, r.transport().name());
+            MDC.put(MDC_TRANSPORT, Utils.transportName(r));
         }
         if (r.getBroadcaster() != null) {
             MDC.put(MDC_BROADCASTER, r.getBroadcaster().getID());

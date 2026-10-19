@@ -25,6 +25,7 @@ import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.protocol.McpMessage;
+import org.atmosphere.util.Utils;
 import org.atmosphere.util.Version;
 import tools.jackson.databind.ObjectMapper;
 
@@ -64,7 +65,7 @@ public class DemoMcpServer {
         return broadcaster.getAtmosphereResources().stream()
                 .map(r -> Map.of(
                         "uuid", r.uuid(),
-                        "transport", r.transport().name()))
+                        "transport", Utils.transportName(r)))
                 .toList();
     }
 

@@ -33,6 +33,7 @@ import org.atmosphere.config.managed.Encoder;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.util.PayloadTooLargeException;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +129,7 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
             var registry = AgentSessionRegistry.instance();
             var uuid = resource.uuid();
             if ("GET".equalsIgnoreCase(method)) {
-                registry.sessionStarted(uuid, agentName, resource.transport().name());
+                registry.sessionStarted(uuid, agentName, Utils.transportName(resource));
                 resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                     @Override
                     public void onDisconnect(AtmosphereResourceEvent event) {

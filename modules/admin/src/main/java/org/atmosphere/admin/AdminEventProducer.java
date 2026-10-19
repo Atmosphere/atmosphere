@@ -23,6 +23,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.Deliver;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +172,7 @@ public final class AdminEventProducer {
                 return;
             }
             emit(new AdminEvent.ResourceConnected(
-                    r.uuid(), r.transport().name(), b.getID(), Instant.now()));
+                    r.uuid(), Utils.transportName(r), b.getID(), Instant.now()));
 
             // Track disconnections
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
