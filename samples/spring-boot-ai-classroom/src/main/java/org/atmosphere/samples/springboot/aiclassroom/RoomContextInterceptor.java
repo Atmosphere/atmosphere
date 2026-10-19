@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -102,6 +103,23 @@ public class RoomContextInterceptor implements AiInterceptor {
         var selected = rooms.byKey().getOrDefault(key,
                 rooms.byKey().get(rooms.defaultKey()));
         return selected.scope();
+    }
+
+    /**
+     * The room whose persona a runtime's system prompt carries. The framework
+     * puts its scope preamble in front of the persona {@link #preProcess} set,
+     * so the persona is the end of the prompt; searching the whole prompt for a
+     * subject word would also match the preamble's purpose and forbidden topics.
+     */
+    public static Optional<String> roomOfSystemPrompt(String systemPrompt) {
+        if (systemPrompt == null) {
+            return Optional.empty();
+        }
+        var prompt = systemPrompt.strip();
+        return ROOMS.get().byKey().entrySet().stream()
+                .filter(entry -> prompt.endsWith(entry.getValue().systemPrompt().strip()))
+                .map(Map.Entry::getKey)
+                .findFirst();
     }
 
     /** Last-resort rooms when no YAML is on the classpath. */

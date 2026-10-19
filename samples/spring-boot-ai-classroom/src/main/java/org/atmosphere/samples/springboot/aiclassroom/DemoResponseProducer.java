@@ -27,10 +27,12 @@ import org.springframework.stereotype.Component;
  * {@code LLM_API_KEY}. Runs at startup; the framework then drives every
  * demo-mode request through the standard pipeline like any real runtime.
  *
- * <p>The {@link AgentExecutionContext#systemPrompt()} carries the room's
- * persona (installed by {@code RoomContextInterceptor}), so the strategy
- * looks for a lowercase room keyword anywhere in the system prompt to pick
- * the right flavour of canned response.</p>
+ * <p>The {@link AgentExecutionContext#systemPrompt()} ends with the room's
+ * persona (installed by {@code RoomContextInterceptor}), after the framework's
+ * scope preamble. The strategy resolves the room from that persona with
+ * {@link RoomContextInterceptor#roomOfSystemPrompt(String)}; a keyword search
+ * over the whole prompt also matched the preamble, whose forbidden topics name
+ * "source code" in the science room, and answered it as the Code Mentor.</p>
  */
 @Component
 public class DemoResponseProducer {
@@ -40,29 +42,24 @@ public class DemoResponseProducer {
         DemoAgentRuntime.setResponseStrategy(DemoResponseProducer::generateFor);
     }
 
-    private static String generateFor(AgentExecutionContext context) {
-        var system = context.systemPrompt() == null ? "" : context.systemPrompt().toLowerCase();
-        if (system.contains("math")) {
-            return "**Math Tutor**: Great question! Mathematics is all about "
+    static String generateFor(AgentExecutionContext context) {
+        return switch (RoomContextInterceptor.roomOfSystemPrompt(context.systemPrompt()).orElse("")) {
+            case "math" -> "**Math Tutor**: Great question! Mathematics is all about "
                     + "patterns and logical reasoning. In demo mode, I can't compute "
                     + "real answers, but with an API key I'll solve equations step by step.\n\n"
                     + "Set `LLM_API_KEY` to connect to a real AI model.";
-        }
-        if (system.contains("code")) {
-            return "**Code Mentor**: Good software is built on clear abstractions "
+            case "code" -> "**Code Mentor**: Good software is built on clear abstractions "
                     + "and clean design. In demo mode, I can't write real code, but with "
                     + "an API key I'll provide working examples with explanations.\n\n"
                     + "Set `LLM_API_KEY` to connect to a real AI model.";
-        }
-        if (system.contains("science")) {
-            return "**Science Educator**: Science is the art of asking why and "
+            case "science" -> "**Science Educator**: Science is the art of asking why and "
                     + "testing how. In demo mode, I can't give detailed explanations, but "
                     + "with an API key I'll break down complex topics with analogies.\n\n"
                     + "Set `LLM_API_KEY` to connect to a real AI model.";
-        }
-        return "**Classroom AI**: Every student in this room is seeing this "
-                + "response stream in real time — that's Atmosphere's broadcaster "
-                + "at work!\n\n"
-                + "Set `LLM_API_KEY` to connect to a real AI model.";
+            default -> "**Classroom AI**: Every student in this room is seeing this "
+                    + "response stream in real time — that's Atmosphere's broadcaster "
+                    + "at work!\n\n"
+                    + "Set `LLM_API_KEY` to connect to a real AI model.";
+        };
     }
 }
