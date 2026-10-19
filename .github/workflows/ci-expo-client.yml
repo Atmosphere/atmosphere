@@ -1,0 +1,56 @@
+name: "CI: Expo classroom client"
+
+# The Expo client is not a Maven module and no Playwright suite reaches it, so
+# without this workflow its unit tests and type check ran nowhere. It links
+# atmosphere.js by file path, so a client-library change is checked here too.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'samples/spring-boot-ai-classroom/expo-client/**'
+      - 'atmosphere.js/src/**'
+      - 'atmosphere.js/package.json'
+      - '.github/workflows/ci-expo-client.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'samples/spring-boot-ai-classroom/expo-client/**'
+      - 'atmosphere.js/src/**'
+      - 'atmosphere.js/package.json'
+      - '.github/workflows/ci-expo-client.yml'
+
+jobs:
+  test:
+    name: Unit tests + type check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: 22
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: 1.3.4
+
+    - name: Build atmosphere.js (the client links its dist/)
+      working-directory: atmosphere.js
+      run: |
+        npm ci
+        npm run build
+
+    - name: Install
+      working-directory: samples/spring-boot-ai-classroom/expo-client
+      run: bun install --frozen-lockfile
+
+    - name: Unit tests
+      working-directory: samples/spring-boot-ai-classroom/expo-client
+      run: bun test
+
+    - name: Type check
+      working-directory: samples/spring-boot-ai-classroom/expo-client
+      run: bunx tsc --noEmit
