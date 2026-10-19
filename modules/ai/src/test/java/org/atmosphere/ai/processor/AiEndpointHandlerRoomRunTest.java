@@ -26,6 +26,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.filter.AiStreamMessage;
+import org.atmosphere.ai.resume.MessageFramingWriter;
 import org.atmosphere.ai.resume.RunDisconnectGrace;
 import org.atmosphere.ai.resume.RunReattachSupport;
 import org.atmosphere.ai.resume.RunRegistryHolder;
@@ -947,7 +948,7 @@ class AiEndpointHandlerRoomRunTest {
         var otherTab = "reloaded-" + UUID.randomUUID();
         var writer = new SwitchableWriter();
         writer.fail = true;
-        reconnect(otherTab, "alice", new PrintWriter(writer));
+        reconnect(otherTab, "alice", new MessageFramingWriter(writer));
         assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()),
                 "a reattach whose replay failed listens no more: the run waits out its grace again");
 
@@ -981,7 +982,7 @@ class AiEndpointHandlerRoomRunTest {
         lose(prompter);
         var otherTab = "reloaded-" + UUID.randomUUID();
         var writer = new SwitchableWriter();
-        reconnect(otherTab, "alice", new PrintWriter(writer));
+        reconnect(otherTab, "alice", new MessageFramingWriter(writer));
         assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "the reattach rescinds the grace");
 
         writer.fail = true;
@@ -1174,7 +1175,7 @@ class AiEndpointHandlerRoomRunTest {
      * driven through the handler's connect path.
      */
     private void reconnect(String uuid, String user, StringWriter out) throws Exception {
-        reconnect(uuid, user, new PrintWriter(out), invocation -> RUN_ID.get());
+        reconnect(uuid, user, new MessageFramingWriter(out), invocation -> RUN_ID.get());
     }
 
     /** As above, its response written through {@code out}. */
@@ -1184,7 +1185,7 @@ class AiEndpointHandlerRoomRunTest {
 
     /** As above, {@code runId} answering each read of the run id the connection carries. */
     private void reconnect(String uuid, String user, StringWriter out, Answer<Object> runId) throws Exception {
-        reconnect(uuid, user, new PrintWriter(out), runId);
+        reconnect(uuid, user, new MessageFramingWriter(out), runId);
     }
 
     /** As above, its response written through {@code out}. */

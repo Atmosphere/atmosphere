@@ -21,6 +21,7 @@ import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.resume.MessageFramingWriter;
 import org.atmosphere.ai.resume.RunReattachSupport;
 import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
@@ -41,7 +42,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -143,7 +143,7 @@ class AiEndpointHandlerReattachTimeoutTest {
         when(resource.uuid()).thenReturn("reattached");
         when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
         when(resource.getResponse()).thenReturn(response);
-        when(response.getWriter()).thenReturn(new PrintWriter(out));
+        when(response.getWriter()).thenReturn(new MessageFramingWriter(out));
         return resource;
     }
 

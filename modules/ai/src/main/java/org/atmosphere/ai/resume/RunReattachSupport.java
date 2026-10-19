@@ -496,17 +496,28 @@ public final class RunReattachSupport {
             var filters = filtersFor(resource);
             var broadcasterId = broadcasterIdFor(resource);
             long seq = 0;
+            // A transport that frames each write (WebSocket, WebTransport, SSE,
+            // streaming) is written each frame alone, as the live path writes
+            // it: TrackMessageSizeInterceptor measures each write, and a
+            // newline-joined batch measured as one message never parses on a
+            // WebTransport client, which splits on the newlines first.
+            var framePerWrite = forwardsLiveEvents(resource);
             var batch = new StringBuilder();
             for (var ev : replayed) {
                 seq++;
                 var msg = replayFrame(ev, handle, runId, seq);
                 var json = applyFilters(filters, broadcasterId, msg.toJson());
                 if (json != null) {
-                    batch.append(json).append('\n');
+                    if (framePerWrite) {
+                        writer.write(json);
+                        writer.flush();
+                    } else {
+                        batch.append(json).append('\n');
+                    }
                     written++;
                 }
             }
-            // One write of the whole backlog.
+            // Otherwise one write of the whole backlog.
             if (batch.length() > 0) {
                 writer.write(batch.toString());
                 writer.flush();
@@ -1003,7 +1014,13 @@ public final class RunReattachSupport {
             }
             try {
                 var writer = resource.getResponse().getWriter();
-                writer.write(json + "\n");
+                // The frame alone, as the live path broadcasts it: the transport
+                // frames each write (a WebSocket message, an SSE event, the
+                // newline WebTransport appends), and TrackMessageSizeInterceptor
+                // measures what is written here, so a newline of our own would
+                // be counted in the length a WebTransport client, which splits
+                // on the newline first, never reads.
+                writer.write(json);
                 writer.flush();
                 if (writer.checkError()) {
                     throw new java.io.IOException("writer reported an error");

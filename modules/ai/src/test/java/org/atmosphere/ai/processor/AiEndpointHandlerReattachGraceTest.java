@@ -25,6 +25,7 @@ import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.resume.MessageFramingWriter;
 import org.atmosphere.ai.resume.RunDisconnectGrace;
 import org.atmosphere.ai.resume.RunReattachSupport;
 import org.atmosphere.ai.resume.RunRegistry;
@@ -59,7 +60,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.stubbing.Answer;
 
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
@@ -992,7 +992,7 @@ class AiEndpointHandlerReattachGraceTest {
         when(resource.uuid()).thenReturn(uuid);
         when(resource.getRequest()).thenReturn(request);
         when(resource.getResponse()).thenReturn(response);
-        when(response.getWriter()).thenReturn(new PrintWriter(out));
+        when(response.getWriter()).thenReturn(new MessageFramingWriter(out));
         when(resource.getAtmosphereConfig()).thenReturn(config);
         when(resource.getBroadcaster()).thenReturn(room);
         when(resource.transport()).thenReturn(transport);
@@ -1026,7 +1026,7 @@ class AiEndpointHandlerReattachGraceTest {
         when(resource.uuid()).thenReturn("reattached");
         when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
         when(resource.getResponse()).thenReturn(response);
-        when(response.getWriter()).thenReturn(new PrintWriter(out));
+        when(response.getWriter()).thenReturn(new MessageFramingWriter(out));
         return resource;
     }
 

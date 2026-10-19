@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Clock;
 import java.time.Duration;
@@ -368,7 +367,7 @@ class RunReattachLiveForwardTest {
         when(resource.transport()).thenReturn(transport);
         when(resource.getResponse()).thenReturn(response);
         try {
-            when(response.getWriter()).thenReturn(new PrintWriter(out));
+            when(response.getWriter()).thenReturn(new MessageFramingWriter(out));
         } catch (java.io.IOException e) {
             throw new AssertionError("mock cannot throw", e);
         }
