@@ -217,7 +217,11 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleOpen(): void {
-    this.reconnectAttempts = 0;
+    // reconnectAttempts is not reset here: a session counts as healthy only
+    // once it delivered a message (deliver()). One that opens and ends before
+    // that is a failed attempt like a refused handshake, so a server that
+    // accepts the session and then always fails it still runs the quota out
+    // and reaches failureToReconnect (where the Console falls back).
     logger.info('WebTransport connection established');
 
     this.protocol.setPushFunction((msg) => this.send(msg));
@@ -321,7 +325,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
           const message = this.textDecoder.decode(this.incomingBytes);
           this.incomingBytes = new Uint8Array(0);
           if (message.length > 0) {
-            this.handleMessage(message);
+            this.handleTextFrame(message);
           }
         }
         return;
@@ -329,8 +333,23 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       const message = this.textDecoder.decode(this.incomingBytes.slice(0, nlIdx));
       this.incomingBytes = this.incomingBytes.slice(nlIdx + 1);
       if (message.length > 0) {
-        this.handleMessage(message);
+        this.handleTextFrame(message);
       }
+    }
+  }
+
+  /**
+   * Deliver one complete text frame. A frame that fails (the protocol cannot
+   * parse it, e.g. a length prefix that is not a number, or a handler throws)
+   * is dropped with a warning and the session goes on, as a WebSocket message
+   * does: thrown out of the read loop, it closed the session, and the
+   * reconnect was answered with the same frame.
+   */
+  private handleTextFrame(message: string): void {
+    try {
+      this.handleMessage(message);
+    } catch (error) {
+      logger.warn(`WebTransport dropped a frame: ${(error as Error).message}`);
     }
   }
 
@@ -347,7 +366,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       error: null,
       request: this.request,
     };
-    this.notifyMessage(response);
+    this.deliver(response);
   }
 
   private handleMessage(data: string): void {
@@ -380,8 +399,14 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
         error: null,
         request: this.request,
       };
-      this.notifyMessage(response);
+      this.deliver(response);
     }
+  }
+
+  /** Hand a message to the subscriber: the session works, so the reconnect count starts again. */
+  private deliver(response: AtmosphereResponse<T>): void {
+    this.reconnectAttempts = 0;
+    this.notifyMessage(response);
   }
 
   private handleClose(): void {

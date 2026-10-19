@@ -47,8 +47,10 @@ export abstract class BaseTransport<T = unknown> {
   protected _requestCount = 0;
   private _offlineQueue: OfflineQueue | null = null;
   /**
-   * Reconnect attempts made since the connection last opened. Each transport
-   * resets it to 0 on open and increments it when it schedules a reconnect.
+   * Reconnect attempts made since the connection last worked. Each transport
+   * increments it when it schedules a reconnect and resets it to 0 on open;
+   * WebTransport resets it only once a session delivered a message, so
+   * sessions that open and fail at once still run the quota out.
    */
   protected reconnectAttempts = 0;
 

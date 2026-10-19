@@ -151,7 +151,10 @@ describe('WebTransportTransport', () => {
     transport = new WebTransportTransport(request, mockHandlers);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // A test that leaves its transport reconnecting would otherwise connect
+    // through the next test's WebTransport mock and log into its spies.
+    await transport.disconnect();
     vi.clearAllMocks();
     delete (globalThis as any).WebTransport;
   });
@@ -1284,6 +1287,114 @@ describe('WebTransportTransport', () => {
       expect(mockHandlers.message).toHaveBeenCalledWith(
         expect.objectContaining({ responseBody: 'helloworld' }),
       );
+    });
+  });
+
+  describe('a malformed frame', () => {
+    it('is dropped with a warning and the session stays open, as on WebSocket', async () => {
+      // 4.0.75 sweep: a reattach replay the client could not parse ("Message
+      // length ... is not a number") threw out of the read loop, which closed
+      // the session and reconnected — the server replayed again, forever.
+      const request: AtmosphereRequest = {
+        url: 'https://localhost:8080/chat',
+        transport: 'webtransport',
+        trackMessageLength: true,
+        messageDelimiter: '|',
+        reconnect: true,
+        maxReconnectOnClose: 3,
+        reconnectInterval: 5,
+      };
+      transport = new WebTransportTransport(request, mockHandlers);
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await transport.connect();
+      await vi.waitFor(() => {
+        expect(mockReader.read).toHaveBeenCalled();
+      }, { timeout: 5000 });
+
+      mockReader.pushData('{"type":"prompt","seq":1}9{"type"|junk');
+      mockReader.pushData('5|hello');
+
+      await vi.waitFor(() => {
+        expect(mockHandlers.message).toHaveBeenCalledWith(
+          expect.objectContaining({ responseBody: 'hello' }),
+        );
+      }, { timeout: 5000 });
+      expect(mockHandlers.message).toHaveBeenCalledTimes(1);
+      expect(mockHandlers.close).not.toHaveBeenCalled();
+      expect(mockHandlers.reconnect).not.toHaveBeenCalled();
+      expect(mockHandlers.error).not.toHaveBeenCalled();
+      expect((globalThis as any).WebTransport).toHaveBeenCalledTimes(1);
+      expect(transport.state).toBe('connected');
+      expect(consoleWarn.mock.calls.map(([line]) => String(line)))
+        .toEqual([expect.stringContaining('is not a number')]);
+      consoleWarn.mockRestore();
+      await transport.disconnect();
+    });
+  });
+
+  describe('reconnect accounting', () => {
+    /** Every session opens, then ends; `deliver` says which ones first deliver a message. */
+    function sessionsThatEnd(deliver: (session: number) => boolean) {
+      let sessions = 0;
+      (globalThis as any).WebTransport = vi.fn(function() {
+        const session = ++sessions;
+        const r = createMockReader();
+        const inst = createMockTransportInstance(r, createMockWriter());
+        setTimeout(() => {
+          if (deliver(session)) {
+            r.pushData(`message from session ${session}`);
+          }
+          r.pushDone();
+        }, 5);
+        return inst;
+      });
+      return () => sessions;
+    }
+
+    it('counts sessions that end before delivering anything, so the quota runs out', async () => {
+      // Opening is not enough to reset the count: the 4.0.75 Console looped on
+      // sessions that opened and failed at once, every error at attempt=0, and
+      // its WebTransport quota never ran out to fall back to WebSocket.
+      const request: AtmosphereRequest = {
+        url: 'https://localhost:8080/chat',
+        transport: 'webtransport',
+        reconnect: true,
+        maxReconnectOnClose: 2,
+        reconnectInterval: 5,
+      };
+      const sessions = sessionsThatEnd(() => false);
+      transport = new WebTransportTransport(request, mockHandlers);
+      await transport.connect();
+
+      await vi.waitFor(() => {
+        expect(mockHandlers.failureToReconnect).toHaveBeenCalledTimes(1);
+      }, { timeout: 5000 });
+      expect(mockHandlers.reconnect).toHaveBeenCalledTimes(2);
+      expect(sessions()).toBe(3);
+      await transport.disconnect();
+    });
+
+    it('starts the count again once a session delivered a message', async () => {
+      const request: AtmosphereRequest = {
+        url: 'https://localhost:8080/chat',
+        transport: 'webtransport',
+        reconnect: true,
+        maxReconnectOnClose: 1,
+        reconnectInterval: 5,
+      };
+      // Sessions 1 and 2 deliver a message before ending; session 3 does not.
+      const sessions = sessionsThatEnd((session) => session < 3);
+      transport = new WebTransportTransport(request, mockHandlers);
+      await transport.connect();
+
+      await vi.waitFor(() => {
+        expect(mockHandlers.failureToReconnect).toHaveBeenCalledTimes(1);
+      }, { timeout: 5000 });
+      // A reconnect after each delivering session; the quota of one ran out
+      // only on the session that delivered nothing.
+      expect(mockHandlers.reconnect).toHaveBeenCalledTimes(2);
+      expect(sessions()).toBe(3);
+      await transport.disconnect();
     });
   });
 });
