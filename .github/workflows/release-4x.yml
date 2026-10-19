@@ -26,6 +26,11 @@ on:
         required: true
         type: boolean
         default: false
+      skip_sweep_gate:
+        description: 'Emergency only: publish although the sample sweep does not cover this commit. The GitHub release notes say so.'
+        required: true
+        type: boolean
+        default: false
       legacy_js_ref:
         description: 'Legacy 4.x npm publish only: full Atmosphere/atmosphere.js-node commit SHA. When set, every other job is skipped.'
         required: false
@@ -74,6 +79,19 @@ jobs:
           echo "::error::Next dev version must end with -SNAPSHOT: ${{ inputs.next_dev_version }}"
           exit 1
         fi
+
+    - name: Gate on the pre-release sample sweep
+      # The sweep (.claude/skills/release-sample-sweep) records the commit it
+      # covered in .harness/sweep-attestation.json. Refuse to release when a
+      # user-facing change landed after it: a release once shipped three changes no
+      # browser or simulator had driven. Runs before the build, so it fails
+      # in seconds.
+      if: ${{ !inputs.skip_sweep_gate }}
+      run: ./scripts/validate-sweep-attestation.sh
+
+    - name: Warn that the sweep gate was skipped
+      if: ${{ inputs.skip_sweep_gate }}
+      run: echo "::warning::skip_sweep_gate=true; this release is not covered by a sample sweep."
 
     - name: Verify release version is free on Maven Central
       if: ${{ !inputs.js_only }}
@@ -763,6 +781,11 @@ jobs:
 
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
         } > /tmp/release-notes.md
+
+    - name: Note a release the sample sweep did not cover
+      if: ${{ inputs.skip_sweep_gate }}
+      run: |
+        printf '\n> **Note:** this release was published with `skip_sweep_gate`; the pre-release sample sweep does not cover it.\n' >> /tmp/release-notes.md
 
     - name: Build SDKMAN archive (well-formed atmosphere-${VERSION}.zip)
       run: |

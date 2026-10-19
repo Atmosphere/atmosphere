@@ -293,6 +293,28 @@ For **every** issue in the framework-bug or sample-bug class:
   not just the one you were watching.
 - **Update memory** with anything reusable: a new trap, a new drive recipe, a
   changed port, a sample added or removed.
+- **Record the attestation** — only when the verdict is clean, i.e. no FAIL and
+  every finding fixed and re-tested. Write `.harness/sweep-attestation.json`
+  with the **full** SHA of the commit the final pass drove (the last re-test's
+  build, not main's HEAD), and commit it:
+
+  ```json
+  {
+    "sha": "<40-hex commit the final pass built and drove>",
+    "version": "<pom version at that commit>",
+    "date": "<YYYY-MM-DD>",
+    "verdict": "clean",
+    "ledgers": ["sample-sweep-<date>-<lane>", "..."],
+    "skipped": ["<surface>: <reason>", "..."]
+  }
+  ```
+
+  `release-4x.yml` runs `scripts/validate-sweep-attestation.sh` before it
+  builds and refuses to release when any user-facing file (samples, framework
+  main sources, the Console frontend, atmosphere.js, the CLI, any `pom.xml`)
+  changed after that SHA. A change after the sweep therefore needs its Step 4
+  re-test and a new attestation. Never attest a commit the sweep did not
+  build. That makes the gate a lie, which is the failure it exists to stop.
 
 ## Files in this skill
 

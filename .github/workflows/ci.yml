@@ -198,6 +198,13 @@ jobs:
     - name: Artifact-selection regression (stale sample jars)
       run: ./scripts/test-sample-jar-selection.sh
 
+    # The release workflow refuses to publish unless the pre-release sample
+    # sweep covers every user-facing change up to the release commit. This
+    # drives that gate against throwaway repositories and asserts each refusal
+    # names its reason, so a gate that passes everything fails here.
+    - name: Release sweep-gate regression
+      run: ./scripts/test-sweep-attestation.sh
+
     - name: Build & Package Samples
       # Full-reactor prime, then package — the same proven pattern as
       # samples-ci.yml. A scoped -pl ... -am build fails Quarkus's extension
