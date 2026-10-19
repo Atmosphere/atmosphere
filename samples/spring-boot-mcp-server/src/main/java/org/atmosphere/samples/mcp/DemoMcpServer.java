@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Sample MCP server that exposes tools, resources, and prompts to AI agents.
@@ -139,11 +140,20 @@ public class DemoMcpServer {
         var status = new LinkedHashMap<String, Object>();
         status.put("status", "running");
         status.put("framework", "Atmosphere " + Version.getRawVersion());
-        status.put("transport", "WebSocket + SSE fallback");
+        status.put("transports", connectedTransports());
         status.put("javaVersion", System.getProperty("java.version"));
         status.put("timestamp", Instant.now().toString());
         status.put("connectedUsers", config.resourcesFactory().findAll().size());
         return mapper.writeValueAsString(status);
+    }
+
+    /** Connected resources per transport, read from the live connections rather than declared. */
+    private Map<String, Long> connectedTransports() {
+        var counts = new TreeMap<String, Long>();
+        for (var r : config.resourcesFactory().findAll()) {
+            counts.merge(Utils.transportName(r), 1L, Long::sum);
+        }
+        return counts;
     }
 
     @McpResource(uri = "atmosphere://server/capabilities",
