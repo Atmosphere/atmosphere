@@ -273,6 +273,18 @@ assert_contains "$out" "LLM_API_KEY" "info shows env vars"
 assert_contains "$out" "spring-boot" "info shows packaging"
 assert_contains "$out" "atmosphere run" "info shows run command"
 
+# The keyless path: these samples resolve LLM_MODE through AiConfig, where
+# local means Ollama at localhost:11434/v1 with no key. LLM_MODEL keeps its
+# gemini-2.5-flash default in local mode too, so info must say to name a
+# local model, or a keyless run asks Ollama for a Gemini model.
+for keyless in spring-boot-ai-chat spring-boot-ai-classroom spring-boot-ai-tools spring-boot-a2a-agent; do
+    out=$("$CLI" info "$keyless" 2>&1)
+    assert_contains "$out" "LLM_MODE:" "info $keyless documents LLM_MODE"
+    assert_contains "$out" "local" "info $keyless names the local mode"
+    assert_contains "$out" "localhost:11434" "info $keyless names the Ollama endpoint local mode uses"
+    assert_contains "$out" "Ollama model" "info $keyless says LLM_MODEL must name an Ollama model in local mode"
+done
+
 out=$("$CLI" info spring-boot-rag-chat 2>&1)
 assert_contains "$out" "rag" "rag-chat info shows category"
 assert_contains "$out" "vectorstore" "rag-chat info shows tags"

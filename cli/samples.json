@@ -149,9 +149,10 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (Gemini, OpenAI, etc.)",
-        "LLM_MODEL": "Model name (default: gemini-2.5-flash)",
-        "LLM_BASE_URL": "API base URL (default: Gemini)"
+        "LLM_MODE": "remote (default) or local — local is keyless: Ollama at http://localhost:11434/v1, with LLM_MODEL set to an Ollama model you pulled (e.g. qwen2.5:3b)",
+        "LLM_API_KEY": "API key for your LLM provider (Gemini, OpenAI, etc.); not needed with LLM_MODE=local",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash; with LLM_MODE=local name an Ollama model, e.g. qwen2.5:3b)",
+        "LLM_BASE_URL": "API base URL (default: Gemini; http://localhost:11434/v1 with LLM_MODE=local). An explicit value outranks LLM_MODE"
       }
     },
     {
@@ -191,8 +192,9 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider",
-        "LLM_MODEL": "Model name (default: gemini-2.5-flash)"
+        "LLM_MODE": "remote (default) or local — local is keyless: Ollama at http://localhost:11434/v1, with LLM_MODEL set to an Ollama model you pulled (e.g. qwen2.5:3b)",
+        "LLM_API_KEY": "API key for your LLM provider; not needed with LLM_MODE=local",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash; with LLM_MODE=local name an Ollama model, e.g. qwen2.5:3b)"
       }
     },
     {
@@ -229,8 +231,9 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider",
-        "LLM_MODEL": "Model name"
+        "LLM_MODE": "remote (default) or local — local is keyless: Ollama at http://localhost:11434/v1, with LLM_MODEL set to an Ollama model you pulled (e.g. qwen2.5:3b)",
+        "LLM_API_KEY": "API key for your LLM provider; not needed with LLM_MODE=local",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash; with LLM_MODE=local name an Ollama model, e.g. qwen2.5:3b)"
       }
     },
     {
@@ -305,7 +308,9 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional \u2014 demo mode without)"
+        "LLM_MODE": "remote (default) or local \u2014 local is keyless: Ollama at http://localhost:11434/v1, with LLM_MODEL set to an Ollama model you pulled (e.g. qwen2.5:3b)",
+        "LLM_API_KEY": "API key for Gemini/OpenAI (optional \u2014 demo mode without a key, unless LLM_MODE=local)",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash; with LLM_MODE=local name an Ollama model, e.g. qwen2.5:3b)"
       }
     },
     {
