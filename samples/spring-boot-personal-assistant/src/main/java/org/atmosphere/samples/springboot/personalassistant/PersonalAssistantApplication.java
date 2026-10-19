@@ -19,9 +19,6 @@ import org.atmosphere.auth.TokenValidator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Personal assistant proof sample — demonstrates how the v0.5 foundation
@@ -81,18 +78,11 @@ public class PersonalAssistantApplication {
         SpringApplication.run(PersonalAssistantApplication.class, args);
     }
 
-    /**
-     * Root path redirects to Atmosphere's bundled AI console — the same
-     * WebSocket chat UI the spring-boot-ai-chat sample uses. The console
-     * auto-wires to the first registered {@code @Coordinator} / {@code @Agent}
-     * path, so it picks up {@code /atmosphere/agent/primary-assistant}
-     * without extra configuration.
-     */
-    @Configuration
-    static class ConsoleRedirect implements WebMvcConfigurer {
-        @Override
-        public void addViewControllers(ViewControllerRegistry registry) {
-            registry.addRedirectViewController("/", "/atmosphere/console/");
-        }
-    }
+    // No root page or view controller here, on purpose: the starter's root
+    // redirect then sends GET / to Atmosphere's bundled AI console with the
+    // query string kept, so /?token=alice lands on
+    // /atmosphere/console/?token=alice and signs alice in. A view controller
+    // mapping "/" would shadow it and drop the token. The console auto-wires to
+    // the first registered @Coordinator / @Agent path, so it picks up
+    // /atmosphere/agent/primary-assistant without extra configuration.
 }

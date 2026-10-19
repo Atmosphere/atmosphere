@@ -246,6 +246,9 @@ http://localhost:8080/?token=alice     # alice's memory
 http://localhost:8080/?token=bob       # bob's memory — separate
 ```
 
+The root redirect keeps the query, so `/?token=alice` lands on
+`/atmosphere/console/?token=alice`. The sample maps nothing at `/` itself: a view
+controller there would shadow the starter's query-preserving redirect and drop the token.
 The Console persists `?token=` and replays it as `X-Atmosphere-Auth` on REST and
 as a query parameter on the WebSocket. `AuthInterceptor` validates it through the
 sample's `TokenValidator` and stores the principal under
