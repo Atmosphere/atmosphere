@@ -114,6 +114,11 @@ jobs:
     - name: Verify the CHANGELOG generator drops reverted and plumbing commits
       run: ./scripts/test-promote-changelog.sh
 
+    # The release attaches atmosphere-X.Y.Z.zip.sha256 for users to check with
+    # `shasum -a 256 -c`; it once carried the runner's absolute path and failed.
+    - name: Verify the release checksum file verifies from a download directory
+      run: ./scripts/test-release-checksum.sh
+
   build-and-test:
     name: Build & Test (JDK ${{ matrix.java-version }})
     runs-on: ubuntu-latest

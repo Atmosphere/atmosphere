@@ -824,8 +824,10 @@ jobs:
         cd "$STAGE" && zip -r "atmosphere-${VERSION}.zip" "atmosphere-${VERSION}/"
         mv "$STAGE/atmosphere-${VERSION}.zip" "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
 
-        # Compute SHA256 for vendor API / verification
-        sha256sum "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip" | tee "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip.sha256"
+        # Compute SHA256 for vendor API / verification. The file must read
+        # `<hash>  atmosphere-X.zip` (no runner path) or a user's
+        # `shasum -a 256 -c` fails; scripts/test-release-checksum.sh proves it.
+        "$GITHUB_WORKSPACE/scripts/write-release-checksum.sh" "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
         ls -la "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
 
     - name: Create GitHub Release
