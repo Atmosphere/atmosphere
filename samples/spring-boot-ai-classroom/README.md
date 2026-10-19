@@ -133,9 +133,11 @@ The framework also quotes `purpose`, `forbiddenTopics` and `redirectMessage`
 into the system prompt, and tells the model to answer an out-of-scope request
 with exactly the redirect, so their wording changes what the model answers.
 On qwen2.5:3b, a redirect that named the room's subject ("This is the math
-room — ask me about a mathematics topic instead.") was sent back for 15 of 30
-in-scope math questions ("Explain the product rule and the chain rule with
-five worked examples."). A forbidden topic starting with "writing" did the
+room — ask me about a mathematics topic instead.") came back as the answer to
+in-scope math questions such as "Explain the product rule and the chain rule
+with five worked examples.": in 5 of 10 questions sent through the sample, and
+in 15 of 30 turns (the same ten questions, three runs each) sent to the model
+with the sample's system prompt. A forbidden topic starting with "writing" did the
 same to "Write a lesson on …" on qwen2.5:7b. Keep redirects free of the room's
 subject, keep forbidden topics from matching what students ask for, and name
 lessons and worked examples in the purpose; `RoomPromptContractTest` pins these

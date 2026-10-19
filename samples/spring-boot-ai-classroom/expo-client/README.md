@@ -7,6 +7,9 @@ React Native / Expo client for the [AI Classroom](../README.md) backend. Demonst
 - Connects to the `spring-boot-ai-classroom` backend via WebSocket
 - 4 classroom rooms: **Math**, **Code**, **Science**, **General**
 - AI responses stream text-by-text using `useStreamingRN`
+- LaTeX math in a reply (`\( \)`, `\[ \]`, `$ $`, `$$ $$`) is shown as Unicode
+  text (`b = √144`, `x²`, `(b/a)x`) by `mathText.ts`, since the markdown
+  renderer has no math support; `bun test` runs its tests
 - AppState-aware: suspends connection when app goes to background
 - Connection-aware: a question asked while the stream is down is queued and
   sent on reconnect — never dropped (see [Offline behaviour](#offline-behaviour))
