@@ -596,6 +596,7 @@ class KoogAgentRuntime : AgentRuntime {
             }
             throw ce
         } catch (e: Exception) {
+            if (endAbandonedRun(e, cancelled, session, "Koog agent")) return
             // Mirror the Spring AI / LC4j posture: any exception escaping
             // agent.run() (LLM call failure, tool failure, bridge failure)
             // surfaces as an onModelError lifecycle event so audit appenders
@@ -739,6 +740,7 @@ class KoogAgentRuntime : AgentRuntime {
             }
             throw ce
         } catch (e: Exception) {
+            if (endAbandonedRun(e, cancelled, session, "Koog planner agent")) return
             org.atmosphere.ai.AgentLifecycleListener.fireModelError(
                 lifecycleListeners, lifecycleModelName, e
             )
@@ -747,6 +749,36 @@ class KoogAgentRuntime : AgentRuntime {
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
             }
         }
+    }
+
+    /**
+     * Ends a run its caller abandoned. [ExecutionHandle.cancel] cancels the Job
+     * and interrupts the worker; while the model call blocks off the
+     * `runBlocking` thread (a provider HTTP read), `runBlocking` answers the
+     * interrupt with an [InterruptedException] once that call returns, not a
+     * `CancellationException`. A cancel the caller asked for ends the session
+     * like the `CancellationException` branch does, at debug: it is not a
+     * provider failure (no ERROR, no model-error event, no error frame). An
+     * interrupt without a cancel (the thread's owner stopping a synchronous
+     * `execute`) fails the session with one WARN line and keeps the thread's
+     * interrupt status for its owner.
+     *
+     * @return `true` when [e] ended an abandoned run, `false` for a real failure
+     */
+    private fun endAbandonedRun(
+        e: Exception, cancelled: AtomicBoolean, session: StreamingSession, what: String
+    ): Boolean {
+        val interrupted = e is InterruptedException
+        if (!cancelled.get() && !interrupted) return false
+        if (interrupted) Thread.currentThread().interrupt()
+        if (cancelled.get()) {
+            logger.debug("{} cancelled by caller ({})", what, e.toString())
+            if (!session.isClosed) session.complete()
+        } else {
+            logger.warn("{} interrupted before it completed", what)
+            if (!session.isClosed) session.error(e)
+        }
+        return true
     }
 
     /**
@@ -810,6 +842,7 @@ class KoogAgentRuntime : AgentRuntime {
             }
             throw ce
         } catch (e: Exception) {
+            if (endAbandonedRun(e, cancelled, session, "Koog streaming")) return
             logger.error("Koog streaming failed", e)
             if (!session.isClosed) {
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
