@@ -104,7 +104,7 @@ jobs:
           - name: ai-ux-flows
             projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models,ai-structured-output,ai-jfr-observability,ai-tool-permission"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel,ai-reattach-reload,ai-reattach-console"
+            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel,ai-reattach-reload,ai-reattach-console,ai-reattach-webtransport"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,ai-gap-coverage,ai-confidence-elicitation,ai-decision-model"
           - name: ai-routing
@@ -237,6 +237,9 @@ jobs:
       working-directory: modules/integration-tests
       env:
         LLM_MODE: fake
+        # Specs for a feature only one starter has skip on the other's leg
+        # (ai-reattach-webtransport: the Spring Boot 3 starter has no WebTransport).
+        E2E_SPRING_BOOT_VERSION: ${{ matrix.spring-boot-version }}
         SMOKE_ONLY: ${{ github.event_name == 'pull_request' && 'true' || '' }}
         INCLUDE_FLAKY: 'false'
       run: |

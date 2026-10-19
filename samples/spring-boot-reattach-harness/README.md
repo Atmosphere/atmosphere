@@ -109,6 +109,24 @@ curl -H 'X-Atmosphere-Run-Id: <runId>' \
 # and the server logs: `Reattach run <id> for resource <uuid>: replayed 4/4 new event(s)`
 ```
 
+## WebTransport
+
+The harness carries `reactor-netty-http`, so the starter can run the
+WebTransport (HTTP/3) sidecar, off by default. Turn it on to drive the
+Console over WebTransport, as
+`modules/integration-tests/e2e/ai-reattach-webtransport.spec.ts` does to
+prove a reload mid-answer reattaches over WebTransport too:
+
+```bash
+java -Datmosphere.web-transport.enabled=true -Datmosphere.web-transport.port=4460 \
+     -Datmosphere.ai.path=/atmosphere/agent/harness-model \
+     -jar samples/spring-boot-reattach-harness/target/*.jar
+```
+
+The sidecar uses a self-signed certificate; `/api/console/info` reports its
+hash, which the Console hands to the browser (`serverCertificateHashes`).
+The Spring Boot 3 starter has no WebTransport support.
+
 ## Why a sample, not an integration test
 
 Unit tests (`RunReattachSupportTest`, `RunEventCapturingSessionTest`,

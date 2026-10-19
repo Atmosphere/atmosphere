@@ -311,7 +311,8 @@ export default defineConfig({
     // ── Transport tests ──
     {
       name: 'webtransport',
-      testMatch: /webtransport\.spec\.ts/,
+      // Anchored: unanchored it also matched ai-reattach-webtransport.spec.ts.
+      testMatch: /\/webtransport\.spec\.ts/,
       use: {
         // WebTransport with self-signed certs requires serverCertificateHashes
         // which is only supported in real Chrome, not Playwright's bundled Chromium
@@ -538,6 +539,14 @@ export default defineConfig({
     {
       name: 'ai-reattach-console',
       testMatch: /\/ai-reattach-console\.spec\.ts/,
+    },
+    // ── The same reload over WebTransport (Chrome: serverCertificateHashes) ──
+    {
+      name: 'ai-reattach-webtransport',
+      testMatch: /\/ai-reattach-webtransport\.spec\.ts/,
+      use: {
+        channel: 'chrome',
+      },
     },
     // ── CLI runtime (verifies `atmosphere run` launches working console) ──
     {
