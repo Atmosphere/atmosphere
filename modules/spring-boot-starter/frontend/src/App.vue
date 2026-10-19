@@ -15,6 +15,7 @@ import Observability from './components/Observability.vue'
 import Tape from './components/Tape.vue'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
+import { clearPickedRoom, restorePickedRoom, savePickedRoom } from './lib/pickedRoom'
 import type { FleetAgent, FleetInfo } from './lib/fleet'
 import type { ConsoleTransportName } from './transports'
 import logoUrl from './assets/logo.svg'
@@ -41,6 +42,18 @@ const room = ref<string | undefined>(undefined)
 // Selectable endpoints (path-templated samples): picker before connecting.
 const endpointOptions = ref<Array<{ label: string; endpoint: string }>>([])
 const pickedEndpoint = ref<string | undefined>(undefined)
+
+/** Join `endpoint`'s room, remembered for this tab so a reload comes back to it. */
+function pickRoom(endpoint: string) {
+  savePickedRoom(endpoint)
+  pickedEndpoint.value = endpoint
+}
+
+/** Leave the room for the picker; the tab no longer comes back to it. */
+function leaveRoom() {
+  clearPickedRoom()
+  pickedEndpoint.value = undefined
+}
 const ready = ref(false)
 // False only when the server says it serves no chat endpoint (hasChat:false),
 // e.g. an app with the AI auto-configuration off that drives its runtime from
@@ -253,6 +266,10 @@ onMounted(async () => {
           (o: { label?: unknown; endpoint?: unknown }) =>
             typeof o?.label === 'string' && typeof o?.endpoint === 'string'
             && (o.endpoint as string).startsWith('/'))
+        // A page reloaded in a room comes back to it before the chat
+        // connects, so its reattach runs in that room; a room no longer
+        // offered is forgotten and the picker shows.
+        pickedEndpoint.value = restorePickedRoom(endpointOptions.value.map(o => o.endpoint))
       }
       if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
       if (data.mcpSandboxOrigin) mcpSandboxOrigin.value = data.mcpSandboxOrigin
@@ -346,10 +363,15 @@ onMounted(async () => {
         <div class="picker-cards">
           <button v-for="opt in endpointOptions" :key="opt.endpoint" class="picker-card"
                   :data-testid="`pick-${opt.label.toLowerCase()}`"
-                  @click="pickedEndpoint = opt.endpoint">
+                  @click="pickRoom(opt.endpoint)">
             {{ opt.label }}
           </button>
         </div>
+      </div>
+      <div v-if="ready && chatAvailable && activeTab === 'chat' && endpointOptions.length > 0 && pickedEndpoint"
+           class="room-bar" data-testid="room-bar">
+        <span class="room-name">{{ endpointOptions.find(o => o.endpoint === pickedEndpoint)?.label }}</span>
+        <button class="room-leave" data-testid="leave-room" @click="leaveRoom">Change room</button>
       </div>
       <!-- Kept mounted like every other tab: leaving Chat must not close its
            subscription or drop the conversation. -->
@@ -550,6 +572,36 @@ onMounted(async () => {
 }
 
 .picker-card:hover {
+  background: var(--bg-hover);
+}
+
+.room-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.375rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.room-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.room-leave {
+  font-size: 0.8125rem;
+  color: var(--accent-color);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.25rem 0.625rem;
+  cursor: pointer;
+}
+
+.room-leave:hover {
   background: var(--bg-hover);
 }
 
