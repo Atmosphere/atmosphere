@@ -36,7 +36,8 @@ import java.util.function.Consumer;
  * {@value #TOKEN_INTERVAL_MS}ms, and honours a cancel the way a remote model
  * call does. {@code BuiltInAgentRuntime} drives it through its cancellable
  * path, so a {@code session.stream(...)} turn that a disconnect cancels stops
- * here, and the turn ends with the {@code cancelled} frame.
+ * here, and the turn ends with the {@code cancelled} frame. Like the built-in
+ * OpenAI-compatible client, it also stops once its session reports closed.
  *
  * <p>Each call is recorded under the prompt it answered, so a test asks the
  * server ({@link ModelCallController}) whether a model call ran to its end or
@@ -121,12 +122,24 @@ public final class PacedModelClient implements LlmClient {
                 logger.info("Model call for '{}' cancelled after {}/{} token(s)", prompt, sent, tokens.size());
                 return;
             }
+            if (session.isClosed()) {
+                // As the built-in OpenAI-compatible client does: a session that
+                // reports itself closed stops the stream, with no terminal frame.
+                // A run its client's reload detached must not report closed, or
+                // the reloaded page waits for a run that neither grows nor ends.
+                record(prompt, State.CANCELLED, sent);
+                logger.info("Model call for '{}' stopped after {}/{} token(s): its session is closed",
+                        prompt, sent, tokens.size());
+                return;
+            }
             session.send(token);
             record(prompt, State.RUNNING, ++sent);
         }
         record(prompt, State.COMPLETED, sent);
         logger.info("Model call for '{}' completed: {} token(s)", prompt, sent);
-        session.complete();
+        if (!session.isClosed()) {
+            session.complete();
+        }
     }
 
     /** Wait one token interval; {@code true} when the call was cancelled meanwhile. */
