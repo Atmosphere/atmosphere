@@ -13,10 +13,18 @@
 #                      into both committed resource dirs, write the source
 #                      fingerprint marker.
 #   --check          — recompute the fingerprint over the SPA inputs and fail
-#                      if it doesn't match the marker, or if the two committed
-#                      copies differ from each other. No Maven/npm — cheap
-#                      enough for pre-commit (called from
+#                      if it doesn't match the marker, if the committed copies
+#                      differ from each other, or if a copy does not send the
+#                      atmosphere.js version of atmosphere.js/package.json (the
+#                      one the source-built SB4 console sends). No Maven/npm —
+#                      cheap enough for pre-commit (called from
 #                      architectural-validation.sh).
+#   --stamp-version  — write the package.json version into the committed
+#                      copies in place of the one they send. No build: the
+#                      version is the only byte a version bump changes (see
+#                      mask_version). The release workflow runs it with each
+#                      atmosphere.js version bump it commits.
+#   --fingerprint    — print the fingerprint of the SPA inputs.
 #
 # The fingerprint hashes the SPA *inputs* (console frontend sources +
 # atmosphere.js sources/locks), not the emitted bytes, so the gate never
@@ -61,10 +69,11 @@ sha_cmd() {
 # input changes (dependencies, sources, build config) and stops it firing on
 # the version string alone. The one byte-level effect of the bump is the
 # atmosphere.js VERSION string (injected from package.json at build time and
-# sent as X-Atmosphere-Framework): the committed copies keep the version they
-# were last synced with until the next real input change re-syncs them, while
-# the spring-boot-starter console, built from source, always carries the
-# current one. Only the top-level and root-package "version" keys are masked;
+# sent as X-Atmosphere-Framework), which --check verifies on its own
+# (check_versions) and --stamp-version rewrites without a build: copies last
+# synced at d98fe2f051, before the 1c5410bd17 bump, shipped in a release
+# sending the previous version while the source-built SB4 console sent the
+# bumped one. Only the top-level and root-package "version" keys are masked;
 # a dependency's pinned version sits deeper in the lockfile and still counts.
 mask_version() {
   sed -E 's/^([[:space:]]*)"version"[[:space:]]*:[[:space:]]*"[^"]*"/\1"version": "MASKED"/'
@@ -86,6 +95,45 @@ compute_fingerprint() {
 
   LC_ALL=C sort /tmp/.atmo-console-fp.$$ | sha_cmd | awk '{print $1}'
   rm -f /tmp/.atmo-console-fp.$$
+}
+
+package_version() {
+  sed -nE 's/^  "version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' atmosphere.js/package.json | head -n1
+}
+
+# The atmosphere.js versions a committed copy sends, one per line: the value of
+# each identifier its JS assets send as X-Atmosphere-Framework (the minified
+# VERSION constant, e.g. ss=`<version>`).
+embedded_versions() {
+  local dir="$1" js ident
+  for js in "$dir"/assets/*.js; do
+    [ -f "$js" ] || continue
+    { grep -oE 'X-Atmosphere-Framework=[$][{]encodeURIComponent[(][A-Za-z_$][A-Za-z0-9_$]*[)][}]' "$js" || true; } \
+      | sed -E 's/.*encodeURIComponent[(]([^)]*)[)].*/\1/' | LC_ALL=C sort -u \
+      | while IFS= read -r ident; do
+          { grep -oE "(^|[^A-Za-z0-9_\$])${ident//\$/[\$]}=[\"'\`][^\"'\`]+[\"'\`]" "$js" || true; } \
+            | sed -E 's/.*=.(.*).$/\1/'
+        done
+  done | LC_ALL=C sort -u
+}
+
+# Every committed copy must send the atmosphere.js version of package.json, as
+# the spring-boot-starter console, built from source, does.
+check_versions() {
+  local want dest found rc=0
+  want="$(package_version)"
+  if [ -z "$want" ]; then
+    echo -e "${RED}No version in atmosphere.js/package.json.${NC}"
+    return 1
+  fi
+  for dest in "${DEST_DIRS[@]}"; do
+    found="$(embedded_versions "$dest" | paste -sd, -)"
+    if [ "$found" != "$want" ]; then
+      echo -e "${RED}Committed console bundle at $dest sends atmosphere.js ${found:-<no version found>}, package.json is $want.${NC}"
+      rc=1
+    fi
+  done
+  return $rc
 }
 
 check() {
@@ -113,6 +161,8 @@ check() {
       rc=1
     fi
   done
+
+  check_versions || rc=1
 
   if [ $rc -ne 0 ]; then
     echo "  Fix: ./scripts/sync-console-bundle.sh   (then commit the refreshed bundles + marker)"
@@ -142,8 +192,31 @@ sync() {
   echo "Commit the refreshed bundles together with the marker."
 }
 
+stamp_version() {
+  local want dest js old
+  want="$(package_version)"
+  if [ -z "$want" ]; then
+    echo -e "${RED}No version in atmosphere.js/package.json.${NC}"
+    exit 1
+  fi
+  for dest in "${DEST_DIRS[@]}"; do
+    for old in $(embedded_versions "$dest"); do
+      [ "$old" = "$want" ] && continue
+      for js in "$dest"/assets/*.js; do
+        [ -f "$js" ] || continue
+        # Only the VERSION constant's literal: =`old` (whichever quote).
+        OLD="$old" NEW="$want" perl -pi -e 's/(=[`"\x27])\Q$ENV{OLD}\E([`"\x27])/$1$ENV{NEW}$2/g' "$js"
+      done
+    done
+  done
+  check_versions
+  echo "Committed console bundles now send atmosphere.js $want."
+}
+
 case "${1:-sync}" in
-  --check) check ;;
-  sync)    sync ;;
-  *) echo "usage: $0 [--check]"; exit 2 ;;
+  --check)         check ;;
+  --stamp-version) stamp_version ;;
+  --fingerprint)   compute_fingerprint ;;
+  sync)            sync ;;
+  *) echo "usage: $0 [--check|--stamp-version|--fingerprint]"; exit 2 ;;
 esac

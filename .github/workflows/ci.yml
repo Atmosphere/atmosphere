@@ -46,6 +46,13 @@ jobs:
     - name: Prove the hardcoded Atmosphere version gate bites
       run: ./scripts/test-no-hardcoded-atmosphere-version.sh
 
+    # The Console bundle check runs in the architectural validation above, where
+    # the real tree only ever shows it passing. Prove it names a committed copy
+    # that sends another atmosphere.js version than package.json's, and that
+    # --stamp-version (run by the release workflow with each bump) fixes it.
+    - name: Prove the Console bundle check catches a stale atmosphere.js version
+      run: ./scripts/test-console-bundle-sync.sh
+
     # The release labeller runs once a release, against real issues. A stub gh
     # serves the issue states so its filters are proven on every push instead.
     - name: Prove the release issue labeller picks only fixed issues

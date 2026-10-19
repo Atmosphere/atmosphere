@@ -624,6 +624,10 @@ jobs:
       if: steps.detect.outputs.has_changes == 'true'
       run: |
         JS_VERSION=$(node -p "require('./atmosphere.js/package.json').version")
+        # After a drift auto-bump above, the committed Console copies must send
+        # the bumped version too (see "Commit next dev version").
+        ./scripts/sync-console-bundle.sh --stamp-version
+        git add -u -- modules samples
         cd atmosphere.js
         git add package.json package-lock.json
         cd ..
@@ -674,6 +678,14 @@ jobs:
       if: steps.detect.outputs.has_changes == 'true'
       run: |
         NEXT_VERSION=$(node -p "require('./atmosphere.js/package.json').version")
+        # The committed Console copies (Spring Boot 3, Quarkus, bare-Jetty
+        # samples) send this version as X-Atmosphere-Framework, as the SB4
+        # console built from source will. Stamp it in (no build: it is the only
+        # byte the bump changes), or sync-console-bundle.sh --check fails on
+        # main from this commit on. Copies synced before the 1c5410bd17 bump
+        # shipped in the next release sending the version before it.
+        ./scripts/sync-console-bundle.sh --stamp-version
+        git add -u -- modules samples
         cd atmosphere.js
         git add package.json package-lock.json
         cd ..

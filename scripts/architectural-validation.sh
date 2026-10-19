@@ -1088,8 +1088,9 @@ echo -e "${BLUE}--- Console Bundle Sync ---${NC}"
 # tab shipped to the SB4 console while the committed copies stayed on an
 # older build. The check fingerprints the SPA inputs (console frontend +
 # atmosphere.js sources) against the marker written by the sync script, and
-# requires the two committed copies to be byte-identical to each other. No
-# Maven/npm runs here — it only hashes files.
+# requires the two committed copies to be byte-identical to each other and to
+# send the atmosphere.js version of package.json. No Maven/npm runs here — it
+# only hashes and reads files.
 if ./scripts/sync-console-bundle.sh --check >/dev/null 2>&1; then
     pass_validation "Committed console bundles match the SPA sources (scripts/sync-console-bundle.sh)"
 else
