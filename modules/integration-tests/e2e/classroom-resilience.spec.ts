@@ -22,6 +22,11 @@ import { hideWebTransport, installNetworkSwitch } from './helpers/network-switch
  *      in the Console's offline queue ({@code data-testid="offline-queue-size"}),
  *      drains on reconnect, and is actually answered: an AI endpoint, not
  *      only the chat-room dialect, survives the round trip.
+ *
+ *   3. **Reload in a room** — a student who reloads the page while the room's
+ *      answer streams comes back to the same room, not to the picker, so the
+ *      reattach to the room's run happens there, and the answer completes
+ *      once.
  */
 /** A real model answers in its own words; keyless, the sample's demo persona answers. */
 const REAL_LLM = (process.env.LLM_MODE ?? '').startsWith('real-');
@@ -105,5 +110,36 @@ test.describe('Classroom resilience (presence + offline queue)', () => {
       // code room's @AiEndpoint and was answered there, not merely acknowledged.
       await expect(answer).toContainText('Code Mentor', { timeout: 30_000 });
     }
+  });
+
+  test('a student reloading mid-answer comes back to the same room and the answer completes once', async ({ page }) => {
+    await hideWebTransport(page);
+    await joinRoom(page, 'math');
+    await page.getByTestId('chat-input').fill('what is a prime number?');
+    await page.getByTestId('chat-send').click();
+    // Reload as soon as the answer starts streaming.
+    await expect(page.locator('.message--assistant').last()).toBeVisible({ timeout: 30_000 });
+    await page.reload();
+
+    // The tab comes back to the math room by itself: no picker, connected.
+    await expect(page.getByTestId('endpoint-picker')).toHaveCount(0);
+    await expect(page.getByTestId('room-bar')).toContainText('Math');
+    await expect(page.getByTestId('atmosphere-connection-status'))
+      .toHaveAttribute('data-phase', 'open', { timeout: 30_000 });
+
+    // The reattach replays the room's run, which completes: one answer, the
+    // whole of it, and the chat takes the next question.
+    const answers = page.locator('.message--assistant');
+    await expect(answers).toHaveCount(1, { timeout: 30_000 });
+    await expect(answers.first()).not.toContainText('Error:');
+    if (!REAL_LLM) {
+      await expect(answers.first()).toContainText('Math Tutor', { timeout: 30_000 });
+      await expect(answers.first()).toContainText('LLM_API_KEY', { timeout: 30_000 });
+    }
+    await page.getByTestId('chat-input').fill('and what is a composite number?');
+    await expect(page.getByTestId('chat-send')).toBeEnabled({ timeout: 30_000 });
+    expect(await page.evaluate(() => Object.keys(sessionStorage)
+      .filter((k) => k.startsWith('atmosphere.js:run-id:')).length),
+      'the completed run leaves no run id behind').toBe(0);
   });
 });
