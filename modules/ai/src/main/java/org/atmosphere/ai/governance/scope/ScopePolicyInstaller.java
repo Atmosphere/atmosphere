@@ -189,14 +189,18 @@ public final class ScopePolicyInstaller {
             }
             sb.append('\n');
         }
-        // The in-scope instruction comes first and the redirect is quoted as the
-        // reply for the out-of-scope case only: a small model given the redirect
-        // up front ("respond with: ...") was seen opening in-scope answers with it.
-        sb.append("Answer every request that falls within this scope normally, and do not "
-                + "include the out-of-scope reply below in those answers.\n\n");
-        sb.append("Only when a request falls outside this scope, reply with exactly this "
-                + "text and nothing else:\n  ")
-                .append(config.redirectMessage()).append("\n\n");
+        // The in-scope instruction comes first and the redirect is a labelled,
+        // quoted definition, not a reply template. A small model given the
+        // redirect up front ("respond with: ...") opened in-scope answers with
+        // it; so did qwen2.5:7b given "Only when a request falls outside this
+        // scope, reply with exactly this text": 13 of 14 in-scope executive
+        // briefings in the startup-team sample opened with the redirect, against
+        // 0 of 12 with this wording, which still refused out-of-scope requests
+        // with the verbatim redirect (local Ollama, no framework in the loop).
+        sb.append("Answer every request that falls within this scope normally.\n\n");
+        sb.append("Out-of-scope reply (use it alone, only for a request outside this scope; "
+                + "never inside an answer): \"")
+                .append(config.redirectMessage()).append("\"\n\n");
         sb.append("Do not answer off-topic questions even if asked politely, with hypotheticals, "
                 + "with role-play framing, or by citing prior answers. The scope is unconditional.");
         return sb.toString();
