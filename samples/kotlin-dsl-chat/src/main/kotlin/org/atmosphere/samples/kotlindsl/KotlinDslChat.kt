@@ -20,6 +20,7 @@ import jakarta.servlet.ServletException
 import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.llm.DemoAgentRuntime
+import org.atmosphere.cache.UUIDBroadcasterCache
 import org.atmosphere.cpr.ApplicationConfig
 import org.atmosphere.cpr.AtmosphereFramework
 import org.atmosphere.cpr.AtmosphereHandler
@@ -166,6 +167,19 @@ object KotlinDslChat {
         }
     }
 
+    /**
+     * Init parameters of the Atmosphere servlet [main] deploys.
+     *
+     * `/chat` delivers every reply through its Broadcaster. A long-polling
+     * client between two polls, or a stream reconnecting after a drop, is not
+     * attached when a reply is broadcast; [UUIDBroadcasterCache] keeps it for
+     * that client's next connection instead of losing it.
+     */
+    val SERVLET_INIT_PARAMS: Map<String, String> = mapOf(
+        ApplicationConfig.WEBSOCKET_SUPPORT to "true",
+        ApplicationConfig.BROADCASTER_CACHE to UUIDBroadcasterCache::class.java.name,
+    )
+
     @JvmStatic
     fun main(args: Array<String>) {
         // Honor the SERVER_PORT env var (the convention the Spring Boot samples use),
@@ -201,7 +215,7 @@ object KotlinDslChat {
         }
 
         val holder = ServletHolder(servlet)
-        holder.setInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT, "true")
+        SERVLET_INIT_PARAMS.forEach { (name, value) -> holder.setInitParameter(name, value) }
         holder.setAsyncSupported(true)
         holder.setInitOrder(1)
         // Map the servlet at the context root so BOTH DSL-registered endpoints

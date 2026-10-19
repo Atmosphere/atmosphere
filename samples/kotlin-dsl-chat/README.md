@@ -91,6 +91,10 @@ curl -d 'ping' http://localhost:8099/chat   # -> "pong"
 curl -d 'hello' http://localhost:8099/chat  # -> "echo: hello"
 ```
 
+The servlet installs `UUIDBroadcasterCache` (`KotlinDslChat.SERVLET_INIT_PARAMS`),
+so a reply broadcast while a long-polling client is between two polls, or while a
+stream reconnects, is kept and delivered on that client's next connection.
+
 The agent endpoint is registered too. A prompt POST must name the connection
 it belongs to (the `X-Atmosphere-tracking-id` atmosphere.js sends), so the agent
 answers a bare `curl` POST `400` instead of running it for every subscriber; an

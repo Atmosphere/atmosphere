@@ -18,6 +18,8 @@ package org.atmosphere.samples.kotlindsl
 import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.llm.DemoAgentRuntime
 import org.atmosphere.ai.processor.AiEndpointHandler
+import org.atmosphere.cache.BroadcastMessage
+import org.atmosphere.cache.UUIDBroadcasterCache
 import org.atmosphere.cpr.AtmosphereFramework
 import org.atmosphere.cpr.AtmosphereRequest
 import org.atmosphere.cpr.AtmosphereResource
@@ -160,6 +162,31 @@ class KotlinDslChatDeliveryTest {
         // the same resource for chaining.
         verify(resource).write("streamed from a coroutine")
         assertSame(resource, returned)
+    }
+
+    @Test
+    fun `a chat broadcast a reconnecting client missed is kept for it`() {
+        // /chat answers every subscriber through its Broadcaster. A client
+        // between two long-polls (or reconnecting a dropped stream) is not
+        // attached when a reply is broadcast; only a per-client cache keeps that
+        // reply for its next connection. Boot the framework with the servlet's
+        // own init parameters and check its /chat broadcaster holds the message.
+        val chat = AtmosphereFramework()
+        KotlinDslChat.SERVLET_INIT_PARAMS.forEach { (name, value) -> chat.addInitParameter(name, value) }
+        chat.init()
+        try {
+            val broadcaster = chat.broadcasterFactory.lookup<Broadcaster>("/chat", true)
+            val cache = broadcaster.broadcasterConfig.broadcasterCache
+            assertTrue(cache is UUIDBroadcasterCache,
+                "the /chat broadcaster must cache per client; got ${cache.javaClass.name}")
+
+            cache.addToCache(broadcaster.getID(), "client-1", BroadcastMessage("pong"))
+
+            assertEquals(listOf<Any>("pong"), cache.retrieveFromCache(broadcaster.getID(), "client-1"),
+                "the reply broadcast while client-1 was away must be replayed to it")
+        } finally {
+            chat.destroy()
+        }
     }
 
     @Test
