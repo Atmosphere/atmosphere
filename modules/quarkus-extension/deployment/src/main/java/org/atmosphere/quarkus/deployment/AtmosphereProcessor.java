@@ -213,7 +213,42 @@ class AtmosphereProcessor {
                 annotationClassNames.values().stream().mapToInt(List::size).sum(),
                 annotationClassNames.size());
 
+        for (String annotation : unhandledOptionalAnnotations(index)) {
+            logger.warn("Classes annotated with @{} were found ({}) but the processor that registers them "
+                            + "(an @AtmosphereAnnotation({}.class) class) is not in the Jandex index: they will "
+                            + "NOT be registered. Index the jar that declares the processor with "
+                            + "quarkus.index-dependency.<name>.group-id/artifact-id.",
+                    annotation, annotationClassNames.get(annotation),
+                    annotation.substring(annotation.lastIndexOf('.') + 1));
+        }
+
         return new AtmosphereAnnotationsBuildItem(annotationClassNames);
+    }
+
+    /**
+     * The optional annotations (e.g. {@code @AiEndpoint}) that annotate at least
+     * one class in the index while no {@code @AtmosphereAnnotation} processor for
+     * them is indexed. Such classes are scanned but silently dropped at runtime:
+     * {@code AnnotationHandler} has no processor to dispatch them to.
+     */
+    static List<String> unhandledOptionalAnnotations(IndexView index) {
+        var handled = new HashSet<String>();
+        for (AnnotationInstance processor : index.getAnnotations(
+                DotName.createSimple("org.atmosphere.config.AtmosphereAnnotation"))) {
+            var value = processor.value();
+            if (value != null) {
+                handled.add(value.asClass().name().toString());
+            }
+        }
+        var unhandled = new ArrayList<String>();
+        for (String annotation : OPTIONAL_ANNOTATIONS) {
+            boolean annotatesAClass = index.getAnnotations(DotName.createSimple(annotation)).stream()
+                    .anyMatch(i -> i.target() != null && i.target().kind() == AnnotationTarget.Kind.CLASS);
+            if (annotatesAClass && !handled.contains(annotation)) {
+                unhandled.add(annotation);
+            }
+        }
+        return unhandled;
     }
 
     @BuildStep
