@@ -24,6 +24,7 @@ import {
   useOfflineQueue,
   ConnectionStatusBadgeRN,
 } from 'atmosphere.js/react-native';
+import { renderMath } from './mathText';
 
 // --- Initialize atmosphere.js for React Native ---
 const caps = setupReactNative({ netInfo: NetInfo });
@@ -271,7 +272,8 @@ function Classroom({
       return (
         <View style={styles.assistantBubble}>
           <View style={styles.markdownWrap}>
-            <Markdown style={markdownStyles}>{item.text}</Markdown>
+            {/* The markdown renderer has no math support: LaTeX becomes Unicode text first. */}
+            <Markdown style={markdownStyles}>{renderMath(item.text)}</Markdown>
           </View>
           {!item.complete && <Text style={styles.cursor}>|</Text>}
         </View>

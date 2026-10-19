@@ -218,7 +218,7 @@ The `session.stream(message)` call is **framework-agnostic**. To switch AI backe
 
 ## Mobile Client
 
-A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses text-by-text with markdown rendering, and includes AppState/NetInfo lifecycle integration. See the [React Native client docs](https://atmosphere.github.io/docs/clients/react-native/) for details.
+A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses text-by-text with markdown rendering (LaTeX math in a reply — `\( \)`, `\[ \]`, `$ $`, `$$ $$` — is shown as Unicode text such as `b = √144` and `x²`, see `expo-client/mathText.ts`; `bun test` in `expo-client` runs its tests), and includes AppState/NetInfo lifecycle integration. See the [React Native client docs](https://atmosphere.github.io/docs/clients/react-native/) for details.
 
 ## Security
 
