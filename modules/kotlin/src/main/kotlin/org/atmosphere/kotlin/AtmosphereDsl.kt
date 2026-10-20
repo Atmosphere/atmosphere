@@ -64,7 +64,8 @@ class AtmosphereHandlerBuilder {
     }
 
     /**
-     * Called when a client disconnects.
+     * Called when a client disconnects: it closed the connection, the application
+     * closed it, or the connection was lost (an abnormal close, an idle eviction).
      */
     fun onDisconnect(handler: (AtmosphereResource) -> Unit) {
         disconnectHandler = handler
@@ -117,7 +118,9 @@ private class DslAtmosphereHandler(
     override fun onStateChange(event: AtmosphereResourceEvent) {
         val resource = event.resource
         when {
-            event.isClosedByClient || event.isClosedByApplication -> {
+            // A cancelled event is the connection lost (an abnormal close, an idle
+            // eviction): as for @ManagedService's @Disconnect, the client is gone.
+            event.isClosedByClient || event.isClosedByApplication || event.isCancelled -> {
                 disconnectHandler?.invoke(resource)
             }
             event.isResumedOnTimeout -> {
@@ -127,7 +130,13 @@ private class DslAtmosphereHandler(
                 resumeHandler?.invoke(resource)
             }
             event.message != null -> {
-                resource.write(event.message.toString())
+                // The BroadcasterCache replays what a reconnecting client missed as
+                // one List: each cached message is a message of its own (a frame of
+                // its own on a WebSocket), never the List's toString().
+                when (val message = event.message) {
+                    is List<*> -> message.forEach { resource.write(it.toString()) }
+                    else -> resource.write(message.toString())
+                }
                 // Terminal delivery is transport-specific: long-polling
                 // completes the request on the first message, WebSocket and
                 // gRPC frames flush themselves, and every other suspended HTTP

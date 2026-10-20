@@ -104,6 +104,28 @@ class AtmosphereDslTest {
     }
 
     @Test
+    fun `onDisconnect is called when the connection is lost`() {
+        var disconnected = false
+        val handler = atmosphere {
+            onDisconnect { disconnected = true }
+        }
+
+        val resource = mockResource()
+        val event = mock<AtmosphereResourceEvent> {
+            on { isClosedByClient } doReturn false
+            on { isClosedByApplication } doReturn false
+            on { isCancelled } doReturn true
+            on { isResumedOnTimeout } doReturn false
+            on { isResuming } doReturn false
+            on { getResource() } doReturn resource
+        }
+
+        handler.onStateChange(event)
+
+        assertEquals(true, disconnected, "a cancelled event (abnormal close, idle eviction) is a disconnect")
+    }
+
+    @Test
     fun `onTimeout is called on timeout`() {
         var timedOut = false
         val handler = atmosphere {
@@ -187,6 +209,48 @@ class AtmosphereDslTest {
         verify(resource).write("m")
         verify(resource, never()).resume()
         verify(resource.response, never()).flushBuffer()
+    }
+
+    @Test
+    fun `a cached List is written one message at a time`() {
+        val handler = atmosphere { }
+        val resource = mockResource(transport = AtmosphereResource.TRANSPORT.WEBSOCKET)
+        val event = mock<AtmosphereResourceEvent> {
+            on { isClosedByClient } doReturn false
+            on { isClosedByApplication } doReturn false
+            on { isResumedOnTimeout } doReturn false
+            on { isResuming } doReturn false
+            on { message } doReturn listOf("echo: missed", "c0ffee00 joined")
+            on { getResource() } doReturn resource
+        }
+
+        handler.onStateChange(event)
+
+        val order = inOrder(resource)
+        order.verify(resource).write("echo: missed")
+        order.verify(resource).write("c0ffee00 joined")
+        verify(resource, never()).write("[echo: missed, c0ffee00 joined]")
+    }
+
+    @Test
+    fun `a cached List to a long-polling client is written whole before the poll resumes`() {
+        val handler = atmosphere { }
+        val resource = mockResource(transport = AtmosphereResource.TRANSPORT.LONG_POLLING)
+        val event = mock<AtmosphereResourceEvent> {
+            on { isClosedByClient } doReturn false
+            on { isClosedByApplication } doReturn false
+            on { isResumedOnTimeout } doReturn false
+            on { isResuming } doReturn false
+            on { message } doReturn listOf("a", "b")
+            on { getResource() } doReturn resource
+        }
+
+        handler.onStateChange(event)
+
+        val order = inOrder(resource)
+        order.verify(resource).write("a")
+        order.verify(resource).write("b")
+        order.verify(resource).resume()
     }
 
     @Test
