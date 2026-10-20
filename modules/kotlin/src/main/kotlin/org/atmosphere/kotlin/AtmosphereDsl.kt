@@ -50,7 +50,17 @@ class AtmosphereHandlerBuilder {
     private var resumeHandler: ((AtmosphereResource) -> Unit)? = null
 
     /**
-     * Called when a client connects and the resource is suspended.
+     * Called when a client connects (a GET), before the resource is suspended
+     * and joins its broadcaster: the handler can still choose the broadcaster
+     * or set up the resource.
+     *
+     * A broadcast from here does not reach the connecting client live. With a
+     * [org.atmosphere.cpr.BroadcasterCache] such as `UUIDBroadcasterCache`, a
+     * client the cache already knows (one that reconnects under its tracking
+     * id) has that broadcast cached for its uuid, and gets it on suspend with
+     * the other messages it missed: a `"<uuid> joined"` announcement comes back
+     * to the reconnecting client itself, while a first connection does not
+     * receive its own.
      */
     fun onConnect(handler: (AtmosphereResource) -> Unit) {
         connectHandler = handler
