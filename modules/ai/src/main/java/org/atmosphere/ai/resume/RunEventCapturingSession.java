@@ -228,6 +228,14 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
                     return;
                 }
             }
+            case AiEvent.ApprovalRequired approval -> {
+                // A client that reattaches while the tool waits gets its card
+                // back, and can answer it (replayed while still pending only).
+                position = captureEvent(event);
+                if (delegate.isClosed()) {
+                    return;
+                }
+            }
             case AiEvent.Handoff handoff -> {
                 // A reattached client is shown the handoff before the answer
                 // of the agent the turn was handed to.

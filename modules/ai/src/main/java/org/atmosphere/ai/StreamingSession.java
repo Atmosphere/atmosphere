@@ -264,6 +264,19 @@ public interface StreamingSession extends AutoCloseable {
      * names, so a decorator that forwards the id answers for the turn it
      * decorates.</p>
      */
+    /**
+     * When this turn's time runs out — the {@code @Prompt} limit of the
+     * endpoint that runs it — if it has one: what waits inside the turn (a
+     * tool's approval) gives up before it, so the turn ends with what it
+     * waited for rather than a generic timeout. A decorator that forwards
+     * {@link #sessionId()} answers for the turn it decorates.
+     *
+     * @return the turn's deadline, or empty when it has none
+     */
+    default java.util.Optional<java.time.Instant> turnDeadline() {
+        return AiStreamingSession.turnDeadline(sessionId());
+    }
+
     default boolean isTurnCancelled() {
         return AiStreamingSession.isTurnCancelled(sessionId());
     }

@@ -904,6 +904,40 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Whether the approval {@code approvalId} of run {@code runId} still waits
+     * for its answer: a reattached client is shown its card only then.
+     *
+     * @param runId      the run
+     * @param approvalId the approval's id
+     */
+    /** The deadlines of the turns that have one ({@link #setTurnDeadline}), by session id. */
+    private static final ConcurrentHashMap<String, java.time.Instant> TURN_DEADLINES = new ConcurrentHashMap<>();
+
+    /**
+     * The deadline of the turn of session {@code sessionId}, if it has one
+     * (see {@link StreamingSession#turnDeadline()}).
+     *
+     * @param sessionId the session id of the turn, may be {@code null}
+     */
+    public static java.util.Optional<java.time.Instant> turnDeadline(String sessionId) {
+        return sessionId == null ? java.util.Optional.empty()
+                : java.util.Optional.ofNullable(TURN_DEADLINES.get(sessionId));
+    }
+
+    @Override
+    public java.util.Optional<java.time.Instant> turnDeadline() {
+        return turnDeadline(sessionId());
+    }
+
+    public static boolean approvalPending(String runId, String approvalId) {
+        if (runId == null || approvalId == null) {
+            return false;
+        }
+        var session = RUN_SESSIONS.get(runId);
+        return session != null && !session.terminated.get() && session.approvalRegistry.isPending(approvalId);
+    }
+
+    /**
      * The run {@code runId}'s own client reattached to it on the connection
      * {@code resourceUuid} (its tracking id, or a reloaded page's new one):
      * the run's session, while its turn goes on, is registered under that
@@ -1120,12 +1154,22 @@ public class AiStreamingSession implements StreamingSession {
      * then waits at most until shortly before it, so an unanswered
      * confirmation escalates to the human route instead of being cut off by
      * the watchdog with no route run; the approval frame advertises the wait
-     * actually kept.
+     * actually kept. A tool's approval waits at most until shortly before it
+     * too ({@link StreamingSession#turnDeadline()}).
      *
      * @param deadline the deadline, or {@code null} for none
      */
     public void setTurnDeadline(java.time.Instant deadline) {
         this.turnDeadline = deadline;
+        var id = sessionId();
+        if (id == null) {
+            return;
+        }
+        if (deadline == null || terminated.get()) {
+            TURN_DEADLINES.remove(id);
+        } else {
+            TURN_DEADLINES.put(id, deadline);
+        }
     }
 
     /** The session this one writes to; read by {@link IntentDispatch#noModelCall}. */
@@ -2215,6 +2259,10 @@ public class AiStreamingSession implements StreamingSession {
     private void fireTerminate() {
         if (!terminated.compareAndSet(false, true)) {
             return;
+        }
+        var turn = sessionId();
+        if (turn != null) {
+            TURN_DEADLINES.remove(turn);
         }
         var id = this.runId;
         if (id != null) {

@@ -529,7 +529,12 @@ class LongPollingRepliesTest {
         session.complete();
         assertEquals(List.of("tail"), texts(take(uuid)), "the next poll receives the second piece only");
 
-        assertEquals(List.of("lost-prefix", "tail", ""), replayed(run, uuid),
+        // The run records the approval request too (a reattached client gets
+        // its card back while it is pending); the pieces of the reply are what
+        // this test follows.
+        assertEquals(List.of("lost-prefix", "tail", ""), run.claimNew(uuid).stream()
+                        .filter(event -> !"approval-required".equals(event.type()))
+                        .map(RunEvent::payload).toList(),
                 "the first piece never reached the client: its replay hands it over, with what followed it");
         LongPollingReplies.discard(uuid);
     }

@@ -613,9 +613,13 @@ public final class RunReattachSupport {
         return current.toString();
     }
 
+    /** The event type of a tool's approval request. */
+    private static final String APPROVAL_REQUIRED = "approval-required";
+
     /** The event types of the tool frames a run records ({@code RunEventCapturingSession}). */
     private static final java.util.Set<String> TOOL_EVENT_TYPES = java.util.Set.of("tool-start", "tool-result",
-            "tool-error", "handoff");
+            "tool-error", "handoff", APPROVAL_REQUIRED);
+
 
     private static final tools.jackson.databind.ObjectMapper REPLAY_JSON = new tools.jackson.databind.ObjectMapper();
 
@@ -632,9 +636,16 @@ public final class RunReattachSupport {
             return frame.toJson();
         }
         try {
+            var data = REPLAY_JSON.readTree(event.payload());
+            if (APPROVAL_REQUIRED.equals(event.type())
+                    && !org.atmosphere.ai.AiStreamingSession.approvalPending(handle.runId(),
+                            data.path("approvalId").asString())) {
+                // Answered, expired or cancelled: no card to answer any more.
+                return null;
+            }
             var node = REPLAY_JSON.createObjectNode();
             node.put("event", event.type());
-            node.set("data", REPLAY_JSON.readTree(event.payload()));
+            node.set("data", data);
             node.put("sessionId", frame.sessionId());
             node.put("seq", frame.seq());
             return REPLAY_JSON.writeValueAsString(node);
@@ -780,6 +791,13 @@ public final class RunReattachSupport {
             return 0;
         }
         var own = ownClient(resource, handle);
+        if (own && !handle.isDone() && !forwardsLiveEvents(resource)) {
+            // The run's own client is back on this connection (a reloaded
+            // page polls under a new tracking id): its approval answers and an
+            // operator's cancel addressed to it reach the run, as for a
+            // forwarded reattach (replayAndForward registers it there).
+            org.atmosphere.ai.AiStreamingSession.reattached(runId, resource.uuid());
+        }
         if (!handle.isDone() && forwardsLiveEvents(resource)) {
             return replayAndForward(resource, runId, handle, reattachGrace(resource, registry), own);
         }

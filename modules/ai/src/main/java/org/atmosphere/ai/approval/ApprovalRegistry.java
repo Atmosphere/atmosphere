@@ -75,6 +75,16 @@ public final class ApprovalRegistry {
     }
 
     /**
+     * Whether the approval {@code approvalId} still waits for its answer in
+     * this registry (neither answered, cancelled nor expired).
+     *
+     * @param approvalId the approval's id
+     */
+    public boolean isPending(String approvalId) {
+        return approvalId != null && pending.containsKey(approvalId);
+    }
+
+    /**
      * Outcome of attempting to resolve an incoming message as an approval response.
      * Callers iterating across multiple registries (e.g. fallback routing) must
      * short-circuit only on {@link #RESOLVED} so a stale/unknown ID in one

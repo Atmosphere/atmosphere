@@ -750,6 +750,17 @@ public final class ToolExecutionHelper {
         }
 
         var resolution = resolveApprovalDurably(toolName, tool, args, session, strategy);
+        if (resolution.outcome() == ApprovalStrategy.ApprovalOutcome.TIMED_OUT && turnRanOut(session)) {
+            // The approval waited until the turn's own limit: say so, and end
+            // the turn with it rather than with a generic prompt timeout.
+            var message = "Approval for tool '" + toolName + "' was not given before the turn's time limit;"
+                    + " the turn ended.";
+            logger.info("Tool {} approval ran out with its turn", toolName);
+            var result = finishAndEmit(toolName, session, scope,
+                    "{\"status\":\"timeout\",\"message\":\"" + message + "\"}");
+            session.error(new org.atmosphere.ai.AiException(message));
+            return result;
+        }
         return finishAndEmit(toolName, session, scope, switch (resolution.outcome()) {
             case APPROVED -> {
                 if (resolution.hasResponsePayload()) {
@@ -919,19 +930,47 @@ public final class ToolExecutionHelper {
         return resolution;
     }
 
+    /**
+     * How long before its turn's deadline an approval gives up, so the turn
+     * ends with the approval's own message rather than the turn's timeout.
+     */
+    static final java.time.Duration APPROVAL_TURN_MARGIN = java.time.Duration.ofSeconds(2);
+
+    /** Whether the turn of {@code session} has (nearly) run out of time: its approval gave up for it. */
+    private static boolean turnRanOut(StreamingSession session) {
+        return session != null && session.turnDeadline()
+                .filter(deadline -> !Instant.now().isBefore(deadline.minus(APPROVAL_TURN_MARGIN)))
+                .isPresent();
+    }
+
+    /**
+     * When an approval asked for now expires: the tool's own approval timeout,
+     * bounded by its turn's deadline (less {@link #APPROVAL_TURN_MARGIN}).
+     */
+    static Instant approvalExpiry(ToolDefinition tool, StreamingSession session) {
+        var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
+        var expiry = Instant.now().plusSeconds(timeout);
+        if (session != null) {
+            var bound = session.turnDeadline().map(deadline -> deadline.minus(APPROVAL_TURN_MARGIN));
+            if (bound.isPresent() && bound.get().isBefore(expiry)) {
+                return bound.get();
+            }
+        }
+        return expiry;
+    }
+
     /** The pre-durability live await, unchanged: park until approved / denied / expired. */
     private static ApprovalResolution awaitLiveApproval(String toolName, ToolDefinition tool,
                                                         Map<String, Object> args,
                                                         StreamingSession session,
                                                         ApprovalStrategy strategy) {
-        var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
         var approval = new PendingApproval(
                 ApprovalRegistry.generateId(),
                 toolName,
                 args,
                 tool.approvalMessage(),
                 session.sessionId(),
-                Instant.now().plusSeconds(timeout)
+                approvalExpiry(tool, session)
         );
         return strategy.awaitApprovalDetailed(approval, session);
     }
