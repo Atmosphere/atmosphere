@@ -51,7 +51,11 @@ let katex: Katex | null = null
 let katexLoad: Promise<void> | null = null
 const mathEpoch = shallowRef(0)
 
-/** Load KaTeX (once) and resolve when math renders as MathML. */
+/**
+ * Load KaTeX (once it succeeds) and resolve when math renders as MathML, or
+ * when the load failed. A failed load is not kept: the next render that meets
+ * math loads it again, so math comes back once the network does.
+ */
 export function loadMath(): Promise<void> {
   if (!katexLoad) {
     katexLoad = import('katex').then(
@@ -60,7 +64,8 @@ export function loadMath(): Promise<void> {
         mathEpoch.value++
       },
       (error: unknown) => {
-        console.warn('[console] KaTeX failed to load, math stays as TeX source', error)
+        katexLoad = null
+        console.warn('[console] KaTeX failed to load, math stays as TeX source until the next render retries', error)
       },
     )
   }
