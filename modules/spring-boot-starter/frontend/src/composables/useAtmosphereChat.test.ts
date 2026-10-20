@@ -570,6 +570,29 @@ describe('a broadcastReply room', () => {
     ])
   })
 
+  it('renders the catch-up of a reconnect from its resume point: the rest of the turn, then a turn missed whole', async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-1', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'prompt', text: 'q?', from: 'member-b', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'par', sessionId: 's1', seq: 3 })
+    // Gone unnoticed, back with X-Atmosphere-Resume=s1:3: the server writes
+    // what followed, once, then the turn another member asked meanwhile.
+    handlers.onEvent({ type: 'streaming-text', data: 'tial', sessionId: 's1', seq: 4 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 5 })
+    handlers.onEvent({ type: 'prompt', text: 'next?', from: 'member-c', sessionId: 's2', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'two', sessionId: 's2', seq: 3 })
+    handlers.onEvent({ type: 'complete', sessionId: 's2', seq: 4 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'q?' },
+      { user: false, text: 'partial' },
+      { user: true, text: 'next?' },
+      { user: false, text: 'two' },
+    ])
+  })
+
   it('renders its own prompt replayed after a reload as its own bubble, with no member label', async () => {
     sessionStorage.setItem('atmosphere.console.roomMemberIds', JSON.stringify([BEFORE_RELOAD]))
     const { wrapper } = await mountRoom()

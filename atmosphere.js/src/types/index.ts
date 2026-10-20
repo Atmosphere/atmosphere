@@ -138,6 +138,17 @@ export interface AtmosphereRequest {
    */
   runId?: string | null;
   /**
+   * The resume point to start from: what an earlier subscription to this
+   * endpoint received of each AI session (its `Subscription.resumePoint`),
+   * for a subscription opened again to carry on from it — a React Native app
+   * back from the background, for instance. The subscription sends it as the
+   * `X-Atmosphere-Resume` query parameter until it records its own, from the
+   * frames it receives; the server writes it what it missed from there, the
+   * turns a `broadcastReply` room had meanwhile included, and nothing it
+   * holds again.
+   */
+  resume?: string | null;
+  /**
    * Authentication token sent as {@code X-Atmosphere-Auth} on every request.
    * Works with all transports (WebSocket, SSE, long-polling). It travels like
    * {@link headers}: an HTTP header on fetch requests that
@@ -267,6 +278,16 @@ export interface Subscription {
    */
   readonly uuid: string;
   readonly state: ConnectionState;
+  /**
+   * What this subscription received of each AI session: the `seq` of the
+   * last frame of each, as `sessionId:seq` pairs, the most recently received
+   * last (`null` before any AI frame). Every request sends it as
+   * `X-Atmosphere-Resume`, so a reconnect is written what the connection
+   * missed — also frames written into a connection that was gone before the
+   * server noticed — and nothing it holds again. Pass it as
+   * `AtmosphereRequest.resume` to a subscription that replaces this one.
+   */
+  readonly resumePoint: string | null;
   push(message: string | object | ArrayBuffer): void;
   /**
    * Close the connection. Over long-polling, streaming and SSE it also sends

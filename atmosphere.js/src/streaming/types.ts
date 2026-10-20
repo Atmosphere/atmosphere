@@ -264,6 +264,13 @@ export interface StreamingHandle {
   /** The session ID assigned by the server. */
   readonly sessionId: string | null;
   /**
+   * What this handle's subscription received of each AI session
+   * (`Subscription.resumePoint`): pass it as `AtmosphereRequest.resume` to
+   * the handle that replaces this one, so the server writes the new one what
+   * this one missed, once.
+   */
+  readonly resumePoint: string | null;
+  /**
    * Resilience tracker for this session. Subscribe to its `onChange` to
    * receive reactive connection-status updates, or read its `snapshot`
    * for the current phase.

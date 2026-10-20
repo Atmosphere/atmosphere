@@ -215,6 +215,9 @@ export async function subscribeStreaming(
     get sessionId() {
       return sessionId;
     },
+    get resumePoint() {
+      return sub.resumePoint;
+    },
     connectionStatus,
     send(message: string | object, options?: SendOptions) {
       // Reset tracking state for new session

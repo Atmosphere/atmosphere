@@ -65,6 +65,8 @@ export abstract class BaseTransport<T = unknown> {
     // A run this tab was receiving when the page went away (a reload): the
     // connect carries its id, so the server replays it and streams the rest.
     this.protocol.runId = loadRunId(request.url);
+    // What a connection this one replaces received: its reconnect resumes there.
+    this.protocol.seedResume(request.resume);
     this.interceptors = interceptors;
   }
 
@@ -121,6 +123,16 @@ export abstract class BaseTransport<T = unknown> {
   forgetRunId(): void {
     this.protocol.runId = null;
     clearRunId(this.request.url);
+  }
+
+  /**
+   * What this connection received of each AI session, as the
+   * `X-Atmosphere-Resume` it sends (`sessionId:seq` pairs), or `null` before
+   * any AI frame arrived. A subscription opened to carry on from this one
+   * passes it as `AtmosphereRequest.resume`.
+   */
+  get resumePoint(): string | null {
+    return this.protocol.resumePoint;
   }
 
   /** Whether this connection has opened at least once. */
@@ -367,6 +379,9 @@ export abstract class BaseTransport<T = unknown> {
     logger.debug(`${this.name} message received`);
     this.resetInactivityTimer();
     this.captureRunId(response.responseBody);
+    if (typeof response.responseBody === 'string') {
+      this.protocol.recordFrames(response.responseBody);
+    }
     this.handlers.message?.(response);
   }
 

@@ -188,6 +188,21 @@ the same over every transport; where `sessionStorage` is missing or throws, the
 run id lives in memory only, as before. A `runId` set on the request is sent
 instead of the stored one.
 
+Every request also says what the connection last received of each AI session:
+`X-Atmosphere-Resume`, the `seq` of the last frame of each session as
+`sessionId:seq` pairs (at most 16, the most recently received last), read from
+the frames it receives over any transport, WebTransport and long-polling
+included. A connection can be gone before the server notices — a phone put in
+the background, a train tunnel — and what the server writes into it meanwhile
+is lost without the server knowing: neither a room's cache nor the run's replay
+holds it as missed. On the reconnect the server writes the client what it
+missed from that point, a `broadcastReply` room's turns asked meanwhile
+included, and nothing it already holds. `Subscription.resumePoint` (and
+`StreamingHandle.resumePoint`) reads the value; pass it as `request.resume` to a
+subscription that replaces a closed one (it gets a new tracking id, so only
+the resume point links it to what the closed one received). It is kept in memory only: a reloaded page has received nothing, and gets
+the run replayed from its start. A server that predates it ignores it.
+
 ## Examples
 
 ### Basic WebSocket Connection

@@ -114,7 +114,11 @@ export class Atmosphere {
         const reason = primaryError instanceof Error ? primaryError.message : String(primaryError);
         logger.info(`${transport} failed, falling back to ${fallback}`);
         handlers.transportFailure?.(reason, mergedRequest);
-        const fallbackRequest = { ...mergedRequest, transport: fallback };
+        const fallbackRequest = {
+          ...mergedRequest,
+          transport: fallback,
+          resume: activeTransport?.resumePoint ?? mergedRequest.resume,
+        };
         gate = new HandlerGate<T>(handlers);
         activeTransport = this.createTransport(fallbackRequest, gate.handlers);
         if (mergedRequest.offlineQueue) {
@@ -212,6 +216,9 @@ export class Atmosphere {
       },
       get state(): ConnectionState {
         return currentTransport.state;
+      },
+      get resumePoint(): string | null {
+        return currentTransport.resumePoint;
       },
       push: (message: string | object | ArrayBuffer) => {
         const state = currentTransport.state;

@@ -28,6 +28,15 @@ export interface ProtocolResult {
   wasHandshake: boolean;
 }
 
+/** The most sessions a resume point names (the server reads at most 16). */
+const MAX_RESUME_SESSIONS = 16;
+/** The longest resume point the server reads. */
+const MAX_RESUME_LENGTH = MAX_RESUME_SESSIONS * (64 + 1 + 18) + MAX_RESUME_SESSIONS - 1;
+/** A session id the server accepts in a resume point. */
+const RESUME_SESSION = /^[A-Za-z0-9_-]{1,64}$/;
+/** One `sessionId:seq` pair of a resume point. */
+const RESUME_PAIR = /^([A-Za-z0-9_-]{1,64}):([0-9]{1,15})$/;
+
 /**
  * Manages the Atmosphere wire protocol: handshake, heartbeat, UUID tracking,
  * and framework header attachment.
@@ -44,6 +53,15 @@ export class AtmosphereProtocol {
 
   /** Durable run id of the in-flight run, re-sent on reconnect to resume it. */
   runId: string | null = null;
+
+  /**
+   * The resume point: the `seq` of the last frame received of each AI
+   * session (see {@link recordFrames}), the most recently received last, at
+   * most {@link MAX_RESUME_SESSIONS} of them. Sent on every request as
+   * `X-Atmosphere-Resume`, so a reconnect is written what this client missed,
+   * and nothing it holds again.
+   */
+  private readonly resume = new Map<string, number>();
 
   /** Authentication token for the current connection. */
   authToken: string | null = null;
@@ -132,6 +150,15 @@ export class AtmosphereProtocol {
       params.push(`X-Atmosphere-Run-Id=${encodeURIComponent(runId)}`);
     }
 
+    // What this client last received of each AI session: the server writes
+    // a reconnect what it missed from there — frames written into a
+    // connection that was gone before the server noticed included — and
+    // nothing it already holds.
+    const resume = this.resumePoint;
+    if (resume) {
+      params.push(`X-Atmosphere-Resume=${encodeURIComponent(resume)}`);
+    }
+
     const custom: Array<[string, string]> = [];
     // Send authentication token if available
     const authToken = request.authToken ?? this.authToken;
@@ -180,6 +207,65 @@ export class AtmosphereProtocol {
     'trailer', 'transfer-encoding', 'upgrade', 'via', 'x-http-method', 'x-http-method-override',
     'x-method-override',
   ]);
+
+  /**
+   * The resume point to send, `sessionId:seq` pairs separated by commas, the
+   * most recently received session last; `null` before any AI frame arrived.
+   */
+  get resumePoint(): string | null {
+    if (this.resume.size === 0) return null;
+    return Array.from(this.resume, ([session, seq]) => `${session}:${seq}`).join(',');
+  }
+
+  /**
+   * Start from `value`, a resume point another connection recorded (one a
+   * subscription closed and opened again carries over, see
+   * `AtmosphereRequest.resume`). A malformed value is ignored.
+   */
+  seedResume(value: string | null | undefined): void {
+    if (!value || this.resume.size > 0 || value.length > MAX_RESUME_LENGTH) return;
+    const pairs = value.split(',');
+    if (pairs.length > MAX_RESUME_SESSIONS) return;
+    const seeded: Array<[string, number]> = [];
+    for (const pair of pairs) {
+      const match = RESUME_PAIR.exec(pair);
+      if (!match) return;
+      seeded.push([match[1], Number(match[2])]);
+    }
+    for (const [session, seq] of seeded) this.remember(session, seq);
+  }
+
+  /**
+   * Record the AI frames in `body` (one frame, or several on lines of their
+   * own: a long-polling reply) in the resume point: the last `seq` received
+   * of each session. A frame names its session and number in its own
+   * `sessionId` and `seq` fields, after its data.
+   */
+  recordFrames(body: string): void {
+    if (body.indexOf('"sessionId":"') === -1) return;
+    for (const line of body.indexOf('\n') === -1 ? [body] : body.split('\n')) {
+      const s = line.lastIndexOf('"sessionId":"');
+      const q = line.lastIndexOf('"seq":');
+      if (s === -1 || q === -1) continue;
+      const start = s + '"sessionId":"'.length;
+      const end = line.indexOf('"', start);
+      const digits = /^[0-9]{1,15}/.exec(line.substring(q + '"seq":'.length));
+      if (end === -1 || !digits) continue;
+      const session = line.substring(start, end);
+      if (!RESUME_SESSION.test(session)) continue;
+      const seq = Number(digits[0]);
+      const last = this.resume.get(session);
+      this.remember(session, last !== undefined && last > seq ? last : seq);
+    }
+  }
+
+  private remember(session: string, seq: number): void {
+    this.resume.delete(session);
+    this.resume.set(session, seq);
+    if (this.resume.size > MAX_RESUME_SESSIONS) {
+      this.resume.delete(this.resume.keys().next().value as string);
+    }
+  }
 
   /**
    * Build the URL of Atmosphere's close message for this connection: the
