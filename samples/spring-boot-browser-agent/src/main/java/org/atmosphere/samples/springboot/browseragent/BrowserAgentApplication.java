@@ -19,9 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Code-as-action browser agent sample. The AI model is given a single
@@ -85,12 +82,8 @@ public class BrowserAgentApplication {
         SpringApplication.run(BrowserAgentApplication.class, args);
     }
 
-    /** Redirect the web root to the Atmosphere Console so the sample opens ready to drive. */
-    @Configuration
-    static class ConsoleRedirect implements WebMvcConfigurer {
-        @Override
-        public void addViewControllers(ViewControllerRegistry registry) {
-            registry.addRedirectViewController("/", "/atmosphere/console/");
-        }
-    }
+    // No root page or view controller here, on purpose: the starter's root
+    // redirect then sends GET / to the Atmosphere Console with the query string
+    // kept, so /?token=admin lands on /atmosphere/console/?token=admin. A view
+    // controller or a static index.html at / would answer first and drop it.
 }

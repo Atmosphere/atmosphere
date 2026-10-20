@@ -110,17 +110,12 @@ Metrics available at `/actuator/metrics/atmosphere.*`:
 
 ## Client Side
 
-### index.html
+### The Atmosphere Console
 
-A tabbed UI with three panels:
-
-1. **💬 Chat** — Real-time message exchange with connection status
-2. **🏠 Rooms** — Lists rooms, member counts, and member details (calls `GET /api/rooms`)
-3. **📊 Observability** — Live health check and Atmosphere metrics from Actuator
-
-### Bundled React app
-
-The UI is a pre-built React app bundled with Vite; the compiled assets live under `src/main/resources/static/assets/` and are loaded by `index.html` as a single ES module. The bundled app uses `atmosphere.js` (WebSocket + long-polling fallback) to subscribe to `/atmosphere/chat` and exchange JSON frames shaped like `{ author, message }`.
+The bundled Atmosphere Console at `/atmosphere/console/` is the UI: it subscribes to `/atmosphere/chat`
+with `atmosphere.js` (WebSocket, long-polling fallback) and exchanges JSON frames shaped like
+`{ author, message }`. The sample maps nothing at `/`, so the starter redirects `GET /` to the Console
+with the query string kept (`/?token=…` reaches the Console with its token).
 
 ## Configuration
 
@@ -228,8 +223,5 @@ spring-boot-chat/
     │   ├── JacksonEncoder.java          # Message → JSON
     │   └── JacksonDecoder.java          # JSON → Message
     └── resources/
-        ├── application.yml              # Spring Boot + Atmosphere config
-        └── static/
-            ├── index.html               # Tabbed chat UI
-            └── assets/                  # Bundled atmosphere.js + chat client
+        └── application.yml              # Spring Boot + Atmosphere config
 ```

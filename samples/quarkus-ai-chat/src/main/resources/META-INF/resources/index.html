@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=/atmosphere/console/" />
+  <!-- Keep the query string: /?token=admin must open the Console with its token. -->
+  <script>location.replace('/atmosphere/console/' + location.search + location.hash);</script>
+  <noscript><meta http-equiv="refresh" content="0; url=/atmosphere/console/" /></noscript>
   <title>Atmosphere Quarkus AI Chat</title>
 </head>
 <body>

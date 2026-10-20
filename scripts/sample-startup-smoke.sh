@@ -289,8 +289,8 @@ fi
 # spring-boot-ai-chat: Spring Boot startup canary. Empty LLM_API_KEY forces
 # the keyless demo provider regardless of the caller's shell env, matching
 # what CI runners see. GET / is a 302 to the bundled Atmosphere Console
-# (AiChatApplication.addRedirectViewController), so probe the console
-# directly — it's the sample's real UI.
+# (the starter's root redirect), so probe the console directly — it's the
+# sample's real UI.
 if SPRING_JAR="$(sample_jar spring-boot-ai-chat)"; then
   boot_and_probe spring-boot-ai-chat \
     "$SPRING_JAR" \

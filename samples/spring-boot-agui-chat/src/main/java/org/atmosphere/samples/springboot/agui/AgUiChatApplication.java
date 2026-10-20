@@ -17,9 +17,6 @@ package org.atmosphere.samples.springboot.agui;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @SpringBootApplication
 public class AgUiChatApplication {
@@ -28,20 +25,8 @@ public class AgUiChatApplication {
         SpringApplication.run(AgUiChatApplication.class, args);
     }
 
-    /**
-     * {@code /} forwards to {@code static/index.html}, which redirects to the
-     * bundled Atmosphere Console. The Console drives the real AG-UI wire
-     * (named-event SSE at {@code /atmosphere/agent/assistant/agui}) through its
-     * {@code ag-ui} transport adapter — selected via
-     * {@code atmosphere.console-transport} in {@code application.yml} — so the
-     * AG-UI protocol remains the point of this sample, demoed through the
-     * shared Console instead of a bespoke frontend.
-     */
-    @Configuration
-    static class HomePage implements WebMvcConfigurer {
-        @Override
-        public void addViewControllers(ViewControllerRegistry registry) {
-            registry.addViewController("/").setViewName("forward:/index.html");
-        }
-    }
+    // No root page or view controller here, on purpose: the starter's root
+    // redirect then sends GET / to the Atmosphere Console with the query string
+    // kept, so /?token=admin lands on /atmosphere/console/?token=admin. A view
+    // controller or a static index.html at / would answer first and drop it.
 }

@@ -119,6 +119,11 @@ jobs:
     - name: Verify the release checksum file verifies from a download directory
       run: ./scripts/test-release-checksum.sh
 
+    # /?token=admin must open the Console with its token: a sample root that
+    # redirects without the query string lands on the Console signed out.
+    - name: Verify every sample root redirect keeps the query string
+      run: ./scripts/test-sample-root-redirect-keeps-query.sh
+
   build-and-test:
     name: Build & Test (JDK ${{ matrix.java-version }})
     runs-on: ubuntu-latest

@@ -317,7 +317,7 @@ spring-boot-ai-chat/
     └── resources/
         ├── application.yml          # LLM config (model, mode, API key)
         ├── prompts/                 # @Agent skill files (multimodal-assistant-skill.md)
-        └── static/                  # / redirect + multimodal.html demo
+        └── static/                  # multimodal.html demo
 ```
 
 ## See Also
