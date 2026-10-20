@@ -46,6 +46,9 @@ DEST_DIRS=(
   "samples/grpc-chat/src/main/webapp/atmosphere/console"
   "samples/chat/src/main/webapp/atmosphere/console"
   "samples/embedded-jetty-websocket-chat/src/main/webapp/atmosphere/console"
+  # Embedded Jetty built by the Kotlin DSL: the bundle rides in the fat jar
+  # under webapp/ and its DefaultServlet serves it.
+  "samples/kotlin-dsl-chat/src/main/webapp/atmosphere/console"
 )
 MARKER="scripts/console-bundle.fingerprint"
 

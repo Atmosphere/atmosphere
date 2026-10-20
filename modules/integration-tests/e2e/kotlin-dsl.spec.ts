@@ -165,8 +165,11 @@ if (process.env.CI && !jar && !process.env.E2E_LIST_ONLY) {
 
     // The replies now come from the DSL-declared agent's AI pipeline (offline
     // demo runtime), delivered by the transport DSL's coroutine broadcast.
-    expect(msgs, 'the DSL agent answers ping with pong').toContain('pong');
-    expect(msgs, 'other messages are echoed').toContain('echo: release-gate');
+    // Frames are the Console's broadcast envelope: {author, message, time}.
+    const answers = msgs.flatMap((m) => { try { return [JSON.parse(m)]; } catch { return []; } })
+      .filter((f) => f.author === 'kotlin-dsl-chat').map((f) => f.message);
+    expect(answers, 'the DSL agent answers ping with pong').toContain('pong');
+    expect(answers, 'other messages are echoed').toContain('echo: release-gate');
   });
 
   test('logback is active in the shaded jar (not SLF4J NOP)', () => {

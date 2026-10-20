@@ -3,7 +3,8 @@
 Atmosphere is **Kotlin-first too**. This sample builds a complete chat endpoint
 with the Atmosphere **Kotlin transport DSL**, answers every message with an
 agent declared through the **Kotlin agent DSL**, and delivers the reply with the
-**coroutine extensions** — no Java, no annotations, no API key.
+**coroutine extensions** — no Java, no annotations, no API key. Its UI is the
+**Atmosphere Console**, served by the sample's own Jetty at `/`.
 
 It runs fully offline. The agent resolves its runtime exactly as an
 `@Agent`-annotated class does; with no provider configured that is the
@@ -56,19 +57,26 @@ runtime supports tools.
 ```kotlin
 fun chatHandler(assistant: KotlinAgent): AtmosphereHandler = atmosphere {
     onConnect { resource ->
-        runBlocking { resource.broadcaster.broadcastSuspend("${resource.uuid()} joined") }
+        runBlocking { resource.broadcaster.broadcastSuspend(envelope(SYSTEM_AUTHOR, "${resource.uuid()} joined")) }
     }
     onMessage { resource, message ->
         runBlocking {
-            val answer = assistant.ask(resource.uuid() ?: "anonymous", message)  // real AI pipeline
-            resource.broadcaster.broadcastSuspend(answer)
+            val (author, text) = parseMessage(message)
+            resource.broadcaster.broadcastSuspend(envelope(author, text))         // everyone sees it
+            val answer = assistant.ask(resource.uuid() ?: "anonymous", text)      // real AI pipeline
+            resource.broadcaster.broadcastSuspend(envelope(AGENT_NAME, answer))
         }
     }
     onDisconnect { resource ->
-        runBlocking { resource.broadcaster.broadcastSuspend("${resource.uuid()} left") }
+        runBlocking { resource.broadcaster.broadcastSuspend(envelope(SYSTEM_AUTHOR, "${resource.uuid()} left")) }
     }
 }
 ```
+
+Every frame is the Console's broadcast dialect, a JSON
+`{"author": …, "message": …, "time": …}` envelope. A message may arrive as that
+envelope (the Console sends one) or as plain text (`curl -d 'ping'`, sent as
+`anonymous`).
 
 `broadcastSuspend` is a coroutine extension on `Broadcaster`; it suspends until
 `broadcast(message).get()` completes, so the callback only returns once the
@@ -82,13 +90,21 @@ message has actually been delivered.
 java -jar samples/kotlin-dsl-chat/target/atmosphere-kotlin-dsl-chat-*.jar
 ```
 
-The server listens on `http://localhost:8099/chat` (override with
-`-Dserver.port=...`). In one terminal subscribe, in another send a message:
+Open `http://localhost:8099/` (override the port with `SERVER_PORT` or
+`-Dserver.port=...`): it redirects to the Atmosphere Console at
+`/atmosphere/console/`, keeping the query string (`/?token=x` opens the Console
+with that token). The Console reads `/api/console/info`, connects to `/chat` in
+broadcast mode, and renders every message: send `ping` and the answer
+`kotlin-dsl-chat: pong` appears; open a second page and each sees the other's
+messages. The bundle is the shared Console build, synced into
+`src/main/webapp/atmosphere/console` by `scripts/sync-console-bundle.sh`.
+
+From a terminal, subscribe in one and send in another:
 
 ```bash
 curl -N http://localhost:8099/chat      # subscribe (streams broadcasts)
-curl -d 'ping' http://localhost:8099/chat   # -> "pong"
-curl -d 'hello' http://localhost:8099/chat  # -> "echo: hello"
+curl -d 'ping' http://localhost:8099/chat   # -> {"author":"anonymous","message":"ping",…} then {"author":"kotlin-dsl-chat","message":"pong",…}
+curl -d 'hello' http://localhost:8099/chat  # -> … {"author":"kotlin-dsl-chat","message":"echo: hello",…}
 ```
 
 The servlet installs `UUIDBroadcasterCache` (`KotlinDslChat.SERVLET_INIT_PARAMS`),
@@ -117,12 +133,18 @@ an object exists:
   agent's tool registry;
 - a `POST "ping"` flows through the DSL endpoint, the agent answers `"pong"`
   through the AI pipeline, and the `broadcastSuspend` coroutine extension
-  delivers exactly that payload;
+  delivers the sender's message and that answer as broadcast envelopes; a
+  Console envelope keeps its author;
 - the conversation is recorded in the agent's memory;
 - `broadcastSuspend` awaits the broadcast future and surfaces its resolved value;
 - `writeSuspend` writes its payload to the resource and returns it for chaining.
 
-The test pins the offline demo runtime explicitly so it never depends on the
+[`KotlinDslChatConsoleTest`](src/test/kotlin/org/atmosphere/samples/kotlindsl/KotlinDslChatConsoleTest.kt)
+starts the sample's Jetty and checks that `/` redirects to the Console with the
+query string kept (GET and HEAD), that the bundle is served, and that
+`/api/console/info` points it at the broadcast chat on `/chat`.
+
+The tests pin the offline demo runtime explicitly so it never depends on the
 developer's API keys or the network.
 
 ```bash

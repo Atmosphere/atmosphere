@@ -119,10 +119,45 @@ class KotlinDslChatDeliveryTest {
 
         // Proof: the message went through the agent's AI pipeline and the
         // resolved runtime answered "pong", and the broadcastSuspend coroutine
-        // extension delivered exactly that payload.
+        // extension delivered it — after the sender's own message — in the
+        // Console's broadcast envelope.
         val delivered = argumentCaptor<Any>()
-        verify(broadcaster).broadcast(delivered.capture())
-        assertEquals("pong", delivered.firstValue)
+        verify(broadcaster, org.mockito.kotlin.times(2)).broadcast(delivered.capture())
+        assertEquals(listOf("anonymous" to "ping", "kotlin-dsl-chat" to "pong"),
+            delivered.allValues.map { frame(it) })
+    }
+
+    @Test
+    fun `a Console envelope is answered in the same dialect, author kept`() {
+        val assistant = KotlinDslChat.registerAssistant(framework, DemoAgentRuntime())
+        val handler = KotlinDslChat.chatHandler(assistant)
+        val broadcaster = mock<Broadcaster> {
+            on { broadcast(any()) } doReturn completed()
+        }
+        val request = mock<AtmosphereRequest> {
+            on { getMethod() } doReturn "POST"
+            on { reader } doReturn BufferedReader(StringReader(
+                """{"author":"Guest 4f2a","message":"hello console","time":1}"""))
+        }
+        val resource = mock<AtmosphereResource> {
+            on { getRequest() } doReturn request
+            on { getBroadcaster() } doReturn broadcaster
+            on { uuid() } doReturn "client-2"
+        }
+
+        handler.onRequest(resource)
+
+        val delivered = argumentCaptor<Any>()
+        verify(broadcaster, org.mockito.kotlin.times(2)).broadcast(delivered.capture())
+        assertEquals(listOf("Guest 4f2a" to "hello console", "kotlin-dsl-chat" to "echo: hello console"),
+            delivered.allValues.map { frame(it) })
+    }
+
+    /** A broadcast frame as (author, message); fails unless it is the Console's envelope. */
+    private fun frame(payload: Any): Pair<String, String> {
+        val node = tools.jackson.databind.json.JsonMapper.builder().build().readTree(payload as String)
+        assertTrue(node.get("time").isNumber, "an envelope carries its time: $payload")
+        return node.get("author").stringValue() to node.get("message").stringValue()
     }
 
     @Test

@@ -449,7 +449,7 @@
     },
     {
       "name": "kotlin-dsl-chat",
-      "description": "Kotlin-first chat \u2014 endpoint built with the Atmosphere Kotlin DSL, agent declared with the Kotlin agent DSL, delivery via coroutine extensions (offline)",
+      "description": "Kotlin-first chat \u2014 endpoint built with the Atmosphere Kotlin DSL, agent declared with the Kotlin agent DSL, delivery via coroutine extensions (offline); the Atmosphere Console at / is its UI",
       "category": "chat",
       "tags": [
         "kotlin",
@@ -458,7 +458,8 @@
         "agent",
         "ai",
         "embedded",
-        "standalone"
+        "standalone",
+        "console"
       ],
       "port": 8099,
       "runnable": true,

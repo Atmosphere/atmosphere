@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.llm.DemoAgentRuntime
 import org.atmosphere.cache.UUIDBroadcasterCache
+import org.atmosphere.client.TrackMessageSizeInterceptor
 import org.atmosphere.cpr.ApplicationConfig
 import org.atmosphere.cpr.AtmosphereFramework
 import org.atmosphere.cpr.AtmosphereHandler
@@ -29,12 +30,15 @@ import org.atmosphere.kotlin.ai.KotlinAgent
 import org.atmosphere.kotlin.ai.registerAgent
 import org.atmosphere.kotlin.atmosphere
 import org.atmosphere.kotlin.broadcastSuspend
+import org.eclipse.jetty.ee10.servlet.ResourceServlet
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler
 import org.eclipse.jetty.ee10.servlet.ServletHolder
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.ServerConnector
+import org.eclipse.jetty.util.resource.ResourceFactory
 import org.slf4j.LoggerFactory
+import tools.jackson.databind.json.JsonMapper
 
 /**
  * Kotlin-first Atmosphere chat.
@@ -63,9 +67,14 @@ import org.slf4j.LoggerFactory
  * ```
  * ./mvnw -q -pl samples/kotlin-dsl-chat -am package -DskipTests
  * java -jar samples/kotlin-dsl-chat/target/atmosphere-kotlin-dsl-chat-*.jar
- * # then POST a message:
+ * # then open the Atmosphere Console (the sample UI): http://localhost:8099/
+ * # or POST a message:
  * curl -d 'ping' http://localhost:8099/chat
  * ```
+ *
+ * `/chat` speaks the Console's broadcast dialect: every frame is a JSON
+ * `{author, message, time}` envelope — the sender's message, then the
+ * agent's reply — and a message may arrive as that envelope or as plain text.
  */
 object KotlinDslChat {
 
@@ -149,22 +158,58 @@ object KotlinDslChat {
     fun chatHandler(assistant: KotlinAgent): AtmosphereHandler = atmosphere {
         onConnect { resource ->
             runBlocking {
-                resource.broadcaster.broadcastSuspend("${resource.uuid()} joined")
+                resource.broadcaster.broadcastSuspend(envelope(SYSTEM_AUTHOR, "${resource.uuid()} joined"))
             }
         }
         onMessage { resource, message ->
             runBlocking {
+                val (author, text) = parseMessage(message)
+                // Everyone in the chat sees what was said, then the answer.
+                resource.broadcaster.broadcastSuspend(envelope(author, text))
                 // Per-connection conversation key: the agent's memory keeps
                 // each client's turns apart.
-                val answer = assistant.ask(resource.uuid() ?: "anonymous", message)
-                resource.broadcaster.broadcastSuspend(answer)
+                val answer = assistant.ask(resource.uuid() ?: "anonymous", text)
+                resource.broadcaster.broadcastSuspend(envelope(AGENT_NAME, answer))
             }
         }
         onDisconnect { resource ->
             runBlocking {
-                resource.broadcaster.broadcastSuspend("${resource.uuid()} left")
+                resource.broadcaster.broadcastSuspend(envelope(SYSTEM_AUTHOR, "${resource.uuid()} left"))
             }
         }
+    }
+
+    /** Author of the join/leave notices. */
+    const val SYSTEM_AUTHOR = "system"
+
+    private val json = JsonMapper.builder().build()
+
+    /**
+     * The chat's wire frame — the Console's broadcast dialect: a JSON
+     * `{author, message, time}` envelope.
+     */
+    fun envelope(author: String, message: String): String =
+        json.writeValueAsString(mapOf("author" to author, "message" to message, "time" to System.currentTimeMillis()))
+
+    /**
+     * Read an inbound message: the Console's `{author, message}` envelope, or
+     * plain text (`curl -d 'ping'`) from an anonymous sender.
+     */
+    fun parseMessage(raw: String): Pair<String, String> {
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("{")) {
+            try {
+                val node = json.readTree(trimmed)
+                val message = node.get("message")
+                if (message != null && message.isString) {
+                    val author = node.get("author")?.takeIf { it.isString }?.stringValue()
+                    return (author?.takeIf { it.isNotBlank() } ?: "anonymous") to message.stringValue()
+                }
+            } catch (e: tools.jackson.core.JacksonException) {
+                log.debug("Not a chat envelope, reading it as text: {}", e.message)
+            }
+        }
+        return "anonymous" to raw
     }
 
     /**
@@ -178,6 +223,9 @@ object KotlinDslChat {
     val SERVLET_INIT_PARAMS: Map<String, String> = mapOf(
         ApplicationConfig.WEBSOCKET_SUPPORT to "true",
         ApplicationConfig.BROADCASTER_CACHE to UUIDBroadcasterCache::class.java.name,
+        // Jetty closes a WebSocket that carried nothing for 30 s; a heartbeat
+        // inside that window keeps an idle Console connected.
+        ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS to "20",
     )
 
     @JvmStatic
@@ -187,6 +235,22 @@ object KotlinDslChat {
         val port = System.getenv("SERVER_PORT")?.trim()?.toIntOrNull()
             ?: Integer.getInteger("server.port", 8099)
 
+        val server = createServer(port)
+        server.start()
+        log.info("Kotlin DSL chat started: the Atmosphere Console at http://localhost:{}/ (chat at /chat)", port)
+        log.info("Subscribe: curl -N http://localhost:{}/chat   |   Send: curl -d 'ping' http://localhost:{}/chat", port, port)
+        server.join()
+    }
+
+    /**
+     * The sample's Jetty server, not started: the DSL chat at `/chat`, the
+     * DSL agent at `/atmosphere/agent/kotlin-dsl-chat`, and the Atmosphere
+     * Console (the sample UI, synced by `scripts/sync-console-bundle.sh`) at
+     * `/atmosphere/console/`, with `/` redirecting to it.
+     *
+     * @param port the port to listen on; `0` picks a free one
+     */
+    fun createServer(port: Int): Server {
         val server = Server()
         val connector = ServerConnector(server)
         connector.port = port
@@ -194,12 +258,29 @@ object KotlinDslChat {
 
         val context = ServletContextHandler(ServletContextHandler.SESSIONS)
         context.contextPath = "/"
+        // A plain ServletContextHandler does not hide WEB-INF/META-INF.
+        context.protectedTargets = arrayOf("/WEB-INF", "/META-INF")
 
         // Provision the jakarta.websocket ServerContainer BEFORE Atmosphere
         // starts: the jetty-ee10-websocket-jakarta-server dependency alone does
         // nothing in embedded Jetty, and without the container Atmosphere's
         // JSR356 support cannot deploy — WebSocket upgrades then fail with 501.
         JakartaWebSocketServletContainerInitializer.configure(context, null)
+
+        // The Console bundle rides in the jar under webapp/.
+        val webapp = KotlinDslChat::class.java.classLoader.getResource("webapp/")
+            ?: throw IllegalStateException("No webapp/ on the classpath: the Console bundle is missing")
+        context.baseResource = ResourceFactory.of(server).newResource(webapp.toURI())
+        val console = ServletHolder("console", ResourceServlet::class.java)
+        console.setInitParameter("dirAllowed", "false")
+        // Resolve the full request path (atmosphere/console/assets/...) against webapp/.
+        console.setInitParameter("pathInfoOnly", "false")
+        context.addServlet(console, "/atmosphere/console/*")
+        // The directory URL itself is the Console's page.
+        context.addServlet(ServletHolder("console-index", ConsoleIndexServlet::class.java), "/atmosphere/console/")
+        context.addServlet(ServletHolder("console-info", ConsoleInfoServlet::class.java), "/api/console/info")
+        // "" is the context root alone: / goes to the Console, query kept.
+        context.addServlet(ServletHolder("root", ConsoleRootRedirectServlet::class.java), "")
 
         // Register both DSL-built pieces programmatically: there is no annotation
         // scanning here — the agent comes from registerAssistant() and the
@@ -209,7 +290,9 @@ object KotlinDslChat {
             override fun configureFramework(sc: ServletConfig, init: Boolean): AtmosphereServlet {
                 super.configureFramework(sc, init)
                 val assistant = registerAssistant(framework())
-                framework().addAtmosphereHandler("/chat", chatHandler(assistant))
+                // The Console reads every frame as <length>|<message>.
+                framework().addAtmosphereHandler("/chat", chatHandler(assistant),
+                    listOf(TrackMessageSizeInterceptor()))
                 return this
             }
         }
@@ -220,13 +303,11 @@ object KotlinDslChat {
         holder.setInitOrder(1)
         // Map the servlet at the context root so BOTH DSL-registered endpoints
         // are routable: the transport DSL's /chat and the agent DSL's
-        // /atmosphere/agent/kotlin-dsl-chat.
+        // /atmosphere/agent/kotlin-dsl-chat. The Console paths above are more
+        // specific and win.
         context.addServlet(holder, "/*")
 
         server.handler = context
-        server.start()
-        log.info("Kotlin DSL chat started on http://localhost:{}/chat", port)
-        log.info("Subscribe: curl -N http://localhost:{}/chat   |   Send: curl -d 'ping' http://localhost:{}/chat", port, port)
-        server.join()
+        return server
     }
 }

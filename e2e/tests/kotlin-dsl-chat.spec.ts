@@ -84,7 +84,7 @@ async function unsubscribe(page: Page, key: string): Promise<void> {
 
 test.describe('kotlin-dsl-chat: DSL endpoint wire contract', () => {
   test.beforeEach(async ({ page, baseURL }) => {
-    // The sample serves no static root; any response sets the page origin
+    // The root redirects to the Console; any response sets the page origin
     // so in-page fetch()/WebSocket hit the sample same-origin.
     await page.goto(`${baseURL}/`, { waitUntil: 'commit' });
   });
@@ -112,8 +112,11 @@ test.describe('kotlin-dsl-chat: DSL endpoint wire contract', () => {
     // Regression 1: with no jakarta.websocket ServerContainer the upgrade
     // is refused with 501 and `opened` stays false.
     expect(result.opened, 'WebSocket upgrade must be accepted, not 501').toBe(true);
-    expect(result.msgs, 'the DSL agent must answer ping with pong').toContain('pong');
-    expect(result.msgs, 'non-ping messages must be echoed').toContain('echo: release-gate');
+    // Frames are the Console's broadcast envelope: {author, message, time}.
+    const answers = result.msgs.flatMap((m) => { try { return [JSON.parse(m)]; } catch { return []; } })
+      .filter((f) => f.author === 'kotlin-dsl-chat').map((f) => f.message);
+    expect(answers, 'the DSL agent must answer ping with pong').toContain('pong');
+    expect(answers, 'non-ping messages must be echoed').toContain('echo: release-gate');
   });
 
   test('raw streaming HTTP subscriber receives broadcasts from a POST', async ({ page }) => {

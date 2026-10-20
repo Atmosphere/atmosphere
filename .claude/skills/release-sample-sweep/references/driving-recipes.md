@@ -96,8 +96,10 @@ framework. A hardcoded-looking constant is a finding.
 
 ## Class D — Headless wire protocols
 
-`a2a-agent`, `mcp-server`, `passivation-agent`, `reattach-harness`,
-`kotlin-dsl-chat` serve no HTML. Driving them over their wire protocol is the
+`a2a-agent`, `mcp-server`, `passivation-agent`, `reattach-harness` serve no
+HTML. (`kotlin-dsl-chat` now ships the Console and is driven through it like
+the other chat samples; its wire check below stays as a complement.) Driving
+them over their wire protocol is the
 correct analog to browser-driving — this is **not** a licence to validate UI
 samples with curl.
 
@@ -111,9 +113,10 @@ samples with curl.
   `POST /api/agent/resume`; assert history restored and `continued:true`.
 - **reattach-harness**: trigger a synthetic run, reconnect with the run id,
   assert **all** buffered events replay in order (the server logs `replayed N/N`).
-- **kotlin-dsl-chat**: subscribe over WebSocket, `POST` `ping`, assert `pong`
-  arrives on the subscription. Also check the server log for SLF4J NOP-logger
-  lines — the logging defect and the delivery defect were separate bugs.
+- **kotlin-dsl-chat** (wire complement to its Console drive): subscribe over
+  WebSocket, `POST` `ping`, assert a `{"author":"kotlin-dsl-chat","message":"pong",…}`
+  envelope arrives on the subscription. Also check the server log for SLF4J
+  NOP-logger lines — the logging defect and the delivery defect were separate bugs.
 
 **Do not browser-drive a raw `ws://localhost` from `about:blank`.** Chrome's
 Private Network Access blocks it from an opaque origin; you need a served

@@ -79,6 +79,36 @@ if [ "$checked" -eq 0 ]; then
     pass "no sample serves a root redirect page"
 fi
 
+# A server-side root redirect (an embedded server's servlet sending / to the
+# Console, e.g. kotlin-dsl-chat's ConsoleRootRedirectServlet) must carry the
+# request's query string into its Location.
+for src in "$ROOT"/samples/*/src/main/java "$ROOT"/samples/*/src/main/kotlin; do
+    [ -d "$src" ] || continue
+    while IFS= read -r file; do
+        rel=${file#"$ROOT"/}
+        if grep -qE 'queryString|getQueryString\(\)' "$file"; then
+            pass "$rel redirects / to the Console with the query string"
+        else
+            fail "$rel redirects / to the Console without the query string"
+        fi
+    done < <(grep -rlE '"/atmosphere/console/"' "$src" 2>/dev/null \
+        | xargs grep -lE 'SC_FOUND|SC_MOVED|sendRedirect|"Location"' 2>/dev/null)
+done
+
+# A sample that ships its own Console bundle has its root lead to it: a
+# redirect page in its webapp or a server-side root redirect.
+for bundle in "$ROOT"/samples/*/src/main/webapp/atmosphere/console; do
+    [ -d "$bundle" ] || continue
+    sample=${bundle%/src/main/webapp/atmosphere/console}
+    name=$(basename "$sample")
+    if [ -f "$sample/src/main/webapp/index.html" ] \
+        || grep -rqlE '"/atmosphere/console/"' "$sample/src/main/java" "$sample/src/main/kotlin" 2>/dev/null; then
+        pass "$name leads / to its bundled Console"
+    else
+        fail "$name ships the Console but nothing leads / to it"
+    fi
+done
+
 if [ "$failures" -gt 0 ]; then
     echo "FAILED: $failures sample root redirect(s) drop the query string"
     exit 1
