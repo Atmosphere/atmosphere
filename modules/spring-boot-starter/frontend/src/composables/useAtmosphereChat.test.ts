@@ -859,6 +859,36 @@ describe('the prompt of a turn reattached after a reload', () => {
     expect(bubbles(wrapper).filter(b => b.user)).toEqual([{ user: true, text: 'list ten primes' }])
   })
 
+  it('follows the run a handoff started: a reload before its first frame shows the prompt with its reply', async () => {
+    // 2026-10-20 re-test (orchestration-demo): the support agent handed the
+    // turn off to billing, whose run the client reattached after a reload;
+    // the prompt kept under the support run was never shown again.
+    const before = await mountPage()
+    before.chat.send('refund my order')
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-support', sessionId: 's-support', seq: 1 })
+    handlers.onEvent({ event: 'handoff', data: { fromAgent: 'support', toAgent: 'billing', reason: 'refund' }, sessionId: 's-support' })
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-billing', sessionId: 's-billing', seq: 1 })
+    // The support run ends once it handed the turn off; the turn goes on.
+    handlers.onEvent({ type: 'complete', sessionId: 's-support', seq: 2 })
+    await nextTick()
+    expect(JSON.parse(sessionStorage.getItem('atmosphere.console.inFlightPrompt') ?? 'null'))
+      .toMatchObject({ sessionId: 's-billing', runId: 'run-billing', text: 'refund my order' })
+    before.wrapper.unmount()
+
+    // Reloaded before billing's first frame: atmosphere.js reattaches billing's run.
+    transportUuid = 'tab-after-reload'
+    const { wrapper } = await mountPage()
+    handlers.onEvent({ type: 'streaming-text', data: 'Refund issued', sessionId: 's-billing', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-billing', seq: 3 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'refund my order' },
+      { user: false, text: 'Refund issued' },
+    ])
+    expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
+  })
+
   it('does not show a finished turn\'s prompt again', async () => {
     const before = await mountPage()
     before.chat.send('hello')

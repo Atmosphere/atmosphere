@@ -197,11 +197,16 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // broadcastReply room only, so a per-client run reattached after a reload
   // replays its reply alone; the Console shows the prompt from here. A
   // replayed prompt frame (a room's) supersedes it, and the turn's terminal
-  // frame ends it.
+  // frame ends it. A handoff hands the turn to another agent's run: the
+  // prompt follows the run the server announces next (the one atmosphere.js
+  // reattaches to), and the end of the run that handed off does not end it.
+  // The prompt is shown once per turn, whatever run it is kept under.
   const IN_FLIGHT_PROMPT_KEY = 'atmosphere.console.inFlightPrompt'
-  type InFlightPrompt = { sessionId: string; runId: string; text: string }
+  type InFlightPrompt = { sessionId: string; runId: string; text: string; turn?: string }
   let promptAwaitingRun: string | null = null
   let inFlightPromptShown: string | null = null
+  let handedOffInFlight = false
+  const turnOf = (prompt: InFlightPrompt) => prompt.turn ?? prompt.runId
   function inFlightPrompt(): InFlightPrompt | null {
     try {
       const p = JSON.parse(sessionStorage.getItem(IN_FLIGHT_PROMPT_KEY) ?? 'null')
@@ -225,8 +230,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // Only the first text of a bubble can open a turn: no storage read per chunk.
     if (currentAssistantMessage) return
     const prompt = inFlightPrompt()
-    if (!ofInFlightPrompt(msg, prompt) || inFlightPromptShown === prompt.runId) return
-    inFlightPromptShown = prompt.runId
+    if (!ofInFlightPrompt(msg, prompt) || inFlightPromptShown === turnOf(prompt)) return
+    inFlightPromptShown = turnOf(prompt)
     messages.value = [...messages.value, { id: crypto.randomUUID(), role: 'user', content: prompt.text, timestamp: Date.now() }]
   }
 
@@ -374,8 +379,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       if (msg.sessionId !== droppedSessionId) finalizeAssistant()
     }
     const type = (msg.type as string) || (msg.event as string)
+    if (type === 'handoff' && ofInFlightPrompt(msg, inFlightPrompt())) {
+      handedOffInFlight = true
+    }
     if ((type === 'prompt' || type === 'complete' || type === 'error' || type === 'cancelled')
-        && ofInFlightPrompt(msg, inFlightPrompt())) {
+        && ofInFlightPrompt(msg, inFlightPrompt()) && !(handedOffInFlight && type === 'complete')) {
       keepInFlightPrompt(null)
     }
 
@@ -509,9 +517,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           // A turn's run id: its prompt replayed on a reattach comes under it.
           runOfSession.set(msg.sessionId, msg.value)
           if (promptAwaitingRun !== null) {
-            keepInFlightPrompt({ sessionId: msg.sessionId, runId: msg.value, text: promptAwaitingRun })
-            inFlightPromptShown = msg.value
+            const turn = crypto.randomUUID()
+            keepInFlightPrompt({ sessionId: msg.sessionId, runId: msg.value, text: promptAwaitingRun, turn })
+            inFlightPromptShown = turn
             promptAwaitingRun = null
+            handedOffInFlight = false
+          } else if (handedOffInFlight) {
+            // The run the turn was handed off to: the prompt goes on under it.
+            const prompt = inFlightPrompt()
+            if (prompt && prompt.sessionId !== msg.sessionId) {
+              keepInFlightPrompt({ ...prompt, sessionId: msg.sessionId, runId: msg.value, turn: turnOf(prompt) })
+              handedOffInFlight = false
+            }
           }
           if (runOfSession.size > MAX_TRACKED_TURNS) {
             runOfSession.delete(runOfSession.keys().next().value as string)
@@ -962,6 +979,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     stats.value = null
     currentAssistantMessage = null
     promptAwaitingRun = null
+    handedOffInFlight = false
     keepInFlightPrompt(null)
     // The suffixed bubbles are gone; queued sends themselves stay queued.
     queuedBubbleIds.clear()
