@@ -131,6 +131,28 @@ class EmbabelToolBridgeTest {
     }
 
     @Test
+    fun `a cancelled turn does not run the tool`() {
+        val invoked = AtomicBoolean(false)
+        val tool = ToolDefinition.builder("commit_budget", "Commit the budget")
+            .parameter("amount", "amount", "string")
+            .executor { _ ->
+                invoked.set(true)
+                "committed"
+            }
+            .build()
+        val cancelledTurn = object : org.atmosphere.ai.DelegatingStreamingSession(org.atmosphere.ai.CollectingSession()) {
+            override fun isTurnCancelled() = true
+        }
+
+        val result = EmbabelToolBridge.toEmbabelTool(tool, cancelledTurn, null, null)
+            .call("""{"amount":"50000"}""")
+
+        assertTrue(!invoked.get(), "a tool ran in a cancelled turn")
+        assertEquals(org.atmosphere.ai.tool.ToolExecutionHelper.TURN_CANCELLED_RESULT,
+            (result as Tool.Result.Text).content)
+    }
+
+    @Test
     fun `handler returns Text result wrapping ToolExecutionHelper's error JSON when executor throws`() {
         // ToolExecutionHelper.executeWithApproval catches executor
         // exceptions and returns a formatted JSON error string rather

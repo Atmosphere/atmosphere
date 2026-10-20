@@ -66,6 +66,7 @@ public abstract class DelegatingStreamingSession implements StreamingSession {
     @Override public void complete(String summary) { delegate.complete(summary); }
     @Override public void error(Throwable t) { delegate.error(t); }
     @Override public boolean isClosed() { return delegate.isClosed(); }
+    @Override public boolean isTurnCancelled() { return delegate.isTurnCancelled(); }
     @Override public boolean hasErrored() { return delegate.hasErrored(); }
     @Override public void emit(AiEvent event) { delegate.emit(event); }
     @Override public void stream(String message) { delegate.stream(message); }

@@ -302,6 +302,33 @@ class CrewAiToolBridgeTest {
     }
 
     @Test
+    void toolCallback_inACancelledTurnDoesNotRunTheTool() throws Exception {
+        var executor = new RecordingExecutor();
+        var tool = ToolDefinition.builder("lookup_order", "Look up an order")
+                .parameter("order_id", "The order id", "string", true)
+                .executor(executor)
+                .build();
+        var cancelledTurn = new org.atmosphere.ai.DelegatingStreamingSession(new org.atmosphere.ai.CollectingSession()) {
+            @Override
+            public boolean isTurnCancelled() {
+                return true;
+            }
+        };
+        var server = new ToolCallbackServer(Map.of("lookup_order", tool), cancelledTurn, null);
+        server.start();
+        try {
+            var response = post(server,
+                    "{\"call_id\":\"c1\",\"name\":\"lookup_order\","
+                            + "\"arguments\":{\"order_id\":\"A123\"}}");
+            assertEquals(200, response.statusCode());
+            assertEquals(null, executor.lastArgs.get(), "a tool ran in a cancelled turn");
+            assertTrue(response.body().contains("cancelled"), response.body());
+        } finally {
+            server.stop();
+        }
+    }
+
+    @Test
     void toolError_returnsHttp200WithErrorField() throws Exception {
         var tool = ToolDefinition.builder("boom", "Always fails")
                 .parameter("ignored", "ignored", "string", false)

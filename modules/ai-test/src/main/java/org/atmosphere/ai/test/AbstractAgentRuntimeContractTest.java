@@ -445,9 +445,15 @@ public abstract class AbstractAgentRuntimeContractTest {
     protected static ToolDefinition toolLoopTool() {
         return ToolDefinition.builder("lookup", "Look a city up")
                 .parameter("city", "the city", "string")
-                .executor(args -> "sunny in " + args.get("city"))
+                .executor(args -> {
+                    TOOL_LOOP_DISPATCHES.incrementAndGet();
+                    return "sunny in " + args.get("city");
+                })
                 .build();
     }
+
+    /** How many times {@link #toolLoopTool()}'s executor ran. */
+    private static final AtomicInteger TOOL_LOOP_DISPATCHES = new AtomicInteger();
 
     /** A context carrying {@link #toolLoopTool()}, for a {@link ToolLoopFixture}. */
     protected static AgentExecutionContext toolLoopContext(String model) {
@@ -494,6 +500,52 @@ public abstract class AbstractAgentRuntimeContractTest {
                 + ": execute returned before the tool-calling turn ended");
         assertTrue(syncSession.text().contains(again.finalAnswer()), again.runtime().name()
                 + ": execute returned before the last round's answer; got: " + syncSession.text());
+    }
+
+    /**
+     * No tool runs in a cancelled turn: once an operator's cancel, the
+     * prompter's departure or the idle sweep reached the turn
+     * ({@link StreamingSession#isTurnCancelled()}), a tool the model asks for
+     * is refused, not dispatched — whichever runtime owns the tool loop. Every
+     * runtime routes its tool calls through
+     * {@link org.atmosphere.ai.tool.ToolExecutionHelper#executeWithApproval}
+     * with the turn's session (or a decorator of it), which refuses them.
+     */
+    @Test
+    protected void noToolRunsInACancelledTurn() throws Exception {
+        var fixture = createToolLoopFixture();
+        if (fixture == null) {
+            return;
+        }
+        // The fixture's tool round must reach the tool when the turn is live,
+        // so a zero below is the refusal, not a fixture that never dispatches.
+        // A fixture whose stub plays the tool round inside the framework (no
+        // Atmosphere tool runs) cannot show the refusal: the assertion is
+        // skipped there, and that module's tool-bridge test proves it.
+        TOOL_LOOP_DISPATCHES.set(0);
+        var live = createToolLoopFixture();
+        live.runtime().executeWithHandle(live.context(), new RecordingSession())
+                .whenDone().get(15, TimeUnit.SECONDS);
+        org.junit.jupiter.api.Assumptions.assumeTrue(TOOL_LOOP_DISPATCHES.get() > 0,
+                live.runtime().name() + ": the tool-loop fixture's stub plays the tool round "
+                        + "itself; the tool bridge test covers the refusal");
+
+        TOOL_LOOP_DISPATCHES.set(0);
+        var session = new RecordingSession() {
+            @Override
+            public boolean isTurnCancelled() {
+                return true;
+            }
+        };
+        var handle = fixture.runtime().executeWithHandle(fixture.context(), session);
+        try {
+            handle.whenDone().get(15, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException e) {
+            // A runtime may end the turn on the refusal; what matters is that
+            // the tool did not run.
+        }
+        assertEquals(0, TOOL_LOOP_DISPATCHES.get(), fixture.runtime().name()
+                + ": a tool ran in a cancelled turn");
     }
 
     /**

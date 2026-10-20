@@ -73,7 +73,7 @@ class TapeRecordingSessionTest {
         // OVERRIDE (not merely inherit a forward for) every event-bearing
         // method, or a new event seam would silently bypass the recording.
         var nonEventBearing = Set.of("sessionId", "runId", "injectables", "isClosed",
-                "hasErrored", "stream", "handoff", "onTerminate");
+                "hasErrored", "isTurnCancelled", "stream", "handoff", "onTerminate");
         var missing = new ArrayList<String>();
         for (var m : StreamingSession.class.getDeclaredMethods()) {
             if (m.isSynthetic() || m.isBridge() || Modifier.isPrivate(m.getModifiers())

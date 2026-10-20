@@ -180,8 +180,8 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
      */
     /**
      * The deployed Embabel agent owns its tool loop: `AgentPlatform.runAgentFrom`
-     * returns once the agent process has run every step. The stub runs the
-     * request's `lookup` tool (the tool round) and answers 300 ms later;
+     * returns once the agent process has run every step. The stub takes a
+     * tool round's time and answers 300 ms later;
      * `execute` and the handle must not end before that.
      */
     override fun createToolLoopFixture(): ToolLoopFixture {
@@ -200,7 +200,9 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
             org.mockito.kotlin.any<com.embabel.agent.core.ProcessOptions>(),
             org.mockito.kotlin.any<Map<String, Any>>()
         )).thenAnswer {
-            toolLoopTool().executor().execute(mapOf<String, Any>("city" to "Paris"))
+            // The deployed agent's own tool round: a deployed agent does not
+            // receive the request's Atmosphere tools (ProcessOptions carries
+            // none), so the stub only takes the time a tool round takes.
             Thread.sleep(300)
             process
         }

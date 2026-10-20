@@ -53,6 +53,10 @@ public final class ToolExecutionHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(ToolExecutionHelper.class);
 
+    /** What a tool call answers when its turn was cancelled before it was dispatched. */
+    public static final String TURN_CANCELLED_RESULT =
+            "{\"error\":\"The run was cancelled; the tool was not executed.\"}";
+
     /** Serializes reviewer-supplied structured approval responses to JSON. */
     private static final ObjectMapper RESPONSE_JSON = JsonMapper.builder().build();
 
@@ -488,6 +492,14 @@ public final class ToolExecutionHelper {
                                              ApprovalStrategy strategy,
                                              ToolApprovalPolicy policy,
                                              Map<Class<?>, Object> injectables) {
+        if (session != null && session.isTurnCancelled()) {
+            // The turn was cancelled (an operator, the prompter gone, the
+            // sweep): a tool the model asked for before the cancel landed is
+            // not dispatched, and no approval is requested for it.
+            logger.debug("Tool {} not dispatched: the turn of session {} was cancelled",
+                    toolName, session.sessionId());
+            return TURN_CANCELLED_RESULT;
+        }
         var ctx = DurableRunScopeHolder.current(session);
         if (ctx == null || ctx.journal() == EffectJournal.NOOP) {
             // Durable runs off: byte-identical live path, no memoization.

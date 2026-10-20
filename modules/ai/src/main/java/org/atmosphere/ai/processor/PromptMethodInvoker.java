@@ -122,6 +122,11 @@ public final class PromptMethodInvoker {
                         }
                     }
                 }
+                if (injectable instanceof org.atmosphere.ai.TurnScoped turnScoped && session != null) {
+                    // Bound to this turn (a coordinator's fleet stops
+                    // delegating once the turn is cancelled).
+                    injectable = turnScoped.forTurn(session);
+                }
                 if (injectable != null) {
                     args[i] = injectable;
                 } else {

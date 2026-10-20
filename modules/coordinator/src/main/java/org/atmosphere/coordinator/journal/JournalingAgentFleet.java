@@ -110,6 +110,17 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     }
 
     @Override
+    public AgentFleet withCancellation(java.util.function.BooleanSupplier cancelled) {
+        var delegated = delegate.withCancellation(cancelled);
+        if (delegated == delegate) {
+            return this;
+        }
+        // Share (not own) the eval executor, like withParentRun.
+        return new JournalingAgentFleet(delegated, journal, coordinatorName,
+                evalExecutor, false, coordinationIdOverride);
+    }
+
+    @Override
     public AgentFleet withParentRun(String parentRunId) {
         var delegated = delegate.withParentRun(parentRunId);
         if (delegated == delegate) {

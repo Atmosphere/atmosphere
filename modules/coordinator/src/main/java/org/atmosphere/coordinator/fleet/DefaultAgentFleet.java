@@ -198,6 +198,19 @@ public final class DefaultAgentFleet implements AgentFleet {
     }
 
     @Override
+    public AgentFleet withCancellation(java.util.function.BooleanSupplier cancelled) {
+        if (cancelled == null) {
+            return this;
+        }
+        var newProxies = new LinkedHashMap<String, AgentProxy>();
+        for (var entry : proxies.entrySet()) {
+            newProxies.put(entry.getKey(), entry.getValue().withCancellation(cancelled));
+        }
+        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs,
+                activityListeners, maxParallel, dispatchPermits);
+    }
+
+    @Override
     public AgentFleet withParentRun(String parentRunId) {
         if (parentRunId == null || parentRunId.isBlank()) {
             return this;

@@ -1438,7 +1438,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                         } else if (StreamingSession.class.isAssignableFrom(paramTypes[i])) {
                             args[i] = session;
                         } else if (AgentFleet.class.isAssignableFrom(paramTypes[i])) {
-                            args[i] = fleet;
+                            args[i] = fleet.forTurn(session);
                         }
                     }
                     bridgedPromptMethod.invoke(promptTarget, args);
@@ -1518,7 +1518,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                     } else if (StreamingSession.class.isAssignableFrom(paramTypes[i])) {
                         args[i] = collector;
                     } else if (AgentFleet.class.isAssignableFrom(paramTypes[i])) {
-                        args[i] = fleet;
+                        args[i] = fleet.forTurn(collector);
                     }
                 }
                 bridgedPromptMethod.invoke(promptTarget, args);

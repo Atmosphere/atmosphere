@@ -73,6 +73,21 @@ public interface AgentProxy {
     }
 
     /**
+     * Returns a view of this proxy that stops calling the agent once
+     * {@code cancelled} answers {@code true}: a later call answers a failed
+     * {@link AgentResult} without dispatching. The fleet a {@code @Prompt}
+     * turn receives carries the turn's cancellation this way, so a cancelled
+     * coordinator delegates nothing more.
+     *
+     * @param cancelled whether the run this proxy works for was cancelled;
+     *                  {@code null} returns {@code this}
+     * @return the cancellable view
+     */
+    default AgentProxy withCancellation(java.util.function.BooleanSupplier cancelled) {
+        return cancelled == null ? this : new CancellableAgentProxy(this, cancelled);
+    }
+
+    /**
      * Start an agent call and return a cancellable execution handle.
      * The call runs asynchronously on a virtual thread.
      *

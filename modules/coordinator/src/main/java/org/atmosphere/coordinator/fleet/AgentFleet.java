@@ -27,7 +27,7 @@ import java.util.function.Consumer;
  * Fleet abstraction injected into {@code @Prompt} methods of {@code @Coordinator}
  * classes. Provides agent discovery and delegation capabilities.
  */
-public interface AgentFleet {
+public interface AgentFleet extends org.atmosphere.ai.TurnScoped {
 
     /** Get a proxy to a named agent in this fleet. Throws if not found. */
     AgentProxy agent(String name);
@@ -415,6 +415,30 @@ public interface AgentFleet {
      *                    modified call, proceed admits unchanged
      * @return a new fleet instance with the interceptor added
      */
+    /**
+     * Returns a view of this fleet that delegates nothing once
+     * {@code cancelled} answers {@code true}: every later call, parallel
+     * fan-out, pipeline step or route answers failed {@link AgentResult}s
+     * without dispatching. Default returns {@code this}.
+     *
+     * @param cancelled whether the run this fleet works for was cancelled
+     * @return the cancellable view
+     */
+    default AgentFleet withCancellation(java.util.function.BooleanSupplier cancelled) {
+        return this;
+    }
+
+    /**
+     * The fleet one {@code @Prompt} turn receives: this fleet, delegating
+     * nothing once the turn is cancelled
+     * ({@link org.atmosphere.ai.StreamingSession#isTurnCancelled()}) — an
+     * operator's cancel, the prompter gone, the idle sweep.
+     */
+    @Override
+    default AgentFleet forTurn(org.atmosphere.ai.StreamingSession session) {
+        return session == null ? this : withCancellation(session::isTurnCancelled);
+    }
+
     default AgentFleet withInterceptor(FleetInterceptor interceptor) {
         if (interceptor == null) {
             throw new IllegalArgumentException("interceptor must not be null");

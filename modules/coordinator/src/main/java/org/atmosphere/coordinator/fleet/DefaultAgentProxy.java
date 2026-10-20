@@ -47,6 +47,7 @@ public final class DefaultAgentProxy implements AgentProxy {
     private final List<AgentActivityListener> activityListeners;
     private final AgentLimits limits;
     private final Map<String, Object> dispatchMetadata;
+    private final java.util.function.BooleanSupplier cancelled;
 
     public DefaultAgentProxy(String name, String version, int weight,
                              boolean local, AgentTransport transport) {
@@ -78,13 +79,15 @@ public final class DefaultAgentProxy implements AgentProxy {
                              List<AgentActivityListener> activityListeners,
                              AgentLimits limits) {
         this(name, version, weight, local, retryPolicy, transport, activityListeners, limits,
-                Map.of());
+                Map.of(), () -> false);
     }
 
     private DefaultAgentProxy(String name, String version, int weight,
                               boolean local, RetryPolicy retryPolicy, AgentTransport transport,
                               List<AgentActivityListener> activityListeners,
-                              AgentLimits limits, Map<String, Object> dispatchMetadata) {
+                              AgentLimits limits, Map<String, Object> dispatchMetadata,
+                              java.util.function.BooleanSupplier cancelled) {
+        this.cancelled = cancelled;
         this.name = name;
         this.version = version;
         this.weight = weight;
@@ -102,7 +105,18 @@ public final class DefaultAgentProxy implements AgentProxy {
             return this;
         }
         return new DefaultAgentProxy(name, version, weight, local, retryPolicy, transport,
-                activityListeners, limits, md);
+                activityListeners, limits, md, cancelled);
+    }
+
+    @Override
+    public AgentProxy withCancellation(java.util.function.BooleanSupplier other) {
+        if (other == null) {
+            return this;
+        }
+        var previous = this.cancelled;
+        return new DefaultAgentProxy(name, version, weight, local, retryPolicy, transport,
+                activityListeners, limits, dispatchMetadata,
+                () -> previous.getAsBoolean() || other.getAsBoolean());
     }
 
     // Route through the 3-arg transport call when there is no dispatch metadata
@@ -138,6 +152,27 @@ public final class DefaultAgentProxy implements AgentProxy {
      * dispatch failure is re-thrown unchanged to preserve the prior
      * propagation behavior.</p>
      */
+    /** How often a call in flight looks at its run's cancellation. */
+    private static final long CANCEL_POLL_MS = 50;
+
+    /**
+     * Wait for {@code future}, or answer {@code null} as soon as the run this
+     * proxy works for is cancelled.
+     */
+    private AgentResult awaitUnlessCancelled(CompletableFuture<AgentResult> future)
+            throws InterruptedException, ExecutionException {
+        while (true) {
+            if (!future.isDone() && cancelled.getAsBoolean()) {
+                return null;
+            }
+            try {
+                return future.get(CANCEL_POLL_MS, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException stillRunning) {
+                // Not done yet: look at the cancellation again.
+            }
+        }
+    }
+
     private AgentResult dispatchBounded(String skill, Map<String, Object> args, Instant start) {
         var timeoutMs = limits.timeout().toMillis();
         var vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
@@ -176,7 +211,17 @@ public final class DefaultAgentProxy implements AgentProxy {
                 // failure — the interrupt lands here and must propagate INTO this
                 // per-call executor, or the inner dispatch would run to
                 // completion and defeat the outer cancellation.
-                var result = future.get();
+                var result = awaitUnlessCancelled(future);
+                if (result == null) {
+                    // The run was cancelled while the agent ran: interrupt the
+                    // worker, which cancels the agent's in-flight model call
+                    // through its runtime (the pipeline's cancel signal).
+                    future.cancel(true);
+                    vtExecutor.shutdownNow();
+                    logger.debug("Agent '{}' skill '{}' cancelled in flight: the run was cancelled",
+                            name, skill);
+                    return CancellableAgentProxy.cancelledResult(name, skill);
+                }
                 if (workerInterrupted.get()) {
                     // Relay the worker-observed interrupt across the hop.
                     Thread.currentThread().interrupt();
@@ -238,6 +283,10 @@ public final class DefaultAgentProxy implements AgentProxy {
 
     @Override
     public AgentResult call(String skill, Map<String, Object> args) {
+        if (cancelled.getAsBoolean()) {
+            logger.debug("Agent '{}' not called for skill '{}': the run was cancelled", name, skill);
+            return CancellableAgentProxy.cancelledResult(name, skill);
+        }
         var start = Instant.now();
         emitActivity(new AgentActivity.Thinking(name, skill, start));
 
@@ -248,6 +297,10 @@ public final class DefaultAgentProxy implements AgentProxy {
             return result;
         }
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (cancelled.getAsBoolean()) {
+                emitTerminal(skill, result, start);
+                return result;
+            }
             if (Thread.interrupted()) {
                 Thread.currentThread().interrupt();
                 emitTerminal(skill, result, start);
@@ -319,6 +372,10 @@ public final class DefaultAgentProxy implements AgentProxy {
     @Override
     public void stream(String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
+        if (cancelled.getAsBoolean()) {
+            onComplete.run();
+            return;
+        }
         if (dispatchMetadata.isEmpty()) {
             transport.stream(name, skill, args, onToken, onComplete);
         } else {
@@ -335,6 +392,6 @@ public final class DefaultAgentProxy implements AgentProxy {
         var combined = new java.util.ArrayList<>(this.activityListeners);
         combined.addAll(extra);
         return new DefaultAgentProxy(name, version, weight, local, retryPolicy,
-                transport, combined, limits, dispatchMetadata);
+                transport, combined, limits, dispatchMetadata, cancelled);
     }
 }

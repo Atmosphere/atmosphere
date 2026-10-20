@@ -110,6 +110,12 @@ public final class InterceptingAgentFleet implements AgentFleet {
     }
 
     @Override
+    public AgentFleet withCancellation(java.util.function.BooleanSupplier cancelled) {
+        var delegated = delegate.withCancellation(cancelled);
+        return delegated == delegate ? this : new InterceptingAgentFleet(delegated, interceptors);
+    }
+
+    @Override
     public AgentFleet withParentRun(String parentRunId) {
         // Delegate so the parent tape run id reaches the wrapped fleet's proxies;
         // without this override the interface default returns `this` and a

@@ -99,6 +99,25 @@ class AdkToolBridgeApprovalTest {
     }
 
     @Test
+    void aCancelledTurnNeitherAsksTheApproverNorRunsTheTool() {
+        var counter = new AtomicInteger();
+        var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.APPROVED);
+        var cancelledTurn = new org.atmosphere.ai.DelegatingStreamingSession(new org.atmosphere.ai.CollectingSession()) {
+            @Override
+            public boolean isTurnCancelled() {
+                return true;
+            }
+        };
+
+        var tools = AdkToolBridge.toAdkTools(
+                List.of(sensitive(counter)), cancelledTurn, strategy, List.of(), null);
+        tools.get(0).runAsync(Map.of("userId", "u1"), null).blockingGet();
+
+        assertEquals(0, counter.get(), "a tool ran in a cancelled turn");
+        assertEquals(null, strategy.last.get(), "a cancelled turn asked the approver");
+    }
+
+    @Test
     void deniedAdkToolSkipsDelegate() {
         var counter = new AtomicInteger();
         var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.DENIED);

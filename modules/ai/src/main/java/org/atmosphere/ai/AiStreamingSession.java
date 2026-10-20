@@ -91,6 +91,44 @@ public class AiStreamingSession implements StreamingSession {
     private static final ConcurrentHashMap<String, AiStreamingSession> RUN_SESSIONS = new ConcurrentHashMap<>();
 
     /**
+     * The session ids of the turns a turn-ending cancel reached, with when it
+     * did: what {@link StreamingSession#isTurnCancelled()} answers for a
+     * decorator of the turn's session (a runtime's tool loop holds one), also
+     * once the turn ended and its session left {@link #ACTIVE_SESSIONS}.
+     * Entries leave after {@link #CANCELLED_TURN_RETENTION_MS} at the idle
+     * sweep, and the map is capped at {@link #CANCELLED_TURNS_CAP} entries.
+     */
+    private static final ConcurrentHashMap<String, Long> CANCELLED_TURNS = new ConcurrentHashMap<>();
+    private static final long CANCELLED_TURN_RETENTION_MS = 15 * 60_000L;
+    private static final int CANCELLED_TURNS_CAP = 10_000;
+
+    /**
+     * Whether a turn-ending cancel reached the turn of session {@code sessionId}
+     * (see {@link StreamingSession#isTurnCancelled()}).
+     *
+     * @param sessionId the session id of the turn, may be {@code null}
+     * @return {@code true} when that turn was cancelled
+     */
+    public static boolean isTurnCancelled(String sessionId) {
+        return sessionId != null && CANCELLED_TURNS.containsKey(sessionId);
+    }
+
+    private static void recordCancelledTurn(String sessionId) {
+        if (sessionId == null) {
+            return;
+        }
+        if (CANCELLED_TURNS.size() >= CANCELLED_TURNS_CAP) {
+            pruneCancelledTurns(System.currentTimeMillis(), true);
+        }
+        CANCELLED_TURNS.put(sessionId, System.currentTimeMillis());
+    }
+
+    private static void pruneCancelledTurns(long now, boolean all) {
+        CANCELLED_TURNS.entrySet().removeIf(e ->
+                all || now - e.getValue() > CANCELLED_TURN_RETENTION_MS);
+    }
+
+    /**
      * Request attribute key under which the active {@link StreamingSession} is stored.
      * The stored value is the composed decorator target for the current turn — the
      * same session {@link AiInterceptor#beforeCompletion} receives as a parameter.
@@ -455,6 +493,7 @@ public class AiStreamingSession implements StreamingSession {
      */
     static int sweepExpired(long ttlMs) {
         var now = System.currentTimeMillis();
+        pruneCancelledTurns(now, false);
         var cutoff = now - ttlMs;
         var removed = 0;
         for (var entry : ACTIVE_SESSIONS.entrySet()) {
@@ -754,9 +793,14 @@ public class AiStreamingSession implements StreamingSession {
         // later reason that ends the turn (the prompter gone, an operator,
         // the sweep) takes its place, so the method returning open still ends
         // the turn for it; any other first reason is kept.
-        pendingCancelReason.accumulateAndGet(reason, (first, next) ->
+        var effective = pendingCancelReason.accumulateAndGet(reason, (first, next) ->
                 first == null || first == RunCancelledException.Reason.CALLER ? next : first);
         cancelPending.set(true);
+        if (effective != RunCancelledException.Reason.CALLER) {
+            // The turn is cancelled: what its @Prompt method has yet to start
+            // (a delegation, a tool, an approval, a model call) must not start.
+            recordCancelledTurn(sessionId());
+        }
         var handle = this.currentHandle;
         var inFlight = handle != null && !handle.isDone();
         if (inFlight) {
@@ -788,6 +832,19 @@ public class AiStreamingSession implements StreamingSession {
         }
         cancelledReason.compareAndSet(null, reason);
         error(new RunCancelledException(reason));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@code true} once {@link #cancelInflight(RunCancelledException.Reason)}
+     * was called for a reason other than
+     * {@link RunCancelledException.Reason#CALLER}.</p>
+     */
+    @Override
+    public boolean isTurnCancelled() {
+        var reason = pendingCancelReason.get();
+        return cancelPending.get() && reason != null && reason != RunCancelledException.Reason.CALLER;
     }
 
     /** Whether a cancel for {@code reason} ends a turn no model call is left to end. */
@@ -1343,6 +1400,15 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void stream(String message, List<Content> inputParts) {
+        if (isTurnCancelled()) {
+            // The turn was cancelled while its @Prompt method still ran (a
+            // coordinator between delegations): no model call starts for it.
+            // The turn ends here with the cancelled frame, if nothing ended it.
+            logger.debug("Turn of session {} was cancelled; not starting its model call",
+                    sessionId());
+            endCancelledTurn(pendingCancelReason.get());
+            return;
+        }
         // The room is shown the turn's prompt only once the admission steps
         // below admitted it; a return before that drops the echo.
         var echo = promptEcho.getAndSet(null);

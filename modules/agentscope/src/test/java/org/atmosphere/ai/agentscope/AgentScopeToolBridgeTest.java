@@ -53,6 +53,37 @@ class AgentScopeToolBridgeTest {
     }
 
     @Test
+    void aCancelledTurnDoesNotRunTheTool() {
+        var ran = new java.util.concurrent.atomic.AtomicInteger();
+        var tool = ToolDefinition.builder("greet", "Say hello")
+                .parameter("name", "Name to greet", "string")
+                .executor(args -> {
+                    ran.incrementAndGet();
+                    return "hello " + args.get("name");
+                })
+                .build();
+        var cancelledTurn = new org.atmosphere.ai.DelegatingStreamingSession(new org.atmosphere.ai.CollectingSession()) {
+            @Override
+            public boolean isTurnCancelled() {
+                return true;
+            }
+        };
+        var agentTool = AgentScopeToolBridge.toToolkit(List.of(tool), cancelledTurn, null, null)
+                .getTool("greet");
+        var call = ToolCallParam.builder()
+                .toolUseBlock(ToolUseBlock.builder()
+                        .id("call-1").name("greet").input(java.util.Map.of("name", "Ada")).build())
+                .input(java.util.Map.of("name", "Ada"))
+                .build();
+
+        var result = agentTool.callAsync(call).block();
+
+        assertEquals(0, ran.get(), "a tool ran in a cancelled turn");
+        assertEquals(org.atmosphere.ai.tool.ToolExecutionHelper.TURN_CANCELLED_RESULT,
+                ((TextBlock) result.getOutput().get(0)).getText());
+    }
+
+    @Test
     void schemaContainsRequiredParameters() {
         var tool = ToolDefinition.builder("add", "Add numbers")
                 .parameter("left", "Left number", "number")

@@ -253,6 +253,22 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
+     * Whether this session's turn was cancelled — by an operator, by its
+     * prompter going away for good, or by the idle sweep — so no further work
+     * may start for it: no delegation to another agent, no tool dispatch, no
+     * approval request, no new model call. A cancel that only cuts one model
+     * call short ({@link RunCancelledException.Reason#CALLER}) does not cancel
+     * the turn.
+     *
+     * <p>The default answers for the turn this session's {@link #sessionId()}
+     * names, so a decorator that forwards the id answers for the turn it
+     * decorates.</p>
+     */
+    default boolean isTurnCancelled() {
+        return AiStreamingSession.isTurnCancelled(sessionId());
+    }
+
+    /**
      * Send multi-modal content to the client.
      *
      * <p>The default implementation routes {@link Content.Text} through
