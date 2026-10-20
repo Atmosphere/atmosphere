@@ -423,6 +423,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             "org.atmosphere.ai.resume.AgentResumeHandle",
             "org.atmosphere.ai.resume.RunRegistry",
             "org.atmosphere.ai.resume.RunReattachSupport",
+            "org.atmosphere.ai.resume.ClientRunIds",
+            "org.atmosphere.ai.tape.TapeSupport",
+            "org.atmosphere.ai.DocumentReranker",
             "org.atmosphere.cpr.RawMessage",
     };
 
@@ -452,6 +455,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             }
         }
         org.atmosphere.ai.resume.RunRegistryHolder.get();
+        // The run-id frame is the first frame a prompt's dispatch serializes:
+        // the serializer classes it needs load here, not on that dispatch.
+        try {
+            var frame = new java.util.LinkedHashMap<String, Object>();
+            frame.put("type", "metadata");
+            frame.put("key", org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER);
+            frame.put("value", "");
+            frame.put("sessionId", "");
+            frame.put("seq", 0L);
+            new tools.jackson.databind.ObjectMapper().writeValueAsString(frame);
+        } catch (RuntimeException e) {
+            logger.debug("Not serializing a frame ahead of the first prompt: {}", e.toString());
+        }
     }
 
     /**
