@@ -903,13 +903,6 @@ public class AiStreamingSession implements StreamingSession {
         }
     }
 
-    /**
-     * Whether the approval {@code approvalId} of run {@code runId} still waits
-     * for its answer: a reattached client is shown its card only then.
-     *
-     * @param runId      the run
-     * @param approvalId the approval's id
-     */
     /** The deadlines of the turns that have one ({@link #setTurnDeadline}), by session id. */
     private static final ConcurrentHashMap<String, java.time.Instant> TURN_DEADLINES = new ConcurrentHashMap<>();
 
@@ -929,6 +922,13 @@ public class AiStreamingSession implements StreamingSession {
         return turnDeadline(sessionId());
     }
 
+    /**
+     * Whether the approval {@code approvalId} of run {@code runId} still waits
+     * for its answer: a reattached client is shown its card only then.
+     *
+     * @param runId      the run
+     * @param approvalId the approval's id
+     */
     public static boolean approvalPending(String runId, String approvalId) {
         if (runId == null || approvalId == null) {
             return false;

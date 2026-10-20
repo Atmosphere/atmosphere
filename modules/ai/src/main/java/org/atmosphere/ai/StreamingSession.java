@@ -253,18 +253,6 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
-     * Whether this session's turn was cancelled — by an operator, by its
-     * prompter going away for good, or by the idle sweep — so no further work
-     * may start for it: no delegation to another agent, no tool dispatch, no
-     * approval request, no new model call. A cancel that only cuts one model
-     * call short ({@link RunCancelledException.Reason#CALLER}) does not cancel
-     * the turn.
-     *
-     * <p>The default answers for the turn this session's {@link #sessionId()}
-     * names, so a decorator that forwards the id answers for the turn it
-     * decorates.</p>
-     */
-    /**
      * When this turn's time runs out — the {@code @Prompt} limit of the
      * endpoint that runs it — if it has one: what waits inside the turn (a
      * tool's approval) gives up before it, so the turn ends with what it
@@ -277,6 +265,18 @@ public interface StreamingSession extends AutoCloseable {
         return AiStreamingSession.turnDeadline(sessionId());
     }
 
+    /**
+     * Whether this session's turn was cancelled — by an operator, by its
+     * prompter going away for good, or by the idle sweep — so no further work
+     * may start for it: no delegation to another agent, no tool dispatch, no
+     * approval request, no new model call. A cancel that only cuts one model
+     * call short ({@link RunCancelledException.Reason#CALLER}) does not cancel
+     * the turn.
+     *
+     * <p>The default answers for the turn this session's {@link #sessionId()}
+     * names, so a decorator that forwards the id answers for the turn it
+     * decorates.</p>
+     */
     default boolean isTurnCancelled() {
         return AiStreamingSession.isTurnCancelled(sessionId());
     }
