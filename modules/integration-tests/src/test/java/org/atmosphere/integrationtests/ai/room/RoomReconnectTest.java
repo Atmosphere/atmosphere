@@ -17,6 +17,7 @@ package org.atmosphere.integrationtests.ai.room;
 
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
 import org.atmosphere.integrationtests.ai.room.cached.CachedRoomTestEndpoint;
+import org.atmosphere.integrationtests.ai.room.uncached.OwnReplyTestEndpoint;
 import org.atmosphere.integrationtests.ai.room.uncached.UncachedRoomTestEndpoint;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -240,6 +241,76 @@ public class RoomReconnectTest {
             back.close();
             classmate.close();
         }
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void anAskerDroppedMidAnswerReceivesTheRestOfItsOwnReplyInItsSessionOnce() throws Exception {
+        try (var proxy = new DroppingProxy(uncachedServer.getPort())) {
+            var asker = connect(proxy.port(), OwnReplyTestEndpoint.PATH, "0", null);
+            asker.send("hold:mine");
+            asker.await(frames -> count(frames, "streaming-text") == RoomTurns.HELD_AFTER,
+                    "the asker must see the start of its answer");
+            var runId = asker.heldRunId();
+            assertTrue(runId != null, "the asker holds the run id of its turn");
+            proxy.drop();
+            Thread.sleep(300);
+            RoomTurns.RELEASE.countDown();
+            // The run ends on the server meanwhile, into its replay.
+            Thread.sleep(700);
+
+            var back = connect(proxy.port(), OwnReplyTestEndpoint.PATH, asker.trackingId(), runId);
+            back.await(frames -> count(frames, "complete") == 1, "the reconnected asker must receive the end");
+            Thread.sleep(500);
+
+            assertOwnReplyResumed(asker.runFrames(), back.runFrames(), "mine", false);
+            back.close();
+        }
+    }
+
+    /**
+     * The frames {@code before} the drop and {@code after} the reconnect hold
+     * every text of the turn {@code name}, in order, and one terminal frame,
+     * once each by {@code (sessionId, seq)}: what was written after the
+     * reconnect continues the session the client followed, under its id and
+     * numbering, a frame it already had being the same {@code (sessionId, seq)}
+     * with the same text, which a client drops. With {@code exactlyOnce}, no
+     * frame it had is written again.
+     */
+    private static void assertOwnReplyResumed(List<JsonNode> before, List<JsonNode> after, String name,
+                                              boolean exactlyOnce) {
+        var session = before.stream().filter(f -> "streaming-text".equals(f.path("type").asString()))
+                .map(f -> f.path("sessionId").asString()).findFirst().orElseThrow();
+        var resumed = after.stream().filter(RoomReconnectTest::textOrTerminal).toList();
+        assertEquals(List.of(), resumed.stream().filter(f -> !session.equals(f.path("sessionId").asString()))
+                        .map(RoomReconnectTest::describe).toList(),
+                "after the reconnect, the turn continues in session " + session);
+        var held = new java.util.TreeMap<Long, JsonNode>();
+        for (var frame : before) {
+            if (session.equals(frame.path("sessionId").asString())) {
+                held.put(frame.path("seq").asLong(), frame);
+            }
+        }
+        var lastSeq = held.lastKey();
+        for (var frame : resumed) {
+            var had = held.putIfAbsent(frame.path("seq").asLong(), frame);
+            if (had != null) {
+                assertEquals(had, frame, "a frame written again is the frame the client had");
+            }
+        }
+        if (exactlyOnce) {
+            assertEquals(List.of(), resumed.stream().filter(f -> f.path("seq").asLong() <= lastSeq)
+                    .map(RoomReconnectTest::describe).toList(), "no frame the client had is written again");
+        }
+        var texts = held.values().stream().filter(f -> "streaming-text".equals(f.path("type").asString()))
+                .map(f -> f.path("data").asString()).toList();
+        var expected = new ArrayList<String>();
+        for (var i = 0; i < RoomTurns.CHUNKS; i++) {
+            expected.add(name + "-" + i + " ");
+        }
+        assertEquals(expected, texts, "every text of the turn once, in order");
+        assertEquals(1, held.values().stream().filter(f -> "complete".equals(f.path("type").asString())).count(),
+                "one terminal frame");
     }
 
     /**

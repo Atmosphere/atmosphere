@@ -131,7 +131,7 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         if (!(delegate instanceof DefaultStreamingSession leaf) || text == null || text.isEmpty()) {
             return;
         }
-        var event = buffer.captureIfOpen(AiStreamMessage.PROMPT_TYPE, text);
+        var event = buffer.captureIfOpen(AiStreamMessage.PROMPT_TYPE, text, numbering());
         if (event == null || delegate.isClosed()) {
             return;
         }
@@ -201,6 +201,19 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
     }
 
     /**
+     * How the delegate numbers the frame of an event captured now, so the event
+     * carries its frame's {@code seq} before anything listening to the run sees
+     * it, also when the delegate, its client gone, never writes it; {@code null}
+     * when the delegate is not a {@link DefaultStreamingSession}, whose frames
+     * are then numbered as they are written.
+     */
+    private RunEventReplayBuffer.Numbering numbering() {
+        return delegate instanceof DefaultStreamingSession leaf
+                ? new RunEventReplayBuffer.Numbering(leaf.sessionId(), leaf::nextFrameSequence)
+                : null;
+    }
+
+    /**
      * End the run with the terminal event {@code type} unless it already ended,
      * and write the delegate the run's one terminal frame unless it was written
      * already: {@code frame} when this call ended the run, or when the run
@@ -208,7 +221,7 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      * recorded, so the client is written the end its replay ends with.
      */
     private void end(String type, String payload, Consumer<StreamingSession> frame) {
-        var event = buffer.terminateEvent(type, payload);
+        var event = buffer.terminateEvent(type, payload, numbering());
         if (!terminalWritten.compareAndSet(false, true)) {
             // A terminal frame was written already: the session ended once.
             return;
@@ -262,7 +275,7 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      */
     private RunEventReplayBuffer.Position captureText(String text) {
         if (text != null && !text.isEmpty()) {
-            var event = buffer.captureIfOpen("streaming-text", text);
+            var event = buffer.captureIfOpen("streaming-text", text, numbering());
             return event != null ? new RunEventReplayBuffer.Position(buffer, event.sequence()) : null;
         }
         return null;

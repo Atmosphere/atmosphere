@@ -254,7 +254,7 @@ public final class RunReattachSupport {
      * wrote it every frame of the run it missed.
      */
     private static boolean deliveredByCache(AtmosphereResource resource, AgentResumeHandle handle) {
-        var roomSession = handle.replayBuffer().roomSessionId();
+        var roomSession = handle.replayBuffer().frameSessionId();
         if (roomSession == null) {
             return false;
         }
@@ -445,26 +445,26 @@ public final class RunReattachSupport {
      * ({@link org.atmosphere.ai.RoomMemberIds}) of the member who sent it, the
      * run's own client, in {@code from} — never its tracking id.
      *
-     * <p>An event of a {@code broadcastReply} run whose frame the room session
-     * wrote to the room ({@link RunEventReplayBuffer#wroteToRoom}) is replayed
-     * as that frame: under the room session's id and the {@code seq} it had,
-     * the one every member of the room received it with. A member that already
-     * had the frame then holds the same {@code (sessionId, seq)} and drops it,
-     * and one that missed it receives it in the numbering of the frames it has
-     * and the room's later ones.</p>
+     * <p>An event whose frame the run's session numbered
+     * ({@link RunEventReplayBuffer#wroteFrame}) is replayed as that frame: under
+     * the session's id and the {@code seq} it had, the one the run's client —
+     * or every member of a {@code broadcastReply} run's room — received it
+     * with, or would have, had it not been gone. A client that already had the
+     * frame then holds the same {@code (sessionId, seq)} and drops it, and one
+     * that missed it receives it in the numbering of the frames it has and of
+     * the later ones. An event the session numbered none of is replayed under
+     * the run id, as frame {@code seq}.</p>
      */
     static org.atmosphere.ai.filter.AiStreamMessage replayFrame(RunEvent event, AgentResumeHandle handle,
                                                               String runId, long seq) {
         var sessionId = runId;
         var frameSeq = seq;
         var buffer = handle.replayBuffer();
-        if (buffer.roomId() != null) {
-            var roomSession = buffer.roomSessionId();
-            var roomSeq = buffer.roomFrame(event);
-            if (roomSession != null && roomSeq >= 0) {
-                sessionId = roomSession;
-                frameSeq = roomSeq;
-            }
+        var frameSession = buffer.frameSessionId();
+        var numbered = buffer.frameOf(event);
+        if (frameSession != null && numbered >= 0) {
+            sessionId = frameSession;
+            frameSeq = numbered;
         }
         if (org.atmosphere.ai.filter.AiStreamMessage.PROMPT_TYPE.equals(event.type())) {
             return org.atmosphere.ai.filter.AiStreamMessage.prompt(event.payload(),
@@ -598,10 +598,10 @@ public final class RunReattachSupport {
         // events; an opaque concatenated-text payload would fail to
         // parse at all. RunEvent.type is captured as the wire-protocol
         // type name ("streaming-text" / "complete" / "error" / "cancelled") so the
-        // mapping is direct. Sequence numbers restart at 1 for the
-        // replay run — the client correlates by sessionId, and the
-        // replayed sessionId is the run id so a reconnecting client
-        // can distinguish replay frames from live frames.
+        // mapping is direct. Each frame carries the session id and seq
+        // the run's session gave it (replayFrame), so a client drops the
+        // frames it already had and appends the ones it missed; an event
+        // the session numbered none of is written under the run id.
         int written = 0;
         try {
             var response = resource.getResponse();

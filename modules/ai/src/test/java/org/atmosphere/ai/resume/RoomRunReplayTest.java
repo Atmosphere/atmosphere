@@ -69,7 +69,7 @@ class RoomRunReplayTest {
     /** Captures {@code type} as the room session writes it under {@code seq}, as RunEventCapturingSession does. */
     private RunEvent broadcast(String type, String payload, long seq) {
         var event = run.replayBuffer().capture(type, payload);
-        run.replayBuffer().wroteToRoom(event.sequence(), ROOM_SESSION, seq);
+        run.replayBuffer().wroteFrame(event.sequence(), ROOM_SESSION, seq);
         return event;
     }
 
@@ -103,27 +103,27 @@ class RoomRunReplayTest {
     void theRoomFramesOfEventsTheCapacityEvictedAreForgotten() {
         var bounded = new RunEventReplayBuffer("bounded", 2);
         var first = bounded.capture("streaming-text", "a");
-        bounded.wroteToRoom(first.sequence(), ROOM_SESSION, 1);
+        bounded.wroteFrame(first.sequence(), ROOM_SESSION, 1);
         var second = bounded.capture("streaming-text", "b");
-        bounded.wroteToRoom(second.sequence(), ROOM_SESSION, 2);
+        bounded.wroteFrame(second.sequence(), ROOM_SESSION, 2);
         var third = bounded.capture("streaming-text", "c");
-        bounded.wroteToRoom(third.sequence(), ROOM_SESSION, 3);
+        bounded.wroteFrame(third.sequence(), ROOM_SESSION, 3);
         // Written for an event no longer retained: ignored.
-        bounded.wroteToRoom(first.sequence(), ROOM_SESSION, 9);
+        bounded.wroteFrame(first.sequence(), ROOM_SESSION, 9);
 
-        assertEquals(-1, bounded.roomFrame(first), "an evicted event's frame is forgotten");
-        assertEquals(2, bounded.roomFrame(second));
-        assertEquals(3, bounded.roomFrame(third));
+        assertEquals(-1, bounded.frameOf(first), "an evicted event's frame is forgotten");
+        assertEquals(2, bounded.frameOf(second));
+        assertEquals(3, bounded.frameOf(third));
     }
 
     @Test
     void aSecondSessionWritingTheRunIsIgnored() {
         var event = run.replayBuffer().capture("streaming-text", "a");
-        run.replayBuffer().wroteToRoom(event.sequence(), ROOM_SESSION, 5);
-        run.replayBuffer().wroteToRoom(event.sequence(), "another-session", 9);
+        run.replayBuffer().wroteFrame(event.sequence(), ROOM_SESSION, 5);
+        run.replayBuffer().wroteFrame(event.sequence(), "another-session", 9);
 
-        assertEquals(ROOM_SESSION, run.replayBuffer().roomSessionId());
-        assertEquals(5, run.replayBuffer().roomFrame(event));
+        assertEquals(ROOM_SESSION, run.replayBuffer().frameSessionId());
+        assertEquals(5, run.replayBuffer().frameOf(event));
     }
 
     @Test

@@ -566,22 +566,39 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     /**
-     * The {@code seq} of the next frame. A room session writing the frame of a
-     * run event ({@code runEvent}: a prompt, text or terminal frame, which
+     * The {@code seq} of the next frame. A session writing the frame of a run
+     * event ({@code runEvent}: a prompt, text or terminal frame, which
      * {@code RunEventCapturingSession} captures) records it with the event
-     * ({@link org.atmosphere.ai.resume.RunEventReplayBuffer#wroteToRoom}), so a
-     * replay to a member of the room writes that frame under the session id and
-     * {@code seq} the member received it with.
+     * ({@link org.atmosphere.ai.resume.RunEventReplayBuffer#wroteFrame}), so a
+     * replay to its client, or to a member of its room, writes that frame under
+     * the session id and {@code seq} the client received it with.
      */
     private long frameSequence(boolean runEvent) {
-        var seq = sequence.incrementAndGet();
-        if (runEvent && broadcastToRoom) {
+        if (runEvent) {
             var position = org.atmosphere.ai.resume.RunEventCapturingSession.positionOfFrameBeingWritten(this);
             if (position != null) {
-                position.run().wroteToRoom(position.sequence(), sessionId, seq);
+                // Numbered as it was captured (nextFrameSequence): the frame keeps it.
+                var numbered = position.run().numberedBy(position.sequence(), sessionId);
+                if (numbered >= 0) {
+                    return numbered;
+                }
+                var seq = sequence.incrementAndGet();
+                position.run().wroteFrame(position.sequence(), sessionId, seq);
+                return seq;
             }
         }
-        return seq;
+        return sequence.incrementAndGet();
+    }
+
+    /**
+     * The {@code seq} of this session's next frame, taken for the frame of a run
+     * event as the run captures it
+     * ({@link org.atmosphere.ai.resume.RunEventReplayBuffer.Numbering}): the
+     * frame written for the event carries it, and so does the event's replay,
+     * also when this session, its client gone, never writes it.
+     */
+    public long nextFrameSequence() {
+        return sequence.incrementAndGet();
     }
 
     /**

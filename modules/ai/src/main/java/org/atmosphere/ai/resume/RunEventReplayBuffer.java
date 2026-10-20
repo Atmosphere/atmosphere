@@ -305,16 +305,16 @@ public final class RunEventReplayBuffer {
     private final java.util.Set<String> refused = new java.util.HashSet<>();
     /**
      * Guarded by {@code buffer}: the id of the session that wrote the frames of
-     * the run's events to its room ({@link #wroteToRoom}), or {@code null}
-     * while none was written that way.
+     * the run's events to its client or room ({@link #wroteFrame}), or
+     * {@code null} while none was written that way.
      */
-    private String roomSessionId;
+    private String frameSessionId;
     /**
      * Guarded by {@code buffer}: event sequence -> the {@code seq} of the frame
      * that session wrote for it, for the retained events only (an event the
      * capacity evicts leaves), so it holds at most {@link #capacity()} entries.
      */
-    private final Map<Long, Long> roomFrameSequences = new java.util.HashMap<>();
+    private final Map<Long, Long> frameSequences = new java.util.HashMap<>();
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -489,7 +489,7 @@ public final class RunEventReplayBuffer {
      * stream.
      */
     public RunEvent capture(String type, String payload) {
-        return append(type, payload, false);
+        return append(type, payload, false, null);
     }
 
     /**
@@ -500,7 +500,26 @@ public final class RunEventReplayBuffer {
      * @return the stored event, or {@code null} when the run had already ended
      */
     RunEvent captureIfOpen(String type, String payload) {
-        return append(type, payload, true);
+        return append(type, payload, true, null);
+    }
+
+    /**
+     * {@link #captureIfOpen}, the event numbered by {@code numbering}, the
+     * session whose frame stands for it, before anything listening to the run
+     * sees it ({@link #wroteFrame}).
+     */
+    RunEvent captureIfOpen(String type, String payload, Numbering numbering) {
+        return append(type, payload, true, numbering);
+    }
+
+    /**
+     * How the session that writes a run's frames numbers the next one: its id,
+     * and its frame counter, read once per event as it is captured.
+     *
+     * @param sessionId the id of the session
+     * @param next      the {@code seq} of the session's next frame
+     */
+    public record Numbering(String sessionId, java.util.function.LongSupplier next) {
     }
 
     /**
@@ -525,10 +544,15 @@ public final class RunEventReplayBuffer {
      * when the run had already ended.
      */
     RunEvent terminateEvent(String type, String payload) {
+        return terminateEvent(type, payload, null);
+    }
+
+    /** {@link #terminateEvent}, the event numbered by {@code numbering} ({@link #captureIfOpen(String, String, Numbering)}). */
+    RunEvent terminateEvent(String type, String payload, Numbering numbering) {
         if (!isTerminal(type)) {
             throw new IllegalArgumentException("not a terminal event type: " + type);
         }
-        return append(type, payload, true);
+        return append(type, payload, true, numbering);
     }
 
     /** The sequence of the last event captured, or {@code -1} when none was. */
@@ -537,53 +561,71 @@ public final class RunEventReplayBuffer {
     }
 
     /**
-     * The room session {@code sessionId} wrote the frame of the retained event
-     * {@code eventSequence} to the run's room as its frame {@code frameSequence}.
-     * Every member of a {@code broadcastReply} room received the run's frames
-     * under that session's id and numbering, so a replay to a member writes them
-     * under the same ({@link #roomFrame}): a frame it already had is then the
-     * same {@code (sessionId, seq)} it holds, which the client drops. The first
-     * frame written for an event is kept; a session other than the first one
-     * that wrote, or an event no longer retained, is ignored.
+     * The session {@code sessionId} numbered the frame of the retained event
+     * {@code eventSequence} {@code frameSequence}: the frame it wrote to the
+     * run's client, or to every member of a {@code broadcastReply} run's room
+     * (an event its capture numbered already keeps that number, which the
+     * frame carries, as does one its session, its client gone, never wrote). A client received the run's frames under that session's id
+     * and numbering, so a replay writes them under the same ({@link #frameOf}):
+     * a frame the client already had is then the same {@code (sessionId, seq)}
+     * it holds, which it drops, and one it missed continues the numbering of
+     * those it has. The first number given an event is kept; a session other
+     * than the first one that numbered, or an event no longer retained, is
+     * ignored.
      *
      * @param eventSequence the sequence of the event the frame stands for
-     * @param sessionId     the id of the room session that wrote it
+     * @param sessionId     the id of the session that numbered it
      * @param frameSequence the {@code seq} of the frame
      */
-    public void wroteToRoom(long eventSequence, String sessionId, long frameSequence) {
+    public void wroteFrame(long eventSequence, String sessionId, long frameSequence) {
         if (sessionId == null) {
             return;
         }
         synchronized (buffer) {
-            if (roomSessionId == null) {
-                roomSessionId = sessionId;
-            } else if (!roomSessionId.equals(sessionId)) {
+            if (frameSessionId == null) {
+                frameSessionId = sessionId;
+            } else if (!frameSessionId.equals(sessionId)) {
                 return;
             }
             if (!buffer.isEmpty() && eventSequence >= buffer.get(0).sequence()
                     && eventSequence <= buffer.get(buffer.size() - 1).sequence()) {
-                roomFrameSequences.putIfAbsent(eventSequence, frameSequence);
+                frameSequences.putIfAbsent(eventSequence, frameSequence);
             }
         }
     }
 
     /**
-     * The id of the room session that wrote the run's frames to its room
-     * ({@link #wroteToRoom}), or {@code null} when none was written that way.
+     * The {@code seq} session {@code sessionId} gave the frame of the retained
+     * event {@code eventSequence} as it was captured, or {@code -1} when it
+     * gave none.
      */
-    public String roomSessionId() {
+    public long numberedBy(long eventSequence, String sessionId) {
         synchronized (buffer) {
-            return roomSessionId;
+            if (sessionId == null || !sessionId.equals(frameSessionId)) {
+                return -1;
+            }
+            var seq = frameSequences.get(eventSequence);
+            return seq == null ? -1 : seq;
         }
     }
 
     /**
-     * The {@code seq} of the frame the room session wrote for {@code event}, or
-     * {@code -1} when it wrote none ({@link #wroteToRoom}).
+     * The id of the session that numbered the run's frames ({@link #wroteFrame}),
+     * or {@code null} when none was numbered that way.
      */
-    public long roomFrame(RunEvent event) {
+    public String frameSessionId() {
         synchronized (buffer) {
-            var seq = roomFrameSequences.get(event.sequence());
+            return frameSessionId;
+        }
+    }
+
+    /**
+     * The {@code seq} that session gave the frame of {@code event}, or
+     * {@code -1} when it gave none ({@link #wroteFrame}).
+     */
+    public long frameOf(RunEvent event) {
+        synchronized (buffer) {
+            var seq = frameSequences.get(event.sequence());
             return seq == null ? -1 : seq;
         }
     }
@@ -618,7 +660,7 @@ public final class RunEventReplayBuffer {
         return ended.minimalCompletionStage();
     }
 
-    private RunEvent append(String type, String payload, boolean onlyIfOpen) {
+    private RunEvent append(String type, String payload, boolean onlyIfOpen, Numbering numbering) {
         RunEvent event;
         List<Consumer<RunEvent>> listeners;
         synchronized (buffer) {
@@ -632,7 +674,14 @@ public final class RunEventReplayBuffer {
                     Instant.now());
             buffer.add(event);
             while (buffer.size() > capacity) {
-                roomFrameSequences.remove(buffer.remove(0).sequence());
+                frameSequences.remove(buffer.remove(0).sequence());
+            }
+            // Numbered before a listener sees it: a frame forwarded or handed to
+            // a poll now is written in the session's numbering, as its replay is.
+            if (numbering != null && numbering.sessionId() != null
+                    && (frameSessionId == null || frameSessionId.equals(numbering.sessionId()))) {
+                frameSessionId = numbering.sessionId();
+                frameSequences.put(event.sequence(), numbering.next().getAsLong());
             }
             listeners = listeners();
             if (isTerminal(type)) {
