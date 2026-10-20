@@ -83,6 +83,21 @@ public final class RunScopedResource {
                 new Class<?>[] {AtmosphereResource.class}, view);
     }
 
+    /**
+     * The connection itself behind {@code resource}: {@code resource} when it
+     * is not such a view. What is written to the connection and what tracks it
+     * by identity takes the connection; what the run reads of it, the view.
+     *
+     * @param resource a connection or a run's view of it
+     */
+    public static AtmosphereResource connection(AtmosphereResource resource) {
+        if (resource != null && Proxy.isProxyClass(resource.getClass())
+                && Proxy.getInvocationHandler(resource) instanceof ResourceView view) {
+            return view.resource();
+        }
+        return resource;
+    }
+
     /** The resource, but its request. */
     private record ResourceView(AtmosphereResource resource, AtmosphereRequest request) implements InvocationHandler {
 

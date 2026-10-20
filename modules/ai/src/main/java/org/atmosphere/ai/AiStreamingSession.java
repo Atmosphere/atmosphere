@@ -1974,7 +1974,7 @@ public class AiStreamingSession implements StreamingSession {
             if (!(handlerWrapper.atmosphereHandler() instanceof HandoffTarget target)) {
                 delegate.error(new IllegalArgumentException(
                         "Agent '" + agentName + "' at " + targetPath + " cannot accept a handoff"));
-            } else if (!target.acceptHandoff(resource, message)) {
+            } else if (!target.acceptHandoff(runResource, message)) {
                 delegate.error(new IllegalStateException(
                         "Handoff to '" + agentName + "' failed: the connection is no longer available"));
             }

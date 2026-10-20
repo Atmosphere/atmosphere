@@ -94,6 +94,17 @@ public class ReloadBeforeFirstFrameTest {
             exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
             exchange.sendResponseHeaders(200, 0);
             try (var out = exchange.getResponseBody()) {
+                if (body.contains("use the tool") && !body.contains("tool_call_id")) {
+                    // The model's first answer to a tool prompt: a call of the agent's tool.
+                    out.write(("data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,"
+                            + "\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\","
+                            + "\"type\":\"function\",\"function\":{\"name\":\"lookup\","
+                            + "\"arguments\":\"{\\\"topic\\\":\\\"teeth\\\"}\"}}]},\"finish_reason\":null}]}\n\n"
+                            + "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,"
+                            + "\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n")
+                            .getBytes(StandardCharsets.UTF_8));
+                    return;
+                }
                 for (var i = 0; i < TOKENS; i++) {
                     if (holds && i == HELD_AFTER && !MID_ANSWER.await(30, TimeUnit.SECONDS)) {
                         return;
@@ -114,7 +125,8 @@ public class ReloadBeforeFirstFrameTest {
         model.start();
         server = new EmbeddedAtmosphereServer()
                 .withAnnotationPackage("org.atmosphere.integrationtests.ai.detach")
-                .withInitParam("org.atmosphere.annotation.packages", "org.atmosphere.ai.processor")
+                .withInitParam("org.atmosphere.annotation.packages",
+                        "org.atmosphere.agent.processor,org.atmosphere.ai.processor")
                 .withInitParam("org.atmosphere.ai.llmMode", "local")
                 .withInitParam("org.atmosphere.ai.llmModel", "fake-model")
                 .withInitParam("org.atmosphere.ai.llmBaseUrl",
@@ -203,6 +215,39 @@ public class ReloadBeforeFirstFrameTest {
         reloaded.close();
     }
 
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void anAgentWhoseModelCallsAToolAnswersAPageReloadedBeforeTheFirstFrame() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachToolAgent.LOOKUPS.clear();
+        var path = "/atmosphere/agent/" + DetachToolAgent.NAME;
+        var page = connect(path, "0", null);
+        page.socket.sendText("use the tool", true).join();
+        page.await(frames -> runId(frames) != null, "the page must receive the run id");
+        var runId = runId(page.frames());
+        assertEquals(List.of(), texts(page.frames()), "no frame of the answer before the reload");
+
+        page.socket.sendClose(1001, "reload").get(5, TimeUnit.SECONDS);
+        Thread.sleep(500);
+        var reloaded = connect(path, "0", runId);
+        DetachTestEndpoint.RELEASE.countDown();
+
+        reloaded.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal),
+                "the reloaded page must receive the end of the run");
+        Thread.sleep(300);
+        assertEquals(List.of("complete"), reloaded.frames().stream().filter(ReloadBeforeFirstFrameTest::terminal)
+                .map(f -> f.path("type").asString()).toList(), "the run completes: " + describe(reloaded.frames()));
+        var expected = new StringBuilder();
+        for (var i = 0; i < TOKENS; i++) {
+            expected.append('t').append(i).append(' ');
+        }
+        assertEquals(expected.toString(), String.join("", texts(reloaded.frames())),
+                "the reloaded page receives the whole answer the model gave after the tool, once");
+        assertEquals(List.of("teeth@" + path), DetachToolAgent.LOOKUPS,
+                "the tool read, after the reload, the request the prompt came on");
+        reloaded.close();
+    }
+
     private static boolean terminal(JsonNode frame) {
         var type = frame.path("type").asString();
         return "complete".equals(type) || "error".equals(type) || "cancelled".equals(type);
@@ -223,12 +268,16 @@ public class ReloadBeforeFirstFrameTest {
     }
 
     private static String describe(List<JsonNode> frames) {
-        return frames.stream().map(f -> f.path("type").asString() + ":" + f.path("data").asString())
+        return frames.stream().map(f -> f.path("type").asString() + ":" + (f.path("data").isString() ? f.path("data").asString() : f.path("data").toString()))
                 .collect(Collectors.joining(" "));
     }
 
     private Page connect(String trackingId, String runId) throws Exception {
-        var url = "ws://localhost:" + server.getPort() + DetachTestEndpoint.PATH
+        return connect(DetachTestEndpoint.PATH, trackingId, runId);
+    }
+
+    private Page connect(String path, String trackingId, String runId) throws Exception {
+        var url = "ws://localhost:" + server.getPort() + path
                 + "?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0&X-atmo-protocol=true"
                 + "&Content-Type=application/json&X-Atmosphere-tracking-id=" + trackingId
                 + (runId != null ? "&X-Atmosphere-Run-Id=" + runId : "");

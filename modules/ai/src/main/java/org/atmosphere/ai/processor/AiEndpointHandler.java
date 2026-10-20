@@ -1186,6 +1186,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     resource.uuid(), e);
             return false;
         }
+        // The run reads the connection through its view: a page reloaded while the
+        // run goes on (before its first frame, or after) cancels the request, and
+        // what the run reads of it then — the @Prompt method, its tools and their
+        // permission lookup, the interceptors, a handoff to another agent — reads
+        // what the request held. What is written to the connection takes the
+        // connection itself. A handoff passes the view along.
+        final var run = org.atmosphere.ai.RunScopedResource.of(resource);
+        final var connection = org.atmosphere.ai.RunScopedResource.connection(resource);
         if (multiModal.parts().isEmpty()) {
             logger.info("Received prompt from {}: {}", resource.uuid(), promptText);
         } else {
@@ -1210,8 +1218,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         resource.getAtmosphereConfig());
         var capturing = new org.atmosphere.ai.resume.RunEventCapturingSession(
                 roomBroadcast
-                        ? StreamingSessions.startRoomBroadcast(resource)
-                        : StreamingSessions.start(resource),
+                        ? StreamingSessions.startRoomBroadcast(connection)
+                        : StreamingSessions.start(connection),
                 replayBuffer);
         StreamingSession delegate = capturing;
         final var aiEnvironment = environmentFor(resource);
@@ -1234,14 +1242,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // Zero-cost no-op when nothing is installed.
         if (org.atmosphere.ai.tape.TapeSupport.installed()) {
             traced = org.atmosphere.ai.tape.TapeSupport.wrap(traced,
-                    org.atmosphere.ai.tape.TapeRunInfo.endpoint(conversationId(resource),
+                    org.atmosphere.ai.tape.TapeRunInfo.endpoint(conversationId(run),
                             resource.uuid(), pathTemplate, model,
                             runtime != null ? runtime.name() : null));
         }
 
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
         var session = new AiStreamingSession(traced, runtime,
-                effectivePrompt, model, interceptors, resource, memory,
+                effectivePrompt, model, interceptors, run, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
         AiStreamingSession.registerActive(session);
 
@@ -1286,7 +1294,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (!injectables.isEmpty() || resource != null || codeExecEnabled) {
             var toolScope = new java.util.LinkedHashMap<Class<?>, Object>(injectables);
             if (resource != null) {
-                toolScope.putIfAbsent(AtmosphereResource.class, resource);
+                toolScope.putIfAbsent(AtmosphereResource.class, run);
             }
             // Provision a lazy, session-scoped sandbox for the code_exec tool and
             // bind its teardown to this session's terminal path (Invariants #1/#2).
@@ -1309,7 +1317,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     instanceof org.atmosphere.ai.fs.AgentFileSystemProvider fsProvider) {
                 try {
                     toolScope.putIfAbsent(org.atmosphere.ai.fs.AgentFileSystem.class,
-                            fsProvider.forConversation(conversationId(resource)));
+                            fsProvider.forConversation(conversationId(run)));
                 } catch (RuntimeException e) {
                     logger.warn("Agent filesystem not scoped for resource {}: {}",
                             resource.uuid(), e.getMessage());
@@ -1337,7 +1345,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 t.interrupt();
             }
         });
-        recordConnectionOwner(resource);
+        recordConnectionOwner(run);
         var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
         var handle = registry.register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
@@ -1403,7 +1411,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         var from = org.atmosphere.ai.RoomMemberIds.of(resource.uuid());
                         session.setPromptEcho(promptText, text -> capturing.sendPrompt(text, from));
                     }
-                    invokePrompt(promptText, session, resource);
+                    invokePrompt(promptText, session, run);
                 } else {
                     session.stream(promptText);
                 }

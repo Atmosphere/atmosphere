@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,6 +65,11 @@ class AiStreamingSessionHandoffDispatchTest {
         return new AiStreamingSession(delegate, mock(AgentRuntime.class), "sys", null, List.of(), resource);
     }
 
+    /** The handoff runs on the run's view of this connection, whose request outlives a reload. */
+    private boolean sameConnection(AtmosphereResource handedOff) {
+        return handedOff != null && RunScopedResource.connection(handedOff) == resource;
+    }
+
     private void register(String agent, AtmosphereHandler handler) {
         var wrapper = mock(AtmosphereHandlerWrapper.class);
         when(wrapper.atmosphereHandler()).thenReturn(handler);
@@ -72,12 +79,12 @@ class AiStreamingSessionHandoffDispatchTest {
     @Test
     void handoffRunsTheMessageAsAPromptOfTheSameConnectionOnTheTarget() throws Exception {
         var target = mock(AtmosphereHandler.class, withSettings().extraInterfaces(HandoffTarget.class));
-        when(((HandoffTarget) target).acceptHandoff(resource, "my invoice")).thenReturn(true);
+        when(((HandoffTarget) target).acceptHandoff(argThat(this::sameConnection), eq("my invoice"))).thenReturn(true);
         register("billing", target);
 
         session().handoff("billing", "my invoice");
 
-        verify((HandoffTarget) target).acceptHandoff(resource, "my invoice");
+        verify((HandoffTarget) target).acceptHandoff(argThat(this::sameConnection), eq("my invoice"));
         verify(target, never()).onStateChange(any());
         verify(delegate, never()).error(any());
     }
@@ -85,7 +92,7 @@ class AiStreamingSessionHandoffDispatchTest {
     @Test
     void handoffWhoseConnectionIsGoneEndsWithAnError() {
         var target = mock(AtmosphereHandler.class, withSettings().extraInterfaces(HandoffTarget.class));
-        when(((HandoffTarget) target).acceptHandoff(resource, "my invoice")).thenReturn(false);
+        when(((HandoffTarget) target).acceptHandoff(argThat(this::sameConnection), eq("my invoice"))).thenReturn(false);
         register("billing", target);
 
         session().handoff("billing", "my invoice");
