@@ -603,6 +603,13 @@ class TypesafeDecisionModelContractTest {
                     .filter(e -> e.getStackTrace().getFrames().stream()
                             .noneMatch(f -> f.getMethod().getType().getName()
                                     .startsWith("jdk.internal.loader.")))
+                    // Linking a method handle the probe calls for the first time interns
+                    // its MethodType, which polls the JDK's reference queue under that
+                    // queue's monitor: contended, it pins (seen on JDK 26 CI). The monitor
+                    // is the JDK's method-type table, not the probe's.
+                    .filter(e -> e.getStackTrace().getFrames().stream()
+                            .noneMatch(f -> f.getMethod().getType().getName()
+                                    .equals("java.lang.invoke.MethodType")))
                     .toList();
             assertEquals(List.of(), pinnedHere, "the probe parked a virtual thread inside a monitor");
             assertEquals(1, stub.hits("/v1/models"));
