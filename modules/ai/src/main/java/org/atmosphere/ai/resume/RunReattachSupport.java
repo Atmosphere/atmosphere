@@ -454,6 +454,9 @@ public final class RunReattachSupport {
     public static String applyFilters(
             java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
             String broadcasterId, String frame) {
+        if (frame == null) {
+            return null;
+        }
         // The AI-family filters (PiiRedactionFilter, CostMeteringFilter,
         // ContentSafetyFilter) extend AiStreamBroadcastFilter, which
         // pattern-matches on RawMessage + String JSON. Wrap so the
@@ -491,6 +494,37 @@ public final class RunReattachSupport {
             return inner == null ? null : inner.toString();
         }
         return current.toString();
+    }
+
+    /** The event types of the tool frames a run records ({@code RunEventCapturingSession}). */
+    private static final java.util.Set<String> TOOL_EVENT_TYPES = java.util.Set.of("tool-start", "tool-result",
+            "tool-error");
+
+    private static final tools.jackson.databind.ObjectMapper REPLAY_JSON = new tools.jackson.databind.ObjectMapper();
+
+    /**
+     * The wire frame replaying {@code event} ({@link #replayFrame}), as JSON. A
+     * tool event ({@code tool-start}, {@code tool-result}, {@code tool-error})
+     * is replayed as the {@code event} frame the session wrote for it — the
+     * event type in {@code event}, the event itself in {@code data} — so the
+     * tool's card comes back with the answer.
+     */
+    static String replayJson(RunEvent event, AgentResumeHandle handle, String runId, long seq) {
+        var frame = replayFrame(event, handle, runId, seq);
+        if (!TOOL_EVENT_TYPES.contains(event.type())) {
+            return frame.toJson();
+        }
+        try {
+            var node = REPLAY_JSON.createObjectNode();
+            node.put("event", event.type());
+            node.set("data", REPLAY_JSON.readTree(event.payload()));
+            node.put("sessionId", frame.sessionId());
+            node.put("seq", frame.seq());
+            return REPLAY_JSON.writeValueAsString(node);
+        } catch (RuntimeException e) {
+            logger.debug("Tool event {} of run {} not replayable", event.sequence(), runId, e);
+            return null;
+        }
     }
 
     /**
@@ -687,8 +721,7 @@ public final class RunReattachSupport {
             var batch = new StringBuilder();
             for (var ev : replayed) {
                 seq++;
-                var msg = replayFrame(ev, handle, runId, seq);
-                var json = applyFilters(filters, broadcasterId, msg.toJson());
+                var json = applyFilters(filters, broadcasterId, replayJson(ev, handle, runId, seq));
                 if (json != null) {
                     if (framePerWrite) {
                         writer.write(json);
@@ -869,8 +902,8 @@ public final class RunReattachSupport {
             var batch = new StringBuilder();
             var written = 0;
             for (var event : events) {
-                var msg = replayFrame(event, run, runId, event.sequence() + 1);
-                var json = applyFilters(filters, broadcasterId, msg.toJson());
+                var json = applyFilters(filters, broadcasterId,
+                        replayJson(event, run, runId, event.sequence() + 1));
                 if (json != null) {
                     batch.append(json).append('\n');
                     written++;
@@ -1195,8 +1228,7 @@ public final class RunReattachSupport {
         /** Write one frame through the filter chain; a failed write stops the forwarding. */
         synchronized Write write(RunEvent event) {
             seq++;
-            var msg = replayFrame(event, run, runId, seq);
-            var json = applyFilters(filters, broadcasterId, msg.toJson());
+            var json = applyFilters(filters, broadcasterId, replayJson(event, run, runId, seq));
             if (json == null) {
                 return Write.FILTERED;
             }

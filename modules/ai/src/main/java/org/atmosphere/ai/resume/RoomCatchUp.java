@@ -46,9 +46,9 @@ import java.util.Set;
  * it past its {@code maxPerClient}), or neither. Only a run of this room whose
  * frames every member received, and whose replay the caller may read (an
  * anonymous run, or one of the caller's own user), is read; a session id the
- * server does not know yields nothing. Text, prompt and terminal frames are
- * caught up; metadata, progress and tool-event frames, which no replay buffer
- * keeps, are not.</p>
+ * server does not know yields nothing. Text, tool, prompt and terminal frames
+ * are caught up; metadata and progress frames, which no replay buffer keeps,
+ * are not.</p>
  *
  * <p>The frames are written as the member joins the room: merged with what the
  * cache writes it then ({@link #mergeCached}), else before the first frame the
@@ -357,7 +357,8 @@ public final class RoomCatchUp {
         var frames = new ArrayList<String>(missed.size());
         for (var m : missed) {
             var message = RunReattachSupport.replayFrame(m.event(), m.run(), m.run().runId(), 0);
-            var json = RunReattachSupport.applyFilters(filters, broadcasterId, message.toJson());
+            var replayed = RunReattachSupport.replayJson(m.event(), m.run(), m.run().runId(), 0);
+            var json = replayed != null ? RunReattachSupport.applyFilters(filters, broadcasterId, replayed) : null;
             if (json != null) {
                 frames.add(json);
                 written.computeIfAbsent(message.sessionId(), s -> new HashSet<>()).add(message.seq());

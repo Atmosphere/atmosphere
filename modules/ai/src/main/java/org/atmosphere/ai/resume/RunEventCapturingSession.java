@@ -24,6 +24,9 @@ import org.atmosphere.ai.RunCancelledException;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.filter.AiStreamMessage;
 
+import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
+
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -169,12 +172,54 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
                 end("error", error.message() != null ? error.message() : "error", s -> s.emit(event));
                 return;
             }
+            case AiEvent.ToolStart start -> {
+                position = captureEvent(event);
+                if (delegate.isClosed()) {
+                    return;
+                }
+            }
+            case AiEvent.ToolResult result -> {
+                position = captureEvent(event);
+                if (delegate.isClosed()) {
+                    return;
+                }
+            }
+            case AiEvent.ToolError toolError -> {
+                position = captureEvent(event);
+                if (delegate.isClosed()) {
+                    return;
+                }
+            }
             default -> {
-                // Not a text or terminal frame: forwarded, not captured.
+                // Not a text, tool or terminal frame: forwarded, not captured.
             }
         }
         writing(position, s -> s.emit(event));
     }
+
+    /**
+     * Capture a tool event ({@code tool-start}, {@code tool-result},
+     * {@code tool-error}) under its event type, its payload the event's JSON —
+     * the {@code data} of the {@code event} frame the client receives — so a
+     * client that reattaches gets the tool's card back with the answer.
+     *
+     * @return the captured event's place in the run, or {@code null} when the
+     * run already ended or the event cannot be written as JSON
+     */
+    private RunEventReplayBuffer.Position captureEvent(AiEvent event) {
+        String json;
+        try {
+            json = EVENT_JSON.writeValueAsString(event);
+        } catch (RuntimeException e) {
+            LoggerFactory.getLogger(RunEventCapturingSession.class)
+                    .debug("Tool event {} not recorded for replay", event.eventType(), e);
+            return null;
+        }
+        var captured = buffer.captureIfOpen(event.eventType(), json, numbering());
+        return captured != null ? new RunEventReplayBuffer.Position(buffer, captured.sequence()) : null;
+    }
+
+    private static final ObjectMapper EVENT_JSON = new ObjectMapper();
 
     /**
      * Has the delegate write a frame, with {@code position}, the place in the

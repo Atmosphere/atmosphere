@@ -550,7 +550,9 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("data", event);
         msg.put("sessionId", sessionId);
         msg.put("seq", frameSequence(event instanceof AiEvent.TextDelta
-                || event instanceof AiEvent.Complete || event instanceof AiEvent.Error));
+                || event instanceof AiEvent.Complete || event instanceof AiEvent.Error
+                || event instanceof AiEvent.ToolStart || event instanceof AiEvent.ToolResult
+                || event instanceof AiEvent.ToolError));
         return toJson(msg);
     }
 
