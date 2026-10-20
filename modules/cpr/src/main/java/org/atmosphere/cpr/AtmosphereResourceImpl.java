@@ -439,14 +439,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     public AtmosphereRequest getRequest(boolean enforceScope) {
-        if (enforceScope && !isInScope()) {
+        if (enforceScope && !inScopeForCaller()) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
         }
         return req;
     }
 
     public AtmosphereResponse getResponse(boolean enforceScope) {
-        if (enforceScope && !isInScope()) {
+        if (enforceScope && !inScopeForCaller()) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
         }
         return response;
@@ -590,6 +590,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             // Only valid during reset — transition back to CREATED
             state.set(LifecycleState.CREATED);
         }
+    }
+
+    /**
+     * Whether the calling thread may still use the request and response. A
+     * handler's disconnect callback ({@code @Disconnect}) may: another thread
+     * can complete the lifecycle while it runs (a close racing a broadcast
+     * whose write failed, or the close thread when a broadcast thread won the
+     * dispatch), which takes the resource out of scope, but the teardown that
+     * actually invalidates them waits for the callback
+     * ({@link DisconnectDispatch#awaitDispatch()}).
+     */
+    private boolean inScopeForCaller() {
+        return isInScope() || disconnectDispatch.runningOnCurrentThread();
     }
 
     /**

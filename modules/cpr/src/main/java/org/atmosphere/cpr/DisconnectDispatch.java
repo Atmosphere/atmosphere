@@ -78,6 +78,14 @@ final class DisconnectDispatch {
         }
     }
 
+    /**
+     * @return true if the calling thread is running the claimed disconnect
+     * callback right now
+     */
+    synchronized boolean runningOnCurrentThread() {
+        return runner == Thread.currentThread();
+    }
+
     /** A recycled resource starts over. */
     synchronized void reset() {
         claimed = false;

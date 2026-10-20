@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -135,6 +136,45 @@ class AtmosphereResourceImplStateTest {
 
         resource.reset();
         assertFalse(other.getAndSetDisconnectDispatched(), "reset() re-arms the claim");
+    }
+
+    /**
+     * Regression: another thread completing the lifecycle while a disconnect
+     * callback runs (a broadcast whose write failed, the close thread) took
+     * the resource out of scope, and the callback's own request read threw
+     * "Request object no longer valid".
+     */
+    @Test
+    void theDisconnectCallbackKeepsItsRequestWhileAnotherThreadTakesTheResourceOutOfScope()
+            throws Exception {
+        var event = resource.getAtmosphereResourceEvent();
+        assertFalse(event.getAndSetDisconnectDispatched(), "this thread runs the callback");
+        try {
+            var other = new Thread(() -> resource.setIsInScope(false));
+            other.start();
+            other.join();
+            assertFalse(resource.isInScope());
+
+            assertNotNull(resource.getRequest(), "the callback still reads its request");
+            assertNotNull(resource.getResponse());
+
+            var otherThreadRead = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+            var reader = new Thread(() -> {
+                try {
+                    resource.getRequest();
+                } catch (Throwable t) {
+                    otherThreadRead.set(t);
+                }
+            });
+            reader.start();
+            reader.join();
+            assertTrue(otherThreadRead.get() instanceof IllegalStateException,
+                    "any other thread still sees the resource out of scope");
+        } finally {
+            event.disconnectDispatchDone();
+        }
+        assertThrows(IllegalStateException.class, resource::getRequest,
+                "once the callback returned, the request is out of scope again");
     }
 
     @Test
