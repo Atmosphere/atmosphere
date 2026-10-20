@@ -257,6 +257,52 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
 
 
+    private static final String TOOL_ROUND = """
+            data: {"type":"message_start","message":{"id":"msg_t1"}}
+
+            data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"lookup","input":{}}}
+
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"city\\":\\"Paris\\"}"}}
+
+            data: {"type":"content_block_stop","index":0}
+
+            data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"input_tokens":15,"output_tokens":8}}
+
+            data: {"type":"message_stop"}
+
+            """;
+
+    private static final String ANSWER_ROUND = """
+            data: {"type":"message_start","message":{"id":"msg_t2"}}
+
+            data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"%s"}}
+
+            data: {"type":"content_block_stop","index":0}
+
+            data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":20,"output_tokens":5}}
+
+            data: {"type":"message_stop"}
+
+            """.formatted(TOOL_LOOP_ANSWER);
+
+    /**
+     * The real Messages client over a mocked HTTP transport: the first request
+     * asks for {@code lookup} (tool_use), the follow-up answers 300 ms later.
+     * The client's tool loop runs every round on the worker, so the handle
+     * settles when the last round returns.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var client = AnthropicMessagesClient.builder()
+                .apiKey("test-key")
+                .httpClient(HttpRuntimeTestSupport.mockToolLoopHttpClient(TOOL_ROUND, ANSWER_ROUND, 300))
+                .build();
+        return new ToolLoopFixture(new TestableAnthropicRuntime(client),
+                toolLoopContext("claude-sonnet-4-6"), TOOL_LOOP_ANSWER);
+    }
+
     /** Test subclass that injects the mocked client directly. */
     static class TestableAnthropicRuntime extends AnthropicAgentRuntime {
         TestableAnthropicRuntime(AnthropicMessagesClient client) {

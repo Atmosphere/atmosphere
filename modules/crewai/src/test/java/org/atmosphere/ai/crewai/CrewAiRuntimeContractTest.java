@@ -147,6 +147,18 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 List.of(), null, null);
     }
 
+    /**
+     * The fake sidecar owns the tool loop, as the Python crew does: it calls
+     * the {@code lookup} tool back over HTTP, then streams the answer 300 ms
+     * later. The runtime drains the sidecar stream on its worker, so the
+     * handle settles when the stream's {@code done} frame arrives.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        return new ToolLoopFixture(createRuntime(), toolLoopContext("crewai-default"),
+                TOOL_LOOP_ANSWER);
+    }
+
     @Override
     protected AgentExecutionContext createErrorContext() {
         return new AgentExecutionContext(
@@ -345,6 +357,16 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                     var toolName = tools.get(0).path("name").asString("");
                     if (!toolName.isBlank()) {
                         invokeToolCallback(toolCallbackUrl, toolCallbackToken, toolName);
+                    }
+                    if ("lookup".equals(toolName)) {
+                        // The tool-loop fixture: the crew takes its time over
+                        // the answer that follows the tool round.
+                        try {
+                            Thread.sleep(300);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        writeFrame(os, "token", "{\"text\":\"" + TOOL_LOOP_ANSWER + "\"}");
                     }
                 }
 

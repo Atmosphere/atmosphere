@@ -221,6 +221,48 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
 
 
+    private static final String TOOL_ROUND = """
+            data: {"type":"message-start","id":"msg_t1"}
+
+            data: {"type":"tool-call-start","index":0,"delta":{"message":{"tool_calls":{"id":"call_1","type":"function","function":{"name":"lookup","arguments":""}}}}}
+
+            data: {"type":"tool-call-delta","index":0,"delta":{"message":{"tool_calls":{"function":{"arguments":"{\\"city\\":\\"Paris\\"}"}}}}}
+
+            data: {"type":"tool-call-end","index":0}
+
+            data: {"type":"message-end","delta":{"finish_reason":"TOOL_CALL","usage":{"tokens":{"input_tokens":15,"output_tokens":8}}}}
+
+            """;
+
+    private static final String ANSWER_ROUND = """
+            data: {"type":"message-start","id":"msg_t2"}
+
+            data: {"type":"content-start","index":0}
+
+            data: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":"%s"}}}}
+
+            data: {"type":"content-end","index":0}
+
+            data: {"type":"message-end","delta":{"finish_reason":"COMPLETE","usage":{"tokens":{"input_tokens":20,"output_tokens":5}}}}
+
+            """.formatted(TOOL_LOOP_ANSWER);
+
+    /**
+     * The real chat client over a mocked HTTP transport: the first request
+     * asks for {@code lookup}, the follow-up answers 300 ms later. The
+     * client's tool loop runs every round on the worker, so the handle
+     * settles when the last round returns.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(HttpRuntimeTestSupport.mockToolLoopHttpClient(TOOL_ROUND, ANSWER_ROUND, 300))
+                .build();
+        return new ToolLoopFixture(new TestableCohereRuntime(client),
+                toolLoopContext("command-a-03-2025"), TOOL_LOOP_ANSWER);
+    }
+
     /** Test subclass that injects the mocked client directly. */
     static class TestableCohereRuntime extends CohereAgentRuntime {
         TestableCohereRuntime(CohereChatClient client) {

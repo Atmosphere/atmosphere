@@ -204,6 +204,51 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return Set.of();
     }
 
+    /**
+     * A tool-bearing context makes the runtime rebuild a real
+     * {@link ReActAgent} per request over the base agent's model, so the
+     * ReAct loop is AgentScope's own. The stub model asks for {@code lookup}
+     * on its first call and answers 300 ms later, on another thread, on the
+     * next one. The handle settles when the agent's event stream completes.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var model = new io.agentscope.core.model.Model() {
+            @Override
+            public Flux<io.agentscope.core.model.ChatResponse> stream(
+                    List<Msg> messages, List<io.agentscope.core.model.ToolSchema> tools,
+                    io.agentscope.core.model.GenerateOptions options) {
+                if (calls.getAndIncrement() == 0) {
+                    return Flux.just(io.agentscope.core.model.ChatResponse.builder()
+                            .id("r1")
+                            .content(List.of(io.agentscope.core.message.ToolUseBlock.builder()
+                                    .id("call-1").name("lookup")
+                                    .input(Map.of("city", "Paris")).build()))
+                            .build());
+                }
+                return Flux.just(io.agentscope.core.model.ChatResponse.builder()
+                                .id("r2")
+                                .content(List.of(io.agentscope.core.message.TextBlock.builder()
+                                        .text(TOOL_LOOP_ANSWER).build()))
+                                .build())
+                        .delaySubscription(java.time.Duration.ofMillis(300));
+            }
+
+            @Override
+            public String getModelName() {
+                return "stub";
+            }
+        };
+        var base = mock(ReActAgent.class);
+        when(base.getModel()).thenReturn(model);
+        when(base.getSysPrompt()).thenReturn("You are helpful");
+        when(base.getMemory()).thenReturn(new io.agentscope.core.memory.InMemoryMemory());
+        when(base.getMaxIters()).thenReturn(10);
+        return new ToolLoopFixture(new TestableAgentScopeRuntime(base),
+                toolLoopContext("qwen-plus"), TOOL_LOOP_ANSWER);
+    }
+
     static class TestableAgentScopeRuntime extends AgentScopeAgentRuntime {
         TestableAgentScopeRuntime(ReActAgent agent) {
             setNativeClient(agent);

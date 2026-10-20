@@ -214,6 +214,36 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * Spring AI runs the tool loop inside the {@code ChatClient} stream: the
+     * stub's stream calls the {@code lookup} callback the runtime registered
+     * (the tool round), then emits the answer 300 ms later on another thread.
+     * The handle settles when that one stream ends.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var chatClient = mock(ChatClient.class);
+        var promptSpec = mock(ChatClient.ChatClientRequestSpec.class,
+                org.mockito.Answers.RETURNS_SELF);
+        var streamSpec = mock(ChatClient.StreamResponseSpec.class);
+        when(chatClient.prompt()).thenReturn(promptSpec);
+        when(promptSpec.stream()).thenReturn(streamSpec);
+        var tools = new java.util.concurrent.atomic.AtomicReference<Object[]>();
+        when(promptSpec.tools((Object[]) org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> {
+            tools.set(inv.getArguments());
+            return promptSpec;
+        });
+        when(streamSpec.chatResponse()).thenAnswer(inv -> Flux.defer(() -> {
+            var callback = (org.springframework.ai.tool.ToolCallback) tools.get()[0];
+            callback.call("{\"city\":\"Paris\"}");
+            return Flux.just(new ChatResponse(List.of(
+                            new Generation(new AssistantMessage(TOOL_LOOP_ANSWER)))))
+                    .delaySubscription(java.time.Duration.ofMillis(300));
+        }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic()));
+        return new ToolLoopFixture(new TestableSpringAiRuntime(chatClient),
+                toolLoopContext("gpt-4"), TOOL_LOOP_ANSWER);
+    }
+
     private static ChatClient mockToolAwareChatClient() {
         var chatClient = mock(ChatClient.class);
         // RETURNS_SELF handles all fluent chain methods — unstubbed calls

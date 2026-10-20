@@ -80,6 +80,43 @@ public final class HttpRuntimeTestSupport {
     }
 
     /**
+     * Build a mocked {@link HttpClient} for a tool loop: the first request is
+     * answered with {@code firstRound} at once (a round that asks for a tool),
+     * every later request with {@code laterRound} after {@code delayMillis}
+     * (the model taking its time over the answer). Each call gets a fresh body
+     * stream. Backs the contract kit's
+     * {@code AbstractAgentRuntimeContractTest.ToolLoopFixture}.
+     *
+     * @param firstRound  the response body of the first request
+     * @param laterRound  the response body of every later request
+     * @param delayMillis how long a later request takes before it answers
+     * @return a Mockito-mocked {@link HttpClient} returning 200 + those bodies
+     */
+    @SuppressWarnings("unchecked")
+    public static HttpClient mockToolLoopHttpClient(String firstRound, String laterRound,
+                                                    long delayMillis) {
+        try {
+            var calls = new java.util.concurrent.atomic.AtomicInteger();
+            var httpClient = mock(HttpClient.class);
+            when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenAnswer(inv -> {
+                        var first = calls.getAndIncrement() == 0;
+                        if (!first) {
+                            Thread.sleep(delayMillis);
+                        }
+                        var response = mock(HttpResponse.class);
+                        when(response.statusCode()).thenReturn(200);
+                        when(response.body()).thenReturn(new ByteArrayInputStream(
+                                (first ? firstRound : laterRound).getBytes(StandardCharsets.UTF_8)));
+                        return response;
+                    });
+            return httpClient;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Build a mocked {@link HttpClient} whose response body opens with
      * {@code preamble} and then <em>stays open</em>, trickling SSE comment
      * lines so the reader keeps returning from {@code readLine()} without the

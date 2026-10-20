@@ -405,6 +405,98 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * Fixture for {@link AiCapability#TOOL_CALLING}'s turn-end contract: a
+     * runtime whose backend stub answers the first model round with a tool
+     * call and answers a later round, after a delay and from another thread,
+     * with a final text containing {@link #finalAnswer()}. The context carries
+     * the tool. A stub whose follow-up round answers at once, on the calling
+     * thread, proves nothing: the defect this guards against is a handle (or a
+     * synchronous {@code execute}) that ends with the round that asked for the
+     * tool, while the turn goes on.
+     *
+     * @param runtime     the runtime wired to that stub; a fresh one per call of
+     *                    {@link #createToolLoopFixture()}
+     * @param context     a context carrying the tool the stub asks for
+     * @param finalAnswer text the last round's answer contains
+     */
+    public record ToolLoopFixture(AgentRuntime runtime, AgentExecutionContext context,
+                                  String finalAnswer) {
+    }
+
+    /**
+     * Subclass hook: build a {@link ToolLoopFixture}. Returns {@code null} by
+     * default; a runtime declaring {@link AiCapability#TOOL_CALLING} must
+     * override it or register the capability in
+     * {@link #capabilitiesCoveredOutsideTck()} naming the module test that
+     * proves the same turn-end guarantee — see
+     * {@link #declaredCapabilitiesWithBehavioralHooksAreExercised()}.
+     */
+    protected ToolLoopFixture createToolLoopFixture() {
+        return null;
+    }
+
+    /** The answer a {@link ToolLoopFixture}'s last round gives, by convention. */
+    public static final String TOOL_LOOP_ANSWER = "final answer from the last round";
+
+    /**
+     * The tool a {@link ToolLoopFixture}'s first round asks for, by convention:
+     * {@code lookup} with one string argument {@code city}.
+     */
+    protected static ToolDefinition toolLoopTool() {
+        return ToolDefinition.builder("lookup", "Look a city up")
+                .parameter("city", "the city", "string")
+                .executor(args -> "sunny in " + args.get("city"))
+                .build();
+    }
+
+    /** A context carrying {@link #toolLoopTool()}, for a {@link ToolLoopFixture}. */
+    protected static AgentExecutionContext toolLoopContext(String model) {
+        return new AgentExecutionContext(
+                "What is the weather in Paris?", "You are helpful", model,
+                null, "session-1", "user-1", "conv-1",
+                List.of(toolLoopTool()), null, null, List.of(), Map.of(),
+                List.of(), null, null);
+    }
+
+    /**
+     * A tool-calling turn ends when its last round ends: the handle's
+     * {@link org.atmosphere.ai.ExecutionHandle#whenDone()} settles, and a synchronous
+     * {@link AgentRuntime#execute} returns, only once the session holds the
+     * final answer and is closed. The pipeline ends the turn on that signal
+     * (post-processing, turn metrics, the response cache), so a handle done
+     * after the round that asked for the tool ended the turn while the answer
+     * was still streaming.
+     */
+    @Test
+    protected void toolCallingTurnEndsWhenItsLastRoundEnds() throws Exception {
+        var fixture = createToolLoopFixture();
+        if (fixture == null) {
+            // Presence is enforced by the capability meta-gate.
+            return;
+        }
+        var session = new RecordingSession();
+        var handle = fixture.runtime().executeWithHandle(fixture.context(), session);
+        try {
+            handle.whenDone().get(15, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException e) {
+            fail(fixture.runtime().name() + " tool-calling turn failed: " + e.getCause());
+        }
+        assertTrue(session.isClosed(), fixture.runtime().name()
+                + ": the handle of a tool-calling turn settled before the turn ended");
+        assertTrue(session.text().contains(fixture.finalAnswer()), fixture.runtime().name()
+                + ": the handle settled before the last round's answer; got: " + session.text());
+        assertTrue(session.errors.isEmpty(), "No errors expected: " + session.errors);
+
+        var again = createToolLoopFixture();
+        var syncSession = new RecordingSession();
+        again.runtime().execute(again.context(), syncSession);
+        assertTrue(syncSession.isClosed(), again.runtime().name()
+                + ": execute returned before the tool-calling turn ended");
+        assertTrue(syncSession.text().contains(again.finalAnswer()), again.runtime().name()
+                + ": execute returned before the last round's answer; got: " + syncSession.text());
+    }
+
+    /**
      * Everything the shared behavioural cancellation assertion needs from a
      * runtime module: a runtime wired to a backend that <em>blocks</em> (so the
      * handle is genuinely in flight when {@code cancel()} lands) and the
@@ -768,14 +860,17 @@ public abstract class AbstractAgentRuntimeContractTest {
                     AiCapability.PROMPT_CACHING, AbstractAgentRuntimeContractTest::createCacheContext,
                     AiCapability.PER_REQUEST_RETRY, AbstractAgentRuntimeContractTest::createRetryContext,
                     AiCapability.CANCELLATION,
-                    AbstractAgentRuntimeContractTest::createCancellationFixture);
+                    AbstractAgentRuntimeContractTest::createCancellationFixture,
+                    AiCapability.TOOL_CALLING,
+                    AbstractAgentRuntimeContractTest::createToolLoopFixture);
 
     /** Hook names quoted in the meta-gate's failure message. */
     private static final Map<AiCapability, String> HOOK_NAMES = Map.of(
             AiCapability.VISION, "createImageContext()",
             AiCapability.PROMPT_CACHING, "createCacheContext()",
             AiCapability.PER_REQUEST_RETRY, "createRetryContext()",
-            AiCapability.CANCELLATION, "createCancellationFixture()");
+            AiCapability.CANCELLATION, "createCancellationFixture()",
+            AiCapability.TOOL_CALLING, "createToolLoopFixture()");
 
     /** Minimal 1×1 transparent PNG for VISION contract tests. */
     protected static final byte[] TINY_PNG = new byte[]{
@@ -1351,6 +1446,7 @@ public abstract class AbstractAgentRuntimeContractTest {
         public final List<AiEvent> events = new CopyOnWriteArrayList<>();
         public final List<Throwable> errors = new CopyOnWriteArrayList<>();
         public final AtomicInteger completionCount = new AtomicInteger();
+        public final List<String> completionSummaries = new CopyOnWriteArrayList<>();
         private final CountDownLatch latch = new CountDownLatch(1);
         private final AtomicBoolean closed = new AtomicBoolean();
 
@@ -1383,9 +1479,17 @@ public abstract class AbstractAgentRuntimeContractTest {
 
         @Override
         public void complete(String summary) {
+            if (summary != null) {
+                completionSummaries.add(summary);
+            }
             completionCount.incrementAndGet();
             closed.set(true);
             latch.countDown();
+        }
+
+        /** The text the session received: its chunks, then any completion summary. */
+        public String text() {
+            return String.join("", textChunks) + String.join("", completionSummaries);
         }
 
         @Override

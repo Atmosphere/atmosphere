@@ -84,6 +84,36 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
         return false;
     }
 
+    /**
+     * Semantic Kernel auto-invokes the tools inside the streaming call: the
+     * stub's stream invokes the {@code lookup} function of the kernel the
+     * runtime built (the tool round), then streams the answer 300 ms later on
+     * another thread. The handle settles when that one stream ends.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        @SuppressWarnings("unchecked")
+        var frame = (StreamingChatContent<Object>) mock(StreamingChatContent.class);
+        when(frame.getContent()).thenReturn(TOOL_LOOP_ANSWER);
+        when(frame.getMetadata()).thenReturn(null);
+        var service = mock(ChatCompletionService.class);
+        when(service.getStreamingChatMessageContentsAsync(any(ChatHistory.class), any(), any()))
+                .thenAnswer(inv -> {
+                    com.microsoft.semantickernel.Kernel kernel = inv.getArgument(1);
+                    return Flux.defer(() -> {
+                        var lookup = kernel.getPlugin("atmosphere_tools").get("lookup");
+                        lookup.invokeAsync(kernel,
+                                com.microsoft.semantickernel.semanticfunctions.KernelArguments.builder()
+                                        .withVariable("city",
+                                                com.microsoft.semantickernel.contextvariables.ContextVariable.of("Paris"))
+                                        .build(), null, null).block();
+                        return Flux.just(frame).delaySubscription(java.time.Duration.ofMillis(300));
+                    }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
+                });
+        return new ToolLoopFixture(new TestableSemanticKernelRuntime(service),
+                toolLoopContext("gpt-4o-mini"), TOOL_LOOP_ANSWER);
+    }
+
     static class TestableSemanticKernelRuntime extends SemanticKernelAgentRuntime {
         TestableSemanticKernelRuntime(ChatCompletionService service) {
             setNativeClient(service);

@@ -255,6 +255,63 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         }).orElse(false);
     }
 
+    /**
+     * A tool-bearing context makes the runtime build a Runner per request; the
+     * fixture hands it a stub whose event stream carries the tool round (a
+     * function call and its response) at once, then the answer and the turn's
+     * end 300 ms later on another thread. The handle settles when that one
+     * event stream completes.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var runner = mock(Runner.class);
+        var sessionService = mock(BaseSessionService.class);
+        var session = mock(Session.class);
+        when(runner.sessionService()).thenReturn(sessionService);
+        when(runner.appName()).thenReturn("contract-test-app");
+        when(sessionService.getSession(anyString(), anyString(), anyString(), any()))
+                .thenReturn(Maybe.just(session));
+        var call = Event.builder()
+                .id(Event.generateEventId())
+                .author("agent")
+                .actions(EventActions.builder().build())
+                .content(Content.fromParts(Part.fromFunctionCall("lookup", Map.of("city", "Paris"))))
+                .build();
+        var response = Event.builder()
+                .id(Event.generateEventId())
+                .author("agent")
+                .actions(EventActions.builder().build())
+                .content(Content.fromParts(Part.fromFunctionResponse("lookup",
+                        Map.of("result", "sunny in Paris"))))
+                .build();
+        var answer = Event.builder()
+                .id(Event.generateEventId())
+                .author("agent")
+                .actions(EventActions.builder().build())
+                .partial(true)
+                .content(Content.fromParts(Part.fromText(TOOL_LOOP_ANSWER)))
+                .build();
+        var done = Event.builder()
+                .id(Event.generateEventId())
+                .author("agent")
+                .actions(EventActions.builder().build())
+                .turnComplete(true)
+                .build();
+        when(runner.runAsync(anyString(), anyString(), any(Content.class)))
+                .thenAnswer(inv -> Flowable.concat(
+                        Flowable.just(call, response),
+                        Flowable.just(answer, done)
+                                .delaySubscription(300, java.util.concurrent.TimeUnit.MILLISECONDS)));
+        var runtime = new TestableAdkAgentRuntime(stubRunner()) {
+            @Override
+            Runner buildRequestRunner(AgentExecutionContext context,
+                                      org.atmosphere.ai.StreamingSession streamingSession) {
+                return runner;
+            }
+        };
+        return new ToolLoopFixture(runtime, toolLoopContext("gemini-2.5-flash"), TOOL_LOOP_ANSWER);
+    }
+
     static class TestableAdkAgentRuntime extends AdkAgentRuntime {
         TestableAdkAgentRuntime(Runner runner) {
             setNativeClient(runner);

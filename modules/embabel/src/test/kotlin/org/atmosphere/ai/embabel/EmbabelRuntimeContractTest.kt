@@ -178,6 +178,38 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
      *     with "Hello world") or the error path (throws when the
      *     `userMessage` input carries [CONTRACT_ERROR_SENTINEL]).
      */
+    /**
+     * The deployed Embabel agent owns its tool loop: `AgentPlatform.runAgentFrom`
+     * returns once the agent process has run every step. The stub runs the
+     * request's `lookup` tool (the tool round) and answers 300 ms later;
+     * `execute` and the handle must not end before that.
+     */
+    override fun createToolLoopFixture(): ToolLoopFixture {
+        val platform = mock(AgentPlatform::class.java)
+        val agent = mock(Agent::class.java)
+        `when`(agent.name).thenReturn("chat-assistant")
+        `when`(platform.agents()).thenReturn(listOf(agent))
+        val blackboard = mock(Blackboard::class.java)
+        val hasContent = mock(HasContent::class.java)
+        `when`(hasContent.content).thenReturn(TOOL_LOOP_ANSWER)
+        `when`(blackboard.lastResult()).thenReturn(hasContent)
+        val process = mock(AgentProcess::class.java)
+        `when`(process.blackboard).thenReturn(blackboard)
+        `when`(platform.runAgentFrom(
+            org.mockito.kotlin.any<Agent>(),
+            org.mockito.kotlin.any<com.embabel.agent.core.ProcessOptions>(),
+            org.mockito.kotlin.any<Map<String, Any>>()
+        )).thenAnswer {
+            toolLoopTool().executor().execute(mapOf<String, Any>("city" to "Paris"))
+            Thread.sleep(300)
+            process
+        }
+        val environment = AiEnvironment.create { null }
+        EmbabelAgentRuntime.setAgentPlatform(environment, platform)
+        val runtime = EmbabelAgentRuntime().also { it.attach(environment) }
+        return ToolLoopFixture(runtime, toolLoopContext("gpt-4o-mini"), TOOL_LOOP_ANSWER)
+    }
+
     private fun buildMockPlatform(): AgentPlatform {
         val platform = mock(AgentPlatform::class.java)
         val agent = mock(Agent::class.java)

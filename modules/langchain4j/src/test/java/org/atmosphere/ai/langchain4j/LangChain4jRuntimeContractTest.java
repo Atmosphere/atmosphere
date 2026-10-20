@@ -259,6 +259,43 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 });
     }
 
+    /**
+     * A streaming model whose first round asks for {@code lookup} at once and
+     * whose follow-up round answers 300 ms later from the provider's thread,
+     * as LC4j's HTTP transport calls back. The tool loop chains a new
+     * streaming call per round, so the handle must follow the chain.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var model = mock(StreamingChatModel.class);
+        doAnswer(inv -> {
+            ChatRequest req = inv.getArgument(0);
+            StreamingChatResponseHandler handler = inv.getArgument(1);
+            var hasToolResults = req.messages().stream()
+                    .anyMatch(m -> m instanceof dev.langchain4j.data.message.ToolExecutionResultMessage);
+            if (!hasToolResults) {
+                handler.onCompleteResponse(ChatResponse.builder()
+                        .aiMessage(AiMessage.from(List.of(dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
+                                .id("call-1").name("lookup").arguments("{\"city\":\"Paris\"}").build())))
+                        .build());
+            } else {
+                Thread.ofVirtual().start(() -> {
+                    try {
+                        Thread.sleep(300);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    handler.onPartialResponse(TOOL_LOOP_ANSWER);
+                    handler.onCompleteResponse(ChatResponse.builder()
+                            .aiMessage(AiMessage.from(TOOL_LOOP_ANSWER)).build());
+                });
+            }
+            return null;
+        }).when(model).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
+        return new ToolLoopFixture(new TestableLangChain4jRuntime(model),
+                toolLoopContext("gpt-4"), TOOL_LOOP_ANSWER);
+    }
+
     @Test
     void langChain4jDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));

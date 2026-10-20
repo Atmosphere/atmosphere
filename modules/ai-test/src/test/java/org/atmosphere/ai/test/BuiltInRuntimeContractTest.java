@@ -70,6 +70,41 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return false;
     }
 
+    private static final String TOOL_ROUND = """
+            data: {"id":"c1","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"lookup","arguments":"{\\\"city\\\":\\\"Paris\\\"}"}}]},"finish_reason":null}]}
+
+            data: {"id":"c1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+            data: [DONE]
+
+            """;
+
+    private static final String ANSWER_ROUND = """
+            data: {"id":"c2","choices":[{"index":0,"delta":{"content":"%s"},"finish_reason":null}]}
+
+            data: {"id":"c2","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+            data: [DONE]
+
+            """.formatted(TOOL_LOOP_ANSWER);
+
+    /**
+     * The real OpenAI-compatible client over a mocked HTTP transport: the
+     * first request asks for {@code lookup}, the follow-up answers 300 ms
+     * later. The client's tool loop runs every round on the worker
+     * ({@code doStreamWithToolLoop} recursing), so the handle settles when the
+     * last round returns.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var client = org.atmosphere.ai.llm.OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(HttpRuntimeTestSupport.mockToolLoopHttpClient(TOOL_ROUND, ANSWER_ROUND, 300))
+                .build();
+        return new ToolLoopFixture(new TestableBuiltInRuntime(client),
+                toolLoopContext("gpt-4o-mini"), TOOL_LOOP_ANSWER);
+    }
+
     static class TestableBuiltInRuntime extends BuiltInAgentRuntime {
         TestableBuiltInRuntime(LlmClient client) {
             setNativeClient(client);

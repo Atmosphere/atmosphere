@@ -204,6 +204,50 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
      * point — for up to 30 seconds. Bounded so a cancellation regression fails
      * the contract's timeout assertion rather than stranding the worker.
      */
+    /**
+     * A tool-bearing context runs Koog's `AIAgent`, which owns the tool loop.
+     * The executor asks for `lookup` on its first call and answers 300 ms
+     * later, off the agent's thread, on the next one; `agent.run` returns only
+     * when the strategy ends, so the handle settles then.
+     */
+    override fun createToolLoopFixture(): ToolLoopFixture {
+        val environment = AiEnvironment.create { null }
+        KoogAgentRuntime.setPromptExecutor(environment, ToolLoopFakeExecutor())
+        val runtime = KoogAgentRuntime().also { it.attach(environment) }
+        return ToolLoopFixture(runtime, toolLoopContext("gpt-4o-mini"), TOOL_LOOP_ANSWER)
+    }
+
+    private class ToolLoopFakeExecutor : PromptExecutor() {
+        private val calls = java.util.concurrent.atomic.AtomicInteger()
+
+        override fun executeStreaming(
+            prompt: Prompt,
+            model: LLModel,
+            tools: List<ToolDescriptor>
+        ): Flow<StreamFrame> = flowOf(StreamFrame.TextDelta(TOOL_LOOP_ANSWER))
+
+        override suspend fun execute(
+            prompt: Prompt,
+            model: LLModel,
+            tools: List<ToolDescriptor>
+        ): Message.Assistant {
+            if (calls.getAndIncrement() == 0) {
+                return Message.Assistant(
+                    ai.koog.prompt.message.MessagePart.Tool.Call(
+                        id = "call_1", tool = "lookup", args = "{\"city\":\"Paris\"}"),
+                    ResponseMetaInfo.Empty
+                )
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Thread.sleep(300) }
+            return Message.Assistant(content = TOOL_LOOP_ANSWER, metaInfo = ResponseMetaInfo.Empty)
+        }
+
+        override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
+            ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
+
+        override fun close() {}
+    }
+
     private class BlockingFakeExecutor(
         private val engaged: java.util.concurrent.atomic.AtomicBoolean
     ) : PromptExecutor() {

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -160,6 +161,37 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
     @Override
     protected AgentExecutionContext createRetryContext() {
         return createTextContext().withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * A tool-bearing context makes the runtime build a ReAct agent per request
+     * over the application's {@code ChatModel}: the real agent graph runs the
+     * tool loop. The stub model asks for {@code lookup} in its first call and
+     * answers 300 ms later in the next one; {@code ReactAgent.call} returns
+     * only when the graph ends, so the handle settles then.
+     */
+    @Override
+    protected ToolLoopFixture createToolLoopFixture() {
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var chatModel = mock(org.springframework.ai.chat.model.ChatModel.class);
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class))).thenAnswer(inv -> {
+            if (calls.getAndIncrement() == 0) {
+                return new org.springframework.ai.chat.model.ChatResponse(List.of(
+                        new org.springframework.ai.chat.model.Generation(AssistantMessage.builder()
+                                .content("")
+                                .toolCalls(List.of(new AssistantMessage.ToolCall(
+                                        "call_1", "function", "lookup", "{\"city\":\"Paris\"}")))
+                                .build())));
+            }
+            Thread.sleep(300);
+            return new org.springframework.ai.chat.model.ChatResponse(List.of(
+                    new org.springframework.ai.chat.model.Generation(new AssistantMessage(TOOL_LOOP_ANSWER))));
+        });
+        var environment = org.atmosphere.ai.AiEnvironment.create(name -> null);
+        SpringAiAlibabaAgentRuntime.setChatModel(environment, chatModel);
+        var runtime = new TestableSpringAiAlibabaRuntime(mock(ReactAgent.class));
+        runtime.attach(environment);
+        return new ToolLoopFixture(runtime, toolLoopContext("qwen-plus"), TOOL_LOOP_ANSWER);
     }
 
     static class TestableSpringAiAlibabaRuntime extends SpringAiAlibabaAgentRuntime {
