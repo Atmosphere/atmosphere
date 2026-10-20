@@ -213,13 +213,13 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
     /**
      * Spring AI runs the tool loop inside the {@code ChatClient} stream: the
      * stub's stream calls the {@code lookup} callback the runtime registered
      * (the tool round), then emits the answer 300 ms later on another thread.
      * The handle settles when that one stream ends.
      */
+    @SuppressWarnings("unchecked")
     @Override
     protected ToolLoopFixture createToolLoopFixture() {
         var chatClient = mock(ChatClient.class);
