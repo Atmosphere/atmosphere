@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -92,6 +93,14 @@ public final class DefaultAgentFleet implements AgentFleet {
     private final List<AgentActivityListener> activityListeners;
     private final int maxParallel;
     private final Semaphore dispatchPermits;
+    /** Whether the run this fleet works for was cancelled; never for a shared fleet. */
+    private final java.util.function.BooleanSupplier cancelled;
+
+    /** How often an evaluation in flight looks at its run's cancellation. */
+    private static final long CANCEL_POLL_MS = 50;
+
+    /** The cancellation of a fleet no run owns: never cancelled. */
+    private static final java.util.function.BooleanSupplier NEVER_CANCELLED = () -> false;
 
     public DefaultAgentFleet(Map<String, AgentProxy> proxies) {
         this(proxies, List.of());
@@ -127,7 +136,7 @@ public final class DefaultAgentFleet implements AgentFleet {
                              List<AgentActivityListener> activityListeners,
                              int maxParallel) {
         this(proxies, evaluators, parallelTimeoutMs, activityListeners,
-                resolveMaxParallel(maxParallel), null);
+                resolveMaxParallel(maxParallel), null, NEVER_CANCELLED);
     }
 
     private DefaultAgentFleet(Map<String, AgentProxy> proxies,
@@ -135,7 +144,9 @@ public final class DefaultAgentFleet implements AgentFleet {
                               long parallelTimeoutMs,
                               List<AgentActivityListener> activityListeners,
                               int maxParallel,
-                              Semaphore sharedPermits) {
+                              Semaphore sharedPermits,
+                              java.util.function.BooleanSupplier cancelled) {
+        this.cancelled = cancelled;
         this.proxies = Map.copyOf(proxies);
         this.evaluators = List.copyOf(evaluators);
         this.parallelTimeoutMs = parallelTimeoutMs;
@@ -194,7 +205,7 @@ public final class DefaultAgentFleet implements AgentFleet {
             }
         }
         return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs, combined,
-                maxParallel, dispatchPermits);
+                maxParallel, dispatchPermits, cancelled);
     }
 
     @Override
@@ -206,8 +217,10 @@ public final class DefaultAgentFleet implements AgentFleet {
         for (var entry : proxies.entrySet()) {
             newProxies.put(entry.getKey(), entry.getValue().withCancellation(cancelled));
         }
+        var previous = this.cancelled;
         return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs,
-                activityListeners, maxParallel, dispatchPermits);
+                activityListeners, maxParallel, dispatchPermits,
+                () -> previous.getAsBoolean() || cancelled.getAsBoolean());
     }
 
     @Override
@@ -225,7 +238,7 @@ public final class DefaultAgentFleet implements AgentFleet {
             newProxies.put(entry.getKey(), entry.getValue().withDispatchMetadata(md));
         }
         return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs,
-                activityListeners, maxParallel, dispatchPermits);
+                activityListeners, maxParallel, dispatchPermits, cancelled);
     }
 
     @Override
@@ -549,6 +562,61 @@ public final class DefaultAgentFleet implements AgentFleet {
 
     @Override
     public List<Evaluation> evaluate(AgentResult result, AgentCall originalCall) {
+        if (evaluators.isEmpty()) {
+            return List.of();
+        }
+        if (cancelled == NEVER_CANCELLED) {
+            return evaluateNow(result, originalCall);
+        }
+        if (cancelled.getAsBoolean()) {
+            logger.debug("Skipping the evaluation of '{}': the run was cancelled", result.agentName());
+            return List.of();
+        }
+        // Evaluate on a worker the run's cancel can interrupt: an evaluator's
+        // model call (LlmResultEvaluator) is then cancelled through its
+        // runtime instead of outliving the run.
+        var worker = Executors.newVirtualThreadPerTaskExecutor();
+        // The worker sees the application the caller is bound to.
+        var callerEnvironment = org.atmosphere.ai.AiEnvironment.bound();
+        try {
+            var future = CompletableFuture.supplyAsync(() -> {
+                var binding = org.atmosphere.ai.AiEnvironment.bind(callerEnvironment);
+                try {
+                    return evaluateNow(result, originalCall);
+                } finally {
+                    binding.close();
+                }
+            }, worker);
+            while (true) {
+                if (!future.isDone() && cancelled.getAsBoolean()) {
+                    future.cancel(true);
+                    worker.shutdownNow();
+                    logger.debug("Evaluation of '{}' cancelled in flight: the run was cancelled",
+                            result.agentName());
+                    return List.of();
+                }
+                try {
+                    return future.get(CANCEL_POLL_MS, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException stillRunning) {
+                    // Not done yet: look at the cancellation again.
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            worker.shutdownNow();
+            return List.of();
+        } catch (ExecutionException e) {
+            var cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            throw new IllegalStateException("Evaluation failed", cause);
+        } finally {
+            worker.shutdown();
+        }
+    }
+
+    private List<Evaluation> evaluateNow(AgentResult result, AgentCall originalCall) {
         return evaluators.stream()
                 .map(e -> {
                     try {

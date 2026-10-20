@@ -260,6 +260,12 @@ pattern = '^var callerEnvironment = AiEnvironment\.bound\(\);$'
 sites = 1
 reason = "generate() carries the caller's binding onto its carrier thread, so an inline and a bounded call read the same application (Mode Parity)"
 
+[[ai_application_state.allowed]]
+file = "org/atmosphere/coordinator/fleet/DefaultAgentFleet.java"
+pattern = '^var callerEnvironment = org\.atmosphere\.ai\.AiEnvironment\.bound\(\);$'
+sites = 1
+reason = "a cancellable evaluation carries the caller's binding onto the worker the run's cancel interrupts, so the evaluators read the same application as inline"
+
 # --- An instance no environment attached (built by hand, or by the process default) ---
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/AbstractAgentRuntime.java"

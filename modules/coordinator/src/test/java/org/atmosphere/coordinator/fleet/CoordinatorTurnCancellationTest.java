@@ -242,6 +242,65 @@ class CoordinatorTurnCancellationTest {
     }
 
     @Test
+    void anEvaluationInFlightIsInterruptedWhenTheTurnIsCancelled() throws Exception {
+        // refineUntil's evaluator (LlmResultEvaluator) makes a model call that
+        // blocks: the operator cancels during it. The evaluator's call is
+        // interrupted — which cancels its runtime call — and the plan goes on
+        // at once instead of waiting for the judge's answer.
+        var cancelled = new AtomicBoolean();
+        var evaluating = new java.util.concurrent.CountDownLatch(1);
+        var interrupted = new java.util.concurrent.CountDownLatch(1);
+        org.atmosphere.coordinator.evaluation.ResultEvaluator slowJudge = (result, call) -> {
+            evaluating.countDown();
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException e) {
+                interrupted.countDown();
+                Thread.currentThread().interrupt();
+            }
+            return org.atmosphere.coordinator.evaluation.Evaluation.pass(1.0, "late");
+        };
+        var transport = new RecordingTransport(cancelled, "nobody");
+        var fleet = new DefaultAgentFleet(Map.of("writer-agent",
+                new DefaultAgentProxy("writer-agent", "1.0.0", 1, true, transport)),
+                List.of(slowJudge))
+                .forTurn(sessionCancelledBy(cancelled));
+        Thread.startVirtualThread(() -> {
+            try {
+                evaluating.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                cancelled.set(true);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        var begin = System.nanoTime();
+        var report = fleet.refineUntil(fleet.call("writer-agent", "write_report", Map.of()));
+        var elapsedMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - begin);
+
+        assertTrue(elapsedMs < 2_000, "the plan waited for the judge after the cancel: " + elapsedMs + "ms");
+        assertTrue(interrupted.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "the evaluator's model call was not interrupted");
+        assertEquals(List.of("writer-agent:write_report"), transport.calls);
+        assertTrue(report.success(), "the writer's result is still the refine result: " + report.text());
+    }
+
+    @Test
+    void aFleetNoRunOwnsEvaluatesOnTheCallersThread() {
+        var thread = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        org.atmosphere.coordinator.evaluation.ResultEvaluator judge = (result, call) -> {
+            thread.set(Thread.currentThread());
+            return org.atmosphere.coordinator.evaluation.Evaluation.pass(1.0, "ok");
+        };
+        var fleet = new DefaultAgentFleet(Map.of(), List.of(judge));
+        var evaluations = fleet.evaluate(
+                new AgentResult("a", "s", "text", Map.of(), Duration.ZERO, true),
+                new AgentCall("a", "s", Map.of()));
+        assertEquals(1, evaluations.size());
+        assertEquals(Thread.currentThread(), thread.get());
+    }
+
+    @Test
     void aProxyWithoutItsOwnCancellationIsWrapped() {
         var cancelled = new AtomicBoolean();
         var delegate = mock(AgentProxy.class);
