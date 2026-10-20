@@ -27,6 +27,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
@@ -36,7 +37,12 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
  * the client automatically re-joins its previous rooms and broadcaster
  * subscriptions without any application code changes.</p>
  */
-@ManagedService(path = "/atmosphere/chat", atmosphereConfig = MAX_INACTIVE + "=120000")
+// A connection silent for MAX_INACTIVE ms is closed as dead: the handshake asks
+// each client for a heartbeat well within that window (a hidden browser tab may
+// stretch its timer to a minute), so a quiet but live client is never closed.
+@ManagedService(path = "/atmosphere/chat", atmosphereConfig = {
+        MAX_INACTIVE + "=120000",
+        CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS + "=30"})
 public class Chat {
 
     private final Logger logger = LoggerFactory.getLogger(Chat.class);

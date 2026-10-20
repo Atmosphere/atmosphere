@@ -19,7 +19,9 @@ A real-time chat application on Spring Boot, demonstrating rooms, presence, mess
 ### Chat.java — Real-Time Handler
 
 ```java
-@ManagedService(path = "/atmosphere/chat", atmosphereConfig = MAX_INACTIVE + "=120000")
+@ManagedService(path = "/atmosphere/chat", atmosphereConfig = {
+        MAX_INACTIVE + "=120000",
+        CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS + "=30"})
 public class Chat {
 
     @Inject private BroadcasterFactory factory;
@@ -37,6 +39,13 @@ public class Chat {
     }
 }
 ```
+
+The chat closes a connection it has heard nothing from for two minutes
+(`MAX_INACTIVE=120000`), so a dead peer the network never reports does not stay subscribed.
+Its handshake asks every client for a heartbeat every 30 seconds
+(`CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS=30`), which atmosphere.js sends on its own, so a quiet
+but live tab is never closed. A client closed by that idle timeout gets the messages broadcast
+while it was away when it reconnects (the `UUIDBroadcasterCache` keeps them for its tracking id).
 
 ### RoomsConfig.java — Room Setup
 
