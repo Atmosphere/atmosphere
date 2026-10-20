@@ -442,7 +442,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                         session, streamingModel, messages, toolSpecs, toolMap,
                         context.approvalStrategy(), context.listeners(), cancelled,
                         context.approvalPolicy(),
-                        org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context)),
+                        org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context), done),
                 cancelled, done, modelScope);
         streamingModel.chat(chatRequestBuilder.build(), handler);
 
@@ -599,7 +599,12 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                     modelScope.complete(atmoUsage);
                 }
             } finally {
-                done.complete(null);
+                // A round that dispatched a follow-up tool round leaves the turn
+                // open: the follow-up's handler resolves done when the turn ends.
+                if (!(inner instanceof ToolAwareStreamingResponseHandler tools
+                        && tools.followUpDispatched())) {
+                    done.complete(null);
+                }
             }
         }
 

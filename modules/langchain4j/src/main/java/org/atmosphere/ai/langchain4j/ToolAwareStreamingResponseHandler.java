@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -79,6 +80,14 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
      */
     private final ToolLoopPolicy loopPolicy;
     private int toolRound;
+    /**
+     * Done when the turn's last round ends. The first round's caller resolves it
+     * for a turn that ends in that round; a round that dispatches a follow-up
+     * hands it to the follow-up's handler, which resolves it when the turn ends
+     * there. {@code null} when nobody waits on the turn.
+     */
+    private final CompletableFuture<Void> turnDone;
+    private volatile boolean followUpDispatched;
 
     ToolAwareStreamingResponseHandler(
             StreamingSession session,
@@ -92,7 +101,23 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy,
             ToolLoopPolicy loopPolicy) {
         this(session, model, conversationHistory, toolSpecifications, toolMap,
-                approvalStrategy, listeners, cancelled, 0, approvalPolicy, loopPolicy);
+                approvalStrategy, listeners, cancelled, 0, approvalPolicy, loopPolicy, null);
+    }
+
+    ToolAwareStreamingResponseHandler(
+            StreamingSession session,
+            StreamingChatModel model,
+            List<ChatMessage> conversationHistory,
+            List<ToolSpecification> toolSpecifications,
+            Map<String, ToolDefinition> toolMap,
+            ApprovalStrategy approvalStrategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            AtomicBoolean cancelled,
+            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy,
+            ToolLoopPolicy loopPolicy,
+            CompletableFuture<Void> turnDone) {
+        this(session, model, conversationHistory, toolSpecifications, toolMap,
+                approvalStrategy, listeners, cancelled, 0, approvalPolicy, loopPolicy, turnDone);
     }
 
     private ToolAwareStreamingResponseHandler(
@@ -106,7 +131,9 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             AtomicBoolean cancelled,
             int toolRound,
             org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy,
-            ToolLoopPolicy loopPolicy) {
+            ToolLoopPolicy loopPolicy,
+            CompletableFuture<Void> turnDone) {
+        this.turnDone = turnDone;
         this.session = session;
         this.model = model;
         this.conversationHistory = new ArrayList<>(conversationHistory);
@@ -128,8 +155,27 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
         session.send(partialResponse);
     }
 
+    /**
+     * @return {@code true} once this round handed the turn to a follow-up round
+     */
+    boolean followUpDispatched() {
+        return followUpDispatched;
+    }
+
     @Override
     public void onCompleteResponse(ChatResponse completeResponse) {
+        try {
+            completeRound(completeResponse);
+        } finally {
+            // A follow-up round that ends the turn resolves it; the first
+            // round's caller resolves a turn that ends in the first round.
+            if (toolRound > 0 && !followUpDispatched && turnDone != null) {
+                turnDone.complete(null);
+            }
+        }
+    }
+
+    private void completeRound(ChatResponse completeResponse) {
         if (session.isClosed()) {
             return;
         }
@@ -206,7 +252,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             var nextHandler = new ToolAwareStreamingResponseHandler(
                     session, model, updatedMessages, toolSpecifications, toolMap,
                     approvalStrategy, listeners, cancelled, toolRound + 1, approvalPolicy,
-                    loopPolicy);
+                    loopPolicy, turnDone);
+            followUpDispatched = true;
             model.chat(followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response
@@ -220,8 +267,14 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
 
     @Override
     public void onError(Throwable error) {
-        if (!session.isClosed()) {
-            session.error(error);
+        try {
+            if (!session.isClosed()) {
+                session.error(error);
+            }
+        } finally {
+            if (toolRound > 0 && turnDone != null) {
+                turnDone.completeExceptionally(error);
+            }
         }
     }
 }
