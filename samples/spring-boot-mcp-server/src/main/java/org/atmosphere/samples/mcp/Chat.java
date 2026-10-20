@@ -27,13 +27,22 @@ import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * Simple chat handler. MCP tools in {@link DemoMcpServer} manage connected
  * users and broadcast messages into this same broadcaster.
+ *
+ * <p>A connection the chat has heard nothing from for {@code MAX_INACTIVE} ms
+ * is closed as dead. The handshake asks each client for a heartbeat every
+ * {@code CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS}, well within that window (a
+ * hidden browser tab may stretch its timer to a minute), so a quiet but live
+ * client is never closed.</p>
  */
-@ManagedService(path = "/atmosphere/chat", atmosphereConfig = MAX_INACTIVE + "=120000")
+@ManagedService(path = "/atmosphere/chat", atmosphereConfig = {
+        MAX_INACTIVE + "=120000",
+        CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS + "=30"})
 public class Chat {
 
     private final Logger logger = LoggerFactory.getLogger(Chat.class);
