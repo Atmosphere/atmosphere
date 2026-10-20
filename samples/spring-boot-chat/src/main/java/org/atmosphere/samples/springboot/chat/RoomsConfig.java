@@ -21,10 +21,9 @@ import org.atmosphere.room.RoomManager;
 import org.atmosphere.room.RoomProtocolInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.event.EventListener;
 
 /**
  * Demonstrates Atmosphere 4.0 Rooms, Presence &amp; Protocol API.
@@ -63,9 +62,18 @@ public class RoomsConfig {
         return interceptor;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void setupRooms() {
-        RoomManager manager = roomManager();
+    /**
+     * Set the lobby up once every bean exists, before the server takes
+     * connections. {@code ApplicationReadyEvent} comes after the port is open,
+     * seconds later on a slow start: the first messages were not recorded in
+     * the history a re-joining member is replayed from.
+     */
+    @Bean
+    public SmartInitializingSingleton lobbySetup(RoomManager manager) {
+        return () -> setupRooms(manager);
+    }
+
+    private void setupRooms(RoomManager manager) {
         Room lobby = manager.room("lobby");
 
         // Enable message history — new joiners get the last 50 messages

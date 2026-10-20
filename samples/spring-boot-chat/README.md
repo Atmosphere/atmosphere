@@ -60,17 +60,31 @@ public class RoomsConfig {
         return RoomManager.getOrCreate(framework);
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void setupRooms() {
-        framework.interceptor(new RoomProtocolInterceptor());
+    @Bean
+    public RoomProtocolInterceptor roomProtocolInterceptor() {
+        var interceptor = new RoomProtocolInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        framework.interceptor(interceptor);
+        return interceptor;
+    }
 
-        Room lobby = roomManager().room("lobby");
-        lobby.enableHistory(50);  // replay last 50 messages to new joiners
-        lobby.onPresence(event -> log.info("{} {} room '{}'",
-            event.member(), event.type(), event.room().name()));
+    // Runs once every bean exists, before the server takes connections, so
+    // the lobby records history from the first message.
+    @Bean
+    public SmartInitializingSingleton lobbySetup(RoomManager manager) {
+        return () -> {
+            Room lobby = manager.room("lobby");
+            lobby.enableHistory(50);  // replay last 50 messages to new joiners
+            lobby.onPresence(event -> log.info("{} {} room '{}'",
+                event.member(), event.type(), event.room().name()));
+        };
     }
 }
 ```
+
+The lobby is set up before the server takes connections, not on
+`ApplicationReadyEvent`: that event comes after the port opens, and messages sent
+in between would be missing from the history a re-joining member is replayed from.
 
 ### ChatRoomsController.java — REST API
 
