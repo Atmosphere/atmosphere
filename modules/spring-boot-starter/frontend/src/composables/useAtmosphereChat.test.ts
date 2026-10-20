@@ -635,6 +635,40 @@ describe('a broadcastReply room', () => {
     ])
   })
 
+  it('keeps one bubble when the connection drops mid-answer and the reconnect resumes the same turn', async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'prompt', text: 'list?', from: 'member-b', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: '1. one\n', sessionId: 's1', seq: 2 })
+    // The transport drops, then reconnects; the room writes the rest of the turn.
+    handlers.onClose()
+    handlers.onReconnect()
+    handlers.onReopen()
+    handlers.onEvent({ type: 'streaming-text', data: '2. two', sessionId: 's1', seq: 3 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 4 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'list?' },
+      { user: false, text: expect.stringContaining('two') },
+    ])
+    expect(bubbles(wrapper)[1].text).toContain('one')
+  })
+
+  it('starts a new bubble after a drop when what follows is another turn', async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'prompt', text: 'q1?', from: 'member-b', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'cut', sessionId: 's1', seq: 2 })
+    handlers.onClose()
+    handlers.onReopen()
+    handlers.onEvent({ type: 'streaming-text', data: 'other', sessionId: 's2', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's2', seq: 3 })
+    await nextTick()
+
+    expect(bubbles(wrapper).filter(b => !b.user).map(b => b.text)).toEqual(['cut', 'other'])
+  })
+
   it('renders the catch-up of a reconnect from its resume point: the rest of the turn, then a turn missed whole', async () => {
     const { wrapper } = await mountRoom()
 

@@ -359,8 +359,20 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     return false
   }
 
+  // A connection that closed in the middle of an answer and reconnects
+  // resumes it: the server writes the rest of the same turn (its session),
+  // which continues the reply in progress rather than opening a second
+  // bubble. The reply ends at its terminal frame, when what follows is
+  // another turn, or when the transport gives up.
+  let droppedMidAnswer = false
+  let droppedSessionId: string | null = null
+
   function handleStreamingEvent(msg: Record<string, unknown>) {
     if (alreadyReceived(msg)) return
+    if (droppedMidAnswer && typeof msg.sessionId === 'string') {
+      droppedMidAnswer = false
+      if (msg.sessionId !== droppedSessionId) finalizeAssistant()
+    }
     const type = (msg.type as string) || (msg.event as string)
     if ((type === 'prompt' || type === 'complete' || type === 'error' || type === 'cancelled')
         && ofInFlightPrompt(msg, inFlightPrompt())) {
@@ -803,7 +815,15 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         onClose: () => {
           isConnected.value = false
           connectionState.value = 'disconnected'
-          finalizeAssistant()
+          if (currentAssistantMessage) {
+            // Show what arrived; the reconnect may resume the same answer.
+            flushAssistant()
+            isStreaming.value = false
+            droppedMidAnswer = true
+            droppedSessionId = lastStreamSessionId
+          } else {
+            finalizeAssistant()
+          }
         },
         onError: (error?: Error) => {
           if (error?.name === SEND_ERROR_NAME) {
@@ -835,6 +855,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           // Reconnect quota exhausted. Make this visible in the operator UI.
           isConnected.value = false
           connectionState.value = 'disconnected'
+          if (droppedMidAnswer) {
+            droppedMidAnswer = false
+            finalizeAssistant()
+          }
         },
         onEvent: handleStreamingEvent,
         // A broadcast endpoint's bare text frame is a message of its own (two
