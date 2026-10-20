@@ -102,13 +102,45 @@ class AiStreamingSessionTurnCancelledTest {
 
         // The coordinator is dispatching its team: no model call in flight.
         AiStreamingSession.cancelInflightForResource(uuid);
+        // The client learns of the cancel at once, not at the next stream().
+        assertInstanceOf(RunCancelledException.class, client.failure(),
+                "the cancelled frame was not written at cancel time: " + client.failure());
         session.stream("write the executive briefing");
+        // The @Prompt method's own end of the turn, after the cancel, is dropped.
+        session.complete();
 
         assertEquals(0, runtime.calls.get(), "a model call started after the cancel");
         assertInstanceOf(RunCancelledException.class, client.failure(),
                 "the turn ends in the cancelled terminal: " + client.failure());
         assertEquals(RunCancelledException.Reason.OPERATOR,
                 ((RunCancelledException) client.failure()).reason());
+    }
+
+    @Test
+    void aCancelThatLandsWhileTheModelCallIsSetUpStartsNoModelCall() {
+        var client = new CollectingSession("turn-" + UUID.randomUUID());
+        var runtime = new CountingRuntime();
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn(uuid);
+        when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
+        var holder = new java.util.concurrent.atomic.AtomicReference<AiStreamingSession>();
+        // The operator's cancel arrives while stream() runs its interceptors.
+        AiInterceptor cancelsDuringSetup = new AiInterceptor() {
+            @Override
+            public AiRequest preProcess(AiRequest request, AtmosphereResource r) {
+                holder.get().cancelInflight(RunCancelledException.Reason.OPERATOR);
+                return request;
+            }
+        };
+        var session = new AiStreamingSession(client, runtime, "", null,
+                List.of(cancelsDuringSetup), resource);
+        holder.set(session);
+        AiStreamingSession.registerActive(session);
+
+        session.stream("write the executive briefing");
+
+        assertEquals(0, runtime.calls.get(), "the runtime was started after the cancel");
+        assertInstanceOf(RunCancelledException.class, client.failure());
     }
 
     @Test

@@ -189,9 +189,12 @@ public class AiStreamingSessionCancelInflightTest {
     }
 
     @Test
-    public void cancelInflightForResource_cancelsButDoesNotRemoveSessions() throws Exception {
-        // Admin "cancel-inflight" path: abort the upstream LLM call but keep
-        // the session registered so the socket stays alive for the next turn.
+    public void cancelInflightForResource_endsTheTurnButKeepsTheTransportOpen() throws Exception {
+        // Admin "cancel-inflight" path with no model call in flight (the
+        // @Prompt method is between calls, a tool waits for its approval):
+        // the turn ends at once with the cancelled frame — the client learns
+        // of it now, not at the method's next model call — and the transport
+        // stays open for the next turn.
         when(resource.uuid()).thenReturn("uuid-admin-cancel");
         var session = new AiStreamingSession(delegate, new NoopRuntime(),
                 "", null, List.of(), resource);
@@ -202,8 +205,8 @@ public class AiStreamingSessionCancelInflightTest {
             assertTrue(AiStreamingSession.resourceHasActiveSessions("uuid-admin-cancel"));
             AiStreamingSession.cancelInflightForResource("uuid-admin-cancel");
             assertTrue(f.isDone(), "approval future must complete on admin cancel");
-            assertTrue(AiStreamingSession.resourceHasActiveSessions("uuid-admin-cancel"),
-                    "session must remain registered (transport stays open)");
+            verify(delegate).error(org.mockito.ArgumentMatchers.any(RunCancelledException.class));
+            verify(resource, never()).close();
         } finally {
             AiStreamingSession.removeActiveSession(session);
         }

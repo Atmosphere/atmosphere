@@ -322,6 +322,13 @@ public class AiStreamingSession implements StreamingSession {
     private final AtomicBoolean openTurnEnded = new AtomicBoolean();
 
     /**
+     * Set when a cancel ended the turn while its {@code @Prompt} method was
+     * still running (a coordinator between delegations): the method's later
+     * terminal call is dropped, as for a turn that returned open.
+     */
+    private volatile boolean turnEndedByCancel;
+
+    /**
      * The tracking ids, other than its own resource's, this session was
      * registered under in {@link #ACTIVE_SESSIONS} because the run's own
      * client reattached to it on another connection
@@ -813,9 +820,24 @@ public class AiStreamingSession implements StreamingSession {
             logger.debug("Disconnect cancelled {} pending approval(s) for resource {}",
                     cancelledApprovals, resource != null ? resource.uuid() : "null");
         }
-        if (!inFlight && endsTurnOnCancel(reason) && (promptReturnedOpen || broadcastsToRoom())) {
-            endCancelledTurn(reason);
+        if (!inFlight && endsTurnOnCancel(effective)
+                && (effective != RunCancelledException.Reason.DISCONNECT
+                        || promptReturnedOpen || broadcastsToRoom())) {
+            // No model call is left to end the turn: end it now, so the client
+            // learns of the cancel at once rather than when the @Prompt method
+            // next calls stream(); what the method still sends is dropped. A
+            // prompter that left a unicast turn has no client to tell: its run
+            // records what the method still writes and ends when it returns.
+            endCancelledTurn(effective);
         }
+    }
+
+    /** Whether this session's turn is broadcast to a room rather than to its prompter only. */
+    private boolean broadcastsToRoom() {
+        var id = sessionId();
+        return id != null && DefaultStreamingSession.deliveryForSession(id)
+                .map(DefaultStreamingSession.Delivery::toRoom)
+                .orElse(false);
     }
 
     /**
@@ -831,6 +853,7 @@ public class AiStreamingSession implements StreamingSession {
             return;
         }
         cancelledReason.compareAndSet(null, reason);
+        turnEndedByCancel = true;
         error(new RunCancelledException(reason));
     }
 
@@ -852,14 +875,6 @@ public class AiStreamingSession implements StreamingSession {
         return reason != null && reason != RunCancelledException.Reason.CALLER && !terminated.get();
     }
 
-    /** Whether this session's turn is broadcast to a room rather than to its prompter only. */
-    private boolean broadcastsToRoom() {
-        var id = sessionId();
-        return id != null && DefaultStreamingSession.deliveryForSession(id)
-                .map(DefaultStreamingSession.Delivery::toRoom)
-                .orElse(false);
-    }
-
     /**
      * The {@code @AiEndpoint} handler reports that the {@code @Prompt} method
      * of this session's turn returned with the session still open: what it
@@ -879,8 +894,8 @@ public class AiStreamingSession implements StreamingSession {
         promptReturnedAtMillis = System.currentTimeMillis();
         promptReturnedOpen = true;
         // A prompter that went for good, an operator or the sweep while the
-        // method still ran (a turn not broadcast to a room is not ended then)
-        // ends it now: nothing would call for its end again.
+        // method still ran ended the turn at once (cancelInflight); this ends
+        // it should that not have happened: nothing would call for its end again.
         var current = this.currentHandle;
         if (cancelPending.get() && (current == null || current.isDone())) {
             endCancelledTurn(pendingCancelReason.get());
@@ -1908,6 +1923,16 @@ public class AiStreamingSession implements StreamingSession {
             tape.recordInput(request.systemPrompt(), request.history(), request.message());
         }
 
+        // A cancel that landed while the call was being set up (interceptors,
+        // memory, context) starts no model call: the runtime is not invoked,
+        // so no agent is built for a turn that is over.
+        if (isTurnCancelled()) {
+            logger.debug("Turn of session {} cancelled before its model call: not starting it",
+                    sessionId());
+            endCancelledTurn(pendingCancelReason.get());
+            return;
+        }
+
         var turnEvent = new org.atmosphere.ai.jfr.AgentTurnEvent();
         turnEvent.runtime = runtime != null ? runtime.name() : "unknown";
         turnEvent.model = request.model() != null ? request.model() : (model != null ? model : "unknown");
@@ -2285,7 +2310,7 @@ public class AiStreamingSession implements StreamingSession {
      * terminal call of such a turn claims its end.
      */
     private boolean afterOpenTurnEnded(String call) {
-        if (!promptReturnedOpen || openTurnEnded.compareAndSet(false, true)) {
+        if (!(promptReturnedOpen || turnEndedByCancel) || openTurnEnded.compareAndSet(false, true)) {
             return false;
         }
         logger.trace("Dropping a {} of session {}: its turn already ended", call, sessionId());
