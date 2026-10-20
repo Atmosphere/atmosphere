@@ -178,6 +178,8 @@ public final class TapeRecorder {
     private final Thread writer;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicLong droppedTotal = new AtomicLong();
+    /** Drops the recorder could not help (queue full, store failing, step cap): warned. */
+    private final AtomicLong unexpectedDrops = new AtomicLong();
     private final AtomicLong lateTerminalsTotal = new AtomicLong();
     private final AtomicLong storeFailuresTotal = new AtomicLong();
     private final AtomicLong unserializableTotal = new AtomicLong();
@@ -347,11 +349,28 @@ public final class TapeRecorder {
     }
 
     void countDropped(OpenRun run) {
+        countDropped(run, false);
+    }
+
+    /**
+     * Count a step that was not persisted. A step that arrives after its run's
+     * terminal ({@code afterTerminal}) is the expected tail of a cancelled or
+     * failed turn — the turn's own code still emitting after its end — and is
+     * logged at debug; a step lost to a full queue, a failing store or the
+     * step cap is warned, rate-limited.
+     */
+    void countDropped(OpenRun run, boolean afterTerminal) {
         run.dropped.incrementAndGet();
         var total = droppedTotal.incrementAndGet();
-        if (total == 1 || total % 100 == 0) {
+        if (afterTerminal) {
+            logger.debug("Session tape dropped a step of run {} that arrived after its terminal "
+                    + "(store '{}', {} dropped in total)", run.runId, store.name(), total);
+            return;
+        }
+        var unexpected = unexpectedDrops.incrementAndGet();
+        if (unexpected == 1 || unexpected % 100 == 0) {
             logger.warn("Session tape dropped {} steps so far (store '{}') — queue full, "
-                    + "terminal reached, or store failing", total, store.name());
+                    + "step cap reached, or store failing", unexpected, store.name());
         }
     }
 
@@ -525,7 +544,7 @@ public final class TapeRecorder {
             var run = op.run();
             if (run.terminalApplied) {
                 // Append-after-terminal: drop and count, never insert.
-                countDropped(run);
+                countDropped(run, true);
                 continue;
             }
             if (!ensureBegun(run)) {

@@ -521,7 +521,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         // way a discrete late step is (append-after-terminal in the writer).
         if (localTerminal.get() != null || run.terminalApplied
                 || run.requestedTerminal.get() != null) {
-            recorder.countDropped(run);
+            recorder.countDropped(run, true);
             return true;
         }
         return false;

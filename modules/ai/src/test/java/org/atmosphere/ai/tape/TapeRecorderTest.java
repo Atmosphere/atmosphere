@@ -150,6 +150,67 @@ class TapeRecorderTest {
     }
 
     @Test
+    void stepsArrivingAfterACancelledTerminalAreDroppedWithoutAWarning() throws Exception {
+        // A cancelled coordinator keeps emitting (its plan's late tool cards)
+        // after the turn's CANCELLED terminal: expected, so not warned — the
+        // warning stays for steps the recorder lost (queue full, store failing).
+        var store = new InMemoryTapeStore();
+        var recorder = new TapeRecorder(store);
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(TapeRecorder.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            var session = new TapeRecordingSession(recorder, new NoopDelegate(),
+                    TapeRunInfo.endpoint("conv", "res-late", "/chat", "m", "rt"));
+            session.bindRun("run-late", "alice");
+            session.send("partial");
+            recorder.resourceDisconnected("res-late");
+            awaitStatus(store, "run-late", TapeStatus.CANCELLED);
+            var droppedBefore = recorder.droppedSteps();
+            session.progress("WriterAgent: Risk Assessment");
+            session.send("late text");
+
+            assertEquals(droppedBefore + 2, recorder.droppedSteps(),
+                    "post-terminal steps are still dropped and counted");
+            var warnings = appender.list.stream()
+                    .filter(e -> e.getLevel().isGreaterOrEqual(ch.qos.logback.classic.Level.WARN))
+                    .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                    .toList();
+            assertTrue(warnings.isEmpty(), "late steps after a cancel must not warn: " + warnings);
+        } finally {
+            logger.detachAppender(appender);
+            recorder.close();
+        }
+    }
+
+    @Test
+    void stepsLostToAFullQueueAreStillWarned() throws Exception {
+        var store = new GatedStore();
+        var recorder = new TapeRecorder(store, config(4, Duration.ofMinutes(30)));
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(TapeRecorder.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            var session = pipelineSession(recorder);
+            session.progress("wedge");
+            assertTrue(store.entered.await(5, TimeUnit.SECONDS));
+            for (int i = 0; i < 20; i++) {
+                session.progress("flood-" + i);
+            }
+            store.gate.countDown();
+            assertTrue(appender.list.stream().anyMatch(e ->
+                            e.getLevel() == ch.qos.logback.classic.Level.WARN
+                                    && e.getFormattedMessage().contains("queue full")),
+                    "a step the recorder lost must be warned: " + appender.list);
+        } finally {
+            logger.detachAppender(appender);
+            recorder.close();
+        }
+    }
+
+    @Test
     void resourceDisconnectMarksCancelledOnlyAfterDrainingQueuedSteps() throws Exception {
         var store = new GatedStore();
         var recorder = new TapeRecorder(store);
