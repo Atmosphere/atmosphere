@@ -152,11 +152,17 @@ export class AtmosphereChatTransport implements ChatTransport {
           : options.maxReconnectOnClose,
         // Room Protocol endpoints exchange raw JSON envelopes written by
         // RoomProtocolInterceptor#sendToResource — those writes carry no
-        // TrackMessageSize prefix and no atmo-protocol framing, so both
-        // decoders must be off or the ack/echo frames are swallowed while
-        // the client waits for a length prefix that never comes.
+        // TrackMessageSize prefix, so the length decoder must be off or the
+        // ack/echo frames are swallowed while the client waits for a length
+        // prefix that never comes.
         trackMessageLength: !options.rooms,
-        enableProtocol: !options.rooms,
+        // The protocol handshake stays on in every mode: it is the server's
+        // first write, before the join, and the only message it frames. It
+        // tells the client its tracking id (a reconnect comes back as the
+        // same member, so the room's cache finds it) and the heartbeat
+        // interval: without the heartbeat, a quiet page is closed by the
+        // server's idle timeout and rejoins under a new id.
+        enableProtocol: true,
         ...(options.rooms ? { contentType: 'application/json' } : {}),
         // Sends while disconnected enqueue (core auto-enqueues on push when
         // state !== 'connected') and drain automatically on reopen.

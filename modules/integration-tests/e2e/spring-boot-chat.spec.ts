@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { hideWebTransport } from './helpers/network-switch';
 
 let server: SampleServer;
 
@@ -115,6 +116,66 @@ test.describe('Spring Boot Chat', () => {
         .toContainText('cross-client broadcast probe', { timeout: 10_000 });
       await expect(b.getByTestId('message-list'))
         .toContainText(/console-[0-9a-f]+: cross-client broadcast probe/, { timeout: 10_000 });
+    } finally {
+      await ctxA.close();
+      await ctxB.close();
+    }
+  });
+
+  // Regression: the chat closes a connection it has not heard from for 120 s
+  // (MAX_INACTIVE) and its handshake asks clients for a heartbeat every 30 s.
+  // The Console in room mode (console-room: lobby) subscribed with the
+  // protocol off, so it never read that handshake, never sent a heartbeat,
+  // and a quiet page was closed every ~122 s, rejoining under a new tracking
+  // id. A quiet page must now stay on its one connection past the timeout.
+  test('a quiet room-mode console heartbeats and outlives the idle timeout', async ({ browser }) => {
+    test.setTimeout(240_000);
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    try {
+      const a = await ctxA.newPage();
+      // A WebSocket, which Playwright can observe frame by frame.
+      await hideWebTransport(a);
+      const sockets: { url: string; sent: string[]; received: string[]; closed: boolean }[] = [];
+      a.on('websocket', (ws) => {
+        if (!ws.url().includes('/atmosphere/chat')) return;
+        const record = { url: ws.url(), sent: [] as string[], received: [] as string[], closed: false };
+        sockets.push(record);
+        ws.on('framesent', (f) => record.sent.push(String(f.payload)));
+        ws.on('framereceived', (f) => record.received.push(String(f.payload)));
+        ws.on('close', () => { record.closed = true; });
+      });
+
+      await a.goto(server.baseUrl + '/atmosphere/console/');
+      await expect(a.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
+      await expect(a.getByTestId('presence-count')).toHaveText(/\d+ online/, { timeout: 15_000 });
+
+      expect(sockets).toHaveLength(1);
+      const socket = sockets[0];
+      // Soft: a client without the protocol still shows below what it costs.
+      expect.soft(socket.url).toContain('X-atmo-protocol=true');
+      // The server's first write names the tracking id and the 30 s heartbeat.
+      expect.soft(socket.received[0], 'the protocol handshake').toMatch(/^[0-9a-f-]{36}\|30000\|X\|$/);
+
+      // Quiet past the 120 s idle timeout (the sweep runs every 2 s). This
+      // page is the only connection open meanwhile.
+      const logMark = server.getOutput().length;
+      await a.waitForTimeout(130_000);
+
+      expect.soft(socket.sent.filter((f) => f === 'X').length, 'heartbeats sent').toBeGreaterThanOrEqual(3);
+      expect(server.getOutput().slice(logMark)).not.toContain('unexpectedly disconnected');
+      expect(socket.closed, 'the server closed the quiet page').toBe(false);
+      expect(sockets, 'the quiet page reconnected').toHaveLength(1);
+
+      // Still a live member: another member's broadcast reaches it.
+      const b = await ctxB.newPage();
+      await hideWebTransport(b);
+      await b.goto(server.baseUrl + '/atmosphere/console/');
+      await expect(b.getByTestId('presence-count')).toHaveText(/\d+ online/, { timeout: 15_000 });
+      await b.getByTestId('chat-input').fill('after the idle timeout');
+      await b.getByTestId('chat-send').click();
+      await expect(a.getByTestId('message-list'))
+        .toContainText(/console-[0-9a-f]+: after the idle timeout/, { timeout: 10_000 });
     } finally {
       await ctxA.close();
       await ctxB.close();
