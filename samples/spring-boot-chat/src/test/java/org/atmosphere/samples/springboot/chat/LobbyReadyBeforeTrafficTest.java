@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.web.server.context.WebServerInitializedEvent;
+import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 
@@ -43,10 +43,25 @@ class LobbyReadyBeforeTrafficTest {
 
     @TestConfiguration
     static class Probe {
+        // WebServerInitializedEvent moved package between Spring Boot 3 and 4, and this
+        // sample is tested on both: match it by simple name in the event's hierarchy.
         @Bean
-        ApplicationListener<WebServerInitializedEvent> lobbyProbe(RoomManager roomManager) {
-            return event -> historyWhenServing.set(roomManager.exists("lobby")
-                    && roomManager.room("lobby") instanceof DefaultRoom lobby ? lobby.historySize() : 0);
+        ApplicationListener<ApplicationEvent> lobbyProbe(RoomManager roomManager) {
+            return event -> {
+                if (isWebServerInitialized(event)) {
+                    historyWhenServing.set(roomManager.exists("lobby")
+                            && roomManager.room("lobby") instanceof DefaultRoom lobby ? lobby.historySize() : 0);
+                }
+            };
+        }
+
+        private static boolean isWebServerInitialized(ApplicationEvent event) {
+            for (Class<?> c = event.getClass(); c != null; c = c.getSuperclass()) {
+                if (c.getSimpleName().equals("WebServerInitializedEvent")) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

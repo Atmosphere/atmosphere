@@ -13,19 +13,29 @@ test.afterAll(async () => {
 });
 
 test.describe('Spring Boot Team Rooms', () => {
-  test('the Console round-trips a line through the room', async ({ page }) => {
+  test('the Console round-trips a line through the room', async ({ page, browser }) => {
     // The Console is this sample's UI. The room used to reject the Console's
     // send (decoder failure on plain text, no text on the {author, message}
     // envelope) and reply {room, author, text, at} with no `message` field,
-    // so nothing came back. The echo is the server's frame, rendered
-    // author-prefixed ("<author>: <line>"); the sender's own bubble is not.
+    // so nothing came back. The server's frame reaches another member
+    // author-prefixed ("<author>: <line>"); the sender shows its line once.
     const chat = new ChatPage(page);
     await chat.goto(server.baseUrl);
     await chat.waitForConnected();
+    const otherCtx = await browser.newContext();
+    try {
+      const other = new ChatPage(await otherCtx.newPage());
+      await other.goto(server.baseUrl);
+      await other.waitForConnected();
 
-    const line = `standup in five ${Date.now()}`;
-    await chat.sendMessage(line);
-    await expect(chat.messageBubbles.filter({ hasText: `: ${line}` }).first())
-      .toBeVisible({ timeout: 10_000 });
+      const line = `standup in five ${Date.now()}`;
+      await chat.sendMessage(line);
+      await expect(other.messageBubbles.filter({ hasText: `: ${line}` }).first())
+        .toBeVisible({ timeout: 10_000 });
+      await page.waitForTimeout(1_000);
+      await expect(chat.messageBubbles.filter({ hasText: line })).toHaveCount(1);
+    } finally {
+      await otherCtx.close();
+    }
   });
 });
