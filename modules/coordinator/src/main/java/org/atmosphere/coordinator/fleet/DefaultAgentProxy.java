@@ -128,6 +128,27 @@ public final class DefaultAgentProxy implements AgentProxy {
                 : transport.send(name, skill, args, dispatchMetadata);
     }
 
+    /** How often a call in flight looks at its run's cancellation. */
+    private static final long CANCEL_POLL_MS = 50;
+
+    /**
+     * Wait for {@code future}, or answer {@code null} as soon as the run this
+     * proxy works for is cancelled.
+     */
+    private AgentResult awaitUnlessCancelled(CompletableFuture<AgentResult> future)
+            throws InterruptedException, ExecutionException {
+        while (true) {
+            if (!future.isDone() && cancelled.getAsBoolean()) {
+                return null;
+            }
+            try {
+                return future.get(CANCEL_POLL_MS, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException stillRunning) {
+                // Not done yet: look at the cancellation again.
+            }
+        }
+    }
+
     /**
      * Dispatch a single skill call bounded by {@link AgentLimits#timeout()}.
      * The synchronous {@link #call} / {@link DefaultAgentFleet#pipeline} paths
@@ -152,27 +173,6 @@ public final class DefaultAgentProxy implements AgentProxy {
      * dispatch failure is re-thrown unchanged to preserve the prior
      * propagation behavior.</p>
      */
-    /** How often a call in flight looks at its run's cancellation. */
-    private static final long CANCEL_POLL_MS = 50;
-
-    /**
-     * Wait for {@code future}, or answer {@code null} as soon as the run this
-     * proxy works for is cancelled.
-     */
-    private AgentResult awaitUnlessCancelled(CompletableFuture<AgentResult> future)
-            throws InterruptedException, ExecutionException {
-        while (true) {
-            if (!future.isDone() && cancelled.getAsBoolean()) {
-                return null;
-            }
-            try {
-                return future.get(CANCEL_POLL_MS, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException stillRunning) {
-                // Not done yet: look at the cancellation again.
-            }
-        }
-    }
-
     private AgentResult dispatchBounded(String skill, Map<String, Object> args, Instant start) {
         var timeoutMs = limits.timeout().toMillis();
         var vtExecutor = Executors.newVirtualThreadPerTaskExecutor();

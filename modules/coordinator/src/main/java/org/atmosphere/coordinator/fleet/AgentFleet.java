@@ -392,30 +392,6 @@ public interface AgentFleet extends org.atmosphere.ai.TurnScoped {
     }
 
     /**
-     * Wrap this fleet with a {@link FleetInterceptor} that evaluates every
-     * dispatch before it leaves the coordinator. Multiple interceptors
-     * compose through chained calls — the most recently added runs last,
-     * and any non-{@code Proceed} decision short-circuits the chain.
-     *
-     * <p>Governance wiring example — scope check at the agent-to-agent
-     * boundary:</p>
-     * <pre>{@code
-     * var governed = fleet
-     *     .withInterceptor(call -> policy.evaluate(
-     *             PolicyContext.preAdmission(
-     *                     new AiRequest(call.skill() + " " + call.args(), ...)))
-     *         instanceof PolicyDecision.Deny deny
-     *             ? FleetInterceptor.Decision.deny(deny.reason())
-     *             : FleetInterceptor.Decision.proceed());
-     * var result = governed.agent("research").call("web_search", args);
-     * }</pre>
-     *
-     * @param interceptor the per-dispatch gate; denial yields a synthetic
-     *                    failed {@link AgentResult}, rewrite forwards a
-     *                    modified call, proceed admits unchanged
-     * @return a new fleet instance with the interceptor added
-     */
-    /**
      * Returns a view of this fleet that delegates nothing once
      * {@code cancelled} answers {@code true}: every later call, parallel
      * fan-out, pipeline step or route answers failed {@link AgentResult}s
@@ -439,6 +415,30 @@ public interface AgentFleet extends org.atmosphere.ai.TurnScoped {
         return session == null ? this : withCancellation(session::isTurnCancelled);
     }
 
+    /**
+     * Wrap this fleet with a {@link FleetInterceptor} that evaluates every
+     * dispatch before it leaves the coordinator. Multiple interceptors
+     * compose through chained calls — the most recently added runs last,
+     * and any non-{@code Proceed} decision short-circuits the chain.
+     *
+     * <p>Governance wiring example — scope check at the agent-to-agent
+     * boundary:</p>
+     * <pre>{@code
+     * var governed = fleet
+     *     .withInterceptor(call -> policy.evaluate(
+     *             PolicyContext.preAdmission(
+     *                     new AiRequest(call.skill() + " " + call.args(), ...)))
+     *         instanceof PolicyDecision.Deny deny
+     *             ? FleetInterceptor.Decision.deny(deny.reason())
+     *             : FleetInterceptor.Decision.proceed());
+     * var result = governed.agent("research").call("web_search", args);
+     * }</pre>
+     *
+     * @param interceptor the per-dispatch gate; denial yields a synthetic
+     *                    failed {@link AgentResult}, rewrite forwards a
+     *                    modified call, proceed admits unchanged
+     * @return a new fleet instance with the interceptor added
+     */
     default AgentFleet withInterceptor(FleetInterceptor interceptor) {
         if (interceptor == null) {
             throw new IllegalArgumentException("interceptor must not be null");
