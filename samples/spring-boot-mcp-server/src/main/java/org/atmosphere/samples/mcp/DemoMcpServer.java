@@ -18,6 +18,7 @@ package org.atmosphere.samples.mcp;
 import jakarta.inject.Inject;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpPrompt;
 import org.atmosphere.mcp.annotation.McpResource;
@@ -96,7 +97,9 @@ public class DemoMcpServer {
             return Map.of("error", "No chat broadcaster active");
         }
         var msg = new Message(author != null ? author : "MCP Admin", message);
-        broadcaster.broadcast(mapper.writeValueAsString(msg));
+        // Already the chat's JSON: a RawMessage is written as is. A plain String would
+        // go through Chat's @Message method once per recipient (decode, log, encode).
+        broadcaster.broadcast(new RawMessage(mapper.writeValueAsString(msg)));
         return Map.of("status", "sent", "recipients", broadcaster.getAtmosphereResources().size());
     }
 
@@ -115,7 +118,7 @@ public class DemoMcpServer {
             return Map.of("error", "No chat broadcaster active");
         }
         var msg = new Message(author != null ? author : "MCP Admin", message);
-        broadcaster.broadcast(mapper.writeValueAsString(msg), resource.get());
+        broadcaster.broadcast(new RawMessage(mapper.writeValueAsString(msg)), resource.get());
         return Map.of("status", "sent", "uuid", uuid);
     }
 
