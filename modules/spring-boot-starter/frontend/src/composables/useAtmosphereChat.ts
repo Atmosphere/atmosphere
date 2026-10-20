@@ -202,6 +202,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // reattaches to), and the end of the run that handed off does not end it.
   // The prompt is shown once per turn, whatever run it is kept under.
   const IN_FLIGHT_PROMPT_KEY = 'atmosphere.console.inFlightPrompt'
+  /** The server's frame saying it has no run by the id a reconnect carried. */
+  const RUN_UNKNOWN_KEY = 'X-Atmosphere-Run-Unknown'
   type InFlightPrompt = { sessionId: string; runId: string; text: string; turn?: string }
   let promptAwaitingRun: string | null = null
   let inFlightPromptShown: string | null = null
@@ -225,6 +227,51 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   function ofInFlightPrompt(msg: Record<string, unknown>, prompt: InFlightPrompt | null): prompt is InFlightPrompt {
     return !!prompt && (msg.sessionId === prompt.sessionId || msg.sessionId === prompt.runId)
   }
+  // A prompt sent under a run id this tab minted is kept before its run's
+  // session is known: after a reload, the first frame its reattached run
+  // writes (outside a room, only this tab's run writes to it) names it.
+  function adoptSessionOfInFlightPrompt(msg: Record<string, unknown>, type: string | undefined) {
+    if (room || typeof msg.sessionId !== 'string' || type === 'metadata' || type === 'prompt' || !type) return
+    // Another member's turn (a broadcastReply room) opens with its prompt echo.
+    if (otherMemberSessions.has(msg.sessionId)) return
+    const prompt = inFlightPrompt()
+    if (!prompt || (prompt.sessionId !== '' && prompt.sessionId !== prompt.runId)) return
+    if (msg.sessionId === prompt.runId) return
+    keepInFlightPrompt({ ...prompt, sessionId: msg.sessionId })
+  }
+
+  /**
+   * The server has no run by the id of the prompt kept for a reload, and this
+   * tab is not sending that prompt again (it was acknowledged, its run then
+   * expired): the prompt shown for it is withdrawn.
+   */
+  function forgetPromptTheServerLost(msg: Record<string, unknown>) {
+    const prompt = inFlightPrompt()
+    if (!prompt || msg.value !== prompt.runId || transport?.pendingRunId === prompt.runId) return
+    keepInFlightPrompt(null)
+    if (restoredBubbleId !== null) {
+      const id = restoredBubbleId
+      messages.value = messages.value.filter(m => m.id !== id)
+      restoredBubbleId = null
+    }
+  }
+
+  /** The bubble shown on mount for the prompt kept across a reload, until its turn ends. */
+  let restoredBubbleId: string | null = null
+
+  /**
+   * On mount: the prompt this tab sent before it was reloaded, shown at once —
+   * before the server answered, which may not have the prompt yet (it was sent
+   * under a run id this tab minted, and the transport sends it again).
+   */
+  function restoreInFlightPromptOnMount() {
+    const prompt = inFlightPrompt()
+    if (!prompt || inFlightPromptShown === turnOf(prompt)) return
+    inFlightPromptShown = turnOf(prompt)
+    restoredBubbleId = crypto.randomUUID()
+    messages.value = [...messages.value, { id: restoredBubbleId, role: 'user', content: prompt.text, timestamp: Date.now() }]
+  }
+
   /** Before the first replayed text of the turn this tab sent before a reload: its prompt. */
   function restoreInFlightPrompt(msg: Record<string, unknown>) {
     // Only the first text of a bubble can open a turn: no storage read per chunk.
@@ -379,12 +426,25 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       if (msg.sessionId !== droppedSessionId) finalizeAssistant()
     }
     const type = (msg.type as string) || (msg.event as string)
+    adoptSessionOfInFlightPrompt(msg, type)
+    if (type === 'metadata' && msg.key === RUN_UNKNOWN_KEY) {
+      forgetPromptTheServerLost(msg)
+    }
     if (type === 'handoff' && ofInFlightPrompt(msg, inFlightPrompt())) {
       handedOffInFlight = true
     }
     if ((type === 'prompt' || type === 'complete' || type === 'error' || type === 'cancelled')
         && ofInFlightPrompt(msg, inFlightPrompt()) && !(handedOffInFlight && type === 'complete')) {
       keepInFlightPrompt(null)
+      if (type === 'prompt' && restoredBubbleId !== null) {
+        // A room's run replays its prompt, which renders as its own bubble.
+        const id = restoredBubbleId
+        messages.value = messages.value.filter(m => m.id !== id)
+        inFlightPromptShown = null
+      }
+    }
+    if (type === 'complete' || type === 'error' || type === 'cancelled') {
+      if (!inFlightPrompt()) restoredBubbleId = null
     }
 
     if (!type && typeof msg.message === 'string' && msg.message) {
@@ -516,7 +576,14 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         if (msg.key === RUN_ID_KEY && typeof msg.value === 'string' && typeof msg.sessionId === 'string') {
           // A turn's run id: its prompt replayed on a reattach comes under it.
           runOfSession.set(msg.sessionId, msg.value)
-          if (promptAwaitingRun !== null) {
+          const kept = inFlightPrompt()
+          if (kept && kept.runId === msg.value) {
+            // The run this tab named when it sent the prompt (or reattached to
+            // after a reload): the turn goes on, now under its session.
+            if (msg.sessionId !== msg.value) keepInFlightPrompt({ ...kept, sessionId: msg.sessionId })
+            promptAwaitingRun = null
+            handedOffInFlight = false
+          } else if (promptAwaitingRun !== null) {
             const turn = crypto.randomUUID()
             keepInFlightPrompt({ sessionId: msg.sessionId, runId: msg.value, text: promptAwaitingRun, turn })
             inFlightPromptShown = turn
@@ -932,7 +999,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // Offline sends stream nothing until the queue drains on reopen.
     isStreaming.value = !broadcastMode.value && !room && !offlineSend
     rememberOwnMemberId()
-    transport.send(text.trim())
+    const runId = transport.send(text.trim())
+    if (typeof runId === 'string' && runId) {
+      // Kept under the run id this tab minted before the server answers
+      // anything: a reload shows it again and reattaches to its turn.
+      keepInFlightPrompt({ sessionId: '', runId, text: text.trim(), turn: runId })
+      inFlightPromptShown = runId
+    }
   }
 
   function markLastPromptUndelivered() {
@@ -990,6 +1063,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   }
 
   onMounted(() => {
+    restoreInFlightPromptOnMount()
     connect()
   })
 

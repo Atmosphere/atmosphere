@@ -12,6 +12,10 @@ let transportOptions: { author?: string; rooms?: { memberId: string } }
 const sent: string[] = []
 // The tracking id the mocked transport reports; undefined for one that has none.
 let transportUuid: string | undefined = 'tab-self'
+// The run id the mocked transport mints for a prompt (null: it mints none), and
+// the one it still holds unacknowledged.
+let mintedRunId: string | null = null
+let mockPendingRunId: string | null = null
 
 vi.mock('../transports', () => ({
   createChatTransport: vi.fn(async (
@@ -25,7 +29,8 @@ vi.mock('../transports', () => ({
     return {
       get uuid() { return transportUuid },
       connect: async () => {},
-      send: (text: string) => { sent.push(text) },
+      send: (text: string) => { sent.push(text); return mintedRunId },
+      get pendingRunId() { return mockPendingRunId },
       close: () => {},
       disconnect: () => {},
     }
@@ -887,6 +892,77 @@ describe('the prompt of a turn reattached after a reload', () => {
       { user: false, text: 'Refund issued' },
     ])
     expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
+  })
+
+  describe('sent under a run id the transport minted', () => {
+    const RUN = '3f2c1a9e-4b7d-4c1e-9a2b-0f6e5d4c3b2a'
+    beforeEach(() => {
+      mintedRunId = RUN
+      mockPendingRunId = RUN
+    })
+    afterEach(() => {
+      mintedRunId = null
+      mockPendingRunId = null
+    })
+
+    it('keeps the prompt under that id before the server answers anything', async () => {
+      const { chat } = await mountPage()
+      chat.send('list ten primes')
+      expect(JSON.parse(sessionStorage.getItem('atmosphere.console.inFlightPrompt') ?? 'null'))
+        .toMatchObject({ runId: RUN, text: 'list ten primes' })
+    })
+
+    it('shows the prompt at once after a reload that came before any answer, then its reply', async () => {
+      const before = await mountPage()
+      before.chat.send('list ten primes')
+      before.wrapper.unmount()
+
+      transportUuid = 'tab-after-reload'
+      const { wrapper } = await mountPage()
+      // Nothing from the server yet: the prompt is shown already.
+      expect(bubbles(wrapper)).toEqual([{ user: true, text: 'list ten primes' }])
+
+      // The prompt sent again runs; its frames come under a session not seen before.
+      handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: RUN, sessionId: 's7', seq: 1 })
+      handlers.onEvent({ type: 'streaming-text', data: '2, 3, 5', sessionId: 's7', seq: 2 })
+      handlers.onEvent({ type: 'complete', sessionId: 's7', seq: 3 })
+      await nextTick()
+      expect(bubbles(wrapper)).toEqual([
+        { user: true, text: 'list ten primes' },
+        { user: false, text: '2, 3, 5' },
+      ])
+      expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
+    })
+
+    it('takes the session of the reattached run from its first frame when no id frame named it', async () => {
+      const before = await mountPage()
+      before.chat.send('list ten primes')
+      before.wrapper.unmount()
+
+      transportUuid = 'tab-after-reload'
+      const { wrapper } = await mountPage()
+      handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: RUN, sessionId: RUN, seq: 1 })
+      handlers.onEvent({ type: 'streaming-text', data: '2, 3', sessionId: 's8', seq: 4 })
+      handlers.onEvent({ type: 'complete', sessionId: 's8', seq: 5 })
+      await nextTick()
+      expect(bubbles(wrapper).filter(b => b.user)).toEqual([{ user: true, text: 'list ten primes' }])
+      expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
+    })
+
+    it('withdraws the prompt when the server lost its run and the transport is not sending it again', async () => {
+      const before = await mountPage()
+      before.chat.send('list ten primes')
+      before.wrapper.unmount()
+
+      transportUuid = 'tab-after-reload'
+      mockPendingRunId = null
+      const { wrapper } = await mountPage()
+      expect(bubbles(wrapper)).toEqual([{ user: true, text: 'list ten primes' }])
+      handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Unknown', value: RUN, sessionId: RUN, seq: 1 })
+      await nextTick()
+      expect(bubbles(wrapper)).toEqual([])
+      expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
+    })
   })
 
   it('does not show a finished turn\'s prompt again', async () => {

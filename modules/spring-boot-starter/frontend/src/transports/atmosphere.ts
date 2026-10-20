@@ -163,6 +163,10 @@ export class AtmosphereChatTransport implements ChatTransport {
         // interval: without the heartbeat, a quiet page is closed by the
         // server's idle timeout and rejoins under a new id.
         enableProtocol: true,
+        // AI prompts go out under a run id this client mints (kept with the
+        // prompt in the tab first): a page reloaded before the server answered
+        // reattaches by it, or sends the prompt again when it never arrived.
+        ...(options.rooms ? {} : { clientRunId: true }),
         ...(options.rooms ? { contentType: 'application/json' } : {}),
         // Sends while disconnected enqueue (core auto-enqueues on push when
         // state !== 'connected') and drain automatically on reopen.
@@ -299,16 +303,25 @@ export class AtmosphereChatTransport implements ChatTransport {
     }))
   }
 
-  send(text: string): void {
+  send(text: string): string | null {
     const payload = this.wirePayload(text)
     if (this.subscription) {
+      if (payload === text && !this.options.rooms) {
+        // An AI prompt: under a run id of this client's.
+        return this.subscription.pushPrompt(text)
+      }
       this.subscription.push(payload)
-      return
+      return null
     }
     // No live subscription (mid fallback-rebuild): buffer the wire payload
     // directly — the queue drains on the replacement subscription's first
     // open. Without a queue the send drops, as it always did.
     this.options.offlineQueue?.enqueue(payload)
+    return null
+  }
+
+  get pendingRunId(): string | null {
+    return this.subscription?.pendingRunId ?? null
   }
 
   /** Wrap a user message in the endpoint's wire dialect. */

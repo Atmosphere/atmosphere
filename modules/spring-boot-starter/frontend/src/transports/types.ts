@@ -94,8 +94,14 @@ export interface ChatTransport {
   readonly uuid?: string
   connect(): Promise<void>
   disconnect(): void
-  /** Send a user chat message in the transport's dialect. */
-  send(text: string): void
+  /**
+   * Send a user chat message in the transport's dialect. Returns the run id the
+   * transport minted for it (an AI prompt over the Atmosphere transport, which
+   * a reload reattaches by before the server answered), else nothing.
+   */
+  send(text: string): string | null | void
+  /** The run id of a prompt the server has not acknowledged yet, when the transport mints them. */
+  readonly pendingRunId?: string | null
   /**
    * Push a raw control frame (e.g. /__approval/<id>/approve). Transports
    * without a control channel treat this as a no-op.
