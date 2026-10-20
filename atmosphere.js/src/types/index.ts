@@ -149,6 +149,18 @@ export interface AtmosphereRequest {
    */
   resume?: string | null;
   /**
+   * Send each prompt (`Subscription.pushPrompt`) under a run id this client
+   * mints, kept with the prompt in the tab before it is sent: a page reloaded
+   * — or a connection lost — before the server answered reattaches to the
+   * turn by it, and sends the prompt again under the same id when the server
+   * never received it; the server runs a prompt once per id. The prompt goes
+   * out as `{"clientRunId":"<uuid>","prompt":<prompt>}`, which only an
+   * Atmosphere server released with this option reads (an older one takes the
+   * envelope for the prompt's text): enable it against such a server. Default
+   * `false`: prompts are sent as before.
+   */
+  clientRunId?: boolean;
+  /**
    * The tracking id to connect under: that of an earlier subscription to this
    * endpoint whose connection was lost (`Subscription.uuid`), for the
    * subscription that takes over from it — another transport after the first
@@ -299,6 +311,16 @@ export interface Subscription {
    */
   readonly resumePoint: string | null;
   push(message: string | object | ArrayBuffer): void;
+  /**
+   * Send `message` as a prompt: under a run id this client mints when the
+   * request asked for it (`AtmosphereRequest.clientRunId`), else as `push`
+   * sends it.
+   *
+   * @returns the run id the prompt was sent under, or `null` when none was minted
+   */
+  pushPrompt(message: string | object): string | null;
+  /** The run id of a prompt sent under a minted id that the server has not acknowledged yet, or `null`. */
+  readonly pendingRunId: string | null;
   /**
    * Close the connection. Over long-polling, streaming and SSE it also sends
    * Atmosphere's close message (`X-Atmosphere-Transport=close` with this

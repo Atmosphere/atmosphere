@@ -947,6 +947,26 @@ samples — call `queue.acknowledge(messageId)` from your `onMessage` handler wh
 recognize your own message. A future `RoomProtocolCodec` change will surface
 server-confirmed ids automatically; until then the `'confirmed'` state is opt-in.
 
+### A run id of the client's own — a reload before the server answered
+
+A page reloaded before the server's `X-Atmosphere-Run-Id` frame reached it (or
+before the server even received the prompt) has no run to reattach to. With
+`clientRunId: true`, `subscription.pushPrompt(text)` (and
+`subscribeStreaming(...).send`) mints a UUIDv4 for the prompt, keeps the prompt
+and its id in the tab's `sessionStorage` (in memory on React Native and Node)
+before sending, and sends `{"clientRunId":"<uuid>","prompt":<prompt>}`. A
+reload or reconnect carries the id; the server reattaches it to the run, or
+answers `X-Atmosphere-Run-Unknown` when it never received the prompt, and the
+prompt is sent again under the same id — after a bounded wait
+(`BaseTransport.pendingPromptWaitMs`, 5 s) when the server says nothing, as over
+long-polling. The server runs a prompt once per id. It needs an Atmosphere
+server 4.0.76 or later, which reads the envelope; off by default.
+
+```ts
+const sub = await atmosphere.subscribe({ url: '/ai/chat', transport: 'websocket', clientRunId: true }, handlers);
+const runId = sub.pushPrompt('What is Atmosphere?'); // the turn's run id, known before any answer
+```
+
 ### History sync — exactly-what-you-missed replay on reconnect
 
 When a client reconnects after a disconnect, naive cache replay sends *every* buffered

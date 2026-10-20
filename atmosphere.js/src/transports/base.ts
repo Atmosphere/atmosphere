@@ -28,6 +28,15 @@ import { AtmosphereProtocol } from '../utils/protocol';
 import { learnedHeartbeat } from '../utils/heartbeat-registry';
 import { SEND_ERROR_NAME } from '../utils/send-error';
 import { clearRunId, loadRunId, saveRunId } from '../utils/run-id-store';
+import {
+  RUN_UNKNOWN_KEY,
+  clearPendingPrompt,
+  loadPendingPrompt,
+  mintClientRunId,
+  savePendingPrompt,
+  wrapPrompt,
+  type PendingPrompt,
+} from '../utils/client-run-id';
 import { computeReconnectDelay, maxReconnectAttempts } from '../utils/reconnect-delay';
 
 /** A tracking id a request may carry over from a connection it replaces. */
@@ -58,6 +67,18 @@ export abstract class BaseTransport<T = unknown> {
    */
   protected reconnectAttempts = 0;
 
+  /**
+   * How long a (re)opened connection waits for the server to acknowledge a
+   * pending prompt (its run-id frame) or report it unknown before sending it
+   * again: a long-polling poll is told neither. The server runs a prompt once
+   * per id, so sending it again is safe.
+   */
+  static pendingPromptWaitMs = 5_000;
+
+  /** The prompt sent under a minted run id that the server has not acknowledged yet. */
+  private pendingPrompt: PendingPrompt | null = null;
+  private pendingPromptTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(
     request: AtmosphereRequest,
     handlers: SubscriptionHandlers<T>,
@@ -69,6 +90,9 @@ export abstract class BaseTransport<T = unknown> {
     // A run this tab was receiving when the page went away (a reload): the
     // connect carries its id, so the server replays it and streams the rest.
     this.protocol.runId = loadRunId(request.url);
+    // A prompt a page sent under its own run id before it went away, the
+    // server's acknowledgement not received: sent again if the server never got it.
+    this.pendingPrompt = request.clientRunId ? loadPendingPrompt(request.url) : null;
     // What a connection this one replaces received: its reconnect resumes there.
     this.protocol.seedResume(request.resume);
     // The tracking id of a connection this one replaces (one that was lost, a
@@ -141,6 +165,70 @@ export abstract class BaseTransport<T = unknown> {
   forgetRunId(): void {
     this.protocol.runId = null;
     clearRunId(this.request.url);
+    this.forgetPendingPrompt();
+  }
+
+  /**
+   * Prepare `payload` to be sent as a prompt under a run id this client mints
+   * (`AtmosphereRequest.clientRunId`): the prompt and its id are kept in the
+   * tab before anything is sent, and the id becomes the run this connection
+   * and any reconnect or reload of it reattach to.
+   *
+   * @returns the id and the wire form to send
+   */
+  preparePrompt(payload: string | object): { runId: string; wire: string } {
+    const runId = mintClientRunId();
+    this.pendingPrompt = { runId, payload };
+    savePendingPrompt(this.request.url, this.pendingPrompt);
+    this.protocol.runId = runId;
+    saveRunId(this.request.url, runId);
+    return { runId, wire: wrapPrompt(payload, runId) };
+  }
+
+  /** The run id of the prompt the server has not acknowledged yet, or `null`. */
+  get pendingRunId(): string | null {
+    return this.pendingPrompt?.runId ?? null;
+  }
+
+  private forgetPendingPrompt(): void {
+    if (this.pendingPromptTimer !== null) {
+      clearTimeout(this.pendingPromptTimer);
+      this.pendingPromptTimer = null;
+    }
+    if (this.pendingPrompt !== null) {
+      this.pendingPrompt = null;
+      clearPendingPrompt(this.request.url);
+    }
+  }
+
+  /**
+   * The connection (re)opened with a prompt the server did not acknowledge:
+   * it may never have received it (the page reloaded, or the connection was
+   * lost, before it arrived). The reconnect carried its id; the server answers
+   * with the run's id, or says it has no such run, and the prompt is then sent
+   * again under the same id — after a bounded wait when neither comes.
+   */
+  private armPendingPrompt(): void {
+    if (this.pendingPrompt === null || this.pendingPromptTimer !== null) return;
+    this.pendingPromptTimer = setTimeout(() => {
+      this.pendingPromptTimer = null;
+      this.resendPendingPrompt();
+    }, BaseTransport.pendingPromptWaitMs);
+  }
+
+  private resendPendingPrompt(): void {
+    if (this.pendingPromptTimer !== null) {
+      clearTimeout(this.pendingPromptTimer);
+      this.pendingPromptTimer = null;
+    }
+    const pending = this.pendingPrompt;
+    if (pending === null || this._state !== 'connected') return;
+    logger.debug(`Sending prompt ${pending.runId} again: the server did not acknowledge it`);
+    try {
+      this.send(wrapPrompt(pending.payload, pending.runId));
+    } catch (error) {
+      logger.debug('Unable to send the pending prompt again:', error);
+    }
   }
 
   /**
@@ -378,6 +466,7 @@ export abstract class BaseTransport<T = unknown> {
       logger.debug(`${this.name} transport reopened`);
       this.handlers.reopen?.(response);
       this.drainOfflineQueue();
+      this.armPendingPrompt();
     } else {
       this._hasOpened = true;
       this._state = 'connected';
@@ -388,6 +477,7 @@ export abstract class BaseTransport<T = unknown> {
       // after the previous transport exhausted its reconnect quota) — flush
       // it now, exactly like the reopen path above.
       this.drainOfflineQueue();
+      this.armPendingPrompt();
     }
     this.resetInactivityTimer();
   }
@@ -420,7 +510,7 @@ export abstract class BaseTransport<T = unknown> {
    */
   private captureRunId(body: unknown): void {
     if (typeof body !== 'string') return;
-    const namesRun = body.indexOf('X-Atmosphere-Run-Id') !== -1;
+    const namesRun = body.indexOf('X-Atmosphere-Run-') !== -1;
     const mayEndRun = this.protocol.runId !== null
       && (body.indexOf('"complete"') !== -1 || body.indexOf('"error"') !== -1
         || body.indexOf('"cancelled"') !== -1);
@@ -438,8 +528,21 @@ export abstract class BaseTransport<T = unknown> {
       if (msg.type === 'metadata' && msg.key === 'X-Atmosphere-Run-Id' && typeof msg.value === 'string') {
         this.protocol.runId = msg.value;
         saveRunId(this.request.url, msg.value);
+        if (msg.value === this.pendingPrompt?.runId) {
+          // The server has the prompt: a reload reattaches by the run id from now on.
+          this.forgetPendingPrompt();
+        }
+      } else if (msg.type === 'metadata' && msg.key === RUN_UNKNOWN_KEY
+          && typeof msg.value === 'string' && msg.value === this.pendingPrompt?.runId) {
+        // The server never received the prompt: send it again, under the same id.
+        this.resendPendingPrompt();
       } else if (this.protocol.runId !== null
           && (msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled')) {
+        // The end of the run the pending prompt named (a replay after a reload
+        // writes no id frame) settles it too; the end of another run does not.
+        if (this.protocol.runId === this.pendingPrompt?.runId) {
+          this.forgetPendingPrompt();
+        }
         this.protocol.runId = null;
         clearRunId(this.request.url);
       }

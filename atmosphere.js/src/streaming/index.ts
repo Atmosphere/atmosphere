@@ -222,7 +222,13 @@ export async function subscribeStreaming(
     send(message: string | object, options?: SendOptions) {
       // Reset tracking state for new session
       resetSession();
-      sub.push(buildStreamingPayload(message, options));
+      const payload = buildStreamingPayload(message, options);
+      // Under a run id of the client's own when the request asked for it.
+      if (request.clientRunId) {
+        return sub.pushPrompt(payload);
+      }
+      sub.push(payload);
+      return null;
     },
     resetSession,
     suspend() {

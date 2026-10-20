@@ -277,7 +277,8 @@ export interface StreamingHandle {
    */
   readonly connectionStatus: import('../resilience').ConnectionStatus;
   /** Send a prompt/message to the server to start or continue streaming. */
-  send(message: string | object, options?: SendOptions): void;
+  /** Send a prompt; returns the run id it went under when the request mints one (`clientRunId`), else `null`. */
+  send(message: string | object, options?: SendOptions): string | null;
   /**
    * Forget the current session id and sequence watermark so the next batch
    * of server frames is adopted as a fresh turn.

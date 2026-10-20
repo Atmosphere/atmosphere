@@ -236,6 +236,18 @@ export class Atmosphere {
               : JSON.stringify(message);
         currentTransport.send(data);
       },
+      pushPrompt: (message: string | object) => {
+        if (!mergedRequest.clientRunId) {
+          subscription.push(message);
+          return null;
+        }
+        const { runId, wire } = currentTransport.preparePrompt(message);
+        subscription.push(wire);
+        return runId;
+      },
+      get pendingRunId(): string | null {
+        return currentTransport.pendingRunId;
+      },
       close: async () => {
         if (!closed) {
           closed = true;
