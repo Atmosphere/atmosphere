@@ -114,6 +114,21 @@ class KoogCancelledTurnTest {
     }
 
     @Test
+    fun `a cancel that lands while the agent is built starts no run`() {
+        // The turn is live for the dispatch's first two looks (start, before
+        // building the agent) and cancelled by the time the agent is built.
+        val looks = AtomicInteger()
+        val session = object : DelegatingStreamingSession(CollectingSession("cancelled-mid-build")) {
+            override fun isTurnCancelled() = looks.incrementAndGet() > 2
+        }
+        runtime.executeWithHandle(context(true), session).whenDone().get(5, TimeUnit.SECONDS)
+
+        assertEquals(0, modelCalls.get(), "the model was called after the cancel")
+        assertTrue(appender.list.none { it.formattedMessage.contains("__start__") },
+            "the agent's strategy started after the cancel: ${appender.list.map { it.formattedMessage }}")
+    }
+
+    @Test
     fun `a live turn still builds the agent and calls the model`() {
         val handle = runtime.executeWithHandle(context(true), CollectingSession("live-turn"))
         handle.whenDone().get(10, TimeUnit.SECONDS)

@@ -601,6 +601,12 @@ class KoogAgentRuntime : AgentRuntime {
         try {
             runBlocking {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
+                if (cancelled.get() || session.isTurnCancelled) {
+                    // Cancelled while the agent was being built: never start it.
+                    logger.debug("Koog agent built for a cancelled turn: not started")
+                    agent.close()
+                    return@runBlocking
+                }
                 val result = agent.run(context.message())
                 if (result.isNotBlank()) {
                     logger.debug("Agent completed with result length: {}", result.length)
@@ -754,6 +760,12 @@ class KoogAgentRuntime : AgentRuntime {
         try {
             runBlocking {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
+                if (cancelled.get() || session.isTurnCancelled) {
+                    // Cancelled while the agent was being built: never start it.
+                    logger.debug("Koog agent built for a cancelled turn: not started")
+                    agent.close()
+                    return@runBlocking
+                }
                 val result = agent.run(context.message())
                 forwardAgentResult(result, session, cancelled, textStreamed)
                 agent.close()
