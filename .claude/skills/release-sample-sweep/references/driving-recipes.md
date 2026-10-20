@@ -137,12 +137,21 @@ and confirm the stream lands in both. Keep them as separate pages
 
 ### Dropping a member's connection (reconnect / missed-turn checks)
 
-**`emulate networkConditions=Offline` does not drop the connection.** Chrome
-blocks only *new* requests: an established WebTransport session and an
-established WebSocket keep working (`navigator.onLine` is `false`, the badge
-stays `Connected · …` and the page keeps receiving room turns live — re-test
-2026-10-19, lane C). A drop check driven that way passes without anything
-having dropped.
+**`emulate networkConditions=Offline` does not drop the connection.** It
+blocks new requests, but an established WebSocket is not closed: on current
+Chrome it goes silent instead. The page stops receiving frames
+(`navigator.onLine` is `false`, the badge still reads `Connected · websocket`)
+while the socket stays open, so the server keeps writing into it and sees no
+disconnect (re-test 2026-10-20 round 6, lane C: no frame on the page after the
+emulation, the server broadcast to the member for 4 min 30 s with no
+`left room`, the other page kept its count). An older Chrome (2026-10-19 lane C)
+kept delivering room turns over the established WebSocket and WebTransport
+session instead. Either way a drop check driven by Offline alone tests nothing:
+the connection never closes. Use it only after the in-page drop below, to
+block the fallbacks, and never arm a drop on a page already under Offline (its
+frames, and any arm waiting on them, stop). Since round 6 the classroom asks
+for a client heartbeat and evicts a member silent for 2 minutes, so a page left
+under Offline there is counted out by the idle timeout, not by a close.
 
 Drop the connection in the page instead. Load the page with this `initScript`
 (`navigate_page` with `initScript`, then `type=url` to the Console), which
@@ -161,8 +170,11 @@ window.__socks=[]; window.__off=false; window.__conn=[];
 
 Then:
 
-1. **Drop:** `evaluate_script` `() => window.__drop()`, plus `emulate
-   networkConditions=Offline` so long-polling and `fetch` fail too. Close code
+1. **Drop:** `evaluate_script` `() => window.__drop()`, then `emulate
+   networkConditions=Offline` so long-polling and `fetch` fail too (after the
+   drop, never before: Offline silences the open socket the drop has to close).
+   For a page that must never come back, skip Offline and point XHR, `fetch`
+   and `EventSource` at `localhost:1` in the init script as well. Close code
    4000 is not a normal close: the server logs `unexpectedly disconnected from
    AI endpoint` (a lost member, not one that left). Confirm that line before
    counting the drop.
