@@ -46,9 +46,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * ({@link RunCancelledException.Reason#TIMEOUT}).</p>
  *
  * <p>Lifecycle (Correctness Invariant #1): the sweeper thread is a daemon,
- * started lazily on first session registration via {@link #ensureStarted()}.
+ * started when an endpoint takes its hold ({@link #acquire()}, at the
+ * endpoint's construction), else on first session registration via
+ * {@link #ensureStarted()}.
  * It is process-wide, so no one endpoint owns it: each {@code AiEndpointHandler}
- * that registered a session holds it ({@link #acquire()}) and lets go of it
+ * holds it from its construction ({@link #acquire()}) and lets go of it
  * when the framework destroys the endpoint ({@link #release()}), and the
  * sweeper stops when the last holder lets go — the destroy of one endpoint,
  * or of another application's in the same JVM, leaves it running for the
@@ -109,15 +111,19 @@ public final class StreamingSessionSweeper {
     }
 
     /**
-     * Hold the sweeper: it is not stopped by {@link #release()} until this
-     * caller released it too. Each call is answered by one {@code release()}.
-     * It does not start the sweeper: the first session registration does.
+     * Hold the sweeper, and start it: it is not stopped by {@link #release()}
+     * until this caller released it too. Each call is answered by one
+     * {@code release()}. An endpoint holds it from its construction, so its
+     * first prompt does not start a thread before its run is announced (on a
+     * WebTransport event loop, which flushes the run-id frame only once that
+     * prompt's dispatch returns).
      */
     public static void acquire() {
         synchronized (HOLDERS_LOCK) {
             holders++;
             everHeld = true;
         }
+        ensureStarted();
     }
 
     /**

@@ -405,6 +405,53 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         StreamingSessionSweeper.acquire();
         org.atmosphere.ai.resume.RunDisconnectGrace.acquire();
         sweeperHeld = true;
+        initializeDispatchPath();
+    }
+
+    /** The classes a prompt's dispatch uses before its run is announced. */
+    private static final String[] DISPATCH_PATH_CLASSES = {
+            "org.atmosphere.ai.resume.RunEventReplayBuffer",
+            "org.atmosphere.ai.resume.RunEventCapturingSession",
+            "org.atmosphere.ai.DelegatingStreamingSession",
+            "org.atmosphere.ai.StreamingSessions",
+            "org.atmosphere.ai.DefaultStreamingSession",
+            "org.atmosphere.ai.TracingCapturingSession",
+            "org.atmosphere.ai.AiStreamingSession",
+            "org.atmosphere.ai.RunScopedResource",
+            "org.atmosphere.ai.RunCancelledException",
+            "org.atmosphere.ai.ExecutionHandle$Settable",
+            "org.atmosphere.ai.resume.AgentResumeHandle",
+            "org.atmosphere.ai.resume.RunRegistry",
+            "org.atmosphere.ai.resume.RunReattachSupport",
+            "org.atmosphere.cpr.RawMessage",
+    };
+
+    /** Whether this class loader's dispatch path was initialized. */
+    private static final java.util.concurrent.atomic.AtomicBoolean DISPATCH_PATH_INITIALIZED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /**
+     * Initialize, at deploy, the classes a prompt's dispatch uses before its
+     * run is announced, and the run registry: the first prompt is otherwise
+     * the one that loads them, on the thread that handed it over — a
+     * WebTransport event loop, which flushes the run-id frame only once the
+     * dispatch returns — so a page reloaded in that window found no run id
+     * to reattach by. Once per class loader; a class that cannot be loaded
+     * is left to the first prompt, as before.
+     */
+    private static void initializeDispatchPath() {
+        if (!DISPATCH_PATH_INITIALIZED.compareAndSet(false, true)) {
+            return;
+        }
+        var loader = AiEndpointHandler.class.getClassLoader();
+        for (var name : DISPATCH_PATH_CLASSES) {
+            try {
+                Class.forName(name, true, loader);
+            } catch (ClassNotFoundException | LinkageError e) {
+                logger.debug("Not initializing {} ahead of the first prompt: {}", name, e.toString());
+            }
+        }
+        org.atmosphere.ai.resume.RunRegistryHolder.get();
     }
 
     /**

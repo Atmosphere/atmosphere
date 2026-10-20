@@ -183,6 +183,35 @@ class AiEndpointHandlerFactsCachePrefixTest {
                 "the turn's system prompt carries the facts resolved on its own thread");
     }
 
+    /**
+     * A deployed endpoint is ready for its first prompt: the session sweeper
+     * runs from the endpoint's construction, so the first prompt — on a
+     * WebTransport event loop, which flushes the run-id frame only once the
+     * dispatch returns — does not start it before the run is announced.
+     */
+    @Test
+    void theSweeperRunsFromTheEndpointsConstructionNotFromItsFirstPrompt() {
+        org.atmosphere.ai.StreamingSessionSweeper.shutdown();
+        var handler = new AiEndpointHandler(new StubEndpoint(), promptMethod, 30_000L,
+                PERSONA, "/ai/facts", new RecordingRuntime(), List.<AiInterceptor>of(),
+                null, AnnotatedLifecycle.scan(StubEndpoint.class));
+        try {
+            assertTrue(sweeperRunning(), "the sweeper runs once the endpoint is constructed, before any prompt");
+        } finally {
+            handler.destroy();
+        }
+    }
+
+    private static boolean sweeperRunning() {
+        try {
+            var running = org.atmosphere.ai.StreamingSessionSweeper.class.getDeclaredMethod("isRunning");
+            running.setAccessible(true);
+            return (boolean) running.invoke(null);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
     private AtmosphereResource subscriber() {
         var r = new AtmosphereResourceImpl(config, room,
                 AtmosphereRequestImpl.newInstance(),
