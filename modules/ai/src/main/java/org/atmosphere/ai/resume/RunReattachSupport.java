@@ -615,7 +615,7 @@ public final class RunReattachSupport {
 
     /** The event types of the tool frames a run records ({@code RunEventCapturingSession}). */
     private static final java.util.Set<String> TOOL_EVENT_TYPES = java.util.Set.of("tool-start", "tool-result",
-            "tool-error");
+            "tool-error", "handoff");
 
     private static final tools.jackson.databind.ObjectMapper REPLAY_JSON = new tools.jackson.databind.ObjectMapper();
 
@@ -676,6 +676,13 @@ public final class RunReattachSupport {
         if (org.atmosphere.ai.filter.AiStreamMessage.PROMPT_TYPE.equals(event.type())) {
             return org.atmosphere.ai.filter.AiStreamMessage.prompt(event.payload(),
                     org.atmosphere.ai.RoomMemberIds.of(handle.sessionId()), sessionId, frameSeq);
+        }
+        if (RunEventCapturingSession.METADATA_TYPE.equals(event.type())) {
+            // The metadata frame the session wrote: its key and value.
+            var node = REPLAY_JSON.readTree(event.payload());
+            Object value = node.has("value") ? REPLAY_JSON.treeToValue(node.get("value"), Object.class) : null;
+            return new org.atmosphere.ai.filter.AiStreamMessage(RunEventCapturingSession.METADATA_TYPE, null,
+                    sessionId, frameSeq, node.path("key").asString(), value);
         }
         return new org.atmosphere.ai.filter.AiStreamMessage(event.type(), event.payload(), sessionId, frameSeq,
                 null, null);

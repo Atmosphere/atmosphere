@@ -47,8 +47,8 @@ import java.util.function.Consumer;
  * {@code error} (a {@link RunCancelledException} is captured as the
  * {@code cancelled} frame), {@link AiEvent.Complete} or {@link AiEvent.Error}; the
  * echo of the run's prompt to a {@code broadcastReply} room as
- * {@link #sendPrompt}. Other frames (metadata, progress, tool events) are not
- * captured.</p>
+ * {@link #sendPrompt}; tool events and metadata ({@link #sendMetadata}) as
+ * well. Other frames (progress) are not captured.</p>
  *
  * <p>The capture happens BEFORE the delegate write so the client sees
  * the live stream unchanged and a disconnect between the buffer write
@@ -141,6 +141,44 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         writing(new RunEventReplayBuffer.Position(buffer, event.sequence()), s -> leaf.sendPrompt(text, from));
     }
 
+    /**
+     * Record a metadata frame (the model's name, token counts, routing) as the
+     * run's {@code metadata} event, its payload {@code {"key": …, "value": …}},
+     * then write it: a client that reattaches gets it with the rest of the
+     * turn instead of losing it to a connection that went away. The run id's
+     * own announcement is not recorded — a reattached client already holds it.
+     */
+    @Override
+    public void sendMetadata(String key, Object value) {
+        RunEventReplayBuffer.Position position = null;
+        if (key != null && !RunReattachSupport.RUN_ID_HEADER.equals(key)) {
+            position = captureMetadata(key, value);
+            if (position != null && delegate.isClosed()) {
+                return;
+            }
+        }
+        writing(position, s -> s.sendMetadata(key, value));
+    }
+
+    /** The event type a metadata frame is recorded under. */
+    public static final String METADATA_TYPE = "metadata";
+
+    private RunEventReplayBuffer.Position captureMetadata(String key, Object value) {
+        String json;
+        try {
+            var node = EVENT_JSON.createObjectNode();
+            node.put("key", key);
+            node.set("value", EVENT_JSON.valueToTree(value));
+            json = EVENT_JSON.writeValueAsString(node);
+        } catch (RuntimeException e) {
+            LoggerFactory.getLogger(RunEventCapturingSession.class)
+                    .debug("Metadata {} not recorded for replay", key, e);
+            return null;
+        }
+        var captured = buffer.captureIfOpen(METADATA_TYPE, json, numbering());
+        return captured != null ? new RunEventReplayBuffer.Position(buffer, captured.sequence()) : null;
+    }
+
     @Override
     public void sendContent(Content content) {
         if (content instanceof Content.Text text) {
@@ -185,6 +223,14 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
                 }
             }
             case AiEvent.ToolError toolError -> {
+                position = captureEvent(event);
+                if (delegate.isClosed()) {
+                    return;
+                }
+            }
+            case AiEvent.Handoff handoff -> {
+                // A reattached client is shown the handoff before the answer
+                // of the agent the turn was handed to.
                 position = captureEvent(event);
                 if (delegate.isClosed()) {
                     return;

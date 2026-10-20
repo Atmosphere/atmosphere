@@ -393,7 +393,9 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("key", key);
         msg.put("value", value);
         msg.put("sessionId", sessionId);
-        msg.put("seq", sequence.incrementAndGet());
+        // A metadata frame is a run event (the run records it for a reattach):
+        // it keeps the seq the run numbered it with.
+        msg.put("seq", frameSequence(true));
         broadcast(toJson(msg));
         if (org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER.equals(key)) {
             // Measurable: when a run's id left for its client (a reload before it lands cannot reattach).
