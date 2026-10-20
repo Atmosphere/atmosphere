@@ -325,10 +325,10 @@ export class AtmosphereChatTransport implements ChatTransport {
     if (this.options.isBroadcast()) {
       // Broadcast rooms decode {author, message, time} (see the chat
       // sample's JacksonDecoder); a raw string would fail the decoder and
-      // be dropped server-side. The echo renders via the event-less-frame
-      // branch in handleStreamingEvent, confirming delivery.
+      // be dropped server-side. Other members render it author-prefixed;
+      // the sender knows its own echo by the author and shows it once.
       return JSON.stringify({
-        author: 'console',
+        author: this.options.author ?? 'console',
         message: text,
         time: Date.now(),
       })

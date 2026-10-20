@@ -251,7 +251,7 @@ export class GrpcChatTransport implements ChatTransport {
         body: JSON.stringify({
           type: 'MESSAGE',
           topic: GrpcChatTransport.TOPIC,
-          payload: `console: ${text}`,
+          payload: `${this.options.author ?? 'console'}: ${text}`,
           trackingId: this.trackingId,
         }),
       })

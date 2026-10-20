@@ -106,3 +106,32 @@ describe('AtmosphereChatTransport WebTransport fallback', () => {
     expect(captured.subs[0].close).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * A broadcast endpoint echoes a message to its sender too; the page tells its
+ * own echo from another member's by the author it sent, so the envelope
+ * carries the page's name rather than one shared by every Console.
+ */
+describe('AtmosphereChatTransport broadcast envelope', () => {
+  it("sends as the page's own author", async () => {
+    captured.subs = []
+    const transport = new AtmosphereChatTransport(
+      {
+        endpoint: '/atmosphere/chat',
+        isBroadcast: () => true,
+        author: 'console-1a2b',
+        status: new ConnectionStatus({ initialTransport: 'websocket' }),
+        maxReconnectOnClose: 10,
+      },
+      {
+        onOpen() {}, onClose() {}, onError() {}, onReconnect() {},
+        onReopen() {}, onClientTimeout() {}, onFailureToReconnect() {},
+        onEvent() {}, onRawText() {},
+      },
+    )
+    await transport.connect()
+    transport.send('hello')
+    const push = (captured.subs[0] as unknown as { push: Mock<(m: string) => void> }).push
+    expect(JSON.parse(push.mock.calls[0][0])).toMatchObject({ author: 'console-1a2b', message: 'hello' })
+  })
+})

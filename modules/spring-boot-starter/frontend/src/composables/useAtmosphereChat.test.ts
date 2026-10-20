@@ -7,6 +7,8 @@ import type { ChatTransportHandlers } from '../transports'
 // Capture the handlers the composable wires into its transport so the test can
 // feed it the exact frames a server emits, without a socket.
 let handlers: ChatTransportHandlers
+// The options the composable opened its transport with.
+let transportOptions: { author?: string; rooms?: { memberId: string } }
 const sent: string[] = []
 // The tracking id the mocked transport reports; undefined for one that has none.
 let transportUuid: string | undefined = 'tab-self'
@@ -14,10 +16,11 @@ let transportUuid: string | undefined = 'tab-self'
 vi.mock('../transports', () => ({
   createChatTransport: vi.fn(async (
     _name: unknown,
-    _opts: unknown,
+    opts: typeof transportOptions,
     h: ChatTransportHandlers,
   ) => {
     handlers = h
+    transportOptions = opts
     queueMicrotask(() => h.onOpen?.())
     return {
       get uuid() { return transportUuid },
@@ -386,6 +389,47 @@ describe('a broadcast endpoint', () => {
     await nextTick()
 
     expect(wrapper.findAll('p.assistant').map(p => p.text())).toEqual(['posted', 'posted'])
+  })
+
+  it('shows a sent broadcast once: its echo is not another bubble, a member saying the same is', async () => {
+    // A broadcast endpoint writes a message to every subscriber, the sender
+    // included: the page showed its own bubble on send and then the echo as
+    // "console: …" again. The page's sends carry its own author name.
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    const wrapper = mount(defineComponent({
+      setup() {
+        const chat = useAtmosphereChat('/atmosphere/chat', 'broadcast')
+        state.chat = chat
+        return () => h('div', chat.messages.value.map(m => h('p', { class: m.role, key: m.id }, m.content)))
+      },
+    }))
+    await nextTick()
+    await new Promise(resolve => queueMicrotask(() => resolve(null)))
+    const self = transportOptions.author
+    expect(self).toMatch(/^console-[0-9a-f]+$/)
+
+    state.chat!.send('same words')
+    handlers.onEvent({ author: self, message: 'same words', time: 1 })
+    handlers.onEvent({ author: 'console-0ther', message: 'same words', time: 2 })
+    await nextTick()
+
+    expect(wrapper.findAll('p').map(p => `${p.classes()[0]}|${p.text()}`)).toEqual([
+      'user|same words',
+      'assistant|console-0ther: same words',
+    ])
+  })
+
+  it('names the page alike as a broadcast author and as a room member', async () => {
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    mount(defineComponent({
+      setup() {
+        state.chat = useAtmosphereChat('/atmosphere/chat', 'broadcast', 'atmosphere', undefined, 'lobby')
+        return () => h('div')
+      },
+    }))
+    await nextTick()
+    await new Promise(resolve => queueMicrotask(() => resolve(null)))
+    expect(transportOptions.rooms?.memberId).toBe(transportOptions.author)
   })
 
   it("shows a member's message as typed: math is rendered in AI replies only", async () => {

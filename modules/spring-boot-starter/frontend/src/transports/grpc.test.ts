@@ -30,6 +30,7 @@ function options(): ChatTransportOptions {
   return {
     endpoint: '/org.atmosphere.grpc.AtmosphereService',
     isBroadcast: () => true,
+    author: 'console-1a2b',
     status: new ConnectionStatus({ initialTransport: 'grpc' }),
     maxReconnectOnClose: 10,
   }
@@ -153,7 +154,7 @@ describe('GrpcChatTransport', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       type: 'MESSAGE',
       topic: '/chat',
-      payload: 'console: hello room',
+      payload: 'console-1a2b: hello room',
       trackingId: 'conn-1',
     })
   })

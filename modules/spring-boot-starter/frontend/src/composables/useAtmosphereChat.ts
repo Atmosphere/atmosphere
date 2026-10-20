@@ -48,6 +48,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
                                   room?: string) {
   const messages = ref<ChatMessage[]>([])
   const toolCalls = ref<ToolCall[]>([])
+  // This page's name in a broadcast room: the author of what it sends (and its
+  // Room Protocol member id). A broadcast endpoint writes a message to every
+  // subscriber, the sender included; the page already shows what it sent as
+  // its own bubble, so its echo, known by this name, is not shown again.
+  const selfName = `console-${Math.random().toString(16).slice(2, 6)}`
   const isConnected = ref(false)
   const isStreaming = ref(false)
   const connectionState = ref<string>('disconnected')
@@ -367,6 +372,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       // from a @ManagedService/Broadcaster endpoint. Render it as its own
       // bubble instead of dropping it — this is how another client's message
       // (and the sender's own echo) reaches the console in broadcast mode.
+      if (msg.author === selfName) return
       const author = typeof msg.author === 'string' && msg.author ? `${msg.author}: ` : ''
       appendBroadcastMessage(author + (msg.message as string))
       return
@@ -775,6 +781,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       transport = await createChatTransport(transportName, {
         endpoint,
         isBroadcast: () => broadcastMode.value,
+        author: selfName,
         status,
         maxReconnectOnClose: MAX_RECONNECT_ON_CLOSE,
         webTransport,
@@ -782,7 +789,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         ...(room ? {
           rooms: {
             room,
-            memberId: `console-${Math.random().toString(16).slice(2, 6)}`,
+            memberId: selfName,
             sinceId: () => lastRoomMessageId,
           },
         } : {}),

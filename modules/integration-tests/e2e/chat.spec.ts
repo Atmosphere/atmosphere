@@ -46,15 +46,25 @@ test.describe('Jetty Chat (WAR)', () => {
     await chat.expectStatus('Connected');
   });
 
-  test('message bubbles display author', async ({ page }) => {
+  test('message bubbles display author', async ({ page, browser }) => {
     const chat = new ChatPage(page);
     await chat.goto(server.baseUrl);
     await chat.waitForConnected();
+    const otherCtx = await browser.newContext();
+    try {
+      const other = new ChatPage(await otherCtx.newPage());
+      await other.goto(server.baseUrl);
+      await other.waitForConnected();
 
-    // The Console's broadcast dialect sends {author: 'console', message} and
-    // renders the server echo author-prefixed — the echo proves the frame
-    // made the full wire round-trip through the broadcaster.
-    await chat.sendMessage('Who am I?');
-    await chat.expectMessageFrom('console', 'Who am I?');
+      // The Console's broadcast dialect sends {author: 'console-xxxx', message}:
+      // another member renders it author-prefixed, through the broadcaster.
+      await chat.sendMessage('Who am I?');
+      await other.expectMessageFrom('console-', 'Who am I?');
+      // The broadcaster echoes it to the sender too, which already shows it.
+      await page.waitForTimeout(1_000);
+      await expect(chat.messageBubbles.filter({ hasText: 'Who am I?' })).toHaveCount(1);
+    } finally {
+      await otherCtx.close();
+    }
   });
 });

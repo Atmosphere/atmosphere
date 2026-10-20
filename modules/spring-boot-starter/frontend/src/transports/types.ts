@@ -45,6 +45,12 @@ export interface ChatTransportOptions {
    */
   isBroadcast(): boolean
   /**
+   * This page's name in a broadcast room, the author of what it sends
+   * ('console' when not given). The page tells its own messages from other
+   * members' by it when the server echoes them back.
+   */
+  author?: string
+  /**
    * WebTransport (HTTP/3) sidecar coordinates, present only when
    * /api/console/info confirmed the server genuinely bound (Runtime
    * Truth). The Atmosphere transport then connects WT-first with WS
