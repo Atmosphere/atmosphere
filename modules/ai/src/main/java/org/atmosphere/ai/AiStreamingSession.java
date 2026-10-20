@@ -810,6 +810,7 @@ public class AiStreamingSession implements StreamingSession {
         }
         var handle = this.currentHandle;
         var inFlight = handle != null && !handle.isDone();
+        logger.debug("Cancel ({}) of session {}: model call in flight: {}", reason, sessionId(), inFlight);
         if (inFlight) {
             // Before the cancel: a runtime completes the session from inside it.
             cancelledReason.compareAndSet(null, reason);
