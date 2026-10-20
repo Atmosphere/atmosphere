@@ -69,7 +69,11 @@ public class WeatherTimeAgent {
             var settings = AiEnvironment.current().settings();
             if (settings != null && settings.hasReachableModel()) {
                 // Real LLM call
-                var response = callLlm(settings, message);
+                var response = callLlm(task, settings, message);
+                if (task.isCancelled()) {
+                    // CancelTask stopped the model call; the task stays CANCELED.
+                    return;
+                }
                 task.addArtifact(Artifact.text(response));
                 task.addMessage(Message.agent(response));
                 task.complete("Response generated via " + settings.model());
@@ -81,6 +85,10 @@ public class WeatherTimeAgent {
                 task.complete("Demo response (configure LLM_API_KEY for real AI)");
             }
         } catch (Exception e) {
+            if (task.isCancelled()) {
+                logger.debug("Cancelled request ended with {}", e.toString());
+                return;
+            }
             logger.error("Failed to process request", e);
             task.fail("Error: " + e.getMessage());
         }
@@ -99,7 +107,10 @@ public class WeatherTimeAgent {
             if (settings != null && settings.hasReachableModel()) {
                 var prompt = "Give a brief, realistic current weather report for " + location
                         + ". Include temperature, conditions, humidity, and a short forecast. Be concise (2-3 sentences).";
-                var response = callLlm(settings, prompt);
+                var response = callLlm(task, settings, prompt);
+                if (task.isCancelled()) {
+                    return;
+                }
                 task.addArtifact(Artifact.text(response));
                 task.complete("AI weather report for " + location);
             } else {
@@ -117,6 +128,10 @@ public class WeatherTimeAgent {
                 task.complete("Demo weather for " + location);
             }
         } catch (Exception e) {
+            if (task.isCancelled()) {
+                logger.debug("Cancelled weather query ended with {}", e.toString());
+                return;
+            }
             logger.error("Weather query failed", e);
             task.fail("Weather query failed: " + e.getMessage());
         }
@@ -148,11 +163,13 @@ public class WeatherTimeAgent {
     /**
      * Calls the LLM using the OpenAI-compatible streaming API and collects
      * the full response. Uses a lightweight {@link StreamingSession} implementation
-     * that buffers all streamed text chunks into a single string.
+     * that buffers all streamed text chunks into a single string, streams each
+     * one to a {@code SendStreamingMessage} client as it arrives, and stops the
+     * model call when the task is cancelled.
      */
-    private String callLlm(AiConfig.LlmSettings settings, String prompt) {
+    private String callLlm(TaskContext task, AiConfig.LlmSettings settings, String prompt) {
         var request = ChatCompletionRequest.of(settings.model(), prompt);
-        var collector = new CollectingSession();
+        var collector = new CollectingSession(task);
         settings.client().streamChatCompletion(request, collector);
 
         if (collector.error != null) {
@@ -196,14 +213,21 @@ public class WeatherTimeAgent {
 
     /**
      * Minimal {@link StreamingSession} that collects all streamed text chunks
-     * into a {@link StringBuilder} for synchronous use in A2A task handlers.
+     * into a {@link StringBuilder} for synchronous use in A2A task handlers,
+     * forwards each chunk to the task's stream, and answers the task's
+     * cancellation so the model client stops reading.
      */
     private static class CollectingSession implements StreamingSession {
 
         final StringBuilder buffer = new StringBuilder();
+        private final TaskContext task;
         final AtomicBoolean closed = new AtomicBoolean(false);
         volatile Throwable error;
         private final String sessionId = UUID.randomUUID().toString();
+
+        CollectingSession(TaskContext task) {
+            this.task = task;
+        }
 
         @Override
         public String sessionId() {
@@ -213,6 +237,12 @@ public class WeatherTimeAgent {
         @Override
         public void send(String text) {
             buffer.append(text);
+            task.emitToken(text);
+        }
+
+        @Override
+        public boolean isTurnCancelled() {
+            return task.isCancelled();
         }
 
         @Override
