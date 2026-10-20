@@ -749,10 +749,20 @@ public class DefaultBroadcaster implements Broadcaster {
         deliver.message = finalMsg;
 
         Map<String, CacheMessage> cacheForSet = deliver.type == Deliver.TYPE.SET ? new HashMap<>() : null;
+        List<AtmosphereResource> targets = null;
         // We cache first, and if the broadcast succeed, we will remove it.
         switch (deliver.type) {
-            case ALL ->
-                deliver.cache = bc.getBroadcasterCache().addToCache(getID(), BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
+            case ALL -> {
+                // Cache and snapshot the members together: a rejoin (cacheAndSuspend) reads the
+                // cache and re-adds its member under this lock, so the message reaches it one way.
+                resourcesLock.lock();
+                try {
+                    deliver.cache = bc.getBroadcasterCache().addToCache(getID(), BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
+                    targets = new ArrayList<>(resources);
+                } finally {
+                    resourcesLock.unlock();
+                }
+            }
             case RESOURCE ->
                 deliver.cache = bc.getBroadcasterCache().addToCache(getID(), deliver.resource.uuid(), new BroadcastMessage(deliver.originalMessage));
             case SET -> {
@@ -783,11 +793,11 @@ public class DefaultBroadcaster implements Broadcaster {
             Object beforeProcessingMessage = deliver.message;
             switch (deliver.type) {
                 case ALL -> {
-                    var count = new AtomicInteger(resources.size());
+                    var count = new AtomicInteger(targets.size());
                     int reached = 0;
 
                     try {
-                        for (AtmosphereResource r : resources) {
+                        for (AtmosphereResource r : targets) {
                             reached++;
                             deliver.message = beforeProcessingMessage;
                             boolean deliverMessage = perRequestFilter(r, deliver);

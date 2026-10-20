@@ -578,6 +578,61 @@ public class RoomReconnectTest {
         return List.copyOf(frames);
     }
 
+    @Timeout(value = 180, unit = TimeUnit.SECONDS)
+    @Test
+    public void aMemberDroppedWhileTheRoomStreamsFastComesBackWithoutAGap() throws Exception {
+        for (var round = 0; round < 6; round++) {
+            dropMidTurn("gap" + round);
+        }
+    }
+
+    /**
+     * A member whose connection is lost while the room streams a long answer
+     * fast, and that comes back at once under its tracking id with its resume
+     * point, holds every text frame of the turn once: the frames the room
+     * broadcast while the member was joining it again — after the cache handed
+     * over what it kept, before the member was a member again — reach it too.
+     */
+    private void dropMidTurn(String name) throws Exception {
+        try (var proxy = new DroppingProxy(cachedServer.getPort())) {
+            var member = connect(proxy.port(), CachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(cachedServer.getPort(), CachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(300);
+            classmate.send("stream:" + name);
+            member.await(frames -> count(frames, "streaming-text") >= 60, name + ": the member sees the answer start");
+            proxy.drop();
+            var back = connect(proxy.port(), CachedRoomTestEndpoint.PATH, member.trackingId(), member.heldRunId(),
+                    member.resumePoint());
+            classmate.await(frames -> count(frames, "complete") >= 1, name + ": the turn ends");
+            back.await(frames -> count(frames, "complete") == 1, name + ": the member receives the end");
+            Thread.sleep(300);
+
+            var session = classmate.runFrames().stream()
+                    .filter(f -> "streaming-text".equals(f.path("type").asString()))
+                    .map(f -> f.path("sessionId").asString()).findFirst().orElseThrow();
+            var held = new java.util.TreeMap<Long, Integer>();
+            for (var frame : member.runFrames()) {
+                if (session.equals(frame.path("sessionId").asString())) {
+                    held.merge(frame.path("seq").asLong(), 1, Integer::sum);
+                }
+            }
+            for (var frame : back.runFrames()) {
+                if (session.equals(frame.path("sessionId").asString())) {
+                    held.merge(frame.path("seq").asLong(), 1, Integer::sum);
+                }
+            }
+            var missing = classmate.runFrames().stream()
+                    .filter(f -> session.equals(f.path("sessionId").asString())
+                            && !"progress".equals(f.path("type").asString()))
+                    .map(f -> f.path("seq").asLong()).filter(seq -> !held.containsKey(seq)).toList();
+            assertEquals(List.of(), missing, name + ": no frame of the turn is lost across the drop");
+            assertEquals(List.of(), held.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey)
+                    .toList(), name + ": no frame is written twice");
+            back.close();
+            classmate.close();
+        }
+    }
+
     /**
      * The asker's page reloads (a WebSocket going-away close, then a new
      * connection under a new tracking id carrying the run id) while the room
@@ -602,7 +657,8 @@ public class RoomReconnectTest {
                 .map(f -> f.path("seq").asLong()).toList();
         for (var i = 1; i < seqs.size(); i++) {
             assertTrue(seqs.get(i) > seqs.get(i - 1), name + ": the turn's frames reach the reloaded page in order: "
-                    + seqs.get(i - 1) + " then " + seqs.get(i));
+                    + seqs.get(i - 1) + " then " + seqs.get(i) + " in "
+                    + seqs.subList(Math.max(0, i - 8), Math.min(seqs.size(), i + 8)));
         }
         var texts = reloaded.runFrames().stream().filter(f -> session.equals(f.path("sessionId").asString())
                 && "streaming-text".equals(f.path("type").asString())).map(f -> f.path("data").asString()).toList();
