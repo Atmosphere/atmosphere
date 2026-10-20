@@ -105,6 +105,13 @@ public final class DefaultStreamingSession implements StreamingSession {
      */
     private volatile Broadcaster room;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    /**
+     * Whether the session was closed because its connection went away or it
+     * was reaped, not by a terminal frame of its own: a write after that is
+     * expected (a run goes on after a reload, the capture above this session
+     * keeps what it writes for the client that reattaches), not a misuse.
+     */
+    private volatile boolean closedUnderIt;
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
     /** The reply kept for a long-polling client, or {@code null} when the session streams. */
@@ -305,6 +312,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             // that one still reads where the session's frames go.
             if (!session.broadcastToRoom && resourceUuid.equals(session.resource.uuid())
                     && session.closed.compareAndSet(false, true)) {
+                session.closedUnderIt = true;
                 SESSION_INSTANCES.remove(entry.getKey(), session);
                 SESSION_RESOURCES.remove(entry.getKey(), session.resource);
                 session.closeLongPolling();
@@ -333,6 +341,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             // broadcasting its terminal frame and deregisters itself after it.
             if (session.lastActivityMillis < cutoff
                     && session.closed.compareAndSet(false, true)) {
+                session.closedUnderIt = true;
                 SESSION_INSTANCES.remove(entry.getKey(), session);
                 SESSION_RESOURCES.remove(entry.getKey());
                 session.closeLongPolling();
@@ -348,10 +357,24 @@ public final class DefaultStreamingSession implements StreamingSession {
         return sessionId;
     }
 
+    /**
+     * A write after the session closed is dropped: at DEBUG when its
+     * connection went away or it was reaped (the run's replay keeps what a
+     * run writes for the client that reattaches), at WARN after its own
+     * terminal frame, which nothing should write past.
+     */
+    private void writeAfterClose(String what) {
+        if (closedUnderIt) {
+            logger.debug("Not writing {} to session {}: its connection went away", what, sessionId);
+        } else {
+            logger.warn("Attempted to send {} on closed session {}", what, sessionId);
+        }
+    }
+
     @Override
     public void send(String text) {
         if (closed.get()) {
-            logger.warn("Attempted to send streaming text on closed session {}", sessionId);
+            writeAfterClose("streaming text");
             return;
         }
         broadcast(buildMessage("streaming-text", text));
@@ -372,6 +395,10 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("sessionId", sessionId);
         msg.put("seq", sequence.incrementAndGet());
         broadcast(toJson(msg));
+        if (org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER.equals(key)) {
+            // Measurable: when a run's id left for its client (a reload before it lands cannot reattach).
+            logger.debug("Session {} announced run {} to {}", sessionId, value, resource.uuid());
+        }
         if (longPolling != null && org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER.equals(key)) {
             // The client needs its run id before the reply ends: one that loses its
             // connection mid-reply (a page reload) comes back for the run with it.
@@ -481,7 +508,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             }
             default -> {
                 if (closed.get()) {
-                    logger.warn("Attempted to emit event on closed session {}", sessionId);
+                    writeAfterClose("event " + event.eventType());
                     return;
                 }
                 broadcast(buildEventMessage(event));

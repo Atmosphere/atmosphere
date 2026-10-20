@@ -228,6 +228,47 @@ public class DefaultStreamingSessionTest {
                 "its stack must be logged at DEBUG: " + events);
     }
 
+    /**
+     * A run goes on after its page reloaded: what it writes after the
+     * connection went away is kept by the run's replay for the page that
+     * reattaches, so the dropped write is no warning. A write after the
+     * session's own terminal frame still is one.
+     */
+    @Test
+    public void aWriteAfterTheConnectionWentAwayIsNoWarningButOneAfterTheEndIs() {
+        var departed = "departed-" + System.nanoTime();
+        var gone = createSession(departed);
+        DefaultStreamingSession.cleanupResource("uuid-" + departed);
+        var ended = createSession("ended-" + System.nanoTime());
+        ended.complete();
+
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(DefaultStreamingSession.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var previous = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        appender.start();
+        logger.addAppender(appender);
+        List<ch.qos.logback.classic.spi.ILoggingEvent> afterDeparture;
+        try {
+            gone.send("late text");
+            gone.emit(new AiEvent.Progress("late progress", null));
+            afterDeparture = List.copyOf(appender.list);
+            appender.list.clear();
+            ended.send("text after the end");
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+            logger.setLevel(previous);
+        }
+        assertTrue(afterDeparture.stream().noneMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN),
+                "a write after the connection went away is no warning: " + afterDeparture);
+        assertTrue(afterDeparture.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.DEBUG
+                        && e.getFormattedMessage().contains(departed)),
+                "it is still logged, at DEBUG: " + afterDeparture);
+        assertTrue(appender.list.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN),
+                "a write after the session's own end is a warning: " + appender.list);
+    }
+
     /** An error that comes after the session already completed did not end it, so the session has not errored. */
     @Test
     public void anErrorAfterTheSessionCompletedDoesNotMarkItErrored() {
