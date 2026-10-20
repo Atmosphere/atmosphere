@@ -69,10 +69,6 @@ public class AiReattachWebSocketTest {
             .setForcedDependencies(List.of(new ArtifactDependency("io.quarkus", "quarkus-websockets-deployment",
                     null, "jar", System.getProperty("quarkus.version", "3.39.5"))))
             .withApplicationRoot(jar -> jar.addClasses(AiReattachWebSocketTest.class, SlowAnswer.class))
-            // Indexed so the build-time scan finds AiEndpointProcessor, as the
-            // LangChain4j bridge quarkus-ai-chat runs on indexes it.
-            .overrideConfigKey("quarkus.index-dependency.atmosphere-ai.group-id", "org.atmosphere")
-            .overrideConfigKey("quarkus.index-dependency.atmosphere-ai.artifact-id", "atmosphere-ai")
             .overrideConfigKey("quarkus.atmosphere.packages", "org.atmosphere.quarkus.deployment")
             .overrideConfigKey("quarkus.http.test-port", "0")
             .setLogRecordPredicate(BLOCKED_LOOP);

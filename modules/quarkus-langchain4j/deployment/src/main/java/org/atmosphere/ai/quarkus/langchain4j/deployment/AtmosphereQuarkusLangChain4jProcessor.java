@@ -60,9 +60,8 @@ public class AtmosphereQuarkusLangChain4jProcessor {
     /**
      * Index {@code atmosphere-ai} so Jandex sees {@code AiEndpointProcessor},
      * which is annotated with {@code @AtmosphereAnnotation(AiEndpoint.class)}.
-     * Without this, the core Quarkus extension's scan for the meta-annotation
-     * misses it and {@code AnnotationHandler} cannot dispatch {@code @AiEndpoint}
-     * classes to their processor — they're scanned but never registered.
+     * The core extension also indexes it when the application declares an
+     * {@code @AiEndpoint}; the bridge indexes it whether or not it does.
      */
     @BuildStep
     IndexDependencyBuildItem indexAtmosphereAi() {
