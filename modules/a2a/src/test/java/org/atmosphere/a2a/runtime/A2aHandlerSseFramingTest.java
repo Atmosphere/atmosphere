@@ -160,11 +160,26 @@ class A2aHandlerSseFramingTest {
         handler.onRequest(resource);
 
         var events = strictSseEvents(wire.toString(StandardCharsets.UTF_8));
-        assertEquals(3, events.size(), "one event per artifact update plus [DONE]; wire was: "
+        // A2A v1.0.0: the stream begins with the Task, then the artifact
+        // updates, then the task's final status; [DONE] closes it.
+        assertEquals(5, events.size(), "task, two artifact updates, final status, [DONE]; wire was: "
                 + wire.toString(StandardCharsets.UTF_8).strip());
-        assertEquals("first", artifactText(events.get(0)));
-        assertEquals("second", artifactText(events.get(1)));
-        assertEquals("[DONE]", events.get(2));
+        var task = mapper.readTree(events.get(0)).get("result").get("task");
+        assertTrue(task != null && task.hasNonNull("id"), "the stream begins with the Task: " + events.get(0));
+        var taskId = task.get("id").stringValue();
+        assertEquals("first", artifactText(events.get(1)));
+        assertEquals("second", artifactText(events.get(2)));
+        var first = mapper.readTree(events.get(1)).get("result").get("artifactUpdate");
+        var second = mapper.readTree(events.get(2)).get("result").get("artifactUpdate");
+        assertEquals(taskId, first.get("taskId").stringValue(), "artifact updates name the task");
+        assertEquals(first.get("artifact").get("artifactId").stringValue(),
+                second.get("artifact").get("artifactId").stringValue(), "one artifact, appended to");
+        assertEquals(false, first.get("append").booleanValue());
+        assertEquals(true, second.get("append").booleanValue());
+        var status = mapper.readTree(events.get(3)).get("result").get("statusUpdate");
+        assertEquals(taskId, status.get("taskId").stringValue());
+        assertEquals("TASK_STATE_COMPLETED", status.get("status").get("state").stringValue());
+        assertEquals("[DONE]", events.get(4));
     }
 
     /**

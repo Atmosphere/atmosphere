@@ -317,15 +317,44 @@ public final class A2aProtocolHandler {
      */
     public void handleStreamingMessage(String message, Consumer<String> onToken,
                                         Consumer<String> onError, Runnable onComplete) {
+        handleStreamingMessage(message, new A2aStreamSink() {
+            @Override
+            public void token(String text) {
+                onToken.accept(text);
+            }
+
+            @Override
+            public void error(String errorMessage) {
+                onError.accept(errorMessage);
+            }
+
+            @Override
+            public void complete() {
+                onComplete.run();
+            }
+        });
+    }
+
+    /**
+     * Handle a streaming request, delivering the stream's events to
+     * {@code sink} in the order the A2A specification gives them: the
+     * {@link org.atmosphere.a2a.types.Task} first (so the client learns the
+     * task id before any output), then the answer's text as it is produced,
+     * then the task's final status — or an error. See
+     * {@link #handleStreamingMessage(String, Consumer, Consumer, Runnable)}
+     * for the two request shapes.
+     */
+    public void handleStreamingMessage(String message, A2aStreamSink sink) {
         // Serialize sink writes: a pipeline may stream tokens from a background
         // thread while the request thread waits in awaitAndFinalize, and SSE
         // frames must not interleave (Correctness Invariant #4 — framing).
         var writeLock = new Object();
         Consumer<String> safeToken = token -> {
             synchronized (writeLock) {
-                onToken.accept(token);
+                sink.token(token);
             }
         };
+        Consumer<String> onError = sink::error;
         try {
             var node = mapper.readTree(message);
             var rawMethod = node.has("method") ? node.get("method").stringValue() : null;
@@ -333,7 +362,7 @@ public final class A2aProtocolHandler {
             var params = node.get("params");
 
             if (A2aMethod.SUBSCRIBE_TO_TASK.equals(method)) {
-                replayAndResume(params, safeToken, onError);
+                replayAndResume(params, sink, safeToken, onError, writeLock);
                 return;
             }
 
@@ -349,6 +378,11 @@ public final class A2aProtocolHandler {
             var taskCtx = taskManager.createTask(contextId);
             taskCtx.addMessage(msg);
             taskCtx.putMetadata(msg.metadata());
+            // The stream begins with the Task: the client has the task id
+            // (to cancel or resubscribe) before the skill produces anything.
+            synchronized (writeLock) {
+                sink.task(taskCtx.toTask());
+            }
 
             A2aRegistry.SkillEntry skill = null;
             if (skillId != null) {
@@ -392,15 +426,24 @@ public final class A2aProtocolHandler {
             // handler that only calls complete()): still emit one final frame so
             // the SSE client receives the result (Mode Parity #7). Guarded by
             // tokenCount so it never duplicates already-streamed tokens.
-            if (tokenCount.get() == 0) {
+            if (tokenCount.get() == 0 && !taskCtx.isCancelled()) {
                 emitFinalResult(taskCtx, safeToken);
+            }
+            // The stream ends with the task's status (COMPLETED, CANCELED, ...).
+            synchronized (writeLock) {
+                sink.status(statusEvent(taskCtx));
             }
         } catch (Exception e) {
             logger.warn("Streaming message handling failed", e);
             onError.accept("Internal error");
         } finally {
-            onComplete.run();
+            sink.complete();
         }
+    }
+
+    private static TaskStatusUpdateEvent statusEvent(TaskContext taskCtx) {
+        return new TaskStatusUpdateEvent(taskCtx.taskId(), taskCtx.contextId(),
+                org.atmosphere.a2a.types.TaskStatus.of(taskCtx.state(), taskCtx.statusMessage()));
     }
 
     /**
@@ -412,8 +455,9 @@ public final class A2aProtocolHandler {
      * {@code artifactId} (so it is not emitted twice); both listeners are
      * removed on every exit path (Correctness Invariant #1).
      */
-    private void replayAndResume(JsonNode params, Consumer<String> onToken,
-                                 Consumer<String> onError) {
+    private void replayAndResume(JsonNode params, A2aStreamSink sink,
+                                 Consumer<String> onToken, Consumer<String> onError,
+                                 Object writeLock) {
         var taskId = params != null && params.has("id") && !params.get("id").isNull()
                 ? params.get("id").stringValue() : null;
         if (taskId == null || taskId.isBlank()) {
@@ -426,6 +470,9 @@ public final class A2aProtocolHandler {
             return;
         }
         var ctx = taskOpt.get();
+        synchronized (writeLock) {
+            sink.task(ctx.toTask());
+        }
 
         Set<String> seen = ConcurrentHashMap.newKeySet();
         var terminal = new CountDownLatch(1);
@@ -456,6 +503,11 @@ public final class A2aProtocolHandler {
         } finally {
             taskManager.removeArtifactListener(artifactListener);
             taskManager.removeStatusListener(statusListener);
+        }
+        if (ctx.state().isTerminal()) {
+            synchronized (writeLock) {
+                sink.status(statusEvent(ctx));
+            }
         }
     }
 
@@ -668,18 +720,59 @@ public final class A2aProtocolHandler {
                 }
             }
 
-            method.invoke(skill.instance(), args);
+            invokeCancellably(skill, taskCtx, method, args);
         } catch (InvocationTargetException e) {
             ok = false;
             var cause = e.getCause() != null ? e.getCause() : e;
-            logger.warn("Skill {} execution failed", skill.id(), cause);
-            taskCtx.fail(cause.getMessage());
+            if (taskCtx.isCancelled()) {
+                logger.debug("Skill {} of cancelled task {} ended with {}",
+                        skill.id(), taskCtx.taskId(), cause.toString());
+            } else {
+                logger.warn("Skill {} execution failed", skill.id(), cause);
+                taskCtx.fail(cause.getMessage());
+            }
         } catch (Exception e) {
             ok = false;
             logger.warn("Skill {} execution failed", skill.id(), e);
             taskCtx.fail(e.getMessage());
         } finally {
             tapeToolDispatch(skill, taskCtx, inputText, ok);
+        }
+    }
+
+    /**
+     * Run the skill so that a {@code CancelTask} stops it: the task's cancel
+     * interrupts this thread while the skill runs — the signal an AI
+     * pipeline turns into its runtime's cancel of the in-flight model call —
+     * and the interrupt is cleared before the thread goes back to its pool.
+     */
+    private void invokeCancellably(A2aRegistry.SkillEntry skill, TaskContext taskCtx,
+                                   java.lang.reflect.Method method, Object[] args)
+            throws ReflectiveOperationException {
+        var worker = Thread.currentThread();
+        var running = new java.util.concurrent.atomic.AtomicBoolean(true);
+        var interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable stop = () -> {
+            synchronized (running) {
+                if (running.get()) {
+                    interrupted.set(true);
+                    logger.debug("Task {} cancelled: interrupting skill {}", taskCtx.taskId(), skill.id());
+                    worker.interrupt();
+                }
+            }
+        };
+        taskCtx.onCancel(stop);
+        try {
+            method.invoke(skill.instance(), args);
+        } finally {
+            taskCtx.removeCancelListener(stop);
+            synchronized (running) {
+                running.set(false);
+            }
+            if (interrupted.get()) {
+                // Our own cancel signal: do not leak it to the caller's thread.
+                Thread.interrupted();
+            }
         }
     }
 

@@ -367,13 +367,53 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
 
         var rpcId = parseRequestId(body);
         var writer = servletResponse.getWriter();
-        protocolHandler.handleStreamingMessage(body,
-                token -> writeStreamChunk(writer, rpcId, token),
-                errorMessage -> writeStreamError(writer, rpcId, errorMessage),
-                () -> {
-                    writer.write("data: [DONE]\n\n");
-                    writer.flush();
-                });
+        protocolHandler.handleStreamingMessage(body, new A2aStreamSink() {
+            // The answer streams as one artifact: every chunk carries the same
+            // artifactId, the ones after the first with append=true.
+            private final String artifactId = UUID.randomUUID().toString();
+            private String taskId;
+            private String contextId;
+            private boolean first = true;
+
+            @Override
+            public void task(org.atmosphere.a2a.types.Task task) {
+                taskId = task.id();
+                contextId = task.contextId();
+                writeStreamEvent(writer, rpcId, Map.of("task", task));
+            }
+
+            @Override
+            public void token(String text) {
+                var artifact = Map.of(
+                        "artifactId", artifactId,
+                        "parts", java.util.List.of(Map.of("text", text)));
+                var update = new LinkedHashMap<String, Object>();
+                if (taskId != null) {
+                    update.put("taskId", taskId);
+                    update.put("contextId", contextId);
+                }
+                update.put("artifact", artifact);
+                update.put("append", !first);
+                first = false;
+                writeStreamEvent(writer, rpcId, Map.of("artifactUpdate", update));
+            }
+
+            @Override
+            public void status(org.atmosphere.a2a.types.TaskStatusUpdateEvent update) {
+                writeStreamEvent(writer, rpcId, Map.of("statusUpdate", update));
+            }
+
+            @Override
+            public void error(String message) {
+                writeStreamError(writer, rpcId, message);
+            }
+
+            @Override
+            public void complete() {
+                writer.write("data: [DONE]\n\n");
+                writer.flush();
+            }
+        });
     }
 
     /**
@@ -398,17 +438,13 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
     }
 
     /**
-     * Emit one SSE chunk as a v1.0.0-compliant JSON-RPC envelope wrapping a
-     * {@code StreamResponse} with an {@code artifactUpdate} oneof variant.
+     * Emit one SSE event as a v1.0.0-compliant JSON-RPC envelope wrapping a
+     * {@code StreamResponse} ({@code task}, {@code artifactUpdate} or
+     * {@code statusUpdate} oneof variant).
      */
-    private void writeStreamChunk(java.io.PrintWriter writer, Object rpcId, String token) {
+    private void writeStreamEvent(java.io.PrintWriter writer, Object rpcId,
+                                  Map<String, Object> streamResponse) {
         try {
-            var artifact = Map.of(
-                    "artifactId", UUID.randomUUID().toString(),
-                    "parts", java.util.List.of(Map.of("text", token))
-            );
-            var artifactUpdate = Map.of("artifact", artifact);
-            var streamResponse = Map.of("artifactUpdate", artifactUpdate);
             var envelope = new LinkedHashMap<String, Object>();
             envelope.put("jsonrpc", "2.0");
             envelope.put("id", rpcId);
@@ -416,7 +452,7 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
             writer.write("data: " + mapper.writeValueAsString(envelope) + "\n\n");
             writer.flush();
         } catch (JacksonException e) {
-            logger.warn("Failed to write SSE token", e);
+            logger.warn("Failed to write SSE event", e);
         }
     }
 

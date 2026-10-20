@@ -20,6 +20,8 @@ import org.atmosphere.a2a.types.Message;
 import org.atmosphere.a2a.types.Task;
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.a2a.types.TaskStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +35,18 @@ import java.util.function.Consumer;
  * Mutable, thread-safe in-flight A2A task. The initial state is
  * {@link TaskState#SUBMITTED} (added in v1.0.0); skill execution flips it
  * to {@link TaskState#WORKING} via the first {@link #updateStatus} call.
+ *
+ * <p>A terminal state ({@link TaskState#isTerminal()}) is final: a later
+ * {@link #complete}, {@link #fail} or {@link #updateStatus} is ignored. A
+ * {@link #cancel} also stops the running skill: it runs the
+ * {@linkplain #onCancel cancel listeners} (the dispatcher interrupts the
+ * skill's thread, which cancels an AI pipeline's in-flight model call), and
+ * {@link #isCancelled()} answers {@code true} so a skill and the model
+ * client it drives can stop at their next step.</p>
  */
 public final class TaskContext {
+
+    private static final Logger logger = LoggerFactory.getLogger(TaskContext.class);
 
     private final String taskId;
     private final String contextId;
@@ -46,6 +58,10 @@ public final class TaskContext {
     private final Map<String, Object> metadata = new ConcurrentHashMap<>();
     private final ReentrantLock statusLock = new ReentrantLock();
     private volatile TaskManager taskManager;
+    private volatile boolean cancelled;
+    private final List<Runnable> cancelListeners = new CopyOnWriteArrayList<>();
+    /** Whether a token was streamed live through {@link #emitToken}. */
+    private volatile boolean tokensStreamed;
 
     /**
      * Live token sink installed by the streaming dispatch path (SSE). When set,
@@ -123,14 +139,53 @@ public final class TaskContext {
     }
 
     /**
-     * Forward a token to the installed streaming sink, if any. No-op when no
-     * sink is installed (the unary path) or the text is null/empty.
+     * Stream a piece of the skill's answer to a {@code SendStreamingMessage}
+     * client as it is produced. No-op when no stream is attached (the unary
+     * path), the text is null/empty, or the task was cancelled. Once a skill
+     * streamed its answer this way, an {@link #addArtifact} carrying the whole
+     * answer is recorded on the task without being streamed a second time.
+     *
+     * @param text the next piece of the answer
      */
-    void emitToken(String text) {
-        var sink = tokenSink;
-        if (sink != null && text != null && !text.isEmpty()) {
-            sink.accept(text);
+    public void emitToken(String text) {
+        if (forward(text)) {
+            tokensStreamed = true;
         }
+    }
+
+    private boolean forward(String text) {
+        var sink = tokenSink;
+        if (sink != null && text != null && !text.isEmpty() && !cancelled) {
+            sink.accept(text);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Whether this task was cancelled ({@code CancelTask}). A skill that runs
+     * a long step (a model call, a loop) checks it to stop early; nothing it
+     * produces after the cancel reaches the task.
+     */
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
+    /**
+     * Run {@code listener} when this task is cancelled, or at once when it
+     * already is. Remove it with {@link #removeCancelListener} when the work
+     * it would stop is over.
+     */
+    public void onCancel(Runnable listener) {
+        cancelListeners.add(listener);
+        if (cancelled && cancelListeners.remove(listener)) {
+            listener.run();
+        }
+    }
+
+    /** Remove a listener added with {@link #onCancel}. */
+    public void removeCancelListener(Runnable listener) {
+        cancelListeners.remove(listener);
     }
 
     public void addMessage(Message msg) {
@@ -138,26 +193,45 @@ public final class TaskContext {
     }
 
     public void updateStatus(TaskState state, String message) {
-        statusLock.lock();
-        try {
-            this.state = state;
-            this.statusMessage = message;
-        } finally {
-            statusLock.unlock();
+        if (!transition(state, message)) {
+            return;
         }
         if (taskManager != null) {
             taskManager.notifyStatusUpdate(this);
         }
     }
 
+    /** Apply a status unless the task already reached a terminal state. */
+    private boolean transition(TaskState next, String message) {
+        statusLock.lock();
+        try {
+            if (this.state.isTerminal()) {
+                logger.debug("Task {} is {}: ignoring the later {} ({})",
+                        taskId, this.state, next, message);
+                return false;
+            }
+            this.state = next;
+            this.statusMessage = message;
+            return true;
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
     public void addArtifact(Artifact artifact) {
+        if (cancelled) {
+            logger.debug("Task {} was cancelled: dropping a later artifact", taskId);
+            return;
+        }
         artifacts.add(artifact);
         // Forward each text part to the live streaming sink so an SSE client
         // receives this artifact as an incremental frame the moment the skill
-        // produces it, rather than a buffer-then-replay after completion.
-        if (artifact != null && artifact.parts() != null) {
+        // produces it, rather than a buffer-then-replay after completion. A
+        // skill that already streamed its answer token by token is not sent
+        // the whole answer again.
+        if (artifact != null && artifact.parts() != null && !tokensStreamed) {
             for (var part : artifact.parts()) {
-                emitToken(part.text());
+                forward(part.text());
             }
         }
         if (taskManager != null) {
@@ -173,8 +247,28 @@ public final class TaskContext {
         updateStatus(TaskState.FAILED, message);
     }
 
+    /**
+     * Cancel this task: it ends {@link TaskState#CANCELED} (unless it already
+     * ended) and its {@linkplain #onCancel cancel listeners} stop the running
+     * skill.
+     */
     public void cancel(String message) {
-        updateStatus(TaskState.CANCELED, message);
+        if (!transition(TaskState.CANCELED, message)) {
+            return;
+        }
+        cancelled = true;
+        for (var listener : cancelListeners) {
+            if (cancelListeners.remove(listener)) {
+                try {
+                    listener.run();
+                } catch (RuntimeException e) {
+                    logger.warn("Cancel listener of task {} failed", taskId, e);
+                }
+            }
+        }
+        if (taskManager != null) {
+            taskManager.notifyStatusUpdate(this);
+        }
     }
 
     /** Snapshot the task as the v1.0.0 wire {@link Task} record. */

@@ -74,6 +74,11 @@ public class A2aStreamCollector implements StreamingSession {
 
     @Override
     public void stream(String message) {
+        if (taskCtx.isCancelled()) {
+            // A cancelled task starts no model call.
+            completionLatch.countDown();
+            return;
+        }
         if (pipeline != null) {
             // Delegate to the AI pipeline so the message is processed through
             // the LLM and the response streams back through this collector.
@@ -145,6 +150,15 @@ public class A2aStreamCollector implements StreamingSession {
     @Override
     public boolean isClosed() {
         return finalized.get();
+    }
+
+    /**
+     * A {@code CancelTask} cancels the turn: no tool runs and no model call
+     * starts after it, and a model client streaming into this collector stops.
+     */
+    @Override
+    public boolean isTurnCancelled() {
+        return taskCtx.isCancelled() || StreamingSession.super.isTurnCancelled();
     }
 
     @Override
