@@ -30,9 +30,7 @@ import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Collaborative AI classroom endpoint. All clients connected to the same
@@ -96,12 +94,24 @@ public class AiClassroom {
      * its request is live. {@code @Disconnect} reads it from here: by then the
      * request may be gone, and reading it throws ("Request object no longer
      * valid") when the connection is torn down while the callback runs.
-     * Keyed by the resource itself, not its tracking id: a connection that a
-     * reconnect replaced under the same id must not take the live one's room
-     * with it when it leaves.
+     *
+     * <p>Keyed by the member's tracking id, holding its current connection:
+     * long-polling opens a new resource per poll under the same id and runs
+     * {@code @Ready} for each, without a {@code @Disconnect} for the poll it
+     * replaced, so a resource key would keep one entry per poll. A
+     * {@code @Disconnect} takes the member out only when it comes from the
+     * connection on record: a replaced connection reporting late must not take
+     * the live one's member out.</p>
      */
-    private final Map<AtmosphereResource, String> roomOfMember =
-            Collections.synchronizedMap(new IdentityHashMap<>());
+    private final ConcurrentHashMap<String, Member> members = new ConcurrentHashMap<>();
+
+    /** A member's current connection and the room it joined. */
+    private record Member(AtmosphereResource connection, String room) { }
+
+    /** Package-private: how many members the room keeps track of. */
+    int trackedMembers() {
+        return members.size();
+    }
 
     /**
      * The {@code {room}} this resource connected to. {@code AiEndpointHandler}
@@ -117,7 +127,12 @@ public class AiClassroom {
     @Ready
     public void onReady(AtmosphereResource resource) {
         var room = roomOf(resource);
-        roomOfMember.put(resource, room);
+        var previous = members.put(resource.uuid(), new Member(resource, room));
+        if (previous != null && previous.room().equals(room)) {
+            // A new poll (or a reconnect) of a member already in the room.
+            logger.debug("Student {} reconnected to room '{}'", resource.uuid(), room);
+            return;
+        }
         logger.info("Student {} joined room '{}' (broadcaster: {})",
                 resource.uuid(), room, resource.getBroadcaster().getID());
         broadcastPresence(resource, room, "join");
@@ -131,11 +146,18 @@ public class AiClassroom {
             return;
         }
         // Never the live request here: it may already be out of scope.
-        var room = roomOfMember.remove(resource);
-        if (room == null) {
-            room = "unknown";
+        var uuid = resource.uuid();
+        var member = members.get(uuid);
+        if (member != null && member.connection() != resource) {
+            logger.debug("Student {} dropped a replaced connection; still in room '{}'",
+                    uuid, member.room());
+            return;
         }
-        logger.info("Student {} left room '{}'", resource.uuid(), room);
+        String room = "unknown";
+        if (member != null && members.remove(uuid, member)) {
+            room = member.room();
+        }
+        logger.info("Student {} left room '{}'", uuid, room);
         broadcastPresence(resource, room, "leave");
     }
 
