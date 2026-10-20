@@ -30,8 +30,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -86,26 +84,32 @@ public class RoomReconnectTest {
     /** How long a member stays in the room before its connection drops: past the idle time. */
     private static final long SEATED_MS = 5_500;
 
+    /** The most frames the cache of {@link #overflowServer} keeps per client: fewer than a turn has. */
+    private static final int SMALL_CACHE = 5;
+
     private EmbeddedAtmosphereServer cachedServer;
     private EmbeddedAtmosphereServer uncachedServer;
+    private EmbeddedAtmosphereServer overflowServer;
     private HttpClient httpClient;
 
     @BeforeAll
     public void setUp() throws Exception {
-        cachedServer = server("org.atmosphere.integrationtests.ai.room.cached");
-        uncachedServer = server("org.atmosphere.integrationtests.ai.room.uncached");
+        cachedServer = server("org.atmosphere.integrationtests.ai.room.cached", 1000);
+        uncachedServer = server("org.atmosphere.integrationtests.ai.room.uncached", 1000);
+        overflowServer = server("org.atmosphere.integrationtests.ai.room.cached", SMALL_CACHE);
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-        for (var server : List.of(cachedServer, uncachedServer)) {
+        for (var server : List.of(cachedServer, uncachedServer, overflowServer)) {
             // The framework initialises on the first request.
             httpClient.send(HttpRequest.newBuilder(URI.create(server.getBaseUrl() + "/")).GET().build(),
                     HttpResponse.BodyHandlers.discarding());
         }
     }
 
-    private static EmbeddedAtmosphereServer server(String annotationPackage) throws Exception {
+    private static EmbeddedAtmosphereServer server(String annotationPackage, int maxPerClient) throws Exception {
         var server = new EmbeddedAtmosphereServer()
                 .withAnnotationPackage(annotationPackage)
                 .withInitParam("org.atmosphere.annotation.packages", "org.atmosphere.ai.processor")
+                .withInitParam("org.atmosphere.cache.UUIDBroadcasterCache.maxPerClient", String.valueOf(maxPerClient))
                 .withInitParam("org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime",
                         String.valueOf(CLIENT_IDLE_SECONDS))
                 .withInitParam("org.atmosphere.cache.UUIDBroadcasterCache.invalidateCacheInterval", "1");
@@ -118,6 +122,7 @@ public class RoomReconnectTest {
         httpClient.shutdownNow();
         cachedServer.close();
         uncachedServer.close();
+        overflowServer.close();
     }
 
     @BeforeEach
@@ -268,6 +273,230 @@ public class RoomReconnectTest {
         }
     }
 
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void aMemberWhoseDropTheServerDidNotNoticeReceivesTheTurnItMissedOnceFromItsResumePoint()
+            throws Exception {
+        try (var proxy = new DroppingProxy(uncachedServer.getPort())) {
+            var member = connect(proxy.port(), UncachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(uncachedServer.getPort(), UncachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(300);
+            classmate.send("turn:seen");
+            member.await(frames -> count(frames, "complete") == 1, "the member must see the first turn");
+
+            // The member's connection is gone; the server writes on into it.
+            proxy.blackhole();
+            classmate.send("turn:unseen");
+            classmate.await(frames -> count(frames, "complete") == 2, "the second turn must end");
+
+            var back = connect(proxy.port(), UncachedRoomTestEndpoint.PATH, member.trackingId(),
+                    member.heldRunId(), member.resumePoint());
+            back.await(frames -> count(frames, "complete") == 1, "the reconnected member must receive the turn");
+            Thread.sleep(500);
+
+            assertRunFramesOnce(classmate.runFrames(), member.runFrames(), back.runFrames());
+            back.close();
+            classmate.close();
+        }
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void aMemberDroppedUnnoticedMidAnswerReceivesTheRestOnceFromItsResumePoint() throws Exception {
+        try (var proxy = new DroppingProxy(uncachedServer.getPort())) {
+            var member = connect(proxy.port(), UncachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(uncachedServer.getPort(), UncachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(300);
+
+            classmate.send("hold:unnoticed");
+            member.await(frames -> count(frames, "streaming-text") == RoomTurns.HELD_AFTER,
+                    "the member must see the start of the answer");
+            proxy.blackhole();
+            RoomTurns.RELEASE.countDown();
+            classmate.await(frames -> count(frames, "complete") == 1, "the classmate's turn must end");
+            var other = connect(uncachedServer.getPort(), UncachedRoomTestEndpoint.PATH, "0", null);
+            other.send("turn:after");
+            other.await(frames -> count(frames, "complete") == 1, "the next turn must end");
+
+            var back = connect(proxy.port(), UncachedRoomTestEndpoint.PATH, member.trackingId(),
+                    member.heldRunId(), member.resumePoint());
+            back.await(frames -> count(frames, "complete") == 2, "the reconnected member must receive both ends");
+            Thread.sleep(500);
+
+            assertRunFramesOnce(classmate.runFrames(), member.runFrames(), back.runFrames());
+            back.close();
+            classmate.close();
+            other.close();
+        }
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void theCacheAndTheResumePointTogetherWriteEachMissedFrameOnce() throws Exception {
+        try (var proxy = new DroppingProxy(cachedServer.getPort())) {
+            var member = connect(proxy.port(), CachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(cachedServer.getPort(), CachedRoomTestEndpoint.PATH, "0", null);
+            var other = connect(cachedServer.getPort(), CachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(SEATED_MS);
+
+            classmate.send("hold:first");
+            member.await(frames -> count(frames, "streaming-text") == RoomTurns.HELD_AFTER,
+                    "the member must see the start of the first answer");
+            proxy.drop();
+            Thread.sleep(300);
+            RoomTurns.RELEASE.countDown();
+            classmate.await(frames -> count(frames, "complete") == 1, "the first turn must end");
+            other.send("turn:second");
+            other.await(frames -> count(frames, "complete") == 2, "the second turn must end");
+
+            var back = connect(proxy.port(), CachedRoomTestEndpoint.PATH, member.trackingId(),
+                    member.heldRunId(), member.resumePoint());
+            back.await(frames -> count(frames, "complete") == 2, "the reconnected member must receive both turns");
+            Thread.sleep(500);
+
+            assertExactlyOnce(other.runFrames(), member.runFrames(), back.runFrames());
+            assertEquals(2, count(back.runFrames(), "complete"), "one terminal frame per turn: " + back.describe());
+            back.close();
+            classmate.close();
+            other.close();
+        }
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void aMemberWhoseMissedFramesOverflowedTheCacheReceivesThemAllOnceFromItsResumePoint()
+            throws Exception {
+        try (var proxy = new DroppingProxy(overflowServer.getPort())) {
+            var member = connect(proxy.port(), CachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(overflowServer.getPort(), CachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(SEATED_MS);
+            classmate.send("turn:before");
+            member.await(frames -> count(frames, "complete") == 1, "the member must see the first turn");
+
+            proxy.drop();
+            Thread.sleep(300);
+            classmate.send("turn:overflowing");
+            classmate.await(frames -> count(frames, "complete") == 2, "the second turn must end");
+
+            var back = connect(proxy.port(), CachedRoomTestEndpoint.PATH, member.trackingId(),
+                    member.heldRunId(), member.resumePoint());
+            back.await(frames -> count(frames, "complete") == 1, "the reconnected member must receive the turn");
+            Thread.sleep(500);
+
+            assertRunFramesOnce(classmate.runFrames(), member.runFrames(), back.runFrames());
+            back.close();
+            classmate.close();
+        }
+    }
+
+    /**
+     * The prompt, text and terminal frames of the room's turns ({@code sent})
+     * reached the member once each over the two connections, those after the
+     * reconnect in the order the room sent them; and nothing written after the
+     * reconnect repeats a frame it had, nor itself.
+     */
+    private static void assertRunFramesOnce(List<JsonNode> sent, List<JsonNode> before, List<JsonNode> after) {
+        var expected = sent.stream().filter(RoomReconnectTest::runFrame).map(RoomReconnectTest::key)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        var counts = new LinkedHashMap<String, Integer>();
+        for (var frame : before) {
+            counts.merge(key(frame), 1, Integer::sum);
+        }
+        for (var frame : after) {
+            counts.merge(key(frame), 1, Integer::sum);
+        }
+        var sentKeys = keys(sent);
+        assertEquals(List.of(), expected.stream().filter(k -> !counts.containsKey(k)).toList(),
+                "no prompt, text or terminal frame of the room's turns is missed");
+        assertEquals(List.of(), counts.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey)
+                .toList(), "no frame is written to the member twice");
+        assertEquals(List.of(), counts.keySet().stream().filter(k -> !sentKeys.contains(k)).toList(),
+                "every frame the member got is one the room sent, by (sessionId, seq)");
+        var order = new ArrayList<String>(expected);
+        var afterOrder = after.stream().filter(RoomReconnectTest::runFrame).map(RoomReconnectTest::key).toList();
+        assertEquals(order.stream().filter(afterOrder::contains).toList(), afterOrder,
+                "the frames after the reconnect come in the order the room sent them");
+    }
+
+    private static boolean runFrame(JsonNode frame) {
+        var type = frame.path("type").asString();
+        return "prompt".equals(type) || "streaming-text".equals(type) || "complete".equals(type);
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void anAskerDroppedUnnoticedMidAnswerReceivesTheRestOfItsOwnReplyOnceFromItsResumePoint()
+            throws Exception {
+        try (var proxy = new DroppingProxy(uncachedServer.getPort())) {
+            var asker = connect(proxy.port(), OwnReplyTestEndpoint.PATH, "0", null);
+            asker.send("hold:unnoticed");
+            asker.await(frames -> count(frames, "streaming-text") == RoomTurns.HELD_AFTER,
+                    "the asker must see the start of its answer");
+            var runId = asker.heldRunId();
+            assertTrue(runId != null, "the asker holds the run id of its turn");
+            // Gone, but the server writes the rest of the answer into the void.
+            proxy.blackhole();
+            RoomTurns.RELEASE.countDown();
+            Thread.sleep(700);
+
+            var back = connect(proxy.port(), OwnReplyTestEndpoint.PATH, asker.trackingId(), runId,
+                    asker.resumePoint());
+            back.await(frames -> count(frames, "complete") == 1, "the reconnected asker must receive the end");
+            Thread.sleep(500);
+
+            assertOwnReplyResumed(asker.runFrames(), back.runFrames(), "unnoticed", true);
+            back.close();
+        }
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void anAskerBackFromAnUnnoticedDropWhileItsAnswerStreamsReceivesTheRestOnce() throws Exception {
+        try (var proxy = new DroppingProxy(uncachedServer.getPort())) {
+            var asker = connect(proxy.port(), OwnReplyTestEndpoint.PATH, "0", null);
+            asker.send("hold:inflight");
+            asker.await(frames -> count(frames, "streaming-text") == RoomTurns.HELD_AFTER,
+                    "the asker must see the start of its answer");
+            var runId = asker.heldRunId();
+            proxy.blackhole();
+
+            // Back while the answer is still being written: the rest streams live.
+            var back = connect(proxy.port(), OwnReplyTestEndpoint.PATH, asker.trackingId(), runId,
+                    asker.resumePoint());
+            RoomTurns.RELEASE.countDown();
+            back.await(frames -> count(frames, "complete") == 1, "the reconnected asker must receive the end");
+            Thread.sleep(500);
+
+            assertOwnReplyResumed(asker.runFrames(), back.runFrames(), "inflight", true);
+            back.close();
+        }
+    }
+
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void aMemberBackFromAnUnnoticedDropWhileATurnStreamsReceivesTheRestOnce() throws Exception {
+        try (var proxy = new DroppingProxy(uncachedServer.getPort())) {
+            var member = connect(proxy.port(), UncachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(uncachedServer.getPort(), UncachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(300);
+            classmate.send("hold:live");
+            member.await(frames -> count(frames, "streaming-text") == RoomTurns.HELD_AFTER,
+                    "the member must see the start of the answer");
+            proxy.blackhole();
+
+            var back = connect(proxy.port(), UncachedRoomTestEndpoint.PATH, member.trackingId(),
+                    member.heldRunId(), member.resumePoint());
+            RoomTurns.RELEASE.countDown();
+            classmate.await(frames -> count(frames, "complete") == 1, "the classmate's turn must end");
+            back.await(frames -> count(frames, "complete") == 1, "the reconnected member must receive the end");
+            Thread.sleep(500);
+
+            assertRunFramesOnce(classmate.runFrames(), member.runFrames(), back.runFrames());
+            back.close();
+            classmate.close();
+        }
+    }
+
     /**
      * The frames {@code before} the drop and {@code after} the reconnect hold
      * every text of the turn {@code name}, in order, and one terminal frame,
@@ -368,10 +597,17 @@ public class RoomReconnectTest {
     }
 
     private Member connect(int port, String path, String trackingId, String runId) throws Exception {
+        return connect(port, path, trackingId, runId, null);
+    }
+
+    /** Connect as atmosphere.js reconnects: with the run id it holds and its resume point, when given. */
+    private Member connect(int port, String path, String trackingId, String runId, String resume) throws Exception {
         var url = "ws://localhost:" + port + path
                 + "?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0&X-atmo-protocol=true"
                 + "&Content-Type=application/json&X-Atmosphere-tracking-id=" + trackingId
-                + (runId != null ? "&X-Atmosphere-Run-Id=" + runId : "");
+                + (runId != null ? "&X-Atmosphere-Run-Id=" + runId : "")
+                + (resume != null ? "&X-Atmosphere-Resume="
+                        + java.net.URLEncoder.encode(resume, java.nio.charset.StandardCharsets.UTF_8) : "");
         var member = new Member(trackingId);
         var socket = httpClient.newWebSocketBuilder().buildAsync(URI.create(url), member).get(10, TimeUnit.SECONDS);
         member.socket = socket;
@@ -456,6 +692,21 @@ public class RoomReconnectTest {
             return frames.stream().map(RoomReconnectTest::describe).collect(Collectors.joining(" "));
         }
 
+        /**
+         * The resume point atmosphere.js sends: the last {@code seq} received
+         * of each session, the most recently received last, up to 16.
+         */
+        String resumePoint() {
+            var last = new LinkedHashMap<String, Long>();
+            for (var frame : frames) {
+                var session = frame.path("sessionId").asString();
+                last.remove(session);
+                last.put(session, frame.path("seq").asLong());
+            }
+            return last.entrySet().stream().skip(Math.max(0, last.size() - 16))
+                    .map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(","));
+        }
+
         void await(Predicate<List<JsonNode>> condition, String message) throws InterruptedException {
             var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
             while (System.nanoTime() < deadline) {
@@ -508,12 +759,27 @@ public class RoomReconnectTest {
     /**
      * A TCP proxy in front of the server whose {@link #drop} resets every
      * connection through it: the server sees the member's connection lost,
-     * with no WebSocket close.
+     * with no WebSocket close. Its {@link #blackhole} resets the client side
+     * only and keeps the server side open, reading and discarding what the
+     * server writes: a connection lost as a phone loses it, whose loss the
+     * server does not notice, its writes succeeding into the void.
      */
     private static final class DroppingProxy implements AutoCloseable {
         private final ServerSocket listener;
         private final int target;
-        private final List<Socket> sockets = new CopyOnWriteArrayList<>();
+        private final List<Link> links = new CopyOnWriteArrayList<>();
+
+        /** One client connection and the server connection it is pumped to. */
+        private static final class Link {
+            private final Socket client;
+            private final Socket upstream;
+            private volatile boolean blackholed;
+
+            Link(Socket client, Socket upstream) {
+                this.client = client;
+                this.upstream = upstream;
+            }
+        }
 
         DroppingProxy(int target) throws IOException {
             this.target = target;
@@ -530,40 +796,88 @@ public class RoomReconnectTest {
                 try {
                     var client = listener.accept();
                     var upstream = new Socket(InetAddress.getLoopbackAddress(), target);
-                    sockets.add(client);
-                    sockets.add(upstream);
-                    Thread.ofVirtual().start(() -> pump(client, upstream));
-                    Thread.ofVirtual().start(() -> pump(upstream, client));
+                    var link = new Link(client, upstream);
+                    links.add(link);
+                    Thread.ofVirtual().start(() -> pumpUp(link));
+                    Thread.ofVirtual().start(() -> pumpDown(link));
                 } catch (IOException e) {
                     return;
                 }
             }
         }
 
-        private static void pump(Socket from, Socket to) {
-            try (InputStream in = from.getInputStream(); OutputStream out = to.getOutputStream()) {
+        /** Client to server; a blackholed link keeps the server side open. */
+        private static void pumpUp(Link link) {
+            try {
+                var in = link.client.getInputStream();
+                var out = link.upstream.getOutputStream();
                 var buffer = new byte[8192];
                 int read;
-                while ((read = in.read(buffer)) != -1) {
+                while ((read = in.read(buffer)) != -1 && !link.blackholed) {
                     out.write(buffer, 0, read);
                     out.flush();
                 }
             } catch (IOException e) {
                 // The connection was dropped.
             }
+            if (!link.blackholed) {
+                reset(link.upstream);
+            }
+        }
+
+        /** Server to client; a blackholed link reads what the server writes and discards it. */
+        private static void pumpDown(Link link) {
+            try {
+                var in = link.upstream.getInputStream();
+                var buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    if (link.blackholed) {
+                        continue;
+                    }
+                    try {
+                        var out = link.client.getOutputStream();
+                        out.write(buffer, 0, read);
+                        out.flush();
+                    } catch (IOException e) {
+                        if (!link.blackholed) {
+                            throw e;
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                // The connection was dropped.
+            }
+            reset(link.client);
+        }
+
+        private static void reset(Socket socket) {
+            try {
+                socket.setSoLinger(true, 0);
+                socket.close();
+            } catch (IOException e) {
+                // Already closed.
+            }
         }
 
         /** Reset every connection through the proxy. */
         void drop() {
-            for (var socket : sockets) {
-                try {
-                    socket.setSoLinger(true, 0);
-                    socket.close();
-                } catch (IOException e) {
-                    // Already closed.
-                }
+            for (var link : links) {
+                reset(link.client);
+                reset(link.upstream);
             }
-            sockets.clear();
+            links.clear();
+        }
+
+        /**
+         * Reset the client side of every connection through the proxy, keeping
+         * the server side open and drained: the server goes on writing to it.
+         */
+        void blackhole() {
+            for (var link : links) {
+                link.blackholed = true;
+                reset(link.client);
+            }
         }
 
         @Override

@@ -276,6 +276,11 @@ public final class RunReattachSupport {
      */
     private static java.util.List<RunEvent> beforeRoomJoin(AtmosphereResource resource, AgentResumeHandle handle,
                                                            java.util.List<RunEvent> backlog) {
+        if (RoomCatchUp.covers(resource, handle.replayBuffer().roomId())) {
+            logger.debug("Run {}: {} catches up on its room from its resume point; none is replayed",
+                    handle.runId(), resource.uuid());
+            return java.util.List.of();
+        }
         if (deliveredByCache(resource, handle)) {
             logger.debug("Run {}: the room's cache wrote {} the frames it missed; none is replayed",
                     handle.runId(), resource.uuid());
@@ -296,6 +301,57 @@ public final class RunReattachSupport {
     }
 
     /**
+     * The events of {@code backlog} whose frames the client of {@code resource}
+     * does not hold: all but those its {@link ResumePoint} says it received, the
+     * frames the run's session numbered up to the {@code seq} the client last
+     * received of that session. All of them without a resume point.
+     */
+    private static java.util.List<RunEvent> notHeld(AtmosphereResource resource, AgentResumeHandle handle,
+                                                    java.util.List<RunEvent> backlog) {
+        if (backlog.isEmpty()) {
+            return backlog;
+        }
+        var point = ResumePoint.of(resource);
+        var buffer = handle.replayBuffer();
+        var last = point.isPresent() ? point.get().lastSeq(buffer.frameSessionId()) : -1;
+        if (last < 0) {
+            return backlog;
+        }
+        var missed = backlog.stream().filter(event -> {
+            var seq = buffer.frameOf(event);
+            return seq < 0 || seq > last;
+        }).toList();
+        logger.debug("Run {}: {} holds {} of the {} event(s) to replay", handle.runId(), resource.uuid(),
+                backlog.size() - missed.size(), backlog.size());
+        return missed;
+    }
+
+    /**
+     * Give back to {@code consumer} the events of the run its client did not
+     * receive although they were handed to it — a long-polling reply written
+     * into a connection lost before the client read it: those past the
+     * {@code seq} its {@link ResumePoint} names of the run's session. A no-op
+     * without a resume point naming that session.
+     */
+    private static void giveBackMissed(AtmosphereResource resource, AgentResumeHandle handle, String consumer) {
+        var point = ResumePoint.of(resource);
+        if (point.isEmpty()) {
+            return;
+        }
+        var buffer = handle.replayBuffer();
+        var last = point.get().lastSeq(buffer.frameSessionId());
+        if (last < 0) {
+            return;
+        }
+        for (var event : buffer.snapshot()) {
+            if (buffer.frameOf(event) > last) {
+                buffer.unclaim(consumer, event.sequence());
+                return;
+            }
+        }
+    }
+
+    /**
      * Ownership predicate: the reconnecting resource is allowed to
      * replay the run iff its resolved user id matches the user id the
      * registry recorded for the run. An anonymous run (no auth
@@ -304,7 +360,7 @@ public final class RunReattachSupport {
      * resolved at registration ({@link #UNRESOLVED}) fails closed:
      * ownership is indeterminate, so no caller is ever a match.
      */
-    private static boolean callerOwnsRun(
+    static boolean callerOwnsRun(
             org.atmosphere.cpr.AtmosphereRequest req, String runUserId) {
         if (UNRESOLVED.equals(runUserId)) {
             return false;
@@ -355,7 +411,7 @@ public final class RunReattachSupport {
      * have every other node deliver the run's private frames to all its
      * subscribers.
      */
-    private static java.util.List<org.atmosphere.cpr.BroadcastFilter> filtersFor(
+    static java.util.List<org.atmosphere.cpr.BroadcastFilter> filtersFor(
             org.atmosphere.cpr.AtmosphereResource resource) {
         try {
             var broadcaster = resource.getBroadcaster();
@@ -374,7 +430,7 @@ public final class RunReattachSupport {
         }
     }
 
-    private static String broadcasterIdFor(org.atmosphere.cpr.AtmosphereResource resource) {
+    static String broadcasterIdFor(org.atmosphere.cpr.AtmosphereResource resource) {
         try {
             var broadcaster = resource.getBroadcaster();
             return broadcaster != null ? broadcaster.getID() : "replay";
@@ -580,12 +636,18 @@ public final class RunReattachSupport {
             return new PollReplay(resource, handle, filtersFor(resource), broadcasterIdFor(resource),
                     reattachGrace(resource, registry), own).start();
         }
+        if (broadcasterIdFor(resource).equals(handle.replayBuffer().roomId())
+                && RoomCatchUp.covers(resource, handle.replayBuffer().roomId())) {
+            logger.info("Reattach run {} for room member {}: it catches up on its room from its resume point",
+                    runId, resource.uuid());
+            return 0;
+        }
         if (broadcasterIdFor(resource).equals(handle.replayBuffer().roomId()) && deliveredByCache(resource, handle)) {
             logger.info("Reattach run {} for room member {}: the room's cache wrote it the frames it missed",
                     runId, resource.uuid());
             return 0;
         }
-        var replayed = handle.replayableEvents();
+        var replayed = notHeld(resource, handle, handle.replayableEvents());
         if (replayed.isEmpty()) {
             logger.info("Reattach run {} for resource {}: no buffered events to replay",
                     runId, resource.uuid());
@@ -750,7 +812,12 @@ public final class RunReattachSupport {
                 subscription = new RunEventReplayBuffer.Subscription(java.util.List.of(), false, () -> { });
             }
             unsubscribe = subscription.cancel();
-            var claimed = consumer != null ? buffer.claimNew(consumer) : subscription.backlog();
+            if (consumer != null) {
+                giveBackMissed(resource, run, consumer);
+            }
+            // What the poll's client says it holds is not written again.
+            var claimed = notHeld(resource, run,
+                    consumer != null ? buffer.claimNew(consumer) : subscription.backlog());
             var written = claimed.isEmpty() ? 0 : writeAndResume(claimed);
             if (written != 0 || consumer == null || !subscription.live()) {
                 end();
@@ -917,7 +984,8 @@ public final class RunReattachSupport {
             written = 0;
             replayFailed = false;
             // A member of the room received the events after it joined through the room.
-            var backlog = roomMember ? beforeRoomJoin(resource, handle, subscription.backlog()) : subscription.backlog();
+            var backlog = notHeld(resource, handle,
+                    roomMember ? beforeRoomJoin(resource, handle, subscription.backlog()) : subscription.backlog());
             for (var event : backlog) {
                 var outcome = forwarder.write(event);
                 if (outcome == Write.FAILED) {
@@ -955,7 +1023,7 @@ public final class RunReattachSupport {
                                          AgentResumeHandle handle, LiveForwarder forwarder, boolean roomMember) {
         var snapshot = handle.replayBuffer().snapshot();
         // A member of the room received the events after it joined through the room.
-        var backlog = roomMember ? beforeRoomJoin(resource, handle, snapshot) : snapshot;
+        var backlog = notHeld(resource, handle, roomMember ? beforeRoomJoin(resource, handle, snapshot) : snapshot);
         var written = 0;
         synchronized (forwarder) {
             for (var event : backlog) {

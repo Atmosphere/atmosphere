@@ -328,6 +328,27 @@ public final class RunRegistry {
         }
     }
 
+    /**
+     * Every run whose events a reconnecting client may replay
+     * ({@link #lookupReplayable}): the live runs and those that finished within
+     * the TTL, at most {@code MAX_RETAINED_COMPLETED} of them. A snapshot.
+     */
+    public List<AgentResumeHandle> replayable() {
+        var all = new LinkedHashMap<String, AgentResumeHandle>();
+        var cutoff = Instant.now(clock).minus(ttl);
+        synchronized (completed) {
+            for (var retired : completed.values()) {
+                if (!retired.completedAt().isBefore(cutoff)) {
+                    all.put(retired.handle().runId(), retired.handle());
+                }
+            }
+        }
+        for (var run : runs.values()) {
+            all.putIfAbsent(run.runId(), run);
+        }
+        return List.copyOf(all.values());
+    }
+
     /** Number of finished runs currently kept replayable. */
     public int retainedCompletedCount() {
         synchronized (completed) {

@@ -629,6 +629,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 LongPollingRoomReplies.install(resource.getBroadcaster());
                 if (resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING) {
                     resource.getRequest().setAttribute(ROOM_BROADCASTER_ATTRIBUTE, resource.getBroadcaster());
+                    // Before the suspend: the room's cache writes what it kept as
+                    // the connection joins, merged with the catch-up of a
+                    // reconnect that says what its client last received.
+                    org.atmosphere.ai.resume.RoomCatchUp.prepare(resource,
+                            org.atmosphere.ai.resume.RunRegistryHolder.get(), resource.getBroadcaster().getID());
                 }
             }
             // Before the suspend, not once the connection is set up: suspending
@@ -679,6 +684,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 // Off the thread that opened the connection: see webSocketReattach.
                 webSocketReattach.execute(() -> {
                     try {
+                        catchUpOnRoom(resource);
                         reattachPendingRun(resource);
                     } catch (RuntimeException e) {
                         logger.warn("Reattach of WebSocket {} to its run failed", resource.uuid(), e);
@@ -687,6 +693,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             } else if (resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING
                     || !LongPollingReplies.inFlight(resource.uuid())
                     && !LongPollingReplies.hasParked(resource.uuid(), parkedOwner -> true)) {
+                catchUpOnRoom(resource);
                 reattachPendingRun(resource);
             }
             // Last: the connection now carries its path params and system prompt,
@@ -760,6 +767,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private void untrackLiveConnection(String uuid, AtmosphereResource resource) {
         liveConnections.computeIfPresent(uuid, (id, live) -> live == resource ? null : live);
+    }
+
+    /**
+     * A room member that reconnected with a resume point and joined the room
+     * with nothing written to it yet (no cache, or none kept for it, and no
+     * frame broadcast since) is written the frames it missed now
+     * ({@link org.atmosphere.ai.resume.RoomCatchUp}). A no-op without one, or
+     * once written.
+     */
+    private void catchUpOnRoom(AtmosphereResource resource) {
+        if (!resource.isSuspended()) {
+            return;
+        }
+        var catchUp = org.atmosphere.ai.resume.RoomCatchUp.of(resource);
+        if (catchUp != null) {
+            catchUp.write();
+        }
     }
 
     /**
@@ -1023,10 +1047,22 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // What the broadcaster's cache kept for this connection while it was
         // away, written as it joins: a reattach to a run of the room the cache
         // wrote frames of writes none of them again.
+        var catchUp = broadcastReply ? org.atmosphere.ai.resume.RoomCatchUp.of(resource) : null;
         if (message instanceof java.util.List<?> cached && broadcastReply && resource != null
                 && resource.getRequest() != null
                 && resource.getRequest().getAttribute(org.atmosphere.cpr.DefaultBroadcaster.CACHED) != null) {
             org.atmosphere.ai.resume.RunReattachSupport.cacheDelivered(resource, cached);
+            if (catchUp != null) {
+                // The frames the member missed that the cache does not hold
+                // (written into a connection whose loss was not noticed yet,
+                // or evicted), in order with those it does.
+                event.setMessage(catchUp.mergeCached(cached));
+                writeThrough(event, resource);
+                return;
+            }
+        } else if (catchUp != null && !catchUp.beforeLive(message)) {
+            // A frame the member's catch-up wrote, or that its client holds.
+            return;
         }
 
         // RawMessage = broadcast from StreamingSession (streaming texts, progress, complete, error).
