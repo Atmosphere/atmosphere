@@ -51,6 +51,12 @@ const IGNORED = new Set([
   'biggr', 'displaystyle', 'textstyle', 'scriptstyle', 'limits', 'nolimits', 'middle',
 ]);
 
+/** A sized opening delimiter next: `\left(`, `\bigl[`, … */
+const OPENING_DELIMITER = /^\s*\\(?:left|[bB]igg?l?)\s*[([]/;
+
+/** A sized closing delimiter next: `\right)`, `\bigr]`, … */
+const CLOSING_DELIMITER = /^\s*\\(?:right|[bB]igg?r?)\s*[)\]]/;
+
 /** Commands whose single argument is shown as is. */
 const PASS_THROUGH = new Set([
   'text', 'textrm', 'textbf', 'textit', 'textsf', 'texttt', 'mathrm', 'mathbf', 'mathit',
@@ -149,8 +155,11 @@ export function texToText(tex: string): string {
       return symbol;
     }
     if (FUNCTIONS.has(name)) {
-      // TeX swallows the space after a command; keep the words apart.
-      const next = tex.slice(i).match(/^\s*([\p{L}\p{N}\\])/u);
+      // TeX swallows the space after a command; keep the words apart, but an
+      // argument in sized parentheses (\sin\left( … \right)) reads sin(…).
+      const rest = tex.slice(i);
+      if (OPENING_DELIMITER.test(rest)) return name;
+      const next = rest.match(/^\s*([\p{L}\p{N}\\])/u);
       return next ? `${name} ` : name;
     }
     if (IGNORED.has(name)) {
@@ -163,8 +172,11 @@ export function texToText(tex: string): string {
       const num = arg();
       const den = arg();
       const fraction = `${group(num)}/${group(den)}`;
-      // A factor right after it (\frac{b}{a}x) would read as part of the denominator.
-      return /^[\p{L}\p{N}\\({]/u.test(tex.slice(i)) ? `(${fraction})` : fraction;
+      // A factor right after it (\frac{b}{a}x) would read as part of the
+      // denominator; a closing delimiter (\right)) already ends the group.
+      const rest = tex.slice(i);
+      const factorFollows = /^[\p{L}\p{N}\\({]/u.test(rest) && !CLOSING_DELIMITER.test(rest);
+      return factorFollows ? `(${fraction})` : fraction;
     }
     if (name === 'sqrt') {
       const index = optional();

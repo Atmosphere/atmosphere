@@ -97,6 +97,9 @@ describe('texToText', () => {
     ['x^{10} + e^{i\\pi}', 'x¹⁰ + e^(iπ)'],
     ['f\'(x) = 3x^2 \\sin x + x^3 \\cos x', "f'(x) = 3x² sin x + x³ cos x"],
     ['\\left( \\frac{a}{b} \\right)^2', '( a/b )²'],
+    // \left( \right) already group the fraction: one pair, and no gap after sin.
+    ['\\sin\\left(\\frac{\\pi}{6}\\right)', 'sin(π/6)'],
+    ['\\sin\\left(\\frac{\\pi}{6}\\right) = \\frac{1}{2}', 'sin(π/6) = 1/2'],
     ['\\int_0^1 x\\,dx = \\frac{1}{2}', '∫₀¹ x dx = 1/2'],
     ['\\sum_{k=1}^{n} k = \\frac{n(n+1)}{2}', '∑ₖ₌₁ⁿ k = (n(n+1))/2'],
     ['a \\times b \\cdot c \\div d \\pm e', 'a × b · c ÷ d ± e'],
