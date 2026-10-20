@@ -84,6 +84,34 @@ class A2aHandlerSseFramingTest {
         }
     }
 
+    /** Streams two chunks, then ends the way its skill id says. */
+    static class EndingAgent {
+        @AgentSkill(id = "cancels", name = "Cancels", description = "Streams, then is cancelled")
+        @AgentSkillHandler
+        public void cancels(TaskContext task, @AgentSkillParam(name = "message") String message) {
+            task.emitToken("par");
+            task.emitToken("tial");
+            task.cancel("Canceled by request");
+        }
+
+        @AgentSkill(id = "fails", name = "Fails", description = "Streams, then fails")
+        @AgentSkillHandler
+        public void fails(TaskContext task, @AgentSkillParam(name = "message") String message) {
+            task.emitToken("par");
+            task.emitToken("tial");
+            task.fail("model unavailable");
+        }
+
+        @AgentSkill(id = "tokens", name = "Tokens", description = "Streams three tokens")
+        @AgentSkillHandler
+        public void tokens(TaskContext task, @AgentSkillParam(name = "message") String message) {
+            task.emitToken("a");
+            task.emitToken("b");
+            task.emitToken("c");
+            task.complete("done");
+        }
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         framework = new AtmosphereFramework();
@@ -176,6 +204,9 @@ class A2aHandlerSseFramingTest {
                 second.get("artifact").get("artifactId").stringValue(), "one artifact, appended to");
         assertEquals(false, first.get("append").booleanValue());
         assertEquals(true, second.get("append").booleanValue());
+        // A2A 1.0.0: the artifact's final chunk says so.
+        assertEquals(false, first.get("lastChunk").booleanValue());
+        assertEquals(true, second.get("lastChunk").booleanValue());
         var status = mapper.readTree(events.get(3)).get("result").get("statusUpdate");
         assertEquals(taskId, status.get("taskId").stringValue());
         assertEquals("TASK_STATE_COMPLETED", status.get("status").get("state").stringValue());
@@ -335,6 +366,97 @@ class A2aHandlerSseFramingTest {
 
         var sent = frames.toString(StandardCharsets.UTF_8);
         assertEquals(12, mapper.readTree(sent).get("id").intValue(), "unframed JSON-RPC: " + sent);
+    }
+
+    @Test
+    void onlyTheFinalChunkOfACompletedStreamIsTheLastChunk() throws Exception {
+        var events = stream("tokens");
+        assertEquals(List.of("task", "artifact:a", "artifact:b", "artifact:c!", "status:TASK_STATE_COMPLETED",
+                "[DONE]"), describe(events));
+    }
+
+    @Test
+    void aCancelledStreamClosesItsArtifactBeforeTheCanceledStatus() throws Exception {
+        // No chunk follows a cancel: the artifact so far ends with lastChunk,
+        // then the terminal CANCELED status closes the stream.
+        var events = stream("cancels");
+        assertEquals(List.of("task", "artifact:par", "artifact:tial!", "status:TASK_STATE_CANCELED", "[DONE]"),
+                describe(events));
+    }
+
+    @Test
+    void aFailedStreamClosesItsArtifactBeforeTheError() throws Exception {
+        var events = stream("fails");
+        assertEquals(List.of("task", "artifact:par", "artifact:tial!", "error:model unavailable", "[DONE]"),
+                describe(events));
+    }
+
+    /** Each event as task / artifact:text (! when lastChunk) / status:state / error:message / [DONE]. */
+    private List<String> describe(List<String> events) {
+        var out = new ArrayList<String>();
+        for (var event : events) {
+            if ("[DONE]".equals(event)) {
+                out.add(event);
+                continue;
+            }
+            var node = mapper.readTree(event);
+            if (node.has("error")) {
+                out.add("error:" + node.get("error").get("message").stringValue());
+                continue;
+            }
+            var result = node.get("result");
+            if (result.has("task")) {
+                out.add("task");
+            } else if (result.has("artifactUpdate")) {
+                var update = result.get("artifactUpdate");
+                out.add("artifact:" + update.get("artifact").get("parts").get(0).get("text").stringValue()
+                        + (update.get("lastChunk").booleanValue() ? "!" : ""));
+            } else if (result.has("statusUpdate")) {
+                out.add("status:" + result.get("statusUpdate").get("status").get("state").stringValue());
+            } else {
+                out.add("other:" + event);
+            }
+        }
+        return out;
+    }
+
+    /** Run a {@code message/stream} for {@code skillId} of {@link EndingAgent}; the strict SSE events. */
+    private List<String> stream(String skillId) throws Exception {
+        var registry = new A2aRegistry();
+        registry.scan(new EndingAgent());
+        var card = registry.buildAgentCard("agent", "test", "1.0", "/a2a");
+        var handler = new A2aHandler(new A2aProtocolHandler(registry, taskManager, card, card));
+
+        var wire = new ByteArrayOutputStream();
+        var nativeResponse = Mockito.mock(HttpServletResponse.class);
+        Mockito.when(nativeResponse.getOutputStream()).thenReturn(new CapturingStream(wire));
+        Mockito.when(nativeResponse.getWriter()).thenReturn(
+                new PrintWriter(new OutputStreamWriter(wire, StandardCharsets.UTF_8), true));
+        var body = "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"message/stream\","
+                + "\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\","
+                + "\"text\":\"x\"}],\"messageId\":\"m8\",\"metadata\":{\"skillId\":\"" + skillId + "\"}},"
+                + "\"arguments\":{\"message\":\"x\"}}}";
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("POST")
+                .pathInfo("/a2a")
+                .inputStream(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)))
+                .build();
+        request.header("Accept", "text/event-stream");
+        request.setAttribute(ApplicationConfig.PROPERTY_USE_STREAM, Boolean.TRUE);
+        var response = AtmosphereResponseImpl.newInstance(request);
+        response.request(request);
+        response.setResponse(nativeResponse);
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        var interceptor = new SSEAtmosphereInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        interceptor.inspect(resource);
+
+        handler.onRequest(resource);
+        return strictSseEvents(wire.toString(StandardCharsets.UTF_8));
     }
 
     private String artifactText(String eventData) {

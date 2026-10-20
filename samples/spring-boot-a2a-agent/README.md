@@ -78,7 +78,8 @@ curl -X POST http://localhost:8084/atmosphere/a2a \
 
 `SendStreamingMessage` streams the same call over SSE: the first event is the
 `task` (its `id` is what `CancelTask` takes), then `artifactUpdate` events as
-the model produces the answer, then a final `statusUpdate`. `CancelTask` on a
+the model produces the answer (the last one with `lastChunk: true`, also when
+the task is cancelled or fails), then a final `statusUpdate`. `CancelTask` on a
 running task stops its model call; the task stays `TASK_STATE_CANCELED`.
 
 These are the A2A v1.0.0 method names. The server still accepts the pre-1.0

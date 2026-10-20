@@ -369,11 +369,16 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         var writer = servletResponse.getWriter();
         protocolHandler.handleStreamingMessage(body, new A2aStreamSink() {
             // The answer streams as one artifact: every chunk carries the same
-            // artifactId, the ones after the first with append=true.
+            // artifactId, the ones after the first with append=true. The last
+            // chunk carries lastChunk=true (A2A 1.0.0 TaskArtifactUpdateEvent):
+            // which chunk is last is known only when the stream ends, so one
+            // chunk is held back and written when the next one arrives, or —
+            // flagged last — just before the stream's terminal frame.
             private final String artifactId = UUID.randomUUID().toString();
             private String taskId;
             private String contextId;
             private boolean first = true;
+            private String held;
 
             @Override
             public void task(org.atmosphere.a2a.types.Task task) {
@@ -384,9 +389,18 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
 
             @Override
             public void token(String text) {
+                flushHeld(false);
+                held = text;
+            }
+
+            private void flushHeld(boolean lastChunk) {
+                if (held == null) {
+                    return;
+                }
                 var artifact = Map.of(
                         "artifactId", artifactId,
-                        "parts", java.util.List.of(Map.of("text", text)));
+                        "parts", java.util.List.of(Map.of("text", held)));
+                held = null;
                 var update = new LinkedHashMap<String, Object>();
                 if (taskId != null) {
                     update.put("taskId", taskId);
@@ -394,22 +408,30 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
                 }
                 update.put("artifact", artifact);
                 update.put("append", !first);
+                update.put("lastChunk", lastChunk);
                 first = false;
                 writeStreamEvent(writer, rpcId, Map.of("artifactUpdate", update));
             }
 
             @Override
             public void status(org.atmosphere.a2a.types.TaskStatusUpdateEvent update) {
+                // The task ended (completed, cancelled, ...): no chunk follows.
+                flushHeld(true);
                 writeStreamEvent(writer, rpcId, Map.of("statusUpdate", update));
             }
 
             @Override
             public void error(String message) {
+                // A failed stream sends no more chunks either.
+                flushHeld(true);
                 writeStreamError(writer, rpcId, message);
             }
 
             @Override
             public void complete() {
+                // A stream that ends without a terminal (a resubscribe that
+                // timed out) leaves its artifact open.
+                flushHeld(false);
                 writer.write("data: [DONE]\n\n");
                 writer.flush();
             }
