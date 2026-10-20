@@ -411,7 +411,9 @@ The same policy drives three integration points:
    `commit_budget` runs through a `GatedToolDispatcher` + `ApprovalGate` at
    execution time — defense in depth *on top of* the static proof. Set
    `startup.approvals.auto-approve=false` to see the commit denied even on a
-   verified plan (the tool never fires).
+   verified plan (the tool never fires). A run cancelled before the commit
+   (Sessions → **Cancel in-flight**, or the client gone) is denied too, without
+   asking the gate, and the CEO delegates nothing more after the cancel.
 3. **Console Validation tab.** `VerifierExampleSource` surfaces four one-click
    goals at `/atmosphere/console/` → **Validation**: one passes, and one each is
    refused by taint, SMT, and the automaton.
