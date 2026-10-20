@@ -859,6 +859,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         var replayed = org.atmosphere.ai.resume.RunReattachSupport.replayPendingRun(
                 resource, registry);
+        // A run that handed its turn off: the client follows the turn to the target's run.
+        known.ifPresent(run -> org.atmosphere.ai.resume.RunReattachSupport.followHandoff(resource, registry, run));
         if (replayed == 0 && pending != null && known.isEmpty()
                 && !org.atmosphere.ai.resume.DurableRunSpineHolder.get().enabled()) {
             // A run id the server has no run by: a prompt the page sent under it
@@ -1353,6 +1355,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         } else {
             handle = registry.register(
                     pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
+        }
+        // A handoff's run: the run that handed the turn off records it, so a
+        // client reattaching to that run by its id follows the turn here.
+        if (run.getRequest() != null
+                && run.getRequest().getAttribute(org.atmosphere.ai.resume.RunReattachSupport.HANDOFF_FROM_ATTRIBUTE)
+                instanceof String from) {
+            registry.lookupReplayable(from).ifPresent(parent -> parent.replayBuffer().handedOffTo(handle.runId()));
         }
         // The run's sessions; a failure building them ends the run registered above.
         final org.atmosphere.ai.resume.RunEventCapturingSession capturing;

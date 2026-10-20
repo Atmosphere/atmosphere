@@ -2079,9 +2079,22 @@ public class AiStreamingSession implements StreamingSession {
             if (!(handlerWrapper.atmosphereHandler() instanceof HandoffTarget target)) {
                 delegate.error(new IllegalArgumentException(
                         "Agent '" + agentName + "' at " + targetPath + " cannot accept a handoff"));
-            } else if (!target.acceptHandoff(runResource, message)) {
-                delegate.error(new IllegalStateException(
-                        "Handoff to '" + agentName + "' failed: the connection is no longer available"));
+            } else {
+                // The target's run is recorded as where this run's turn went: a
+                // client reattaching to this run by its id follows it there.
+                var handoffRequest = runResource.getRequest();
+                if (runId != null) {
+                    handoffRequest.setAttribute(
+                            org.atmosphere.ai.resume.RunReattachSupport.HANDOFF_FROM_ATTRIBUTE, runId);
+                }
+                try {
+                    if (!target.acceptHandoff(runResource, message)) {
+                        delegate.error(new IllegalStateException(
+                                "Handoff to '" + agentName + "' failed: the connection is no longer available"));
+                    }
+                } finally {
+                    handoffRequest.removeAttribute(org.atmosphere.ai.resume.RunReattachSupport.HANDOFF_FROM_ATTRIBUTE);
+                }
             }
         } catch (Exception e) {
             logger.error("Handoff to '{}' failed", agentName, e);

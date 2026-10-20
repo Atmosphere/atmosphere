@@ -414,6 +414,22 @@ public final class RunEventReplayBuffer {
         return roomId;
     }
 
+    /** The run this run handed its turn off to, or {@code null}. */
+    private volatile String handedOffTo;
+
+    /** Record that this run handed its turn off to the run {@code runId} (another agent's). */
+    public void handedOffTo(String runId) {
+        this.handedOffTo = runId;
+    }
+
+    /**
+     * The run this run handed its turn off to, or {@code null}: a client that
+     * reattaches to this run follows the turn there.
+     */
+    public String handedOffTo() {
+        return handedOffTo;
+    }
+
     /** Whether the run's id is one its client minted for its prompt ({@link ClientRunIds}). */
     private volatile boolean clientRunId;
 

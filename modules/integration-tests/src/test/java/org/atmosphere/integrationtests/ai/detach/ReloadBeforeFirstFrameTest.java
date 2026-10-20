@@ -475,6 +475,43 @@ public class ReloadBeforeFirstFrameTest {
         bob.close();
     }
 
+    /**
+     * A turn handed off to another agent (a support desk handing a refund to
+     * billing) runs under the target agent's run. A page reloaded once the
+     * handoff happened, but before that run's id reached it, reattaches by the
+     * id it minted for its prompt: it follows the turn to the target's run and
+     * gets its answer, the tool having run once.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aPageReloadedAfterAHandoffFollowsTheTurnToTheTargetsRun() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachToolAgent.LOOKUPS.clear();
+        var runId = java.util.UUID.randomUUID().toString();
+
+        var page = connect("/atmosphere/agent/" + DetachHandoffAgent.NAME, "0", null);
+        page.socket.sendText(envelope(runId, "use the tool"), true).join();
+        // The handoff happened: the target's run is announced (its @Prompt waits for RELEASE).
+        page.await(frames -> frames.stream().filter(f -> "metadata".equals(f.path("type").asString())
+                        && "X-Atmosphere-Run-Id".equals(f.path("key").asString())).count() >= 2,
+                "the page is named both runs");
+        page.socket.sendClose(1001, "reload").get(5, TimeUnit.SECONDS);
+        Thread.sleep(500);
+
+        // Reloaded, the page knows only the id it minted.
+        var reloaded = connect("/atmosphere/agent/" + DetachHandoffAgent.NAME, "0", runId);
+        Thread.sleep(300);
+        DetachTestEndpoint.RELEASE.countDown();
+        reloaded.await(frames -> !texts(frames).isEmpty()
+                        && frames.stream().anyMatch(f -> "complete".equals(f.path("type").asString())
+                        && texts(frames).size() >= TOKENS),
+                "the reloaded page gets the answer of the run the turn was handed off to");
+        Thread.sleep(300);
+        assertEquals(expectedAnswer(), answerOf(reloaded.frames()), "the whole answer, once");
+        assertEquals(1, DetachToolAgent.LOOKUPS.size(), "the tool ran once: " + DetachToolAgent.LOOKUPS);
+        reloaded.close();
+    }
+
     /** A client that mints no run id sends its prompt alone, as before: the run gets an id of the server's. */
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
     @Test

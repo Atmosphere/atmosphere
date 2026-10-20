@@ -170,7 +170,33 @@ public final class RunReattachSupport {
                 req.removeAttribute(RUN_ID_ATTRIBUTE);
             }
         }
+        followHandoff(resource, registry, run);
         return true;
+    }
+
+    /**
+     * Request attribute naming the run a handoff comes from, set on the run's
+     * view of its connection while the handoff dispatches the turn to the
+     * target agent: the target's run is recorded as where that run's turn went.
+     */
+    public static final String HANDOFF_FROM_ATTRIBUTE = "org.atmosphere.ai.handoffFromRun";
+
+    /**
+     * {@code resource} reattached to {@code run}: when the run handed its turn
+     * off to another agent's run, it is reattached to that run too — the turn's
+     * answer is written there — however the reattach came (a reconnect with the
+     * run id, a prompt sent again under it).
+     */
+    public static void followHandoff(AtmosphereResource resource, RunRegistry registry, AgentResumeHandle run) {
+        var next = run.replayBuffer().handedOffTo();
+        if (next == null || next.equals(run.runId())) {
+            return;
+        }
+        registry.lookupReplayable(next).ifPresent(target -> {
+            logger.info("Run {} handed its turn off to run {}: {} follows it there", run.runId(), next,
+                    resource.uuid());
+            reattachPrompt(resource, registry, target);
+        });
     }
 
     /**
