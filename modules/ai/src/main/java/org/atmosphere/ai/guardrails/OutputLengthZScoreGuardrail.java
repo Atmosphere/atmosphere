@@ -16,18 +16,37 @@
 package org.atmosphere.ai.guardrails;
 
 import org.atmosphere.ai.AiGuardrail;
+import org.atmosphere.ai.AiRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Drift detector: flags responses whose character length is more than
+ * Drift guard: <b>blocks</b> a response whose character length is more than
  * {@code zScoreThreshold} standard deviations away from the rolling mean
- * of recent responses. Catches truncated replies, runaway generations,
- * and model-degradation drift at the wire level.
+ * of recent responses, and logs a {@code possible drift} warning. Catches
+ * runaway generations, truncated replies (text-only checks), and
+ * model-degradation drift at the wire level. To flag without blocking, install it in dry-run
+ * ({@code org.atmosphere.ai.governance.DryRunPolicy}).
+ *
+ * <h2>Streamed replies count once</h2>
+ *
+ * A streaming session inspects the text received so far every few hundred
+ * characters and once more when the reply completes, always under the
+ * request that produced it. The window keeps one sample per reply, keyed by
+ * that request (by identity): each check updates the reply's own sample to
+ * the length seen so far instead of adding another, and is scored against the
+ * other replies in the window only. So the baseline is made of complete reply
+ * lengths, the warm-up counts replies, and a reply still streaming blocks as
+ * soon as it is already too long. Because a check cannot tell a reply that is
+ * still growing from a finished one, a reply checked under its request is
+ * judged on the high side only: it is never blocked for being short. The
+ * text-only {@link #inspectResponse(String)} entry point has no request to
+ * key on: each call is a complete reply of its own, judged on both sides.
  *
  * <h2>Per-tenant baselines</h2>
  *
@@ -51,8 +70,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *       average. 50 is a reasonable default.</li>
  *   <li>{@code zScoreThreshold} — 3.0 roughly corresponds to the 99.7th
  *       percentile under a normal distribution.</li>
- *   <li>{@code minSamples} — ignore the first N responses per tenant
- *       (window hasn't stabilized). Default 10.</li>
+ *   <li>{@code minSamples} — pass every response until the window holds
+ *       this many other responses for the tenant (window hasn't
+ *       stabilized). Default 10.</li>
  * </ul>
  */
 public final class OutputLengthZScoreGuardrail implements AiGuardrail {
@@ -73,8 +93,27 @@ public final class OutputLengthZScoreGuardrail implements AiGuardrail {
     private final int windowSize;
     private final double zScoreThreshold;
     private final int minSamples;
-    private final ConcurrentHashMap<String, Deque<Integer>> windowsByTenant =
+    private final ConcurrentHashMap<String, Deque<Sample>> windowsByTenant =
             new ConcurrentHashMap<>();
+
+    /**
+     * One reply's length. {@code reply} is the request that produced it, held
+     * weakly so the window never keeps a request (and its history) alive;
+     * {@code null} for a text-only check, which never matches another.
+     */
+    private static final class Sample {
+        private final WeakReference<AiRequest> reply;
+        private int length;
+
+        private Sample(AiRequest reply, int length) {
+            this.reply = reply == null ? null : new WeakReference<>(reply);
+            this.length = length;
+        }
+
+        private boolean isOf(AiRequest request) {
+            return request != null && reply != null && reply.get() == request;
+        }
+    }
 
     public OutputLengthZScoreGuardrail() {
         this(50, 3.0, 10);
@@ -97,6 +136,15 @@ public final class OutputLengthZScoreGuardrail implements AiGuardrail {
 
     @Override
     public GuardrailResult inspectResponse(String accumulatedResponse) {
+        return inspect(null, accumulatedResponse);
+    }
+
+    @Override
+    public GuardrailResult inspectResponse(AiRequest originatingRequest, String accumulatedResponse) {
+        return inspect(originatingRequest, accumulatedResponse);
+    }
+
+    private GuardrailResult inspect(AiRequest reply, String accumulatedResponse) {
         if (accumulatedResponse == null) {
             return GuardrailResult.pass();
         }
@@ -105,27 +153,38 @@ public final class OutputLengthZScoreGuardrail implements AiGuardrail {
         var window = windowsByTenant.computeIfAbsent(tenant, k -> new ArrayDeque<>());
 
         synchronized (window) {
-            if (window.size() < minSamples) {
-                window.addLast(length);
-                return GuardrailResult.pass();
-            }
-
+            Sample own = null;
             var sum = 0L;
             var sumSq = 0.0;
-            for (var v : window) {
-                sum += v;
-                sumSq += (double) v * v;
+            var n = 0;
+            for (var sample : window) {
+                if (own == null && sample.isOf(reply)) {
+                    own = sample;
+                    continue;
+                }
+                sum += sample.length;
+                sumSq += (double) sample.length * sample.length;
+                n++;
             }
-            var n = window.size();
+
+            if (own != null) {
+                own.length = Math.max(own.length, length);
+            } else {
+                window.addLast(new Sample(reply, length));
+                while (window.size() > windowSize) {
+                    window.removeFirst();
+                }
+            }
+
+            if (n < minSamples) {
+                return GuardrailResult.pass();
+            }
             var mean = sum / (double) n;
             var variance = (sumSq / n) - (mean * mean);
             var stddev = variance > 0 ? Math.sqrt(variance) : 1.0;
-            var z = Math.abs((length - mean) / stddev);
-
-            window.addLast(length);
-            while (window.size() > windowSize) {
-                window.removeFirst();
-            }
+            // A streamed reply is checked before it is complete, so its length
+            // is a lower bound: only "already too long" can be judged.
+            var z = reply != null ? (length - mean) / stddev : Math.abs((length - mean) / stddev);
 
             if (z > zScoreThreshold) {
                 logger.warn("Output length {} chars is {} sigma from rolling mean {} "

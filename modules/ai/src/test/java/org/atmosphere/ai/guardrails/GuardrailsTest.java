@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiRequest;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +58,75 @@ class GuardrailsTest {
             var r = g.inspectResponse("x".repeat(100));
             assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, r);
         }
+    }
+
+    // --- OutputLengthZScoreGuardrail: streamed replies -------------------
+
+    /**
+     * Ten ordinary tutoring answers (short ones and full lessons), then the
+     * two long lessons the 2026-10-19 re-test saw blocked. The ten are not
+     * measured: they are a mix under which the per-check window reproduces
+     * the field log ("1632 chars is 3.2 sigma from rolling mean ~550").
+     */
+    private static final int[] FIELD_REPLY_LENGTHS = {
+            380, 320, 450, 330, 1960, 1880, 500, 1290, 1090, 1090, 1632, 2632,
+    };
+
+    /**
+     * Streams one reply the way {@code GuardrailCapturingSession} inspects it:
+     * the text so far every 200 characters, then the complete reply, all
+     * under the request that produced it.
+     */
+    private static AiGuardrail.GuardrailResult streamReply(OutputLengthZScoreGuardrail g, int length) {
+        var request = new AiRequest("question " + length);
+        var reply = "x".repeat(length);
+        for (var at = 200; at < length; at += 200) {
+            var result = g.inspectResponse(request, reply.substring(0, at));
+            if (result instanceof AiGuardrail.GuardrailResult.Block) {
+                return result;
+            }
+        }
+        return g.inspectResponse(request, reply);
+    }
+
+    /**
+     * Regression: every partial check of a streamed reply used to enter the
+     * window as a sample of its own, so the baseline was a mean of prefix
+     * lengths, the warm-up was met by one long reply, and an ordinary
+     * 1,632-character lesson tripped 3 sigma part-way through.
+     */
+    @Test
+    void lengthGuardrailCountsAStreamedReplyOnceAndNeverTripsOnOrdinaryLongAnswers() {
+        var g = new OutputLengthZScoreGuardrail(50, 3.0, 10);
+        for (var length : FIELD_REPLY_LENGTHS) {
+            assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, streamReply(g, length),
+                    "an ordinary " + length + "-character reply was blocked");
+        }
+        assertEquals(FIELD_REPLY_LENGTHS.length, g.currentSamples(),
+                "the window holds one sample per reply, its complete length");
+    }
+
+    @Test
+    void lengthGuardrailStillBlocksAStreamedReplyTenTimesTheMean() {
+        var g = new OutputLengthZScoreGuardrail(50, 3.0, 10);
+        for (var length : FIELD_REPLY_LENGTHS) {
+            streamReply(g, length);
+        }
+        var mean = java.util.Arrays.stream(FIELD_REPLY_LENGTHS).average().orElseThrow();
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                streamReply(g, (int) (10 * mean)),
+                "a runaway reply must still trip the guardrail");
+    }
+
+    @Test
+    void lengthGuardrailNeverBlocksAStreamedReplyForBeingShortSoFar() {
+        var g = new OutputLengthZScoreGuardrail(50, 3.0, 10);
+        // A tight baseline of ~1,000-character replies: a 200-character
+        // prefix is far below it, but the reply is still growing.
+        for (var i = 0; i < 12; i++) {
+            streamReply(g, 1_000 + (i % 3) * 10);
+        }
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, streamReply(g, 1_010));
     }
 
     // --- PiiRedactionGuardrail -------------------------------------------

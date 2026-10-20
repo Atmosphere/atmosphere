@@ -15,10 +15,13 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
+import org.atmosphere.ai.governance.PolicyRegistry;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -167,5 +170,39 @@ class GuardrailCapturingSessionTest {
         var session = new GuardrailCapturingSession(delegate, List.of(passingGuardrail()), 100);
         session.complete("summary text");
         verify(delegate).complete("summary text");
+    }
+
+    /**
+     * A YAML length z-score policy behind the session, as an
+     * {@code @AiEndpoint} installs it: ordinary long replies stream through,
+     * a runaway one is cut off. Each reply is checked every 200 characters,
+     * and those partial checks must not enter the policy's baseline.
+     */
+    @Test
+    void lengthDriftPolicyLetsOrdinaryLongRepliesThroughAndCutsARunawayOne() {
+        var policy = new PolicyRegistry().build(new PolicyRegistry.PolicyDescriptor(
+                "drift", "output-length-zscore", "1.0", "yaml:test",
+                Map.of("window-size", 50, "z-threshold", 3.0, "min-samples", 10)));
+        List<AiGuardrail> guardrails = List.of(new PolicyAsGuardrail(policy));
+        int[] lengths = {380, 320, 450, 330, 1960, 1880, 500, 1290, 1090, 1090, 1632, 2632};
+        for (var length : lengths) {
+            var delegate = mockDelegate();
+            streamThrough(new GuardrailCapturingSession(delegate, guardrails,
+                    new AiRequest("question " + length)), length);
+            verify(delegate, never()).error(any());
+            verify(delegate).complete();
+        }
+        var runaway = mockDelegate();
+        streamThrough(new GuardrailCapturingSession(runaway, guardrails,
+                new AiRequest("runaway")), 10_000);
+        verify(runaway).error(any());
+        verify(runaway, never()).complete();
+    }
+
+    private static void streamThrough(GuardrailCapturingSession session, int length) {
+        for (var sent = 0; sent < length; sent += 40) {
+            session.send("x".repeat(Math.min(40, length - sent)));
+        }
+        session.complete();
     }
 }
