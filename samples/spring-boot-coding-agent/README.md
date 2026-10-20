@@ -18,9 +18,6 @@ touch:
 # Build
 ./mvnw compile -pl samples/spring-boot-coding-agent
 
-# Run with an OpenAI key (optional — sample works without)
-export OPENAI_API_KEY=sk-your-key
-
 # Start the sample
 ./mvnw spring-boot:run -pl samples/spring-boot-coding-agent
 

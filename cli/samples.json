@@ -514,9 +514,7 @@
       "runnable": true,
       "packaging": "spring-boot",
       "hasFrontend": false,
-      "envVars": {
-        "OPENAI_API_KEY": "API key for the LLM provider (optional \u2014 sample works without)"
-      }
+      "envVars": {}
     },
     {
       "name": "spring-boot-guarded-email-agent",
