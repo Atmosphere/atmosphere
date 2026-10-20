@@ -25,6 +25,7 @@ import type {
 import type { OfflineQueue } from '../queue/offline-queue';
 import { logger } from '../utils/logger';
 import { AtmosphereProtocol } from '../utils/protocol';
+import { learnedHeartbeat } from '../utils/heartbeat-registry';
 import { SEND_ERROR_NAME } from '../utils/send-error';
 import { clearRunId, loadRunId, saveRunId } from '../utils/run-id-store';
 import { computeReconnectDelay, maxReconnectAttempts } from '../utils/reconnect-delay';
@@ -75,8 +76,14 @@ export abstract class BaseTransport<T = unknown> {
     // the room's cache and the runs it was following find it again.
     if (request.trackingId && TRACKING_ID.test(request.trackingId)) {
       this.protocol.uuid = request.trackingId;
-      // A connection under a known tracking id gets no handshake.
+      // A connection under a known tracking id gets no handshake, so it
+      // sends the heartbeat the handshake for that id announced.
       this.protocol.reset();
+      const heartbeat = learnedHeartbeat(request.trackingId);
+      if (heartbeat) {
+        this.protocol.heartbeatInterval = heartbeat.interval;
+        this.protocol.heartbeatPadding = heartbeat.padding;
+      }
     }
     this.interceptors = interceptors;
   }

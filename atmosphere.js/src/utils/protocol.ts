@@ -17,6 +17,7 @@
 import type { AtmosphereRequest } from '../types';
 import { logger } from './logger';
 import { VERSION } from '../version';
+import { rememberHeartbeat } from './heartbeat-registry';
 
 /**
  * Result of processing a message through the Atmosphere protocol handler.
@@ -313,6 +314,7 @@ export class AtmosphereProtocol {
       this.uuid = parts[pos].trim();
       this.heartbeatInterval = parseInt(parts[pos + 1]?.trim() ?? '0', 10);
       this.heartbeatPadding = parts[pos + 2] ?? 'X';
+      rememberHeartbeat(this.uuid, { interval: this.heartbeatInterval, padding: this.heartbeatPadding });
 
       // Reconstruct trailing messages after the handshake data
       const trailingStart = request.trackMessageLength ? 4 : 3;
