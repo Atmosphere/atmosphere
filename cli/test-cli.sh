@@ -273,11 +273,29 @@ assert_contains "$out" "LLM_API_KEY" "info shows env vars"
 assert_contains "$out" "spring-boot" "info shows packaging"
 assert_contains "$out" "atmosphere run" "info shows run command"
 
-# The keyless path: these samples resolve LLM_MODE through AiConfig, where
-# local means Ollama at localhost:11434/v1 with no key. LLM_MODEL keeps its
-# gemini-2.5-flash default in local mode too, so info must say to name a
-# local model, or a keyless run asks Ollama for a Gemini model.
-for keyless in spring-boot-ai-chat spring-boot-ai-classroom spring-boot-ai-tools spring-boot-a2a-agent; do
+# The keyless path: a Spring Boot sample whose info documents LLM_API_KEY
+# runs on the AI auto-configuration, which reads LLM_API_KEY and LLM_MODE
+# from the same environment into AiConfig, where local means Ollama at
+# localhost:11434/v1 with no key. LLM_MODEL keeps its gemini-2.5-flash
+# default in local mode too, so info must say to name a local model, or a
+# keyless run asks Ollama for a Gemini model. The set is derived, so a sample
+# that documents the key and not the keyless mode fails here.
+AI_AUTOCONFIG="$REPO_ROOT/modules/spring-boot-starter/src/main/java/org/atmosphere/spring/boot/AtmosphereAiAutoConfiguration.java"
+for knob in LLM_API_KEY LLM_MODE; do
+    if grep -q "env(\"$knob\")" "$AI_AUTOCONFIG"; then
+        pass "the AI auto-configuration reads $knob from the environment"
+    else
+        fail "the AI auto-configuration reads $knob from the environment" "no env(\"$knob\") in $AI_AUTOCONFIG"
+    fi
+done
+keyless_samples=$(jq -r '.samples[] | select(.packaging == "spring-boot" and (.envVars // {} | has("LLM_API_KEY"))) | .name' "$SAMPLES_JSON")
+keyless_count=$(printf '%s\n' "$keyless_samples" | grep -c .)
+if [ "$keyless_count" -ge 9 ]; then
+    pass "$keyless_count Spring Boot samples document LLM_API_KEY"
+else
+    fail "$keyless_count Spring Boot samples document LLM_API_KEY" "expected at least 9 AiConfig samples"
+fi
+for keyless in $keyless_samples; do
     out=$("$CLI" info "$keyless" 2>&1)
     assert_contains "$out" "LLM_MODE:" "info $keyless documents LLM_MODE"
     assert_contains "$out" "local" "info $keyless names the local mode"
