@@ -107,6 +107,17 @@ public final class RunReattachSupport {
      */
     public static final String ROOM_JOIN_MARK_ATTRIBUTE = "org.atmosphere.ai.runRoomJoinMark";
 
+    /**
+     * Request attribute {@link #cacheDelivered} sets: the ids of the sessions
+     * whose AI frames the room's {@link org.atmosphere.cpr.BroadcasterCache}
+     * wrote to a connection as it joined the room, the frames the room
+     * broadcast while the connection was away. A reattach of the connection to
+     * a run of the room whose session is among them writes none of the run's
+     * events: the cache wrote the connection every frame of the run it missed,
+     * and the room broadcasts it the rest.
+     */
+    public static final String CACHE_DELIVERED_SESSIONS_ATTRIBUTE = "org.atmosphere.ai.cacheDeliveredSessions";
+
     private static final Logger logger = LoggerFactory.getLogger(RunReattachSupport.class);
 
     /**
@@ -180,12 +191,96 @@ public final class RunReattachSupport {
     }
 
     /**
+     * Record, on the request of {@code resource}, the sessions of the AI frames
+     * among {@code frames}, the messages the room's broadcaster cache kept for
+     * the connection while it was away and writes it as it joins the room
+     * ({@link #CACHE_DELIVERED_SESSIONS_ATTRIBUTE}). The set grows with the
+     * frames the cache hands over, which the cache bounds.
+     *
+     * @param resource the connection the cache writes to
+     * @param frames   the cached messages: {@link org.atmosphere.cpr.RawMessage}s
+     *                 or strings, an AI frame being the JSON of one
+     */
+    public static void cacheDelivered(AtmosphereResource resource, java.util.List<?> frames) {
+        if (resource == null || frames == null || frames.isEmpty()) {
+            return;
+        }
+        try {
+            var request = resource.getRequest();
+            if (request == null) {
+                return;
+            }
+            var sessions = new java.util.HashSet<String>();
+            if (request.getAttribute(CACHE_DELIVERED_SESSIONS_ATTRIBUTE) instanceof java.util.Set<?> known) {
+                for (var id : known) {
+                    if (id instanceof String s) {
+                        sessions.add(s);
+                    }
+                }
+            }
+            var before = sessions.size();
+            for (var frame : frames) {
+                var body = frame instanceof org.atmosphere.cpr.RawMessage raw ? raw.message() : frame;
+                if (body instanceof String json) {
+                    var sessionId = aiFrameSession(json);
+                    if (sessionId != null) {
+                        sessions.add(sessionId);
+                    }
+                }
+            }
+            if (sessions.size() > before) {
+                request.setAttribute(CACHE_DELIVERED_SESSIONS_ATTRIBUTE, java.util.Set.copyOf(sessions));
+            }
+        } catch (RuntimeException e) {
+            logger.trace("Unable to record the cached frames written to {}", resource.uuid(), e);
+        }
+    }
+
+    /** The session of the AI frame {@code json}, or {@code null} when it is none. */
+    private static String aiFrameSession(String json) {
+        try {
+            var message = org.atmosphere.ai.filter.AiStreamMessage.parse(json);
+            return message != null ? message.sessionId() : null;
+        } catch (RuntimeException e) {
+            logger.trace("Cached message is not an AI frame", e);
+            return null;
+        }
+    }
+
+    /**
+     * Whether the room's broadcaster cache wrote {@code resource}, as it joined
+     * the room, frames of the session that wrote run {@code handle} to the room
+     * ({@link #cacheDelivered(AtmosphereResource, java.util.List)}): the cache then
+     * wrote it every frame of the run it missed.
+     */
+    private static boolean deliveredByCache(AtmosphereResource resource, AgentResumeHandle handle) {
+        var roomSession = handle.replayBuffer().roomSessionId();
+        if (roomSession == null) {
+            return false;
+        }
+        try {
+            var request = resource.getRequest();
+            var delivered = request != null ? request.getAttribute(CACHE_DELIVERED_SESSIONS_ATTRIBUTE) : null;
+            return delivered instanceof java.util.Set<?> sessions && sessions.contains(roomSession);
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read the cached frames written to {}", resource.uuid(), e);
+            return false;
+        }
+    }
+
+    /**
      * The events of {@code backlog} a member of the run's room that joined it at
      * {@link #ROOM_JOIN_MARK_ATTRIBUTE} did not receive through the room: those up
-     * to the mark; all of them when no mark was recorded.
+     * to the mark; all of them when no mark was recorded; none when the room's
+     * cache wrote it the frames of the run it missed ({@link #deliveredByCache}).
      */
-    private static java.util.List<RunEvent> beforeRoomJoin(AtmosphereResource resource,
+    private static java.util.List<RunEvent> beforeRoomJoin(AtmosphereResource resource, AgentResumeHandle handle,
                                                            java.util.List<RunEvent> backlog) {
+        if (deliveredByCache(resource, handle)) {
+            logger.debug("Run {}: the room's cache wrote {} the frames it missed; none is replayed",
+                    handle.runId(), resource.uuid());
+            return java.util.List.of();
+        }
         Object mark;
         try {
             mark = resource.getRequest() != null
@@ -349,14 +444,34 @@ public final class RunReattachSupport {
      * {@code prompt} frame, its prompt in {@code text} and the room member id
      * ({@link org.atmosphere.ai.RoomMemberIds}) of the member who sent it, the
      * run's own client, in {@code from} — never its tracking id.
+     *
+     * <p>An event of a {@code broadcastReply} run whose frame the room session
+     * wrote to the room ({@link RunEventReplayBuffer#wroteToRoom}) is replayed
+     * as that frame: under the room session's id and the {@code seq} it had,
+     * the one every member of the room received it with. A member that already
+     * had the frame then holds the same {@code (sessionId, seq)} and drops it,
+     * and one that missed it receives it in the numbering of the frames it has
+     * and the room's later ones.</p>
      */
     static org.atmosphere.ai.filter.AiStreamMessage replayFrame(RunEvent event, AgentResumeHandle handle,
                                                               String runId, long seq) {
+        var sessionId = runId;
+        var frameSeq = seq;
+        var buffer = handle.replayBuffer();
+        if (buffer.roomId() != null) {
+            var roomSession = buffer.roomSessionId();
+            var roomSeq = buffer.roomFrame(event);
+            if (roomSession != null && roomSeq >= 0) {
+                sessionId = roomSession;
+                frameSeq = roomSeq;
+            }
+        }
         if (org.atmosphere.ai.filter.AiStreamMessage.PROMPT_TYPE.equals(event.type())) {
             return org.atmosphere.ai.filter.AiStreamMessage.prompt(event.payload(),
-                    org.atmosphere.ai.RoomMemberIds.of(handle.sessionId()), runId, seq);
+                    org.atmosphere.ai.RoomMemberIds.of(handle.sessionId()), sessionId, frameSeq);
         }
-        return new org.atmosphere.ai.filter.AiStreamMessage(event.type(), event.payload(), runId, seq, null, null);
+        return new org.atmosphere.ai.filter.AiStreamMessage(event.type(), event.payload(), sessionId, frameSeq,
+                null, null);
     }
 
     /**
@@ -464,6 +579,11 @@ public final class RunReattachSupport {
         if (transport != null && Utils.resumableTransport(transport)) {
             return new PollReplay(resource, handle, filtersFor(resource), broadcasterIdFor(resource),
                     reattachGrace(resource, registry), own).start();
+        }
+        if (broadcasterIdFor(resource).equals(handle.replayBuffer().roomId()) && deliveredByCache(resource, handle)) {
+            logger.info("Reattach run {} for room member {}: the room's cache wrote it the frames it missed",
+                    runId, resource.uuid());
+            return 0;
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -797,7 +917,7 @@ public final class RunReattachSupport {
             written = 0;
             replayFailed = false;
             // A member of the room received the events after it joined through the room.
-            var backlog = roomMember ? beforeRoomJoin(resource, subscription.backlog()) : subscription.backlog();
+            var backlog = roomMember ? beforeRoomJoin(resource, handle, subscription.backlog()) : subscription.backlog();
             for (var event : backlog) {
                 var outcome = forwarder.write(event);
                 if (outcome == Write.FAILED) {
@@ -835,7 +955,7 @@ public final class RunReattachSupport {
                                          AgentResumeHandle handle, LiveForwarder forwarder, boolean roomMember) {
         var snapshot = handle.replayBuffer().snapshot();
         // A member of the room received the events after it joined through the room.
-        var backlog = roomMember ? beforeRoomJoin(resource, snapshot) : snapshot;
+        var backlog = roomMember ? beforeRoomJoin(resource, handle, snapshot) : snapshot;
         var written = 0;
         synchronized (forwarder) {
             for (var event : backlog) {

@@ -303,6 +303,18 @@ public final class RunEventReplayBuffer {
      * Invariant #3). One past them is not warned about at all.
      */
     private final java.util.Set<String> refused = new java.util.HashSet<>();
+    /**
+     * Guarded by {@code buffer}: the id of the session that wrote the frames of
+     * the run's events to its room ({@link #wroteToRoom}), or {@code null}
+     * while none was written that way.
+     */
+    private String roomSessionId;
+    /**
+     * Guarded by {@code buffer}: event sequence -> the {@code seq} of the frame
+     * that session wrote for it, for the retained events only (an event the
+     * capacity evicts leaves), so it holds at most {@link #capacity()} entries.
+     */
+    private final Map<Long, Long> roomFrameSequences = new java.util.HashMap<>();
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -524,6 +536,58 @@ public final class RunEventReplayBuffer {
         return nextSequence.get() - 1;
     }
 
+    /**
+     * The room session {@code sessionId} wrote the frame of the retained event
+     * {@code eventSequence} to the run's room as its frame {@code frameSequence}.
+     * Every member of a {@code broadcastReply} room received the run's frames
+     * under that session's id and numbering, so a replay to a member writes them
+     * under the same ({@link #roomFrame}): a frame it already had is then the
+     * same {@code (sessionId, seq)} it holds, which the client drops. The first
+     * frame written for an event is kept; a session other than the first one
+     * that wrote, or an event no longer retained, is ignored.
+     *
+     * @param eventSequence the sequence of the event the frame stands for
+     * @param sessionId     the id of the room session that wrote it
+     * @param frameSequence the {@code seq} of the frame
+     */
+    public void wroteToRoom(long eventSequence, String sessionId, long frameSequence) {
+        if (sessionId == null) {
+            return;
+        }
+        synchronized (buffer) {
+            if (roomSessionId == null) {
+                roomSessionId = sessionId;
+            } else if (!roomSessionId.equals(sessionId)) {
+                return;
+            }
+            if (!buffer.isEmpty() && eventSequence >= buffer.get(0).sequence()
+                    && eventSequence <= buffer.get(buffer.size() - 1).sequence()) {
+                roomFrameSequences.putIfAbsent(eventSequence, frameSequence);
+            }
+        }
+    }
+
+    /**
+     * The id of the room session that wrote the run's frames to its room
+     * ({@link #wroteToRoom}), or {@code null} when none was written that way.
+     */
+    public String roomSessionId() {
+        synchronized (buffer) {
+            return roomSessionId;
+        }
+    }
+
+    /**
+     * The {@code seq} of the frame the room session wrote for {@code event}, or
+     * {@code -1} when it wrote none ({@link #wroteToRoom}).
+     */
+    public long roomFrame(RunEvent event) {
+        synchronized (buffer) {
+            var seq = roomFrameSequences.get(event.sequence());
+            return seq == null ? -1 : seq;
+        }
+    }
+
     /** Whether a terminal {@code complete} / {@code error} / {@code cancelled} event was captured. */
     public boolean isTerminated() {
         synchronized (buffer) {
@@ -568,7 +632,7 @@ public final class RunEventReplayBuffer {
                     Instant.now());
             buffer.add(event);
             while (buffer.size() > capacity) {
-                buffer.remove(0);
+                roomFrameSequences.remove(buffer.remove(0).sequence());
             }
             listeners = listeners();
             if (isTerminal(type)) {

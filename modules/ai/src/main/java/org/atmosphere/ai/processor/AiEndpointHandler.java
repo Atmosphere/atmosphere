@@ -124,6 +124,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     static final String CONNECTION_SETTING_UP_ATTRIBUTE = "org.atmosphere.ai.connectionSettingUp";
 
     /**
+     * Request attribute: the broadcaster of the {@code broadcastReply} room a
+     * WebSocket, SSE or streaming connection joined, held from its suspend so
+     * its departure reaches that room, not one the resource recreates.
+     */
+    static final String ROOM_BROADCASTER_ATTRIBUTE = "org.atmosphere.ai.roomBroadcaster";
+
+    /**
      * Init-param: the largest prompt body, in bytes, an SSE, streaming or
      * long-polling POST may carry; a larger one is answered {@code 413} without
      * being read past the limit. WebSocket frames are bounded by the
@@ -620,6 +627,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             if (broadcastReply) {
                 // Before the suspend: the poll subscribing makes a long-polling client a room member.
                 LongPollingRoomReplies.install(resource.getBroadcaster());
+                if (resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING) {
+                    resource.getRequest().setAttribute(ROOM_BROADCASTER_ATTRIBUTE, resource.getBroadcaster());
+                }
             }
             // Before the suspend, not once the connection is set up: suspending
             // it closes a connection of its id still subscribed to the
@@ -1008,6 +1018,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var message = event.getMessage();
         if (message == null) {
             return;
+        }
+
+        // What the broadcaster's cache kept for this connection while it was
+        // away, written as it joins: a reattach to a run of the room the cache
+        // wrote frames of writes none of them again.
+        if (message instanceof java.util.List<?> cached && broadcastReply && resource != null
+                && resource.getRequest() != null
+                && resource.getRequest().getAttribute(org.atmosphere.cpr.DefaultBroadcaster.CACHED) != null) {
+            org.atmosphere.ai.resume.RunReattachSupport.cacheDelivered(resource, cached);
         }
 
         // RawMessage = broadcast from StreamingSession (streaming texts, progress, complete, error).
@@ -1688,6 +1707,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
         if (!replacedUnderItsId(resource, event, resource.uuid())) {
+            if (org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event)) {
+                keepRoomCacheFor(resource);
+            }
             var ownerAtDisconnect = disconnectUserId(resource);
             if (ownerAtDisconnect == null) {
                 ownerAtDisconnect = recallRunOwner(resource.uuid());
@@ -1728,6 +1750,37 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     + "its state stays with the live connection", uuid);
         }
         return replaced.get();
+    }
+
+    /**
+     * A member of a {@code broadcastReply} room lost its connection: the room's
+     * {@link org.atmosphere.cpr.BroadcasterCache} keeps what the room broadcasts
+     * from now on for its tracking id ({@code cacheCandidate}), for the cache's
+     * client idle time, so a member that comes back under it is written the
+     * turns it missed. A cache remembers a client only from its last connect
+     * ({@code UUIDBroadcasterCache} forgets one idle that long, whether or not
+     * it is still connected), so a member that sat in the room past the idle
+     * time before its connection dropped was no longer kept anything. A
+     * long-polling member is the long-polling room's
+     * ({@link LongPollingRoomReplies}); a room without a cache keeps nothing.
+     */
+    private void keepRoomCacheFor(AtmosphereResource resource) {
+        if (!broadcastReply) {
+            return;
+        }
+        try {
+            var request = resource.getRequest();
+            if (request == null || !(request.getAttribute(ROOM_BROADCASTER_ATTRIBUTE) instanceof Broadcaster room)
+                    || room.isDestroyed()) {
+                return;
+            }
+            var cache = room.getBroadcasterConfig().getBroadcasterCache();
+            if (cache != null) {
+                cache.cacheCandidate(room.getID(), resource.uuid());
+            }
+        } catch (RuntimeException e) {
+            logger.trace("Unable to keep the room's cache for {}", resource.uuid(), e);
+        }
     }
 
     /**

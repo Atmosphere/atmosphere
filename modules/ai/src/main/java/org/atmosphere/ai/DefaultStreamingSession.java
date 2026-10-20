@@ -537,7 +537,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             return;
         }
         broadcast(org.atmosphere.ai.filter.AiStreamMessage.prompt(text, from, sessionId,
-                sequence.incrementAndGet()).toJson());
+                frameSequence(true)).toJson());
     }
 
     String resourceUuid() {
@@ -549,7 +549,8 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("event", event.eventType());
         msg.put("data", event);
         msg.put("sessionId", sessionId);
-        msg.put("seq", sequence.incrementAndGet());
+        msg.put("seq", frameSequence(event instanceof AiEvent.TextDelta
+                || event instanceof AiEvent.Complete || event instanceof AiEvent.Error));
         return toJson(msg);
     }
 
@@ -560,8 +561,27 @@ public final class DefaultStreamingSession implements StreamingSession {
             msg.put("data", data);
         }
         msg.put("sessionId", sessionId);
-        msg.put("seq", sequence.incrementAndGet());
+        msg.put("seq", frameSequence(!"progress".equals(type)));
         return toJson(msg);
+    }
+
+    /**
+     * The {@code seq} of the next frame. A room session writing the frame of a
+     * run event ({@code runEvent}: a prompt, text or terminal frame, which
+     * {@code RunEventCapturingSession} captures) records it with the event
+     * ({@link org.atmosphere.ai.resume.RunEventReplayBuffer#wroteToRoom}), so a
+     * replay to a member of the room writes that frame under the session id and
+     * {@code seq} the member received it with.
+     */
+    private long frameSequence(boolean runEvent) {
+        var seq = sequence.incrementAndGet();
+        if (runEvent && broadcastToRoom) {
+            var position = org.atmosphere.ai.resume.RunEventCapturingSession.positionOfFrameBeingWritten(this);
+            if (position != null) {
+                position.run().wroteToRoom(position.sequence(), sessionId, seq);
+            }
+        }
+        return seq;
     }
 
     /**
