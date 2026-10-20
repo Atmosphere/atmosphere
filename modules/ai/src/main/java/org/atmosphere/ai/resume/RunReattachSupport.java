@@ -1185,6 +1185,10 @@ public final class RunReattachSupport {
         if (replayFailed) {
             // Outside the forwarder's lock: the decision may cancel the run.
             forwarder.writeFailed();
+        } else if (!roomMember && handle.replayBuffer().handedOffTo() == null) {
+            // A handoff already made is followed by the reattach (followHandoff);
+            // one made from now on, while the client follows the run, here.
+            forwarder.followHandoffs();
         }
         return written;
     }
@@ -1260,6 +1264,8 @@ public final class RunReattachSupport {
         /** Set once the resource went away (a disconnect or a close), so its departure decides once. */
         private boolean departed;
         private Runnable unsubscribe = () -> { };
+        /** Stops following the run on to the run it hands its turn off to ({@link #followHandoffs}). */
+        private Runnable stopFollowing = () -> { };
 
         LiveForwarder(AtmosphereResource resource, AgentResumeHandle run,
                       java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
@@ -1333,6 +1339,38 @@ public final class RunReattachSupport {
             this.unsubscribe = unsubscribe;
         }
 
+        /**
+         * Follow the run's own client on to the run the turn is handed off to,
+         * when it is: the agent that hands its turn off may leave its own run
+         * open, so the run's end would never come to move the client on.
+         */
+        void followHandoffs() {
+            var stop = run.replayBuffer().onHandoff(this::handedOff);
+            synchronized (this) {
+                if (!cancelled) {
+                    stopFollowing = stop;
+                    return;
+                }
+            }
+            stop.run();
+        }
+
+        /** The run handed its turn off to run {@code next}: the client follows that run instead. Once. */
+        private void handedOff(String next) {
+            synchronized (this) {
+                if (cancelled) {
+                    return;
+                }
+                cancel();
+            }
+            try {
+                followHandoff(resource, RunRegistryHolder.get(), run);
+            } catch (RuntimeException e) {
+                logger.warn("Following run {} on to run {} for resource {} failed: {}",
+                        runId, next, resource.uuid(), e.getMessage(), e);
+            }
+        }
+
         synchronized void attach() {
             resource.addEventListener(disconnectListener);
         }
@@ -1403,6 +1441,7 @@ public final class RunReattachSupport {
             }
             cancelled = true;
             unsubscribe.run();
+            stopFollowing.run();
         }
 
         /** Stop forwarding and remove the resource listener: no decision for the run follows. */

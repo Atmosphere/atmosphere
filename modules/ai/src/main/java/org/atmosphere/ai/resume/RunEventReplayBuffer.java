@@ -420,6 +420,30 @@ public final class RunEventReplayBuffer {
     /** Record that this run handed its turn off to the run {@code runId} (another agent's). */
     public void handedOffTo(String runId) {
         this.handedOffTo = runId;
+        for (var listener : handoffListeners) {
+            // Removing it first: a listener hears of the handoff once.
+            if (handoffListeners.remove(listener)) {
+                listener.accept(runId);
+            }
+        }
+    }
+
+    /** Who follows this run on to the run it hands its turn off to ({@link #onHandoff}). */
+    private final java.util.concurrent.CopyOnWriteArrayList<Consumer<String>> handoffListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Hand {@code listener} the id of the run this run hands its turn off to
+     * from now on, once, when it does. The agent that hands its turn off may
+     * leave its own run open, so a client following that run learns of the
+     * handoff here rather than from the run's end.
+     *
+     * @param listener takes the id of the run the turn was handed to
+     * @return removes the listener
+     */
+    public Runnable onHandoff(Consumer<String> listener) {
+        handoffListeners.add(listener);
+        return () -> handoffListeners.remove(listener);
     }
 
     /**
