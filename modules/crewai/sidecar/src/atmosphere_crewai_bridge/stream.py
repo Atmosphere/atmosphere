@@ -118,6 +118,9 @@ async def drain(session: Session):
         yield bytes(item)
 
 
+QUEUE_FULL_MESSAGE = "event queue full: consumer too slow"
+
+
 def _safe_put(session: Session, frame: bytes) -> bool:
     """Put a frame on the session queue, honoring backpressure.
 
@@ -127,19 +130,30 @@ def _safe_put(session: Session, frame: bytes) -> bool:
     """
     if session.cancelled.is_set():
         return False
-    try:
-        session.queue.put_nowait(frame)
+    if session.offer(frame):
         return True
-    except asyncio.QueueFull:
-        # Backpressure: rather than silently waiting forever, we treat a
-        # full queue (which means the SSE consumer is gone or stalled)
-        # as cancellation. Invariant #3 — never ignore rejection signals.
-        logger.warning(
-            "session %s queue full; dropping frame and cancelling stream",
-            session.id,
-        )
-        session.request_cancel()
-        return False
+    # Backpressure: rather than silently waiting forever, we treat a
+    # full queue (which means the SSE consumer is gone or stalled) as
+    # cancellation. Invariant #3 — never ignore rejection signals. The
+    # terminal error frame goes into its reserved slot so the consumer
+    # still sees why the stream ended (Invariant #2).
+    logger.warning(
+        "session %s queue full; dropping frame and cancelling stream",
+        session.id,
+    )
+    session.offer_terminal(error_frame(QUEUE_FULL_MESSAGE))
+    session.request_cancel()
+    return False
+
+
+def _put_terminal(session: Session, frame: bytes) -> None:
+    """Enqueue the terminal ``done``/``error`` frame.
+
+    Bypasses the cancel flag and the ordinary frame capacity: the
+    terminal frame has its own reserved queue slot, so every terminal
+    path reaches the consumer. A no-op once a terminal frame was queued.
+    """
+    session.offer_terminal(frame)
 
 
 def _extract_usage(crew_output: Any) -> tuple[int, int, int]:
@@ -234,14 +248,14 @@ async def run_crew(session: Session,
                 )
 
         if session.cancelled.is_set():
-            _safe_put(session, error_frame("cancelled"))
+            _put_terminal(session, error_frame("cancelled"))
         else:
-            _safe_put(session, done_frame())
+            _put_terminal(session, done_frame())
         terminal_emitted = True
     except asyncio.CancelledError:
         # Co-operative cancel from the FastAPI side.
         if not terminal_emitted:
-            _safe_put(session, error_frame("cancelled"))
+            _put_terminal(session, error_frame("cancelled"))
             terminal_emitted = True
         raise
     except Exception as exc:  # noqa: BLE001 — boundary; log and emit error
@@ -252,13 +266,15 @@ async def run_crew(session: Session,
         logger.exception("session %s crew run failed: %s",
                          session.id, exc)
         if not terminal_emitted:
-            _safe_put(session, error_frame(f"{type(exc).__name__}: {exc}"))
+            _put_terminal(session, error_frame(f"{type(exc).__name__}: {exc}"))
             terminal_emitted = True
     finally:
         if not terminal_emitted:
             # Defensive: a missing terminal frame would leave the Java
             # client waiting until its request timeout. Emit one.
-            _safe_put(session, error_frame("stream ended without terminal frame"))
+            _put_terminal(session, error_frame(
+                "cancelled" if session.cancelled.is_set()
+                else "stream ended without terminal frame"))
         session.terminated = True
         session.close_queue()
 

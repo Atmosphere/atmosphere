@@ -19,12 +19,19 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 
 from fastapi.testclient import TestClient
 
 from atmosphere_crewai_bridge.app import create_app
-from atmosphere_crewai_bridge.sessions import SessionRegistry
+from atmosphere_crewai_bridge.sessions import Session, SessionRegistry
+from atmosphere_crewai_bridge.stream import (
+    QUEUE_FULL_MESSAGE,
+    drain,
+    run_crew,
+    token_frame,
+)
 from tests.conftest import FakeCrew
 
 
@@ -96,6 +103,65 @@ def test_delete_during_stream_cancels_producer() -> None:
         # Registry must be empty — the producer's done-callback released
         # the session, no leak (Invariant #1 — Ownership).
         assert registry.size == 0
+
+
+async def _drain_all(session: Session) -> list[bytes]:
+    """Collect every frame ``drain`` yields; fails instead of hanging when
+    the stream never ends."""
+    async def collect() -> list[bytes]:
+        return [frame async for frame in drain(session)]
+
+    return await asyncio.wait_for(collect(), timeout=5.0)
+
+
+async def test_stream_ends_when_producer_outruns_unstarted_consumer() -> None:
+    """The producer runs to completion before the consumer reads a single
+    frame and emits more frames than the queue holds. The consumer must
+    still reach the end of the stream and see a terminal frame explaining
+    the truncation, instead of waiting forever for a dropped sentinel."""
+    registry = SessionRegistry(max_sessions=1, queue_size=2)
+    session = registry.acquire()
+    assert session is not None
+
+    await run_crew(session, FakeCrew(chunks=["a", "b", "c", "d", "e"]),
+                   "hi", [], None)
+
+    frames = await _drain_all(session)
+    assert frames[0].startswith(b"event: session\n")
+    assert frames[-1] == (
+        b'event: error\ndata: {"message":"' + QUEUE_FULL_MESSAGE.encode()
+        + b'"}\n\n'), frames
+
+
+async def test_stream_ends_when_cancelled_with_full_queue() -> None:
+    """A DELETE that lands while the queue is full must still end the
+    stream: the close sentinel has a reserved slot."""
+    registry = SessionRegistry(max_sessions=1, queue_size=2)
+    session = registry.acquire()
+    assert session is not None
+    assert session.offer(token_frame("a"))
+    assert session.offer(token_frame("b"))
+    assert not session.offer(token_frame("c")), "frame capacity is 2"
+
+    registry.cancel(session.id)
+
+    frames = await _drain_all(session)
+    assert frames == [token_frame("a"), token_frame("b")]
+
+
+async def test_stream_within_capacity_ends_with_done() -> None:
+    """Producer finishing first is fine when its frames fit: every token,
+    the usage frame and ``done`` reach the consumer."""
+    registry = SessionRegistry(max_sessions=1, queue_size=8)
+    session = registry.acquire()
+    assert session is not None
+
+    await run_crew(session, FakeCrew(chunks=["a", "b", "c"]), "hi", [], None)
+
+    frames = await _drain_all(session)
+    assert [f.split(b"\n", 1)[0] for f in frames] == [
+        b"event: session", b"event: token", b"event: token",
+        b"event: token", b"event: usage", b"event: done"]
 
 
 def test_registry_capacity_returns_503_when_full() -> None:

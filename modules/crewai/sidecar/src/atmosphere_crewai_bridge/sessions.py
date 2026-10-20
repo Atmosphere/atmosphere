@@ -42,6 +42,12 @@ logger = logging.getLogger(__name__)
 # dicts cannot be confused with the close marker.
 _QUEUE_CLOSED = object()
 
+# Queue slots held back from ordinary frames: one for the terminal
+# ``done``/``error`` frame and one for the close sentinel. Without them a
+# producer that outruns its consumer fills the queue, and the sentinel the
+# consumer is waiting for has nowhere to go, so the SSE response never ends.
+RESERVED_SLOTS = 2
+
 
 @dataclass
 class Session:
@@ -50,6 +56,10 @@ class Session:
     The event queue carries already-rendered SSE frames (``bytes``) so the
     streaming endpoint can write them straight to the wire without a
     per-frame JSON encode on the hot path.
+
+    The queue holds :data:`RESERVED_SLOTS` more items than ordinary frames
+    may use (see :meth:`offer`), so the terminal frame and the close
+    sentinel are always accepted whatever the consumer's pace.
     """
 
     id: str
@@ -58,6 +68,13 @@ class Session:
     # True once the producer has enqueued its terminal frame
     # (``done``/``error``) so a subsequent close call is a no-op.
     terminated: bool = False
+    _terminal_sent: bool = field(default=False, repr=False)
+    _closed: bool = field(default=False, repr=False)
+
+    @property
+    def frame_capacity(self) -> int:
+        """How many ordinary (non-terminal) frames the queue may hold."""
+        return self.queue.maxsize - RESERVED_SLOTS
 
     def request_cancel(self) -> bool:
         """Signal the producer to wind down. Idempotent.
@@ -71,20 +88,37 @@ class Session:
         self.cancelled.set()
         return True
 
+    def offer(self, frame: bytes) -> bool:
+        """Enqueue an ordinary frame. Returns ``False`` when the frame
+        capacity is used up; the reserved slots are never consumed here.
+        """
+        if self._closed or self.queue.qsize() >= self.frame_capacity:
+            return False
+        self.queue.put_nowait(frame)
+        return True
+
+    def offer_terminal(self, frame: bytes) -> bool:
+        """Enqueue the terminal ``done``/``error`` frame into its reserved
+        slot. Only the first call enqueues; later calls return ``False``.
+        """
+        if self._terminal_sent or self._closed:
+            return False
+        self._terminal_sent = True
+        self.queue.put_nowait(frame)
+        return True
+
     def close_queue(self) -> None:
         """Push the queue-closed sentinel so the SSE consumer wakes up.
 
-        Safe to call more than once: the consumer ignores the sentinel
-        after the first read.
+        Idempotent: only the first call enqueues the sentinel, and that
+        call always finds room because ordinary frames never use the
+        reserved slots (:meth:`offer`) and the terminal frame takes at
+        most one of them (:meth:`offer_terminal`).
         """
-        try:
-            self.queue.put_nowait(_QUEUE_CLOSED)
-        except asyncio.QueueFull:
-            # Queue is bounded; if it's already full a previous frame is
-            # still draining and the consumer will pick up the sentinel
-            # right after. Logging at debug rather than swallowing.
-            logger.debug("session %s queue full while closing; "
-                         "consumer will drain remaining frames first", self.id)
+        if self._closed:
+            return
+        self._closed = True
+        self.queue.put_nowait(_QUEUE_CLOSED)
 
 
 class SessionRegistry:
@@ -131,7 +165,7 @@ class SessionRegistry:
         new_id = "sess_" + uuid.uuid4().hex
         session = Session(
             id=new_id,
-            queue=asyncio.Queue(maxsize=self._queue_size),
+            queue=asyncio.Queue(maxsize=self._queue_size + RESERVED_SLOTS),
             cancelled=asyncio.Event(),
         )
         with self._lock:
