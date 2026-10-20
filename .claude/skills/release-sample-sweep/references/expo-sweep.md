@@ -18,19 +18,34 @@ it.** Two drivers split the work:
 
 | Job | Driver |
 |---|---|
-| Read the screen — `ui_describe_all`, `ui_find_element`, `ui_view`, `screenshot`, `launch_app`, `open_url` | iOS simulator MCP (`mcp__ios-simulator__*`, backed by idb) |
+| Read the screen — `ui_describe_all`, `ui_find_element`, `ui_view`, `screenshot`, `launch_app`, `open_url` | iOS simulator MCP (`mcp__ios-simulator__*`, backed by idb) — on Xcode 27.1 its tree reads are empty; use `maestro hierarchy` and `xcrun simctl io` instead (below) |
 | Touch and type — tap a room, type a prompt, Send, Leave | **Maestro** (`~/.maestro/bin/maestro`, 2.10.0; not on `PATH` by default) |
 
 **Why not idb for input.** On Xcode 27 the idb MCP's `ui_tap` / `ui_type` fail with
 `SimulatorKit is required for HID interactions`: idb_companion 1.1.8 (2022) looks for
 `SimulatorKit.framework` under `Contents/Developer/Library/PrivateFrameworks`, and
 Xcode 27 moved it to `Contents/SharedFrameworks`. A shadow `DEVELOPER_DIR` only makes
-the companion report "hid succeeded" while no touch arrives. Reads still work. On
+the companion report "hid succeeded" while no touch arrives. On
 Xcode 26 and older the MCP's `ui_tap` / `ui_type` remain usable; check with
 `xcodebuild -version` before choosing.
 
+**Reading the screen on Xcode 27.1.** The MCP's `ui_describe_all` returns only an
+empty root element there (re-test 2026-10-19), so it cannot prove anything rendered,
+and `ui_find_element` reads the same empty tree. Read the screen with Maestro and
+`simctl` instead (check Maestro first: `which maestro`, else use
+`~/.maestro/bin/maestro`):
+
+```bash
+UDID=$(xcrun simctl list devices booted | grep -Eo '[0-9A-F-]{36}' | head -1)
+maestro --device "$UDID" hierarchy > hierarchy.json        # full accessibility tree: text of every bubble
+maestro --device "$UDID" hierarchy --compact > tree.csv    # same tree, one element per row
+xcrun simctl io booted screenshot classroom.png            # then read the PNG
+```
+
+Every `ui_describe_all` read below means `maestro hierarchy` on Xcode 27.1.
+
 The same evidence discipline applies: assert the **rendered element** from
-`ui_describe_all` / `ui_find_element` or a Maestro `extendedWaitUntil: visible:`,
+`ui_describe_all` / `ui_find_element` (`maestro hierarchy` on Xcode 27.1) or a Maestro `extendedWaitUntil: visible:`,
 not a log line and not a screenshot you did not read.
 
 ## What it actually exercises
@@ -150,7 +165,7 @@ means the room never connected, not that the selector is wrong.
 Between Send and Leave, read the reply with the MCP: two `ui_describe_all` reads
 during the turn must show the AI text present AND grown — that is what proves
 streaming, not a final blob. `maestro hierarchy` prints the same tree when the
-MCP is unavailable. The backend log line `Classroom prompt in room 'math'` confirms
+MCP is unavailable or, as on Xcode 27.1, returns an empty root. The backend log line `Classroom prompt in room 'math'` confirms
 the prompt reached the room it was typed in.
 
 ### Headline assertions
@@ -160,11 +175,13 @@ the prompt reached the room it was typed in.
 | 1 | Connects to the backend over WebSocket | Backend log shows the connection; the room UI leaves its connecting state |
 | 2 | All four rooms render and are selectable | `ui_describe_all` lists Math / Code / Science / General |
 | 3 | AI response streams **text-by-text** | Two `ui_describe_all` reads during one turn show a growing string — a single atomic message means `useStreamingRN` collapsed |
-| 4 | Stream survives backgrounding | Background the app (`press_home`-equivalent), return, confirm the stream is still usable. The sample uses the `useStreamingRN` default `backgroundBehavior: 'keep-alive'`, so the server should log no disconnect; the `suspend`/`disconnect` wiring is unit-tested in `use-streaming-rn-app-state.test.ts` |
+| 4 | Stream survives backgrounding | Background the app (`press_home`-equivalent), return, confirm the stream is still usable. The sample uses the `useStreamingRN` default `backgroundBehavior: 'keep-alive'`, so the server should log no disconnect; the `suspend`/`disconnect` wiring is unit-tested in `use-streaming-rn-app-state.test.ts`. **Simulator limit:** the simulator never suspends a backgrounded app's sockets the way a device does, so the stream simply stays open — a background pass in the simulator does not exercise the server-side room replay a reconnect relies on; that needs a physical device |
 | 5 | NetInfo offline banner | **Do not drive this one.** See below — record it PARTIAL against its unit coverage |
 
 Assertion 4 is the only one that exercises a real OS background/foreground
-cycle — it is the reason this pass exists.
+cycle — it is the reason this pass exists. In the simulator it proves the app
+survives the AppState transition, not that a suspended socket recovers: record
+the room-replay path as covered only when it ran on a device.
 
 **Assertion 5 is off-limits to the sweep.** The simulator has no network of its
 own: it rides the host's. Taking it offline means turning off the machine's
