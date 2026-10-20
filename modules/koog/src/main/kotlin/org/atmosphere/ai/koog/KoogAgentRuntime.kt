@@ -333,12 +333,13 @@ class KoogAgentRuntime : AgentRuntime {
         val done = CompletableFuture<Void>()
         val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()
         val activeThread = java.util.concurrent.atomic.AtomicReference<Thread?>()
+        val agentCalls = java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?>()
         val aiEnvironment = environment()
         Thread.startVirtualThread {
             activeThread.set(Thread.currentThread())
             val binding = AiEnvironment.bind(aiEnvironment)
             try {
-                executeInternal(effective, session, cancelled, activeJob)
+                executeInternal(effective, session, cancelled, activeJob, agentCalls)
                 done.complete(null)
             } catch (ce: java.util.concurrent.CancellationException) {
                 // Native Job.cancel propagated out. Treat as clean termination
@@ -361,15 +362,25 @@ class KoogAgentRuntime : AgentRuntime {
         return object : ExecutionHandle {
             override fun cancel() {
                 if (!cancelled.compareAndSet(false, true)) return
-                // 1. Cancel the coroutine Job so any suspension points inside
-                //    runBlocking unwind with CancellationException.
-                activeJob.get()?.cancel()
-                // 2. Interrupt the virtual thread as a belt-and-suspenders
-                //    fallback. runBlocking cannot interrupt a native blocking
-                //    socket read held by Koog's HttpClient; Thread.interrupt
-                //    flips the VT's interrupt status so NIO channels and
-                //    InterruptibleChannel-based I/O unwind.
-                activeThread.get()?.interrupt()
+                val agentRun = agentCalls.get()
+                if (agentRun != null) {
+                    // An AIAgent run: Koog logs any cancellation inside
+                    // agent.run as an ERROR and fails the run, so neither the
+                    // Job nor the thread is cancelled. The model call in flight
+                    // is cut short and answered empty, and the agent's strategy
+                    // finishes normally (CancellableAgentExecutor).
+                    agentRun.cancelCalls()
+                } else {
+                    // 1. Cancel the coroutine Job so any suspension points inside
+                    //    runBlocking unwind with CancellationException.
+                    activeJob.get()?.cancel()
+                    // 2. Interrupt the virtual thread as a belt-and-suspenders
+                    //    fallback. runBlocking cannot interrupt a native blocking
+                    //    socket read held by Koog's HttpClient; Thread.interrupt
+                    //    flips the VT's interrupt status so NIO channels and
+                    //    InterruptibleChannel-based I/O unwind.
+                    activeThread.get()?.interrupt()
+                }
                 // 3. Resolve whenDone() immediately even if the VT is stuck in
                 //    non-interruptible native code. CompletableFuture semantics
                 //    drop the real completion harmlessly if the VT later catches
@@ -386,6 +397,8 @@ class KoogAgentRuntime : AgentRuntime {
         session: StreamingSession,
         cancelled: AtomicBoolean,
         activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference(),
+        agentCalls: java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?> =
             java.util.concurrent.atomic.AtomicReference()
     ) {
         val executor = applicationExecutor()
@@ -431,9 +444,10 @@ class KoogAgentRuntime : AgentRuntime {
         // planner — there is no framework default to fall back to.
         val planner = KoogPlanner.from(context)
         if (planner != null) {
-            executeWithPlannerAgent(executor, model, planner, context, session, cancelled, activeJob)
+            executeWithPlannerAgent(executor, model, planner, context, session, cancelled, activeJob,
+                agentCalls)
         } else if (context.tools().isNotEmpty()) {
-            executeWithAgent(executor, model, context, session, cancelled, activeJob)
+            executeWithAgent(executor, model, context, session, cancelled, activeJob, agentCalls)
         } else {
             executeWithExecutor(executor, model, context, session, cancelled, activeJob)
         }
@@ -502,8 +516,11 @@ class KoogAgentRuntime : AgentRuntime {
         context: AgentExecutionContext, session: StreamingSession,
         cancelled: AtomicBoolean,
         activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference(),
+        agentCalls: java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?> =
             java.util.concurrent.atomic.AtomicReference()
     ) {
+        val runExecutor = CancellableAgentExecutor(executor, cancelled).also { agentCalls.set(it) }
         val toolRegistry = AtmosphereToolBridge.buildRegistry(
             context.tools(), session, context.approvalStrategy(), context.listeners(),
             context.approvalPolicy()
@@ -547,7 +564,7 @@ class KoogAgentRuntime : AgentRuntime {
         val temperature = generationTemperature()
         val agent = if (customStrategy != null) {
             AIAgent(
-                promptExecutor = executor,
+                promptExecutor = runExecutor,
                 llmModel = model,
                 strategy = customStrategy,
                 toolRegistry = toolRegistry,
@@ -560,7 +577,7 @@ class KoogAgentRuntime : AgentRuntime {
             }
         } else {
             AIAgent(
-                promptExecutor = executor,
+                promptExecutor = runExecutor,
                 llmModel = model,
                 systemPrompt = systemPrompt,
                 temperature = temperature,
@@ -650,8 +667,11 @@ class KoogAgentRuntime : AgentRuntime {
         context: AgentExecutionContext, session: StreamingSession,
         cancelled: AtomicBoolean,
         activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference(),
+        agentCalls: java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?> =
             java.util.concurrent.atomic.AtomicReference()
     ) {
+        val runExecutor = CancellableAgentExecutor(executor, cancelled).also { agentCalls.set(it) }
         // Same boundary honesty as the tool-loop path: the planner runs on
         // the user's plain text message, so multi-modal parts cannot reach
         // it — log the drop instead of silently truncating (Invariant #7).
@@ -688,7 +708,7 @@ class KoogAgentRuntime : AgentRuntime {
         val textStreamed = AtomicBoolean(false)
 
         val agent = PlannerAIAgent(
-            promptExecutor = executor,
+            promptExecutor = runExecutor,
             agentConfig = AIAgentConfig(
                 // Framework-level generation override on the planner prompt's
                 // LLMParams — same temperature knob as the agent and executor
