@@ -15,6 +15,8 @@ export interface ChatMessage {
   timestamp: number
   /** Who sent a user message this tab did not: another member of the room. */
   author?: string
+  /** A message a person typed shown on the reply side (a broadcast room's): no math rendering. */
+  typed?: boolean
 }
 
 export interface PendingApproval {
@@ -627,6 +629,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       role: 'assistant',
       content: text,
       timestamp: Date.now(),
+      typed: true,
     }]
   }
 

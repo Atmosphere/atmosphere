@@ -125,11 +125,14 @@ function renderSpan(span: MathSpan): string {
  * (`onerror`, `onclick`, …), `javascript:` URLs, and other XSS vectors.
  * Without this, a model that emits `<img src=x onerror=...>` would execute
  * script in the console origin.
+ *
+ * `math: false` leaves TeX delimiters as typed: a person's own prompt is
+ * shown as written, so prose that names `$$` is not rendered as math.
  */
-export function renderMarkdown(text: string | null | undefined): string {
+export function renderMarkdown(text: string | null | undefined, { math = true }: { math?: boolean } = {}): string {
   // Read on every call so a caller's render re-runs once KaTeX has loaded.
-  void mathEpoch.value
-  const { text: source, spans } = extractMath(text ?? '')
+  if (math) void mathEpoch.value
+  const { text: source, spans } = math ? extractMath(text ?? '') : { text: text ?? '', spans: [] as MathSpan[] }
   let html = markdown.parse(source, { async: false }) as string
   if (spans.length > 0) {
     html = html.replace(MATH_PLACEHOLDER, (match: string, before: string, index: string, after: string, offset: number) => {

@@ -31,6 +31,7 @@ vi.mock('../transports', () => ({
 import { useAtmosphereChat } from './useAtmosphereChat'
 import ChatInput from '../components/ChatInput.vue'
 import ChatMessage from '../components/ChatMessage.vue'
+import { loadMath } from '../lib/markdown'
 
 /**
  * Mount the composable inside a component that actually renders the messages.
@@ -384,6 +385,25 @@ describe('a broadcast endpoint', () => {
     await nextTick()
 
     expect(wrapper.findAll('p.assistant').map(p => p.text())).toEqual(['posted', 'posted'])
+  })
+
+  it("shows a member's message as typed: math is rendered in AI replies only", async () => {
+    await loadMath()
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    const wrapper = mount(defineComponent({
+      setup() {
+        const chat = useAtmosphereChat('/atmosphere/managed/ops', 'broadcast')
+        state.chat = chat
+        return () => h('div', chat.messages.value.map(m => h(ChatMessage, { message: m, key: m.id })))
+      },
+    }))
+    await nextTick()
+    handlers.onEvent({ author: 'alice', message: 'try $$x^2$$ here', time: 0 })
+    await nextTick()
+
+    const content = wrapper.get('[data-testid="message-bubble"] .message-content')
+    expect(content.find('math').exists()).toBe(false)
+    expect(content.text()).toBe('alice: try $$x^2$$ here')
   })
 
   it('still streams bare text deltas of an AI reply into one bubble', async () => {

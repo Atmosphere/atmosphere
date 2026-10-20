@@ -9,8 +9,10 @@ const props = defineProps<{
 
 const isUser = computed(() => props.message.role === 'user')
 
+// Math is rendered in replies only: what a person typed (a prompt, a
+// broadcast room's message) shows as typed.
 function formattedContent(): string {
-  return renderMarkdown(props.message.content)
+  return renderMarkdown(props.message.content, { math: !isUser.value && !props.message.typed })
 }
 
 const timeString = computed(() => {
