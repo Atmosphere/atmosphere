@@ -83,6 +83,12 @@ function withAuthToken(wsUrl: string): string {
   return wsUrl + (wsUrl.includes('?') ? '&' : '?') + 'X-Atmosphere-Auth=' + encodeURIComponent(token)
 }
 
+/** What a fallback rebuild carries over from the subscription it replaces. */
+interface CarryOver {
+  trackingId?: string
+  resume?: string
+}
+
 /**
  * The console's default transport: the Atmosphere AI-chat/broadcast wire
  * protocol over WebSocket with long-polling fallback, via atmosphere.js.
@@ -118,7 +124,7 @@ export class AtmosphereChatTransport implements ChatTransport {
     return this.subscription?.uuid
   }
 
-  async connect(): Promise<void> {
+  async connect(carry?: CarryOver): Promise<void> {
     const { options, handlers } = this
     this.atmosphere = new Atmosphere({ logLevel: 'debug' })
 
@@ -155,6 +161,11 @@ export class AtmosphereChatTransport implements ChatTransport {
         // Sends while disconnected enqueue (core auto-enqueues on push when
         // state !== 'connected') and drain automatically on reopen.
         ...(options.offlineQueue ? { offlineQueue: options.offlineQueue } : {}),
+        // The fallback rebuild comes back as the client whose WT connection
+        // was lost: its tracking id (the room's cache kept what it missed)
+        // and what it last received (the server writes it the rest, once).
+        ...(carry?.trackingId ? { trackingId: carry.trackingId } : {}),
+        ...(carry?.resume ? { resume: carry.resume } : {}),
       },
       options.status.wrap({
         open: () => {
@@ -192,8 +203,11 @@ export class AtmosphereChatTransport implements ChatTransport {
             // stale hash can never handshake with. Rebuild over plain
             // WebSocket: offline-queued sends drain on its first open.
             this.wtDisabled = true
-            this.teardown()
-            void this.fallbackResubscribe(handlers)
+            // Lost, not left: no close, the run id kept, and the rebuild
+            // reconnects under this tracking id from this resume point.
+            const carried = this.carryOver()
+            this.abandon()
+            void this.fallbackResubscribe(handlers, carried)
             return
           }
           handlers.onFailureToReconnect()
@@ -211,6 +225,25 @@ export class AtmosphereChatTransport implements ChatTransport {
     this.teardown()
   }
 
+  /** What the rebuild carries over from the subscription it replaces. */
+  private carryOver(): CarryOver {
+    const sub = this.subscription
+    const uuid = sub?.uuid
+    return {
+      trackingId: uuid && uuid !== '0' ? uuid : undefined,
+      resume: sub?.resumePoint ?? undefined,
+    }
+  }
+
+  /** Drop a subscription whose transport gave up, as a lost connection. */
+  private abandon(): void {
+    const sub = this.subscription
+    this.atmosphere = null
+    this.subscription = null
+    this.joinPending = false
+    void sub?.abandon()
+  }
+
   private teardown(): void {
     if (this.atmosphere) {
       this.atmosphere.closeAll()
@@ -226,11 +259,11 @@ export class AtmosphereChatTransport implements ChatTransport {
    * retry on the transport-level cadence until it lands, the quota runs out
    * (terminal failureToReconnect), or the owner disconnects.
    */
-  private async fallbackResubscribe(handlers: ChatTransportHandlers): Promise<void> {
+  private async fallbackResubscribe(handlers: ChatTransportHandlers, carry?: CarryOver): Promise<void> {
     for (let attempt = 0; attempt < this.options.maxReconnectOnClose; attempt++) {
       if (this.closedByUser) return
       try {
-        await this.connect()
+        await this.connect(carry)
         return
       } catch {
         this.teardown()

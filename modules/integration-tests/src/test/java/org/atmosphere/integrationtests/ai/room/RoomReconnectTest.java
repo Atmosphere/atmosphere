@@ -508,6 +508,76 @@ public class RoomReconnectTest {
         }
     }
 
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
+    @Test
+    public void aMemberBackOverAnotherTransportUnderItsTrackingIdGetsTheTurnItMissed() throws Exception {
+        try (var proxy = new DroppingProxy(cachedServer.getPort())) {
+            var member = connect(proxy.port(), CachedRoomTestEndpoint.PATH, "0", null);
+            var classmate = connect(cachedServer.getPort(), CachedRoomTestEndpoint.PATH, "0", null);
+            Thread.sleep(SEATED_MS);
+            classmate.send("turn:warm");
+            member.await(frames -> count(frames, "complete") == 1, "the member must see the first turn");
+
+            // Gone long enough that its client gives the transport up.
+            proxy.drop();
+            Thread.sleep(300);
+            classmate.send("turn:missed");
+            classmate.await(frames -> count(frames, "complete") == 2, "the missed turn must end");
+
+            // The fallback transport comes back as the same client.
+            var frames = sse(cachedServer.getPort(), CachedRoomTestEndpoint.PATH, member.trackingId(),
+                    member.resumePoint(), f -> count(f, "complete") == 1);
+            assertRunFramesOnce(classmate.runFrames(), member.runFrames(), frames);
+            classmate.close();
+        }
+    }
+
+    /**
+     * Connect over SSE under {@code trackingId} with {@code resume}, as a
+     * fallback subscription does, and collect the AI frames written to it
+     * until {@code done} holds (or 30 s pass).
+     */
+    private List<JsonNode> sse(int port, String path, String trackingId, String resume,
+                               Predicate<List<JsonNode>> done) throws Exception {
+        var url = "http://localhost:" + port + path
+                + "?X-Atmosphere-Transport=sse&X-Atmosphere-Framework=5.0.0&X-atmo-protocol=true"
+                + "&Content-Type=application/json&X-Atmosphere-tracking-id=" + trackingId
+                + "&X-Atmosphere-Resume=" + java.net.URLEncoder.encode(resume, java.nio.charset.StandardCharsets.UTF_8);
+        var frames = new CopyOnWriteArrayList<JsonNode>();
+        var response = httpClient.send(HttpRequest.newBuilder(URI.create(url))
+                .header("Accept", "text/event-stream").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+        try (var in = response.body()) {
+            var reader = Thread.ofVirtual().start(() -> {
+                try (var lines = new java.io.BufferedReader(new java.io.InputStreamReader(in,
+                        java.nio.charset.StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = lines.readLine()) != null) {
+                        for (var json : jsonObjects(line)) {
+                            try {
+                                var node = MAPPER.readTree(json);
+                                if (node.hasNonNull("sessionId") && node.has("seq")) {
+                                    frames.add(node);
+                                }
+                            } catch (RuntimeException e) {
+                                // Not a frame of the streaming protocol.
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    // The stream was closed.
+                }
+            });
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+            while (!done.test(List.copyOf(frames)) && System.nanoTime() < deadline) {
+                Thread.sleep(20);
+            }
+            Thread.sleep(500);
+            reader.interrupt();
+        }
+        assertTrue(done.test(List.copyOf(frames)), "the SSE reconnect must receive the missed turn: " + frames);
+        return List.copyOf(frames);
+    }
+
     /**
      * The asker's page reloads (a WebSocket going-away close, then a new
      * connection under a new tracking id carrying the run id) while the room

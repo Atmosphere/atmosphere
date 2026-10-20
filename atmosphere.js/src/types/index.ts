@@ -149,6 +149,16 @@ export interface AtmosphereRequest {
    */
   resume?: string | null;
   /**
+   * The tracking id to connect under: that of an earlier subscription to this
+   * endpoint whose connection was lost (`Subscription.uuid`), for the
+   * subscription that takes over from it — another transport after the first
+   * one gave up, for instance. The server knows the client by it: the room's
+   * broadcaster cache kept what was broadcast meanwhile for it, and a run
+   * waiting for it to come back finds it. A value that is not a plain id
+   * (letters, digits, `-`, `_`, at most 64) is ignored.
+   */
+  trackingId?: string | null;
+  /**
    * Authentication token sent as {@code X-Atmosphere-Auth} on every request.
    * Works with all transports (WebSocket, SSE, long-polling). It travels like
    * {@link headers}: an HTTP header on fetch requests that
@@ -307,6 +317,16 @@ export interface Subscription {
    * at debug level, never thrown.
    */
   close(): Promise<void>;
+  /**
+   * Drop the connection as a lost one rather than a leave: no close message is
+   * sent and the run id is kept (in the tab's `sessionStorage` too), so a
+   * subscription that takes over — passed this one's {@link uuid} as
+   * `request.trackingId` and its {@link resumePoint} as `request.resume` — is
+   * the same client to the server, which delivers it what it missed and
+   * keeps its runs going. For a connection that already failed (its transport
+   * gave up); `close()` is the way to leave.
+   */
+  abandon(): Promise<void>;
   suspend(): void;
   resume(): Promise<void>;
   on(event: string, handler: (...args: unknown[]) => void): void;

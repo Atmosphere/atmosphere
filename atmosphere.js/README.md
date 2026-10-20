@@ -205,6 +205,18 @@ does with `backgroundBehavior: 'disconnect'`, which closes the stream in the
 background and opens a new one on return. It is kept in memory only: a reloaded page has received nothing, and gets
 the run replayed from its start. A server that predates it ignores it.
 
+A subscription that takes over from one whose connection was lost — another
+transport, after the first one ran out of reconnect attempts — comes back as
+the same client when it is passed the lost one's `uuid` as `request.trackingId`
+and its `resumePoint` as `request.resume`: the server's room cache kept what
+was broadcast meanwhile for that tracking id, and the catch-up writes the rest.
+Drop the lost subscription with `subscription.abandon()` rather than `close()`:
+`abandon()` sends no close message and keeps the run id, as a lost connection
+does, where `close()` leaves (the server ends the runs it was following and the
+run id is forgotten). The fallback a subscription makes when its first
+transport cannot connect carries both itself; the Atmosphere Console does the
+same when its WebTransport connection gives up and it rebuilds over WebSocket.
+
 ## Examples
 
 ### Basic WebSocket Connection

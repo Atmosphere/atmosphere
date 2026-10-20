@@ -118,6 +118,8 @@ export class Atmosphere {
           ...mergedRequest,
           transport: fallback,
           resume: activeTransport?.resumePoint ?? mergedRequest.resume,
+          trackingId: activeTransport && activeTransport.uuid !== '0'
+            ? activeTransport.uuid : mergedRequest.trackingId,
         };
         gate = new HandlerGate<T>(handlers);
         activeTransport = this.createTransport(fallbackRequest, gate.handlers);
@@ -254,6 +256,20 @@ export class Atmosphere {
         await currentTransport.disconnect();
         this.subscriptions.delete(id);
         logger.info(`Subscription ${id} closed`);
+      },
+      abandon: async () => {
+        if (!closed) {
+          closed = true;
+          if (pageHideListener !== null) {
+            window.removeEventListener('pagehide', pageHideListener);
+            pageHideListener = null;
+          }
+        }
+        // No close message and the run id kept: to the server the connection
+        // was lost, and the subscription taking over comes back as this client.
+        await currentTransport.disconnect();
+        this.subscriptions.delete(id);
+        logger.info(`Subscription ${id} abandoned`);
       },
       suspend: () => {
         currentTransport.suspend();

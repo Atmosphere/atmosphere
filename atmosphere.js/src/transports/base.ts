@@ -29,6 +29,9 @@ import { SEND_ERROR_NAME } from '../utils/send-error';
 import { clearRunId, loadRunId, saveRunId } from '../utils/run-id-store';
 import { computeReconnectDelay, maxReconnectAttempts } from '../utils/reconnect-delay';
 
+/** A tracking id a request may carry over from a connection it replaces. */
+const TRACKING_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
 /**
  * Base class for all transport implementations.
  *
@@ -67,6 +70,14 @@ export abstract class BaseTransport<T = unknown> {
     this.protocol.runId = loadRunId(request.url);
     // What a connection this one replaces received: its reconnect resumes there.
     this.protocol.seedResume(request.resume);
+    // The tracking id of a connection this one replaces (one that was lost, a
+    // fallback transport taking over): the server knows the client by it, so
+    // the room's cache and the runs it was following find it again.
+    if (request.trackingId && TRACKING_ID.test(request.trackingId)) {
+      this.protocol.uuid = request.trackingId;
+      // A connection under a known tracking id gets no handshake.
+      this.protocol.reset();
+    }
     this.interceptors = interceptors;
   }
 

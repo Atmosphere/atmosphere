@@ -151,9 +151,11 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     if (!this.request.enableProtocol) {
       this.notifyOpen(response);
       this.protocol.startHeartbeat();
-    } else if (this.hasOpened) {
+    } else if (this.hasOpened || this.protocol.uuid !== '0') {
       // Server sends the protocol handshake only on the first connection;
       // subsequent reopens (with an existing tracking-id) won't repeat it,
+      // nor does a first connection under a tracking id carried over from a
+      // subscription it replaces (request.trackingId),
       // so fire reopen + restart the heartbeat from the cached config (#294).
       this.notifyHandshakeOpen();
     }

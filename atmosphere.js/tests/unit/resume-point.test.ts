@@ -170,3 +170,73 @@ describe('a reconnect sends the resume point', () => {
     expect(transport.resumePoint).toBe(`${S2}:6`);
   });
 });
+
+/**
+ * A subscription that takes over from one whose transport gave up (the Console
+ * rebuilds a WebTransport subscription over WebSocket after its retries) must
+ * come back as the same client: under the lost tracking id, from its resume
+ * point, and without having left (no close, the run id kept).
+ */
+describe('a subscription taking over from a lost one', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
+  function fakeWebSocket(): { sockets: any[]; urls: string[] } {
+    const sockets: any[] = [];
+    const urls: string[] = [];
+    const WSCtor: any = vi.fn(function (url: string) {
+      const ws = { send: vi.fn(), close: vi.fn(), readyState: 1, onopen: null as any, onmessage: null as any,
+        onerror: null as any, onclose: null as any, binaryType: 'arraybuffer' };
+      urls.push(url);
+      sockets.push(ws);
+      setTimeout(() => ws.onopen?.({}), 0);
+      return ws;
+    });
+    WSCtor.OPEN = 1;
+    WSCtor.CONNECTING = 0;
+    WSCtor.CLOSED = 3;
+    global.WebSocket = WSCtor;
+    return { sockets, urls };
+  }
+
+  it('connects under the carried tracking id and opens without waiting for a handshake', async () => {
+    const { sockets, urls } = fakeWebSocket();
+    const h = { open: vi.fn(), message: vi.fn() } as SubscriptionHandlers;
+    const transport = new WebSocketTransport({ url: 'ws://localhost:8080/ai', transport: 'websocket',
+      enableProtocol: true, trackMessageLength: true, trackingId: 'lost-uuid-1', resume: `${S1}:9` }, h);
+    await transport.connect();
+
+    expect(new URL(urls[0]).searchParams.get('X-Atmosphere-tracking-id')).toBe('lost-uuid-1');
+    expect(resumeOf(urls[0])).toBe(`${S1}:9`);
+    expect(h.open).toHaveBeenCalledTimes(1);
+    // No handshake comes: the first push is a frame, not eaten as one.
+    const frame = text(S1, 10);
+    sockets[0].onmessage?.({ data: `${frame.length}|${frame}` });
+    expect(h.message).toHaveBeenCalledWith(expect.objectContaining({ responseBody: frame }));
+    expect(transport.uuid).toBe('lost-uuid-1');
+  });
+
+  it('ignores a carried tracking id that is not a plain id', () => {
+    const transport = new WebSocketTransport({ url: 'ws://localhost:8080/ai', transport: 'websocket',
+      trackingId: '../x?y' }, { open: vi.fn() });
+    expect(transport.uuid).toBe('0');
+  });
+
+  it('abandon() keeps the run id and sends no close; close() forgets it', async () => {
+    fakeWebSocket();
+    const { Atmosphere } = await import('../../src/core/atmosphere');
+    const { saveRunId, loadRunId } = await import('../../src/utils/run-id-store');
+    const url = 'ws://localhost:8080/ai/abandon';
+    saveRunId(url, 'run-1');
+    const atmosphere = new Atmosphere();
+    const lost = await atmosphere.subscribe({ url, transport: 'websocket' }, {});
+    await lost.abandon();
+    expect(loadRunId(url)).toBe('run-1');
+
+    const left = await atmosphere.subscribe({ url, transport: 'websocket' }, {});
+    await left.close();
+    expect(loadRunId(url)).toBeNull();
+  });
+});
