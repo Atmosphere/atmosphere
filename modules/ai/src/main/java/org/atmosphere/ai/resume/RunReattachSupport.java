@@ -139,6 +139,97 @@ public final class RunReattachSupport {
     }
 
     /**
+     * A prompt arrived under the client run id of {@code run}, a run the
+     * registry has (live, or finished within its TTL): the prompt sent again
+     * after a page reloaded before the server's answer reached it, or the
+     * original arriving after its resend. It is the client asking for that
+     * run, not for a second one: {@code resource} is reattached to it — replayed
+     * what it missed and, while the run goes on, written the rest — exactly as
+     * a reconnect carrying the run id is. The caller must own the run, by the
+     * rule a reattach follows ({@code callerOwnsRun}).
+     *
+     * @param resource the connection the prompt came on
+     * @param registry the registry holding {@code run}
+     * @param run      the run the prompt's id names
+     * @return {@code false} when the caller does not own the run: nothing was done
+     */
+    public static boolean reattachPrompt(AtmosphereResource resource, RunRegistry registry, AgentResumeHandle run) {
+        var req = resource != null ? resource.getRequest() : null;
+        if (req == null || !callerOwnsRun(req, run.userId())) {
+            return false;
+        }
+        var previous = req.getAttribute(RUN_ID_ATTRIBUTE);
+        req.setAttribute(RUN_ID_ATTRIBUTE, run.runId());
+        try {
+            acknowledgeRun(resource, run);
+            replayPendingRun(resource, registry);
+        } finally {
+            if (previous != null) {
+                req.setAttribute(RUN_ID_ATTRIBUTE, previous);
+            } else {
+                req.removeAttribute(RUN_ID_ATTRIBUTE);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Name {@code run} to the client {@code resource} reattaches to it by its
+     * id ({@code X-Atmosphere-Run-Id}, under the run id as its session): a
+     * client that minted the id for its prompt learns the server has it, which
+     * the replay, writing no metadata, does not say — before the run's first
+     * text it would otherwise send the prompt again. Written over WebSocket,
+     * SSE and streaming, to the run's owner only.
+     */
+    public static void acknowledgeRun(AtmosphereResource resource, AgentResumeHandle run) {
+        if (resource == null || run == null || resource.getRequest() == null
+                || !run.replayBuffer().isClientMintedId()
+                || !callerOwnsRun(resource.getRequest(), run.userId())) {
+            return;
+        }
+        var transport = resource.transport();
+        if (transport == null || Utils.resumableTransport(transport)) {
+            return;
+        }
+        var frame = new org.atmosphere.ai.filter.AiStreamMessage(
+                "metadata", null, run.runId(), 1, RUN_ID_HEADER, run.runId()).toJson();
+        try {
+            var writer = resource.getResponse().getWriter();
+            writer.write(frame);
+            writer.flush();
+        } catch (java.io.IOException | RuntimeException e) {
+            logger.debug("Unable to name run {} to {}: {}", run.runId(), resource.uuid(), e.toString());
+        }
+    }
+
+    /**
+     * Tell the client that reconnected with {@code runId} that the server has
+     * no run by it ({@link ClientRunIds#UNKNOWN_RUN_KEY}): a client that minted
+     * the id for a prompt the server never received sends that prompt again.
+     * Written over WebSocket, SSE and streaming; a long-polling client, whose
+     * poll this would end, sends it again after its own bounded wait.
+     */
+    public static void announceUnknownRun(AtmosphereResource resource, String runId) {
+        if (resource == null || !ClientRunIds.wellFormed(runId)) {
+            return;
+        }
+        var transport = resource.transport();
+        if (transport == null || Utils.resumableTransport(transport)) {
+            return;
+        }
+        var frame = new org.atmosphere.ai.filter.AiStreamMessage(
+                "metadata", null, runId, 1, ClientRunIds.UNKNOWN_RUN_KEY, runId).toJson();
+        try {
+            var writer = resource.getResponse().getWriter();
+            writer.write(frame);
+            writer.flush();
+            logger.debug("No run {} for {}: told it so", runId, resource.uuid());
+        } catch (java.io.IOException | RuntimeException e) {
+            logger.debug("Unable to tell {} that run {} is unknown: {}", resource.uuid(), runId, e.toString());
+        }
+    }
+
+    /**
      * Marker value AiEndpointHandler uses when the container reported
      * no principal for the run — no auth is configured. A replay
      * request with a matching anonymous caller gets through (open/demo

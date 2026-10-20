@@ -246,10 +246,53 @@ public final class RunRegistry {
             ExecutionHandle executionHandle,
             RunEventReplayBuffer replayBuffer,
             String runId) {
+        return register(agentId, userId, sessionId, executionHandle, replayBuffer, runId, false);
+    }
+
+    /**
+     * Register a run under {@code runId} unless the registry has a run by that
+     * id — live, or finished and still replayable — in which case nothing is
+     * registered and {@code null} is returned. Atomic: of two registrations
+     * racing under one id, one wins. A run id a client minted for its prompt
+     * names one run however often the prompt arrives.
+     *
+     * @return the run's handle, or {@code null} when the id is taken
+     */
+    public AgentResumeHandle registerIfAbsent(
+            String agentId,
+            String userId,
+            String sessionId,
+            ExecutionHandle executionHandle,
+            RunEventReplayBuffer replayBuffer,
+            String runId) {
+        Objects.requireNonNull(runId, "runId");
+        return register(agentId, userId, sessionId, executionHandle, replayBuffer, runId, true);
+    }
+
+    private AgentResumeHandle register(
+            String agentId,
+            String userId,
+            String sessionId,
+            ExecutionHandle executionHandle,
+            RunEventReplayBuffer replayBuffer,
+            String runId,
+            boolean ifAbsent) {
         var id = runId != null && !runId.isBlank() ? runId : UUID.randomUUID().toString();
         var createdAt = Instant.now(clock);
+        Objects.requireNonNull(replayBuffer, "replayBuffer");
+        var handle = new AgentResumeHandle(
+                id, agentId, userId, sessionId,
+                executionHandle, replayBuffer, createdAt);
+        if (ifAbsent) {
+            // Under the lock retiring a run takes: an id is either live, retired or free.
+            synchronized (completed) {
+                if (lookupReplayable(id).isPresent() || runs.putIfAbsent(id, handle) != null) {
+                    return null;
+                }
+            }
+        }
         // Its warnings name the run, a journal attached or not.
-        Objects.requireNonNull(replayBuffer, "replayBuffer").nameRun(id);
+        replayBuffer.nameRun(id);
         if (journal != RunJournal.NOOP) {
             // Persist metadata up front and bind the buffer to the journal so
             // every captured event is mirrored durably. recordRun is
@@ -274,10 +317,9 @@ public final class RunRegistry {
                 }
             }
         }
-        var handle = new AgentResumeHandle(
-                id, agentId, userId, sessionId,
-                executionHandle, replayBuffer, createdAt);
-        runs.put(id, handle);
+        if (!ifAbsent) {
+            runs.put(id, handle);
+        }
         // Remove on completion so finished runs do not linger — and delete
         // the durable journal entry too, closing the terminal path
         // (Invariant #2) so a completed run is not rehydrated after restart.
@@ -394,10 +436,11 @@ public final class RunRegistry {
      * never retires a different run under the same id.
      */
     private void retire(AgentResumeHandle handle) {
-        if (!runs.remove(handle.runId(), handle)) {
-            return;
-        }
+        // Under the lock registerIfAbsent takes: the id is never free in between.
         synchronized (completed) {
+            if (!runs.remove(handle.runId(), handle)) {
+                return;
+            }
             completed.put(handle.runId(), new Retired(handle, Instant.now(clock)));
             var it = completed.entrySet().iterator();
             while (completed.size() > MAX_RETAINED_COMPLETED && it.hasNext()) {

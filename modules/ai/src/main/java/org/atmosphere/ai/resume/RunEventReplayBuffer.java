@@ -414,6 +414,24 @@ public final class RunEventReplayBuffer {
         return roomId;
     }
 
+    /** Whether the run's id is one its client minted for its prompt ({@link ClientRunIds}). */
+    private volatile boolean clientRunId;
+
+    /** Mark the run's id as one its client minted for its prompt. */
+    public void clientMintedId() {
+        this.clientRunId = true;
+    }
+
+    /**
+     * Whether the run's id is one its client minted for its prompt: such a
+     * client is told, as it reattaches, that the server has the run
+     * ({@link RunReattachSupport#acknowledgeRun}); one the server named is not
+     * written anything more than before.
+     */
+    public boolean isClientMintedId() {
+        return clientRunId;
+    }
+
     private static int positive(AtmosphereConfig config, String name, int defaultValue) {
         if (config == null) {
             return defaultValue;

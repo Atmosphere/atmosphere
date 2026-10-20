@@ -342,6 +342,156 @@ public class ReloadBeforeFirstFrameTest {
         }
     }
 
+    private static final String AGENT_PATH = "/atmosphere/agent/" + DetachToolAgent.NAME;
+
+    /** A prompt wrapped with the run id its client minted for it, as atmosphere.js sends it. */
+    private static String envelope(String runId, String prompt) {
+        return "{\"clientRunId\":\"" + runId + "\",\"prompt\":\"" + prompt + "\"}";
+    }
+
+    private static String expectedAnswer() {
+        var expected = new StringBuilder();
+        for (var i = 0; i < TOKENS; i++) {
+            expected.append('t').append(i).append(' ');
+        }
+        return expected.toString();
+    }
+
+    /** The texts of {@code frames} of session {@code sessionId}, each seq once. */
+    private static String answerOf(List<JsonNode> frames) {
+        var bySeq = new java.util.TreeMap<Long, String>();
+        String session = null;
+        for (var frame : frames) {
+            if ("streaming-text".equals(frame.path("type").asString())) {
+                if (session == null) {
+                    session = frame.path("sessionId").asString();
+                }
+                if (session.equals(frame.path("sessionId").asString())) {
+                    bySeq.putIfAbsent(frame.path("seq").asLong(), frame.path("data").asString());
+                }
+            }
+        }
+        return String.join("", bySeq.values());
+    }
+
+    private static boolean unknownRun(List<JsonNode> frames, String runId) {
+        return frames.stream().anyMatch(f -> "metadata".equals(f.path("type").asString())
+                && "X-Atmosphere-Run-Unknown".equals(f.path("key").asString())
+                && runId.equals(f.path("value").asString()));
+    }
+
+    /**
+     * A page reloaded before the server received its prompt: the server never
+     * saw the run id the page minted for it. The reloaded page reconnects with
+     * that id, is told the server has no run by it, and sends the prompt it
+     * kept again under the same id: the turn runs once, under that id, and the
+     * page gets the whole answer.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aPromptTheServerNeverReceivedRunsOnceUnderItsIdWhenTheReloadedPageSendsItAgain() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachTestEndpoint.RELEASE.countDown();
+        DetachToolAgent.LOOKUPS.clear();
+        var runId = java.util.UUID.randomUUID().toString();
+
+        // The prompt never reached the server: the page reloaded first.
+        var reloaded = connect(AGENT_PATH, "0", runId);
+        reloaded.await(frames -> unknownRun(frames, runId), "the reloaded page is told the run is unknown");
+        reloaded.socket.sendText(envelope(runId, "use the tool"), true).join();
+
+        reloaded.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal),
+                "the resent prompt runs to its end");
+        Thread.sleep(300);
+        assertEquals(runId, runId(reloaded.frames()), "the run takes the id the page minted");
+        assertEquals(expectedAnswer(), answerOf(reloaded.frames()), "the page gets the whole answer");
+        assertEquals(1, DetachToolAgent.LOOKUPS.size(), "the turn's tool ran once: " + DetachToolAgent.LOOKUPS);
+        reloaded.close();
+    }
+
+    /**
+     * The same prompt arrives twice under its id — sent again after a reload
+     * though the first had arrived, or two copies racing — and runs once: a
+     * later copy reattaches to the run (replaying what it wrote, a finished
+     * run included) instead of running a second time.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aPromptSentAgainUnderItsIdRunsOnce() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachTestEndpoint.RELEASE.countDown();
+        DetachToolAgent.LOOKUPS.clear();
+        var runId = java.util.UUID.randomUUID().toString();
+
+        var page = connect(AGENT_PATH, "0", null);
+        // Two copies back to back, racing for the id.
+        page.socket.sendText(envelope(runId, "use the tool"), true).join();
+        page.socket.sendText(envelope(runId, "use the tool"), true).join();
+        page.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal), "the run ends");
+        Thread.sleep(500);
+        assertEquals(1, DetachToolAgent.LOOKUPS.size(), "two copies racing run once: " + DetachToolAgent.LOOKUPS);
+        page.close();
+
+        // Sent again after the run finished, from a reloaded page.
+        var reloaded = connect(AGENT_PATH, "0", null);
+        reloaded.socket.sendText(envelope(runId, "use the tool"), true).join();
+        reloaded.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal),
+                "the reloaded page is replayed the finished run");
+        Thread.sleep(300);
+        assertEquals(1, DetachToolAgent.LOOKUPS.size(), "a finished run is replayed, not run again");
+        assertEquals(expectedAnswer(), answerOf(reloaded.frames()), "the replay holds the whole answer");
+        reloaded.close();
+    }
+
+    /**
+     * A run id is bound to the caller whose prompt it named: another user can
+     * neither reattach to the run by it nor take it for a prompt of its own —
+     * that prompt runs, under an id of the server's.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void anotherUserCanNeitherAttachToNorAdoptSomeoneElsesRunId() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachTestEndpoint.RELEASE.countDown();
+        DetachToolAgent.LOOKUPS.clear();
+        var runId = java.util.UUID.randomUUID().toString();
+
+        var alice = connect(AGENT_PATH + "?token=alice", "0", null);
+        alice.socket.sendText(envelope(runId, "use the tool"), true).join();
+        alice.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal), "alice's run ends");
+        assertEquals(runId, runId(alice.frames()));
+
+        var bob = connect(AGENT_PATH + "?token=bob", "0", runId);
+        Thread.sleep(500);
+        assertEquals(List.of(), texts(bob.frames()), "bob is replayed nothing of alice's run");
+        bob.socket.sendText(envelope(runId, "use the tool"), true).join();
+        bob.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal), "bob's prompt runs");
+        Thread.sleep(300);
+        var bobRun = runId(bob.frames());
+        assertNotNull(bobRun, "bob's prompt runs under a run of its own");
+        org.junit.jupiter.api.Assertions.assertNotEquals(runId, bobRun, "bob does not take alice's run id");
+        assertEquals(2, DetachToolAgent.LOOKUPS.size(), "bob's prompt ran as a run of its own: " + DetachToolAgent.LOOKUPS);
+        alice.close();
+        bob.close();
+    }
+
+    /** A client that mints no run id sends its prompt alone, as before: the run gets an id of the server's. */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aPromptWithoutAClientRunIdRunsAsBefore() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachTestEndpoint.RELEASE.countDown();
+        DetachToolAgent.LOOKUPS.clear();
+        var page = connect(AGENT_PATH, "0", null);
+        page.socket.sendText("use the tool", true).join();
+        page.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal), "the run ends");
+        Thread.sleep(300);
+        assertNotNull(runId(page.frames()), "the server names the run");
+        assertEquals(expectedAnswer(), answerOf(page.frames()));
+        assertEquals(1, DetachToolAgent.LOOKUPS.size());
+        page.close();
+    }
+
     private static boolean terminal(JsonNode frame) {
         var type = frame.path("type").asString();
         return "complete".equals(type) || "error".equals(type) || "cancelled".equals(type);
@@ -372,7 +522,7 @@ public class ReloadBeforeFirstFrameTest {
 
     private Page connect(String path, String trackingId, String runId) throws Exception {
         var url = "ws://localhost:" + server.getPort() + path
-                + "?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0&X-atmo-protocol=true"
+                + (path.contains("?") ? "&" : "?") + "X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0&X-atmo-protocol=true"
                 + "&Content-Type=application/json&X-Atmosphere-tracking-id=" + trackingId
                 + (runId != null ? "&X-Atmosphere-Run-Id=" + runId : "");
         var page = new Page();

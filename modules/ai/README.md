@@ -569,6 +569,30 @@ handler resumes from the journal). Independently, the admin `atmosphere_resume_r
 tool (authorizer-gated, default deny) re-drives a named run, resolving the run's
 endpoint from its recorded seed.
 
+**A run id the client mints.** A page reloaded before the server's `X-Atmosphere-Run-Id`
+frame reached it — or before the server even received the prompt — has no id to
+reattach by, and the turn is lost to it while the server runs it. A client that mints
+the run id itself (atmosphere.js with `AtmosphereRequest.clientRunId`; the Atmosphere
+Console always does) keeps the prompt and its id in the tab before sending, and sends
+the prompt wrapped with it — `{"clientRunId":"<uuid>","prompt":<the prompt as sent
+alone>}` (`ClientRunIds`; a body that is no such envelope, exactly these two fields, is
+the prompt itself, as before). The endpoint adopts a well-formed id (a canonical UUID;
+another is ignored and the prompt runs under an id of the server's) atomically
+(`RunRegistry.registerIfAbsent`): a prompt arriving under an id whose run the registry
+has — live, or finished within its TTL — reattaches its connection to that run instead
+of running again, so a prompt and its resend run once. The id is bound to its caller by
+the rule a reattach follows: a caller that does not own the run (another authenticated
+user) neither reattaches by it nor takes it — its prompt runs under an id of the
+server's; an anonymous run's id is, as before, a capability. A reconnect carrying a
+client-minted id the server has a run by is told so (the run's `X-Atmosphere-Run-Id`
+frame, under the run id as its session), and one carrying an id the server has no run
+by gets an `X-Atmosphere-Run-Unknown` metadata frame naming it, on which the client
+sends the kept prompt again under the same id; a long-polling poll is told neither,
+and its client sends the prompt again after a bounded wait. The `@Agent` and
+`@Coordinator` endpoints read the envelope the same way (commands and approval answers
+see the unwrapped prompt); A2A, whose own protocol names its messages and tasks, does
+not take it. A resend after the registry TTL (30 minutes) runs the prompt again.
+
 ### Not an `AiCapability` flag
 
 Durable execution is a **framework feature gated on configuration**, not a

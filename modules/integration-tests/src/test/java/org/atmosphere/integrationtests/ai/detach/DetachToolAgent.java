@@ -41,6 +41,16 @@ public class DetachToolAgent {
     /** What {@link #lookup} read of the request, one entry per call. */
     public static final List<String> LOOKUPS = new CopyOnWriteArrayList<>();
 
+    /** The user a connection's {@code token} query parameter names, as an authenticating interceptor sets it. */
+    @org.atmosphere.config.service.Ready
+    public void onReady(AtmosphereResource resource) {
+        var request = resource.getRequest();
+        var token = request.getParameter("token");
+        if (request.getAttribute("ai.userId") == null && token != null && !token.isBlank()) {
+            request.setAttribute("ai.userId", token);
+        }
+    }
+
     @Prompt
     public void onPrompt(String message, StreamingSession session) throws InterruptedException {
         if (!DetachTestEndpoint.RELEASE.await(30, TimeUnit.SECONDS)) {

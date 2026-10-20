@@ -594,7 +594,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 // ClusterBroadcastFilter would publish the prompt and its sender's
                 // tracking id to every subscriber on the other nodes.
                 var target = findOriginatingResource(resource);
-                if (target == null || !dispatchPrompt(target, msg)) {
+                var clientRunId = clientRunIdOf(resource);
+                if (target == null || !(clientRunId == null
+                        ? dispatchPrompt(target, msg) : dispatchPrompt(target, msg, clientRunId))) {
                     // No connection, or one whose request the container already
                     // recycled (a long-polling poll that just returned): both wait
                     // for the client's next connection, never run on a dead one.
@@ -844,14 +846,51 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private void reattachPendingRun(AtmosphereResource resource) {
         var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        // A long-polling poll is told neither that the server has a run nor that
+        // it has none (either would end the poll): it reattaches as before, and
+        // its client sends a pending prompt again after a bounded wait.
+        var pending = resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING
+                ? null : org.atmosphere.ai.resume.RunReattachSupport.pendingRunId(resource);
+        var known = pending != null ? registry.lookupReplayable(pending) : java.util.Optional
+                .<org.atmosphere.ai.resume.AgentResumeHandle>empty();
+        if (known.isPresent()) {
+            // A client that minted the run's id learns the server has it before the run's first text.
+            org.atmosphere.ai.resume.RunReattachSupport.acknowledgeRun(resource, known.get());
+        }
         var replayed = org.atmosphere.ai.resume.RunReattachSupport.replayPendingRun(
                 resource, registry);
+        if (replayed == 0 && pending != null && known.isEmpty()
+                && !org.atmosphere.ai.resume.DurableRunSpineHolder.get().enabled()) {
+            // A run id the server has no run by: a prompt the page sent under it
+            // before a reload never arrived. The client sends it again.
+            org.atmosphere.ai.resume.RunReattachSupport.announceUnknownRun(resource, pending);
+        }
         if (replayed == 0) {
             // No live run drained — the client may be reconnecting to a run that
             // crashed (the process died, the registry is empty). When durable
             // runs are on, re-drive it from the journal to this client.
             maybeResumeCrashedRun(resource, registry);
         }
+    }
+
+    /**
+     * A prompt arrived under the client run id of {@code run}, which the
+     * registry already has: {@code resource} is reattached to it rather than
+     * the prompt running again.
+     *
+     * @return {@code false} when the caller does not own that run
+     */
+    private boolean promptOfKnownRun(AtmosphereResource resource, org.atmosphere.ai.resume.AgentResumeHandle run) {
+        var connection = org.atmosphere.ai.RunScopedResource.connection(resource);
+        if (!org.atmosphere.ai.resume.RunReattachSupport.reattachPrompt(
+                connection, org.atmosphere.ai.resume.RunRegistryHolder.get(), run)) {
+            logger.warn("Prompt from {} named run {}, which it does not own; it runs under a new id",
+                    resource.uuid(), run.runId());
+            return false;
+        }
+        logger.info("Prompt from {} under run {}, which the server already has: reattached to it",
+                resource.uuid(), run.runId());
+        return true;
     }
 
     /**
@@ -1150,6 +1189,20 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * prompt as one whose connection is not registered
      */
     boolean dispatchPrompt(AtmosphereResource resource, String userMessage) {
+        return dispatchPrompt(resource, userMessage, null);
+    }
+
+    /**
+     * Run {@code userMessage} as a prompt of {@code resource}, under
+     * {@code clientRunId} when the client minted one for it
+     * ({@link org.atmosphere.ai.resume.ClientRunIds}): the run takes that id,
+     * unless the registry has a run by it — the same prompt sent again after a
+     * reload, or arriving after its resend — when the prompt reattaches
+     * {@code resource} to that run instead of running a second time. A caller
+     * that does not own that run (the rule a reattach follows) gets a run of
+     * its own, under an id of the server's.
+     */
+    boolean dispatchPrompt(AtmosphereResource resource, String userMessage, String clientRunId) {
 
         // Fast-path: route approval responses to the existing session's registry
         // instead of creating a new session and dispatching to @Prompt. Walks
@@ -1180,6 +1233,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // the tool call.
             logger.warn("Approval message with no pending approval for resource {}", resource.uuid());
             return true;
+        }
+
+        if (clientRunId != null) {
+            var known = org.atmosphere.ai.resume.RunRegistryHolder.get().lookupReplayable(clientRunId);
+            if (known.isPresent()) {
+                if (promptOfKnownRun(resource, known.get())) {
+                    return true;
+                }
+                clientRunId = null;
+            }
         }
 
         // Multi-modal input: when inbound decoding is enabled, an uploaded
@@ -1248,7 +1311,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // buffer holds what the client received. Registered with the run below.
         // See RunEventCapturingSession javadoc. Named at creation, so its warnings
         // name the run; its long-polling bounds are the application's.
-        var runId = java.util.UUID.randomUUID().toString();
+        var runId = clientRunId != null ? clientRunId : java.util.UUID.randomUUID().toString();
         // A room's run id reaches every member with the reply: the buffer knows
         // its room, so only the prompter's own reattach holds its grace off.
         var replayBuffer = roomBroadcast
@@ -1256,52 +1319,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         resource.getAtmosphereConfig(), roomIdOf(resource))
                 : org.atmosphere.ai.resume.RunEventReplayBuffer.forRun(runId,
                         resource.getAtmosphereConfig());
-        var capturing = new org.atmosphere.ai.resume.RunEventCapturingSession(
-                roomBroadcast
-                        ? StreamingSessions.startRoomBroadcast(connection)
-                        : StreamingSessions.start(connection),
-                replayBuffer);
-        StreamingSession delegate = capturing;
-        final var aiEnvironment = environmentFor(resource);
-        var settings = aiEnvironment.settings();
-        var model = endpointModel != null ? endpointModel
-                : (settings != null ? settings.model() : null);
 
-        // Wrap with TracingCapturingSession for top-level observability.
-        // This captures metrics for ALL session usage paths (stream(), send(), complete()).
-        StreamingSession traced = delegate;
-        if (metrics != AiMetrics.NOOP) {
-            traced = new TracingCapturingSession(delegate, metrics, model);
-        }
-
-        // Session tape: wrap the traced leaf so the tape becomes
-        // AiStreamingSession's delegate and records everything crossing the
-        // session boundary post-decorator (runtime writes, chain-originated
-        // events, @Prompt-body sends, handler error/timeout routing). Run
-        // identity is late-bound — bindRun fires right after setRunId below.
-        // Zero-cost no-op when nothing is installed.
-        if (org.atmosphere.ai.tape.TapeSupport.installed()) {
-            traced = org.atmosphere.ai.tape.TapeSupport.wrap(traced,
-                    org.atmosphere.ai.tape.TapeRunInfo.endpoint(conversationId(run),
-                            resource.uuid(), pathTemplate, model,
-                            runtime != null ? runtime.name() : null));
-        }
-
-        var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
-        var session = new AiStreamingSession(traced, runtime,
-                systemPrompt, model, interceptors, run, memory,
-                toolRegistry, guardrails, contextProviders, metrics, responseType);
-        AiStreamingSession.registerActive(session);
-
-        // The run is registered and its id goes out (X-Atmosphere-Run-Id) as soon
-        // as its session exists, before the rest of the turn's setup — the facts
-        // of the request, the tools' scope, the @Prompt method, its context
-        // providers, gateway admission and interceptors — so a page reloaded
-        // while that setup runs (a slow first turn) can reattach by it. What
-        // could go wrong after this point ends the run, which a client that
-        // reattached by its id then sees end. A reconnecting client looks the
-        // live AgentResumeHandle up by that id in the process-wide RunRegistry.
-        // Cancelling the handle via RunRegistry (or admin plane) must
+        // The run is registered first, under the client's id when it minted one:
+        // claimed atomically, so of a prompt and its resend racing one runs and
+        // the other reattaches. Its id goes out as soon as its session exists,
+        // before the rest of the turn's setup — the facts of the request, the
+        // tools' scope, the @Prompt method, its context providers, gateway
+        // admission and interceptors — so a page reloaded while that setup runs
+        // (a slow first turn) can reattach by it. What could go wrong after this
+        // point ends the run, which a client that reattached by its id then sees
+        // end. Cancelling the handle via RunRegistry (or admin plane) must
         // actually interrupt the @Prompt virtual thread; we close over
         // promptThreadRef after it's started below.
         var promptThreadRef = new java.util.concurrent.atomic.AtomicReference<Thread>();
@@ -1313,8 +1340,68 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         });
         recordConnectionOwner(run);
         var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
-        var handle = registry.register(
-                pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
+        final org.atmosphere.ai.resume.AgentResumeHandle handle;
+        if (clientRunId != null) {
+            handle = registry.registerIfAbsent(
+                    pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
+            if (handle == null) {
+                // The same prompt took the id meanwhile.
+                var known = registry.lookupReplayable(runId);
+                return known.isPresent() && promptOfKnownRun(resource, known.get());
+            }
+            replayBuffer.clientMintedId();
+        } else {
+            handle = registry.register(
+                    pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, runId);
+        }
+        // The run's sessions; a failure building them ends the run registered above.
+        final org.atmosphere.ai.resume.RunEventCapturingSession capturing;
+        final org.atmosphere.ai.AiEnvironment aiEnvironment;
+        final String model;
+        StreamingSession traced;
+        final AiStreamingSession session;
+        try {
+            capturing = new org.atmosphere.ai.resume.RunEventCapturingSession(
+                    roomBroadcast
+                            ? StreamingSessions.startRoomBroadcast(connection)
+                            : StreamingSessions.start(connection),
+                    replayBuffer);
+            StreamingSession delegate = capturing;
+            aiEnvironment = environmentFor(resource);
+            var settings = aiEnvironment.settings();
+            model = endpointModel != null ? endpointModel
+                    : (settings != null ? settings.model() : null);
+
+            // Wrap with TracingCapturingSession for top-level observability.
+            // This captures metrics for ALL session usage paths (stream(), send(), complete()).
+            traced = delegate;
+            if (metrics != AiMetrics.NOOP) {
+                traced = new TracingCapturingSession(delegate, metrics, model);
+            }
+
+            // Session tape: wrap the traced leaf so the tape becomes
+            // AiStreamingSession's delegate and records everything crossing the
+            // session boundary post-decorator (runtime writes, chain-originated
+            // events, @Prompt-body sends, handler error/timeout routing). Run
+            // identity is late-bound — bindRun fires right after setRunId below.
+            // Zero-cost no-op when nothing is installed.
+            if (org.atmosphere.ai.tape.TapeSupport.installed()) {
+                traced = org.atmosphere.ai.tape.TapeSupport.wrap(traced,
+                        org.atmosphere.ai.tape.TapeRunInfo.endpoint(conversationId(run),
+                                resource.uuid(), pathTemplate, model,
+                                runtime != null ? runtime.name() : null));
+            }
+
+            var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
+            session = new AiStreamingSession(traced, runtime,
+                    systemPrompt, model, interceptors, run, memory,
+                    toolRegistry, guardrails, contextProviders, metrics, responseType);
+            AiStreamingSession.registerActive(session);
+        } catch (RuntimeException | Error e) {
+            runExecutionHandle.completeExceptionally(e);
+            throw e;
+        }
+
         session.setRunId(handle.runId());
         // The endpoint's destroy reaches the run while it goes on.
         startedRuns.put(handle.runId(), session);
@@ -2309,14 +2396,46 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             if (body.isEmpty()) {
                 return null;
             }
-            return body.hasString() ? body.asString() : new String(body.asBytes());
+            return unwrapClientRunId(request, body.hasString() ? body.asString() : new String(body.asBytes()));
         }
         var content = IOUtils.readEntirelyAsString(resource, maxPromptBytes(resource.getAtmosphereConfig()));
         if (content.isEmpty()) {
             return null;
         }
         request.body(content);
-        return content;
+        return unwrapClientRunId(request, content);
+    }
+
+    /**
+     * The prompt in {@code body}: what a client that sends a run id of its own
+     * wrapped ({@link org.atmosphere.ai.resume.ClientRunIds}), its id kept on
+     * {@code request} for the dispatch; else {@code body} itself. Unwrapped
+     * here, before anything reads the prompt — an approval answer, a command,
+     * a {@code @Message} method — so each sees what the client would have sent
+     * alone.
+     */
+    private static String unwrapClientRunId(org.atmosphere.cpr.AtmosphereRequest request, String body) {
+        var unwrapped = org.atmosphere.ai.resume.ClientRunIds.unwrap(body);
+        if (unwrapped == null) {
+            return body;
+        }
+        if (unwrapped.runId() != null) {
+            request.setAttribute(org.atmosphere.ai.resume.ClientRunIds.ATTRIBUTE, unwrapped.runId());
+        }
+        return unwrapped.prompt();
+    }
+
+    /** The run id the prompt {@code request} carried ({@link #readPrompt}), or {@code null}. */
+    private static String clientRunIdOf(AtmosphereResource resource) {
+        try {
+            var request = resource.getRequest();
+            return request != null
+                    && request.getAttribute(org.atmosphere.ai.resume.ClientRunIds.ATTRIBUTE) instanceof String id
+                    ? id : null;
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read the client run id of {}", resource.uuid(), e);
+            return null;
+        }
     }
 
     /**
