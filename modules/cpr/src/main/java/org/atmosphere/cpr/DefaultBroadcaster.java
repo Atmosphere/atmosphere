@@ -1883,6 +1883,13 @@ public class DefaultBroadcaster implements Broadcaster {
             if (r.isSuspended() && !uuidStillMember) {
                 logger.trace("Excluded from {} : {}", getID(), r.uuid());
                 bc.getBroadcasterCache().excludeFromCache(getID(), r);
+            } else if (!uuidStillMember) {
+                // The connection is gone (closed by the client, lost, or evicted as idle):
+                // keep caching for the uuid from now on. The cache only stamps a client when
+                // it connects, so one that stayed connected longer than the cache's client
+                // idle time was already forgotten and would miss what is broadcast before it
+                // reconnects.
+                bc.getBroadcasterCache().cacheCandidate(getID(), r.uuid());
             }
             notifyOnRemoveAtmosphereResourceListener(r);
         } else {
