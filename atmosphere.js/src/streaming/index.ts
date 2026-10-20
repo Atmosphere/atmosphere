@@ -51,8 +51,21 @@ export async function subscribeStreaming(
   request: AtmosphereRequest,
   handlers: StreamingHandlers,
 ): Promise<StreamingHandle> {
+  // The session this handle follows: the first one seen after a send (or
+  // since the handle opened), then, once it ended, the next one.
   let sessionId: string | null = null;
   let lastSeq = -1;
+  // Whether the followed session's terminal frame was received.
+  let sessionDone = false;
+  // Set by a send: the next frame is its reply, whatever its session.
+  let awaitingReply = false;
+  // Bounded: the sessions whose terminal frame was received, the run each
+  // session streams (from its X-Atmosphere-Run-Id metadata frame) and back,
+  // and the turns whose prompt was reported.
+  const finishedSessions = new Map<string, true>();
+  const runOfSession = new Map<string, string>();
+  const sessionOfRun = new Map<string, string>();
+  const promptedTurns = new Map<string, true>();
 
   // Session stats tracking (reset between sends)
   let streamingTextCount = 0;
@@ -98,33 +111,63 @@ export async function subscribeStreaming(
       const msg = parseStreamingMessage(raw);
       if (!msg) return;
 
+      if (msg.type === 'metadata' && msg.key === RUN_ID_KEY && typeof msg.value === 'string') {
+        // The run a session streams: its replay, after a reconnect, writes
+        // frames under the run id instead.
+        remember(runOfSession, msg.sessionId, msg.value);
+        remember(sessionOfRun, msg.value, msg.sessionId);
+      }
+
       if (msg.type === 'prompt') {
-        // A room member's prompt, whatever turn it opens: reported as is,
-        // without changing which session this handle follows.
+        // A room member's prompt, whatever turn it opens: reported once per
+        // turn, without changing which session this handle follows. The run's
+        // replay writes a turn's prompt again to a member that reconnects in
+        // the middle of it, under the run id its metadata frame named.
+        const turn = runOfSession.get(msg.sessionId) ?? msg.sessionId;
+        if (promptedTurns.has(turn)) return;
+        remember(promptedTurns, turn, true);
         const from = msg.from ?? '';
         handlers.onPrompt?.(msg.text ?? '', from, !!from && from === roomMemberId(subscription?.uuid));
         return;
       }
 
-      // Track session ID from first message
-      if (!sessionId) sessionId = msg.sessionId;
+      // A frame of the run of the session this handle follows, written by the
+      // run's replay under the run id: its numbering is not the session's, so
+      // it cannot be placed among the frames already received. Its terminal
+      // frame ends the turn, when the session's own did not reach this handle.
+      const replayOf = sessionOfRun.get(msg.sessionId);
+      if (replayOf !== undefined && replayOf === sessionId) {
+        if (!sessionDone && isTerminal(msg)) {
+          sessionDone = true;
+          remember(finishedSessions, replayOf, true);
+          dispatchFrame(msg);
+        }
+        return;
+      }
 
-      // Ignore messages from different sessions (e.g., stale cache replay)
+      // Follow the first session seen, then, once it ended, the next one: a
+      // turn this handle sent, or, in a broadcastReply room, any member's.
+      // Unless a send reset the tracking (its reply is the next frame,
+      // whatever its session), a session that already ended is not taken
+      // again (a cache replaying frames already received), nor the replay of
+      // its run; while the followed session goes on, other sessions are ignored.
+      if (sessionId === null || (sessionDone && msg.sessionId !== sessionId)) {
+        if (!(sessionId === null && awaitingReply)) {
+          if (finishedSessions.has(msg.sessionId)) return;
+          if (replayOf !== undefined && finishedSessions.has(replayOf)) return;
+        }
+        startSession(msg.sessionId);
+      }
       if (msg.sessionId !== sessionId) return;
 
       // Dedup via sequence number
       if (msg.seq <= lastSeq) return;
       lastSeq = msg.seq;
-
-      // Durable crash-resume run-id capture happens universally in the transport
-      // layer (BaseTransport.captureRunId), so it covers direct subscribe()
-      // callers — the Atmosphere Console — as well as this helper.
-
-      dispatch(msg, handlers, { streamingTextCount, startTime, routing }, (tc, st, rt) => {
-        streamingTextCount = tc;
-        startTime = st;
-        routing = rt;
-      });
+      if (isTerminal(msg)) {
+        sessionDone = true;
+        remember(finishedSessions, msg.sessionId, true);
+      }
+      dispatchFrame(msg);
     },
     error: (err) => {
       // Only an undelivered message adds the flag; other errors keep the one-argument call.
@@ -137,9 +180,32 @@ export async function subscribeStreaming(
   }));
   subscription = sub;
 
+  function startSession(id: string) {
+    sessionId = id;
+    lastSeq = -1;
+    sessionDone = false;
+    awaitingReply = false;
+    streamingTextCount = 0;
+    startTime = null;
+    routing = {};
+  }
+
+  function dispatchFrame(msg: StreamingMessage) {
+    // Durable crash-resume run-id capture happens universally in the transport
+    // layer (BaseTransport.captureRunId), so it covers direct subscribe()
+    // callers — the Atmosphere Console — as well as this helper.
+    dispatch(msg, handlers, { streamingTextCount, startTime, routing }, (tc, st, rt) => {
+      streamingTextCount = tc;
+      startTime = st;
+      routing = rt;
+    });
+  }
+
   const resetSession = () => {
     sessionId = null;
     lastSeq = -1;
+    sessionDone = false;
+    awaitingReply = true;
     streamingTextCount = 0;
     startTime = null;
     routing = {};
@@ -186,6 +252,29 @@ export function buildStreamingPayload(
     return { prompt: message, hints: { maxCost: options.maxCost, maxLatencyMs: options.maxLatencyMs } };
   }
   return message;
+}
+
+/** The metadata key of the frame naming the run a session streams. */
+const RUN_ID_KEY = 'X-Atmosphere-Run-Id';
+
+/** How many sessions, runs and turns a handle remembers (oldest forgotten first). */
+const MAX_TRACKED = 64;
+
+/** Remember `key` in `map`, forgetting the oldest entry past {@link MAX_TRACKED}. */
+function remember<V>(map: Map<string, V>, key: string, value: V): void {
+  map.delete(key);
+  map.set(key, value);
+  if (map.size > MAX_TRACKED) {
+    map.delete(map.keys().next().value as string);
+  }
+}
+
+/** Whether `msg` ends its session: complete, error or cancelled, in either wire format. */
+function isTerminal(msg: StreamingMessage): boolean {
+  if (msg.event) {
+    return msg.event === 'complete' || msg.event === 'error';
+  }
+  return msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled';
 }
 
 interface TrackingState {

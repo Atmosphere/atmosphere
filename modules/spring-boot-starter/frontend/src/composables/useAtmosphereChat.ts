@@ -297,7 +297,25 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
   }
 
+  // The last seq received of each session (bounded): a member of a
+  // broadcastReply room that reconnects in the middle of a turn may be written
+  // the turn's frames it already had again, by the run's replay, under the room
+  // session's id and numbering.
+  const lastSeqOfSession = new Map<string, number>()
+  function alreadyReceived(msg: Record<string, unknown>): boolean {
+    if (typeof msg.sessionId !== 'string' || typeof msg.seq !== 'number') return false
+    const last = lastSeqOfSession.get(msg.sessionId)
+    if (last !== undefined && msg.seq <= last) return true
+    lastSeqOfSession.delete(msg.sessionId)
+    lastSeqOfSession.set(msg.sessionId, msg.seq)
+    if (lastSeqOfSession.size > MAX_TRACKED_TURNS) {
+      lastSeqOfSession.delete(lastSeqOfSession.keys().next().value as string)
+    }
+    return false
+  }
+
   function handleStreamingEvent(msg: Record<string, unknown>) {
+    if (alreadyReceived(msg)) return
     const type = (msg.type as string) || (msg.event as string)
 
     if (!type && typeof msg.message === 'string' && msg.message) {

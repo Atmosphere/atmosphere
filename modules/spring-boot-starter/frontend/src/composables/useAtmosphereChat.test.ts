@@ -550,6 +550,26 @@ describe('a broadcastReply room', () => {
     ])
   })
 
+  it('renders the frames a reconnect replays under the room session once', async () => {
+    const { wrapper } = await mountRoom()
+
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-1', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'prompt', text: 'q?', from: 'member-b', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'par', sessionId: 's1', seq: 3 })
+    // Reconnected mid-answer: the run's replay writes the turn from its prompt,
+    // under the room session's id and numbering the room sent it with.
+    handlers.onEvent({ type: 'prompt', text: 'q?', from: 'member-b', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: 'par', sessionId: 's1', seq: 3 })
+    handlers.onEvent({ type: 'streaming-text', data: 'tial', sessionId: 's1', seq: 4 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 5 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'q?' },
+      { user: false, text: 'partial' },
+    ])
+  })
+
   it('renders its own prompt replayed after a reload as its own bubble, with no member label', async () => {
     sessionStorage.setItem('atmosphere.console.roomMemberIds', JSON.stringify([BEFORE_RELOAD]))
     const { wrapper } = await mountRoom()
