@@ -40,6 +40,7 @@ This sample demonstrates what makes Atmosphere unique: **broadcasting streamed L
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "skill:classroom",
         broadcastReply = true,
+        streamCache = UUIDBroadcasterCache.class,
         interceptors = { RoomContextInterceptor.class })
 public class AiClassroom {
 
@@ -51,6 +52,8 @@ public class AiClassroom {
 ```
 
 `broadcastReply = true` is what makes the room shared: the `@Prompt` method runs once, on the asking student's connection, and every student in the room receives the question — a `{"type":"prompt","text":...,"from":<asker's room member id>}` frame, sent once the room's scope admitted it (a question the room refuses is never shown, only its redirect) — followed by the one streamed reply. The Console shows a classmate's question as a user bubble.
+
+`streamCache = UUIDBroadcasterCache.class` is what lets a student whose connection drops (a phone put in the background, a flaky network) catch up: the cache keeps what the room broadcasts for the student's tracking id from the moment the connection is lost, and the reconnect is written the classmates' turns it missed, the rest of the answer it dropped in included, each frame once (the run replay sends nothing the cache already sent). `application.yml` keeps a dropped student for five minutes (`org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime: 300`). The cache class applies to every broadcaster of the application, so the student chat below gets missed messages on reconnect too. Without a cache, a whole turn asked while a student was away never reaches it.
 
 The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 

@@ -9,6 +9,11 @@ atmosphere:
   web-transport:
     enabled: true
     port: 4446
+  init-params:
+    # How long the room's cache (AiClassroom streamCache) keeps what a student
+    # whose connection dropped missed: five minutes, as long as it keeps a
+    # message, so a phone back from the background gets the turns it missed.
+    "[org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime]": 300
 
 # LLM Configuration (same as spring-boot-ai-chat)
 llm:

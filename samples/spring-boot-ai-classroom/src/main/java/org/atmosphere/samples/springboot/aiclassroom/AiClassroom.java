@@ -21,6 +21,7 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.processor.AiEndpointHandler;
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -67,6 +68,12 @@ import org.slf4j.LoggerFactory;
         // how the 4.0.60 release-gate caught the gap: "2 online" synced while
         // answers stayed private).
         broadcastReply = true,
+        // A student whose connection drops (a phone backgrounded, a train
+        // tunnel) misses what the room broadcasts meanwhile: the cache keeps
+        // it for the student's tracking id, and the reconnect is written the
+        // classmates' turns it missed, each frame once. Without it, a whole
+        // turn asked while the student was away never reaches it.
+        streamCache = UUIDBroadcasterCache.class,
         interceptors = { RoomContextInterceptor.class })
 @AgentScope(unrestricted = true,
         justification = "Endpoint-level scope is intentionally unrestricted — the actual scope is "
