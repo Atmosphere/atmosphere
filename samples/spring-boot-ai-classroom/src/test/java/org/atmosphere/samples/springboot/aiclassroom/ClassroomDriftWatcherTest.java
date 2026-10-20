@@ -36,12 +36,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The classroom's response-length drift watcher must never cut a normal long
  * tutoring answer short.
  *
- * <p>A streamed reply is checked every 200 characters and once complete, and
- * the length z-score guardrail records each of those checks as a sample, so
- * its baseline is a mean of partial lengths and a long answer crosses
- * 3 sigma part-way through. The re-test of 2026-10-19 saw exactly that:
- * "Output length 1632 chars is 3.04 sigma from rolling mean 531.4" ended a
- * Science answer to "What is photosynthesis?" mid-stream.</p>
+ * <p>A streamed reply is checked every 200 characters and once complete. A
+ * tutoring answer is often several times longer than the short replies around
+ * it, so an enforced length z-score watcher blocks it part-way through even
+ * when each reply counts once in its baseline; the re-test of 2026-10-19 saw
+ * "Output length 1632 chars is 3.04 sigma from rolling mean 531.4" end a
+ * Science answer to "What is photosynthesis?" mid-stream. The sample therefore
+ * runs the watcher in dry-run.</p>
  */
 class ClassroomDriftWatcherTest {
 
@@ -55,7 +56,7 @@ class ClassroomDriftWatcherTest {
 
     @Test
     void enforcedAsParsedTheWatcherBlocksAnOrdinaryLongAnswer() throws IOException {
-        // The defect the sample works around: enforced, the watcher denies.
+        // What the sample avoids: enforced, the watcher denies a long answer.
         List<GovernancePolicy> parsed;
         try (var in = policyYaml()) {
             parsed = new YamlPolicyParser().parse("classpath:" + POLICY_FILE, in);
@@ -92,9 +93,11 @@ class ClassroomDriftWatcherTest {
                 checks.add(answer.substring(0, at));
             }
             checks.add(answer);
+            // One request per reply, as a streaming session passes on every check.
+            var request = new AiRequest("question");
             turn:
             for (var accumulated : checks) {
-                var context = PolicyContext.postResponse(new AiRequest("question"), accumulated);
+                var context = PolicyContext.postResponse(request, accumulated);
                 for (var policy : policies) {
                     if (policy.evaluate(context) instanceof PolicyDecision.Deny) {
                         denials++;
