@@ -407,6 +407,10 @@ class KoogAgentRuntime : AgentRuntime {
                     "Call KoogAgentRuntime.setPromptExecutor() or use Spring auto-configuration."
             )
 
+        if (cancelled.get() || session.isTurnCancelled) {
+            logger.debug("Koog dispatch cancelled before it started")
+            return
+        }
         session.progress("Connecting to koog...")
 
         val defaultModel = applicationDefaultModel()
@@ -562,6 +566,11 @@ class KoogAgentRuntime : AgentRuntime {
         // path exactly like the executor path (Correctness Invariant #7 —
         // Mode Parity). null = unset = byte-identical dispatch.
         val temperature = generationTemperature()
+        if (cancelled.get() || session.isTurnCancelled) {
+            // Cancelled before the agent exists: build and start none.
+            logger.debug("Koog dispatch cancelled before the agent was built")
+            return
+        }
         val agent = if (customStrategy != null) {
             AIAgent(
                 promptExecutor = runExecutor,
