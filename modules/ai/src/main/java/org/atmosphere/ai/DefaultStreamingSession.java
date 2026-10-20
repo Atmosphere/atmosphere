@@ -424,7 +424,24 @@ public final class DefaultStreamingSession implements StreamingSession {
             }
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcastTerminal(buildMessage("error", message));
+        } else {
+            failedAfterEnd(t);
         }
+    }
+
+    /**
+     * A failure reported after the session ended — its connection went away (a
+     * page reloaded mid-run) or it completed first — has no frame to be written
+     * to, but is not dropped unseen: one WARN line, its stack at DEBUG. A
+     * cancelled run is not a failure.
+     */
+    private void failedAfterEnd(Throwable t) {
+        if (t instanceof RunCancelledException) {
+            logger.debug("Streaming session {} had already ended when its run was cancelled", sessionId);
+            return;
+        }
+        logger.warn("Streaming session {} had already ended when its run failed: {}", sessionId, String.valueOf(t));
+        logger.debug("Failure of streaming session {} after its end", sessionId, t);
     }
 
     @Override
@@ -456,6 +473,9 @@ public final class DefaultStreamingSession implements StreamingSession {
                 if (closed.compareAndSet(false, true)) {
                     logger.error("Streaming session {} error: {}", sessionId, err.message());
                     broadcastTerminal(buildMessage("error", err.message()));
+                } else {
+                    logger.warn("Streaming session {} had already ended when its run failed: {}",
+                            sessionId, err.message());
                 }
                 return;
             }

@@ -193,6 +193,41 @@ public class DefaultStreamingSessionTest {
         return new Terminal(frames, List.copyOf(appender.list));
     }
 
+    /**
+     * A run that fails after its connection went away (a page reloaded: the
+     * disconnect closed the session) still has its failure logged, though no
+     * error frame can be written: one WARN line naming it, its stack at DEBUG.
+     */
+    @Test
+    public void aRunFailureAfterTheConnectionWentAwayIsLogged() {
+        var sessionId = "gone-" + System.nanoTime();
+        var session = createSession(sessionId);
+        DefaultStreamingSession.cleanupResource("uuid-" + sessionId);
+        assertTrue(session.isClosed(), "the disconnect closed the session");
+
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(DefaultStreamingSession.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var previous = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            session.error(new IllegalStateException("Request object no longer valid"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+            logger.setLevel(previous);
+        }
+        var events = List.copyOf(appender.list);
+        assertTrue(events.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                        && e.getFormattedMessage().contains(sessionId)
+                        && e.getFormattedMessage().contains("Request object no longer valid")),
+                "the failure must be logged at WARN with the session and its message: " + events);
+        assertTrue(events.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.DEBUG
+                        && e.getThrowableProxy() != null),
+                "its stack must be logged at DEBUG: " + events);
+    }
+
     /** An error that comes after the session already completed did not end it, so the session has not errored. */
     @Test
     public void anErrorAfterTheSessionCompletedDoesNotMarkItErrored() {
