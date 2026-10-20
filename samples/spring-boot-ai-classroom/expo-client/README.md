@@ -7,6 +7,9 @@ React Native / Expo client for the [AI Classroom](../README.md) backend. Demonst
 - Connects to the `spring-boot-ai-classroom` backend via WebSocket
 - 4 classroom rooms: **Math**, **Code**, **Science**, **General**
 - AI responses stream text-by-text using `useStreamingRN`
+- Another room member's question (from the app or the browser Console) shows
+  in the transcript, labelled `Member xxxxxxxx` with its member id, ahead of
+  the answer every member sees
 - LaTeX math in a reply (`\( \)`, `\[ \]`, `$ $`, `$$ $$`) is shown as Unicode
   text (`b = √144`, `x²`, `(b/a)x`) by `mathText.ts`, since the markdown
   renderer has no math support; `bun test` runs its tests

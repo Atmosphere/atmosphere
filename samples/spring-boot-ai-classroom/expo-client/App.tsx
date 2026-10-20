@@ -25,6 +25,7 @@ import {
   ConnectionStatusBadgeRN,
 } from 'atmosphere.js/react-native';
 import { renderMath } from './mathText';
+import { withMemberPrompt, type Message } from './transcript';
 
 // --- Initialize atmosphere.js for React Native ---
 const caps = setupReactNative({ netInfo: NetInfo });
@@ -53,21 +54,6 @@ const SERVER_URL =
   });
 
 // --- Types ---
-interface UserMessage {
-  role: 'user';
-  text: string;
-  /** Parked in the offline queue; goes out when the connection returns. */
-  queued?: boolean;
-}
-
-interface AssistantMessage {
-  role: 'assistant';
-  text: string;
-  complete: boolean;
-}
-
-type Message = UserMessage | AssistantMessage;
-
 interface Room {
   id: string;
   label: string;
@@ -137,6 +123,9 @@ function Classroom({
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  // The reply on screen when a room member's prompt arrives (see onPrompt).
+  const liveTextRef = useRef('');
+  const fullTextLengthRef = useRef(0);
   const flatListRef = useRef<FlatList>(null);
   const roomConfig = ROOMS.find((r) => r.id === room);
 
@@ -185,6 +174,14 @@ function Classroom({
       console.warn('[atmosphere] transport failed, falling back:', reason),
     onFailureToReconnect: () =>
       console.error('[atmosphere] reconnect attempts exhausted'),
+    // A room member's prompt, once per turn: another member's joins the
+    // transcript labelled with its member id; this app's own is already on
+    // screen from handleSend.
+    onPrompt: (text: string, from: string, own: boolean) => {
+      const liveNow = liveTextRef.current;
+      setMessages((prev) => withMemberPrompt(prev, liveNow, text, from, own) ?? prev);
+      if (!own && text && liveNow) setCommittedLength(fullTextLengthRef.current);
+    },
   });
 
   // The reply being streamed is derived from fullText at render time, never
@@ -194,6 +191,8 @@ function Classroom({
   // fullText already sits in `messages` as a finished reply.
   const [committedLength, setCommittedLength] = useState(0);
   const liveText = fullText.slice(committedLength);
+  liveTextRef.current = liveText;
+  fullTextLengthRef.current = fullText.length;
 
   // When the stream stops, the reply joins `messages` once, as finished.
   useEffect(() => {
@@ -253,6 +252,15 @@ function Classroom({
 
   const renderMessage = useCallback(
     ({ item }: { item: Message }) => {
+      if (item.role === 'user' && item.author) {
+        // Another room member's question: on the other side, under its name.
+        return (
+          <View style={styles.memberBubble}>
+            <Text style={styles.memberAuthor}>{item.author}</Text>
+            <Text style={styles.memberText}>{item.text}</Text>
+          </View>
+        );
+      }
       if (item.role === 'user') {
         return (
           <View
@@ -638,6 +646,28 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: ATMOSPHERE.bgDark,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  memberBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(184,150,62,0.18)',
+    borderWidth: 1,
+    borderColor: ATMOSPHERE.goldDark,
+    padding: 12,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+    maxWidth: '85%',
+    marginBottom: 8,
+  },
+  memberAuthor: {
+    color: ATMOSPHERE.goldLight,
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  memberText: {
+    color: ATMOSPHERE.textPrimary,
     fontSize: 15,
     lineHeight: 21,
   },
