@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { authHeaders } from '../lib/authToken'
 
 interface AgentInfo {
   name: string
@@ -31,7 +32,7 @@ async function loadAgents() {
   error.value = null
   try {
     const res = await fetch('/api/admin/agents', {
-      headers: { Accept: 'application/json' },
+      headers: authHeaders({ Accept: 'application/json' }),
     })
     if (!res.ok) {
       error.value = `Agents endpoint returned ${res.status}`
@@ -53,7 +54,8 @@ async function loadSessions() {
   const all: SessionInfo[] = []
   for (const agent of agents.value) {
     try {
-      const res = await fetch(`/api/admin/agents/${encodeURIComponent(agent.name)}/sessions`)
+      const res = await fetch(`/api/admin/agents/${encodeURIComponent(agent.name)}/sessions`,
+        { headers: authHeaders({ Accept: 'application/json' }) })
       if (res.ok) {
         const list: SessionInfo[] = await res.json()
         all.push(...list.map((s) => ({ ...s, agentName: s.agentName ?? agent.name })))
@@ -77,12 +79,14 @@ async function cancelInflight(uuid: string) {
   try {
     const res = await fetch(
       `/api/admin/sessions/${encodeURIComponent(uuid)}/cancel-inflight`,
-      { method: 'POST' },
+      { method: 'POST', headers: authHeaders() },
     )
     if (res.ok) {
       lastAction.value = { uuid, status: 'cancelled' }
     } else if (res.status === 404) {
       lastAction.value = { uuid, status: 'no active AI session' }
+    } else if (res.status === 401 || res.status === 403) {
+      lastAction.value = { uuid, status: await writeRefusal(res) }
     } else {
       lastAction.value = { uuid, status: `error ${res.status}` }
     }
@@ -90,6 +94,31 @@ async function cancelInflight(uuid: string) {
     lastAction.value = { uuid, status: `network error: ${e instanceof Error ? e.message : String(e)}` }
   }
   await loadSessions()
+}
+
+/**
+ * Why the admin write guard refused a write, in words: admin writes need
+ * atmosphere.admin.http-write-enabled=true (403 with a hint naming it while
+ * off) and a signed-in caller (401 while anonymous); a role or authorizer may
+ * still refuse that caller (403).
+ */
+async function writeRefusal(res: Response): Promise<string> {
+  let body: { error?: unknown; hint?: unknown } = {}
+  try {
+    body = await res.json()
+  } catch (e) {
+    console.debug('[console] admin write refusal without a JSON body', e)
+  }
+  const hint = typeof body.hint === 'string' ? body.hint : ''
+  if (res.status === 401) {
+    return 'refused: this action requires an admin sign-in. Open the Console with '
+      + '?token=<admin token>, or sign in through the application\'s security.'
+  }
+  if (hint) {
+    return `refused: admin writes are off. ${hint}, and sign in as an admin.`
+  }
+  return 'refused: the signed-in user is not allowed to run admin writes '
+    + '(atmosphere.admin.required-role or the application\'s ControlAuthorizer).'
 }
 
 function formatTime(iso?: string): string {
