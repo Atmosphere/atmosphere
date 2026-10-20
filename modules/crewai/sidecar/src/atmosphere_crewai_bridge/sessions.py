@@ -189,7 +189,17 @@ class SessionRegistry:
         ``False`` if it was unknown or already cancelled. The HTTP layer
         does NOT use the return value to pick a status code — DELETE is
         always 204 (Invariant #2).
+
+        The consumer receives an ``error`` ``"cancelled"`` frame and then
+        the end of the stream. The frame goes into the reserved terminal
+        slot, so a full queue cannot drop it; if the producer already
+        queued its own terminal frame (``done`` or the overflow
+        ``error``), that one stands and nothing is added — every stream
+        carries exactly one terminal frame.
         """
+        # Deferred: ``stream`` imports this module at load time.
+        from .stream import error_frame
+
         if not session_id:
             return False
         with self._lock:
@@ -198,6 +208,7 @@ class SessionRegistry:
             logger.debug("cancel for unknown session id %s — no-op", session_id)
             return False
         newly = session.request_cancel()
+        session.offer_terminal(error_frame("cancelled"))
         session.close_queue()
         return newly
 

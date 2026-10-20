@@ -28,8 +28,11 @@ from atmosphere_crewai_bridge.app import create_app
 from atmosphere_crewai_bridge.sessions import Session, SessionRegistry
 from atmosphere_crewai_bridge.stream import (
     QUEUE_FULL_MESSAGE,
+    done_frame,
     drain,
+    error_frame,
     run_crew,
+    session_frame,
     token_frame,
 )
 from tests.conftest import FakeCrew
@@ -137,8 +140,9 @@ async def test_stream_ends_when_producer_outruns_unstarted_consumer() -> None:
 
 
 async def test_stream_ends_when_cancelled_with_full_queue() -> None:
-    """A DELETE that lands while the queue is full must still end the
-    stream: the close sentinel has a reserved slot."""
+    """A DELETE that lands while the queue is full must still deliver the
+    ``cancelled`` error frame and end the stream: both have reserved
+    slots."""
     registry = SessionRegistry(max_sessions=1, queue_size=2)
     session = registry.acquire()
     assert session is not None
@@ -149,7 +153,45 @@ async def test_stream_ends_when_cancelled_with_full_queue() -> None:
     registry.cancel(session.id)
 
     frames = await _drain_all(session)
-    assert frames == [token_frame("a"), token_frame("b")]
+    assert frames == [token_frame("a"), token_frame("b"),
+                      error_frame("cancelled")]
+
+
+async def test_delete_mid_stream_delivers_one_cancelled_frame() -> None:
+    """A DELETE while the producer is still running: the consumer gets
+    exactly one terminal frame, ``error`` ``"cancelled"``, then the end of
+    the stream — not a bare close, and not a second terminal frame from
+    the producer winding down."""
+    registry = SessionRegistry(max_sessions=1, queue_size=8)
+    session = registry.acquire()
+    assert session is not None
+    producer = asyncio.create_task(run_crew(
+        session, FakeCrew(chunks=["a", "b", "c"], hold_seconds=0.2),
+        "hi", [], None))
+    # Let the producer emit its session frame and park in the kickoff hold.
+    await asyncio.sleep(0.05)
+
+    registry.cancel(session.id)
+    await asyncio.wait_for(producer, timeout=5.0)
+
+    frames = await _drain_all(session)
+    assert frames == [session_frame(session.id), error_frame("cancelled")]
+
+
+async def test_delete_after_done_adds_no_terminal_frame() -> None:
+    """A DELETE after the producer finished leaves its ``done`` as the
+    only terminal frame."""
+    registry = SessionRegistry(max_sessions=1, queue_size=8)
+    session = registry.acquire()
+    assert session is not None
+    await run_crew(session, FakeCrew(chunks=["a"]), "hi", [], None)
+
+    registry.cancel(session.id)
+
+    frames = await _drain_all(session)
+    assert frames[-1] == done_frame()
+    assert sum(f.startswith((b"event: done", b"event: error"))
+               for f in frames) == 1, frames
 
 
 async def test_stream_within_capacity_ends_with_done() -> None:
