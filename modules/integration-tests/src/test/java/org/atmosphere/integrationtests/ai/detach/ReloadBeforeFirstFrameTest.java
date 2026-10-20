@@ -129,9 +129,16 @@ public class ReloadBeforeFirstFrameTest {
     public void tearDown() throws Exception {
         DetachTestEndpoint.RELEASE.countDown();
         MID_ANSWER.countDown();
-        httpClient.shutdownNow();
-        server.close();
-        model.stop(0);
+        // setUp may have stopped before building these (an LLM_* variable set in the JVM).
+        if (httpClient != null) {
+            httpClient.shutdownNow();
+        }
+        if (server != null) {
+            server.close();
+        }
+        if (model != null) {
+            model.stop(0);
+        }
     }
 
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
