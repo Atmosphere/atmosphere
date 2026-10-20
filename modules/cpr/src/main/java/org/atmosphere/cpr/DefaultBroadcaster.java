@@ -1341,6 +1341,7 @@ public class DefaultBroadcaster implements Broadcaster {
             bc.getAsyncWriteService().execute(() -> {
                 try {
                     logger.trace("Forcing connection close {}", ar.uuid());
+                    completeLostWebSocket(r);
                     r.resume();
                     r.close();
                 } catch (Exception t1) {
@@ -1350,6 +1351,28 @@ public class DefaultBroadcaster implements Broadcaster {
             });
         } else {
             r.resume();
+        }
+    }
+
+    /**
+     * A write to a WebSocket failed: its connection is gone. Complete the
+     * resource's lifecycle as a cancel, so its handler is told the client
+     * left ({@code @Disconnect}, once) while the resource is still whole.
+     *
+     * <p>The forced {@link AtmosphereResource#close()} that follows tears the
+     * resource down without telling the handler (the failure above already
+     * removed the resource's listeners), and the container's own close of the
+     * dead connection then finds it closed and dispatches nothing: a member
+     * dropped mid-stream was never counted out. Whichever of this and the
+     * container's close comes first dispatches; the other finds the
+     * lifecycle complete.</p>
+     */
+    private void completeLostWebSocket(AtmosphereResourceImpl r) {
+        if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET || config == null) {
+            return;
+        }
+        if (config.framework().getAsyncSupport() instanceof AsynchronousProcessor processor) {
+            processor.completeLifecycle(r, true);
         }
     }
 
