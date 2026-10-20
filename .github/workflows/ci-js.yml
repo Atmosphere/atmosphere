@@ -108,9 +108,12 @@ jobs:
         # useOptimistic) legitimately grew the core surface. Raised again to
         # 56KB on 2026-10-17: a reloaded page reattaching to its AI run and
         # room prompts under an opaque member id (a synchronous SHA-256 for
-        # pages without crypto.subtle) grew it past 50KB.
-        if [ $SIZE -gt 57344 ]; then
-          echo "❌ Bundle size ($SIZE bytes) exceeds 56KB limit!"
+        # pages without crypto.subtle) grew it past 50KB. Raised to 64KB on
+        # 2026-10-20: the reconnect resume point, a fallback keeping its
+        # tracking id, the heartbeat a rebuilt connection carries over and the
+        # client-minted run id grew it to ~59KB.
+        if [ $SIZE -gt 65536 ]; then
+          echo "❌ Bundle size ($SIZE bytes) exceeds 64KB limit!"
           exit 1
         fi
         echo "✅ Bundle size OK: $SIZE bytes"
