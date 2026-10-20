@@ -29,6 +29,12 @@ policies:
       # PII incidentally. For stricter environments use `mode: block`.
       mode: redact
 
+  # Installed in dry-run by PoliciesConfig: an unusually long or short answer
+  # is flagged (audit entry "dry-run:deny", shadow counter in the admin
+  # governance health report, a WARN "possible drift") and still delivered.
+  # Enforced, it ends ordinary long lessons mid-stream: the reply is checked
+  # every 200 characters and each check counts as a sample, so the baseline
+  # is a mean of partial lengths.
   - name: classroom-drift-watcher
     type: output-length-zscore
     version: "1.0"

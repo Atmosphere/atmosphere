@@ -150,7 +150,11 @@ rules. The guardrail, not the model, is what keeps a room on topic.
 
 `atmosphere-policies.yaml` (loaded by `PoliciesConfig`) layers cross-cutting
 policies that apply to all rooms: `classroom-pii-guard` (PII redaction) and
-`classroom-drift-watcher` (response-length z-score). Built-in YAML policy
+`classroom-drift-watcher` (response-length z-score). The drift watcher runs
+in dry-run: an outlier answer is flagged (a `dry-run:deny` audit entry, the
+shadow counter in the admin governance health report, a `possible drift`
+WARN) and still delivered, because enforced it ends ordinary long lessons
+mid-stream. Built-in YAML policy
 types: `pii-redaction`, `cost-ceiling`, `output-length-zscore`, `deny-list`,
 `allow-list`, `message-length`, `rate-limit`, `concurrency-limit`,
 `time-window`, `metadata-presence`, `authorization`.

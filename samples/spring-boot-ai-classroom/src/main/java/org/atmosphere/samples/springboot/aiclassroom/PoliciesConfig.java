@@ -15,8 +15,11 @@
  */
 package org.atmosphere.samples.springboot.aiclassroom;
 
+import org.atmosphere.ai.governance.DryRunPolicy;
 import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.GuardrailAsPolicy;
 import org.atmosphere.ai.governance.YamlPolicyParser;
+import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -53,7 +57,7 @@ public class PoliciesConfig {
         }
         List<GovernancePolicy> policies;
         try (var in = resource.getInputStream()) {
-            policies = new YamlPolicyParser().parse("classpath:" + POLICY_FILE, in);
+            policies = loadPolicies("classpath:" + POLICY_FILE, in);
         }
         framework.getAtmosphereConfig().properties()
                 .put(GovernancePolicy.POLICIES_PROPERTY, policies);
@@ -61,6 +65,31 @@ public class PoliciesConfig {
                 policies.size(), POLICY_FILE,
                 policies.stream().map(GovernancePolicy::name).toList());
         return new PolicyPlaneLoader(policies);
+    }
+
+    /**
+     * Parses the policy YAML into the policies this sample installs. A
+     * response-length z-score policy is installed in dry-run: it flags an
+     * outlier (audit entry, shadow-deny counter, log line) and never blocks.
+     *
+     * <p>Enforced, it cuts ordinary long answers off mid-stream. A streamed
+     * reply is inspected every 200 characters and once complete, and the
+     * guardrail counts each inspection as a sample, so its baseline is a mean
+     * of partial lengths: after a few short answers, a normal 1,600-character
+     * lesson crosses 3 sigma part-way through.</p>
+     */
+    static List<GovernancePolicy> loadPolicies(String source, InputStream in) throws IOException {
+        return new YamlPolicyParser().parse(source, in).stream()
+                .map(PoliciesConfig::flagOnlyIfLengthDrift)
+                .toList();
+    }
+
+    private static GovernancePolicy flagOnlyIfLengthDrift(GovernancePolicy policy) {
+        if (policy instanceof GuardrailAsPolicy adapter
+                && adapter.guardrail() instanceof OutputLengthZScoreGuardrail) {
+            return new DryRunPolicy(policy);
+        }
+        return policy;
     }
 
     /** Marker bean that also exposes the loaded policies for admin/diagnostics. */
