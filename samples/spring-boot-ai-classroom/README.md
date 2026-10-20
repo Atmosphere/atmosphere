@@ -55,6 +55,8 @@ public class AiClassroom {
 
 `streamCache = UUIDBroadcasterCache.class` is what lets a student whose connection drops (a phone put in the background, a flaky network) catch up: the cache keeps what the room broadcasts for the student's tracking id from the moment the connection is lost, and the reconnect is written the classmates' turns it missed, the rest of the answer it dropped in included, each frame once (the run replay sends nothing the cache already sent). `application.yml` keeps a dropped student for five minutes (`org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime: 300`). The cache class applies to every broadcaster of the application, so the student chat below gets missed messages on reconnect too. Without a cache, a whole turn asked while a student was away never reaches it.
 
+A student that goes silent without closing (a laptop lid shut, a network that drops packets and never resets the connection) leaves its room too: `application.yml` closes a connection the server has heard nothing from for two minutes (`org.atmosphere.cpr.CometSupport.maxInactiveActivity: 120000`), and the room counts the student out. The handshake asks every client for a heartbeat every 30 seconds (`org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds: 30`), which atmosphere.js sends on its own over WebSocket and WebTransport, so a quiet but live tab is never closed.
+
 The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 
 **Student chat, with history (`@RoomService`):**
