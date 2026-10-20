@@ -132,6 +132,47 @@ For a genuine multi-client assertion, open a **second page** on the same room
 and confirm the stream lands in both. Keep them as separate pages
 (`list_pages` / `select_page`), never one page navigated twice.
 
+### Dropping a member's connection (reconnect / missed-turn checks)
+
+**`emulate networkConditions=Offline` does not drop the connection.** Chrome
+blocks only *new* requests: an established WebTransport session and an
+established WebSocket keep working (`navigator.onLine` is `false`, the badge
+stays `Connected · …` and the page keeps receiving room turns live — re-test
+2026-10-19, lane C). A drop check driven that way passes without anything
+having dropped.
+
+Drop the connection in the page instead. Load the page with this `initScript`
+(`navigate_page` with `initScript`, then `type=url` to the Console), which
+records every WebTransport / WebSocket the client opens and, once dropped,
+points new attempts at the dead port `localhost:1`:
+
+```js
+window.__socks=[]; window.__off=false; window.__conn=[];
+(function(){
+ const OWT=window.WebTransport; if (OWT) { const W=function(url,opts){ const u=window.__off? url.replace(/\/\/localhost:\d+\//,'//localhost:1/') : url; window.__conn.push(['WT',Date.now(),u.slice(0,40)+'…'+(u.match(/X-Atmosphere-Resume=[^&]*/)||[''])[0]]); const wt=new OWT(u,opts); window.__socks.push(wt); return wt; }; W.prototype=OWT.prototype; window.WebTransport=W; }
+ const OW=window.WebSocket; const S=function(url,p){ const u=window.__off? String(url).replace(/\/\/localhost:\d+\//,'//localhost:1/') : url; window.__conn.push(['WS',Date.now(),String(u).slice(0,40)+'…'+(String(u).match(/X-Atmosphere-Resume=[^&]*/)||[''])[0]]); const ws=p!==undefined?new OW(u,p):new OW(u); window.__socks.push(ws); return ws; }; S.prototype=OW.prototype; Object.assign(S,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}); window.WebSocket=S;
+ window.__drop=function(){ window.__off=true; for(const s of window.__socks){ try{ if(s instanceof OW){ if(s.readyState===1) s.close(4000,'net down'); } else { s.close({closeCode:4000, reason:'net down'}); } }catch(e){} } window.__socks=[]; return Date.now(); };
+ window.__restore=function(){ window.__off=false; return Date.now(); };
+})();
+```
+
+Then:
+
+1. **Drop:** `evaluate_script` `() => window.__drop()`, plus `emulate
+   networkConditions=Offline` so long-polling and `fetch` fail too. Close code
+   4000 is not a normal close: the server logs `unexpectedly disconnected from
+   AI endpoint` (a lost member, not one that left). Confirm that line before
+   counting the drop.
+2. **While down:** send turns from the *other* page. `window.__conn` lists each
+   reconnect attempt (transport, time, and its `X-Atmosphere-Resume` value).
+3. **Restore:** `emulate` with no `networkConditions`, then `evaluate_script`
+   `() => window.__restore()`. Reconnects go to the real port again; assert the
+   missed turns arrive once.
+
+Expected browser-console noise while dropped (not findings): the CSP refusal of
+`https://localhost:1`, `ERR_UNSAFE_PORT`, `ERR_INTERNET_DISCONNECTED`, and,
+after a long drop, `[Atmosphere] webtransport all reconnect attempts exhausted`.
+
 ---
 
 ## Evidence collection (every sample, every class)
@@ -156,5 +197,6 @@ framework finding hiding as noise.
 | `wait_for` matching too early | Matches a prefix mid-stream | Wait for a terminal marker, then re-snapshot |
 | Probing a long-poll endpoint | The probe hangs | Probe `/atmosphere/console/` or `/`, never a suspended endpoint |
 | Silent transport fallback | Everything "works" | Read `data-transport` and the ` · fallback` suffix |
+| DevTools Offline as a "drop" | Reconnect check passes; the socket never closed | Drop in-page (Class E recipe): close code 4000 + dead port |
 | Rapid-fire prompts | Errors that look like framework bugs | Local models serialize; give one turn time to finish |
 | Judging a small model's tool call | Ollama 400 / "stuck in node" | Model limitation — re-run on a capable model before calling it a regression |

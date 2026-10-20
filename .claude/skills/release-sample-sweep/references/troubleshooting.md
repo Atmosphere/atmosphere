@@ -166,6 +166,11 @@ primary transport failed and the client degraded. A WebTransport sample running
 on WebSocket "works" and is still a finding — read `data-transport` and
 `data-via-fallback`, not just the word "Connected".
 
+**DevTools Offline does not drop an open connection.** `emulate
+networkConditions=Offline` blocks new requests only; an established
+WebTransport session or WebSocket keeps carrying frames. Use the in-page drop
+in driving-recipes.md (Class E, "Dropping a member's connection").
+
 **A missing Console tab.** Tabs are conditional on what the server exposes. An
 absent Validation / Checkpoints / Tape / Interactions tab on a sample that
 should have it is a wiring regression, not a cosmetic difference.
