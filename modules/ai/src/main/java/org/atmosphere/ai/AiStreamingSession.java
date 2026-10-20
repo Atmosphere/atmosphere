@@ -106,6 +106,12 @@ public class AiStreamingSession implements StreamingSession {
     private final String model;
     private final List<AiInterceptor> interceptors;
     private final AtmosphereResource resource;
+    /**
+     * The resource as the run reads its request ({@link RunScopedResource}): the
+     * request a reload cancels stays readable for the rest of the run, the
+     * interceptors' hooks and the session's own reads included.
+     */
+    private final AtmosphereResource runResource;
     private final AiConversationMemory memory;
     private final ToolRegistry toolRegistry;
     private final List<AiGuardrail> guardrails;
@@ -387,6 +393,7 @@ public class AiStreamingSession implements StreamingSession {
         this.model = model;
         this.interceptors = interceptors != null ? interceptors : List.of();
         this.resource = resource;
+        this.runResource = RunScopedResource.of(resource);
         this.memory = memory;
         this.toolRegistry = toolRegistry;
         this.guardrails = guardrails != null ? guardrails : List.of();
@@ -1201,10 +1208,10 @@ public class AiStreamingSession implements StreamingSession {
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
 
         // Populate identity fields from the AtmosphereResource
-        var userId = extractAttribute(resource, "ai.userId");
+        var userId = extractAttribute(runResource, "ai.userId");
         var sessionId = resource.uuid();
-        var agentId = extractAttribute(resource, "ai.agentId");
-        var conversationId = extractAttribute(resource, "ai.conversationId");
+        var agentId = extractAttribute(runResource, "ai.agentId");
+        var conversationId = extractAttribute(runResource, "ai.conversationId");
         if (conversationId == null) {
             conversationId = sessionId;
         }
@@ -1344,7 +1351,7 @@ public class AiStreamingSession implements StreamingSession {
                 continue;
             }
             try {
-                var stamped = interceptor.preProcess(request, resource);
+                var stamped = interceptor.preProcess(request, runResource);
                 if (stamped == null || !request.message().equals(stamped.message())) {
                     logger.error("Before-admission AiInterceptor {} changed the message; failing the turn closed",
                             interceptor.getClass().getName());
@@ -1406,7 +1413,7 @@ public class AiStreamingSession implements StreamingSession {
                 continue;
             }
             try {
-                request = interceptor.preProcess(request, resource);
+                request = interceptor.preProcess(request, runResource);
             } catch (Exception e) {
                 logger.error("AiInterceptor.preProcess failed: {}", interceptor.getClass().getName(), e);
                 delegate.error(e);
@@ -1660,7 +1667,7 @@ public class AiStreamingSession implements StreamingSession {
         }
 
         // Expose the session to interceptors via request attribute
-        resource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
+        runResource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
 
         // Build execution context and delegate to runtime.
         // The session-scoped ApprovalStrategy is carried on the context so every
@@ -1918,7 +1925,7 @@ public class AiStreamingSession implements StreamingSession {
     private void postProcess(AiRequest finalRequest) {
         for (int i = interceptors.size() - 1; i >= 0; i--) {
             try {
-                interceptors.get(i).postProcess(finalRequest, resource);
+                interceptors.get(i).postProcess(finalRequest, runResource);
             } catch (Exception e) {
                 logger.error("AiInterceptor.postProcess failed: {}",
                         interceptors.get(i).getClass().getName(), e);
@@ -1934,7 +1941,7 @@ public class AiStreamingSession implements StreamingSession {
 
         logger.info("Handoff from {} to agent '{}'", resource.uuid(), agentName);
         emit(new AiEvent.Handoff(
-                extractAttribute(resource, "ai.agentId"),
+                extractAttribute(runResource, "ai.agentId"),
                 agentName,
                 "User request routed to " + agentName));
 
@@ -2233,7 +2240,7 @@ public class AiStreamingSession implements StreamingSession {
         try {
             for (int i = interceptors.size() - 1; i >= 0; i--) {
                 try {
-                    interceptors.get(i).beforeCompletion(ctx.request(), ctx.target(), resource);
+                    interceptors.get(i).beforeCompletion(ctx.request(), ctx.target(), runResource);
                 } catch (Throwable t) {
                     // Throwable, not Exception: an AssertionError escaping here
                     // would skip the terminal frame below and hang the client.
