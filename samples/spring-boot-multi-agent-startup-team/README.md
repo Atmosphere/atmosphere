@@ -38,6 +38,14 @@ and type a prompt like: *"Analyze the market for AI developer tools"*
 Open [http://localhost:8080/atmosphere/admin/](http://localhost:8080/atmosphere/admin/)
 to see the admin dashboard with live event stream, all 5 agents, fleet topology, and operational controls.
 
+The operational controls (cancel an in-flight session from the Sessions tab, disconnect
+a client, arm the kill switch) are admin writes: they need an authenticated operator.
+Open [http://localhost:8080/?token=demo-operator](http://localhost:8080/?token=demo-operator)
+— the root redirect keeps the query, and the Console sends the token as `X-Atmosphere-Auth`
+on admin writes. `OperatorAuthConfig` accepts only that demo token; an anonymous write gets
+401. `application.yml` enables admin writes (`atmosphere.admin.http-write-enabled=true`) for
+this local demo only — **never in production** without real operator authentication.
+
 ## The Team
 
 | Agent | Role | Skill | Transport |
@@ -352,7 +360,7 @@ curl -X POST http://localhost:8080/api/admin/governance/check \
 
 # Break-glass — arm the kill switch
 curl -X POST http://localhost:8080/api/admin/governance/kill-switch/arm \
-     -H 'Content-Type: application/json' \
+     -H 'Content-Type: application/json' -H 'X-Atmosphere-Auth: demo-operator' \
      -d '{"reason":"incident-42","operator":"oncall"}'
 
 # Compliance export (cross-vendor agt verify schema)
@@ -504,7 +512,7 @@ The `atmosphere-admin` dependency enables a real-time management dashboard at `/
 - **Dashboard** — live counters (5 agents, 12 broadcasters), WebSocket event feed, connected resources
 - **Agents** — all 5 agents listed: CEO coordinator (v1.0.0) + 4 headless specialists with a2a/mcp protocol badges
 - **Journal** — query coordination events by coordination ID or agent name
-- **Control** — broadcast messages to any agent, disconnect clients, cancel A2A tasks, with full audit trail
+- **Control** — broadcast messages to any agent, disconnect clients, cancel A2A tasks, with full audit trail (admin writes: sign in with `?token=demo-operator`)
 
 The event stream uses Atmosphere's own WebSocket transport — the admin dashboard eats its own dog food.
 

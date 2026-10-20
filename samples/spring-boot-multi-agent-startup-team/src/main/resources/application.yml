@@ -6,6 +6,15 @@ atmosphere:
   interactions:
     http-write-enabled: true
     demo-principal: demo-user
+  # Admin writes (Sessions-tab cancel, disconnect, kill switch) are DEMO-ONLY
+  # enabled here; each still needs an authenticated operator, which
+  # OperatorAuthConfig resolves from the demo token (?token=demo-operator, sent
+  # as X-Atmosphere-Auth). The chat transport stays anonymous: a TokenValidator
+  # bean would otherwise install the transport AuthInterceptor on every connection.
+  admin:
+    http-write-enabled: true
+  auth:
+    transport-enabled: false
   # The bundled Atmosphere Console is the sample UI: fleet roster + live
   # agent activity render from the coordinator admin API + agent-step events.
   console-subtitle: AI startup advisory team — @Coordinator fans out to 4 A2A agents
