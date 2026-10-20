@@ -314,14 +314,23 @@ public class OpenAiCompatibleClient implements LlmClient {
             doStreamWithToolLoop(request, session, 0, effective, streamSink, logprobCapture);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            session.error(e);
+            if (session.isTurnCancelled()) {
+                // The turn's cancel interrupted the request: an expected end.
+                logger.debug("Chat completion interrupted: the turn was cancelled");
+                if (!session.isClosed()) {
+                    session.complete();
+                }
+            } else {
+                session.error(e);
+            }
         } catch (java.io.IOException e) {
             // Expected path when cancel() closes the in-flight InputStream from
             // another thread — the blocked readLine() unwinds with "Stream
-            // closed" or "Socket closed". Don't treat it as a hard error if
-            // cancellation was requested; fall through to session.error()
-            // otherwise so upstream failures still surface.
-            if (effective.get()) {
+            // closed" or "Socket closed" — or when the turn's cancel interrupted
+            // the read. Don't treat it as a hard error if cancellation was
+            // requested; fall through to session.error() otherwise so upstream
+            // failures still surface.
+            if (effective.get() || session.isTurnCancelled()) {
                 logger.debug("Built-in stream cancelled via InputStream.close()");
                 if (!session.isClosed()) {
                     session.complete();
@@ -494,7 +503,8 @@ public class OpenAiCompatibleClient implements LlmClient {
         try (var reader = new BufferedReader(new InputStreamReader(inFlightStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (cancelled.get() || session.isClosed()) {
+                if (cancelled.get() || session.isClosed() || session.isTurnCancelled()) {
+                    // Leaving the loop closes the stream: the model call ends.
                     break;
                 }
                 if (useResponsesApi) {
@@ -507,7 +517,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
         } catch (java.io.IOException e) {
-            if (cancelled.get()) {
+            if (cancelled.get() || session.isTurnCancelled()) {
                 // Expected: the caller closed the InputStream to interrupt us.
                 // Re-throw so the outer catch in streamChatCompletion can
                 // distinguish cancel from a real failure and complete the
@@ -689,7 +699,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.approvalStrategy(), request.parts(), request.listeners(),
                     request.cacheHint(), request.retryPolicy(), request.approvalPolicy(),
                     request.toolLoopPolicy(), null, request.logprobs(), request.decisionField());
-            if (cancelled.get()) {
+            if (cancelled.get() || session.isTurnCancelled()) {
                 return;
             }
             doStreamWithToolLoop(followUp, session, toolRound + 1, cancelled, streamSink,
