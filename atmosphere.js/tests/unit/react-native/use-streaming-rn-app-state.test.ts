@@ -232,3 +232,59 @@ describe('useStreamingRN disconnect does not advertise a closed stream as open',
     unmount();
   });
 });
+
+/**
+ * `disconnect` closes the stream in the background and opens a new one, under
+ * a new tracking id, on return: neither the room's cache (keyed by the old
+ * tracking id) nor a run replay (the app may hold no run id) can tell the new
+ * connection what the app missed. The new subscription carries the old one's
+ * resume point instead, so the server writes it the frames it missed — a
+ * room's turns included — from there, once.
+ */
+describe('useStreamingRN disconnect carries the resume point to the stream it opens on return', () => {
+  afterEach(() => {
+    act(() => __emitAppState('active'));
+    vi.restoreAllMocks();
+  });
+
+  it('the new stream connects with what the closed one received', async () => {
+    const sockets: any[] = [];
+    const urls: string[] = [];
+    const WSCtor: any = vi.fn(function (url: string) {
+      const ws = { send: vi.fn(), close: vi.fn(), readyState: 1, onopen: null as any, onmessage: null as any,
+        onerror: null as any, onclose: null as any, binaryType: 'arraybuffer' };
+      urls.push(url);
+      sockets.push(ws);
+      setTimeout(() => ws.onopen?.({}), 0);
+      return ws;
+    });
+    WSCtor.OPEN = 1;
+    WSCtor.CONNECTING = 0;
+    WSCtor.CLOSED = 3;
+    global.WebSocket = WSCtor;
+    const { Atmosphere: RealAtmosphere } = await import('../../../src/core/atmosphere');
+    const atmosphere = new RealAtmosphere();
+    const roomRequest: AtmosphereRequest = { url: 'ws://localhost:8080/ai/room', transport: 'websocket' };
+    const resumeOf = (url: string) => new URL(url).searchParams.get('X-Atmosphere-Resume');
+
+    const { result, unmount } = renderHook(
+      () => useStreamingRN({ request: roomRequest, backgroundBehavior: 'disconnect' }),
+      { wrapper: wrapper(atmosphere) });
+    await vi.waitFor(() => expect(result.current.canSend).toBe(true));
+    expect(resumeOf(urls[0])).toBeNull();
+
+    // A classmate's turn reaches the app before it goes to the background.
+    act(() => {
+      sockets[0].onmessage?.({ data: JSON.stringify({ type: 'prompt', text: 'q?', from: 'm1', sessionId: 'room-s1', seq: 1 }) });
+      sockets[0].onmessage?.({ data: JSON.stringify({ type: 'streaming-text', data: 'par', sessionId: 'room-s1', seq: 2 }) });
+    });
+    await vi.waitFor(() => expect(result.current.streamingTexts).toEqual(['par']));
+
+    act(() => __emitAppState('background'));
+    act(() => __emitAppState('active'));
+    await vi.waitFor(() => expect(sockets).toHaveLength(2));
+
+    expect(resumeOf(urls[1])).toBe('room-s1:2');
+    unmount();
+  });
+});

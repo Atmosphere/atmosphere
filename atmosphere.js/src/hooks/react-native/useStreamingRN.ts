@@ -43,7 +43,11 @@ export interface UseStreamingRNOptions {
    *   that turn (`isStreaming` false, `progress` null) when it suspends.
    * - `disconnect` — close the stream and open a new one on foreground. An
    *   in-flight turn ends when the stream closes, and `connectionStatus`
-   *   (so `canSend`) stays off `open` until the new stream is bound.
+   *   (so `canSend`) stays off `open` until the new stream is bound. The
+   *   new stream starts from the closed one's resume point
+   *   (`AtmosphereRequest.resume`), so the server writes it the frames the
+   *   app missed in the background — a `broadcastReply` room's turns
+   *   included — once, although it connects under a new tracking id.
    *
    * The default differs from {@link useAtmosphereRN}'s `suspend` because a
    * suspended stream loses the frames of an in-flight answer.
@@ -226,6 +230,11 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   );
 
   const handleRef = useRef<StreamingHandle | null>(null);
+  // What the closed subscription received of each AI session: the next one
+  // (`backgroundBehavior: 'disconnect'` opens one on foreground, under a new
+  // tracking id) starts from it, so the server writes it what the app missed
+  // in the background — a room's turns included — once.
+  const resumeRef = useRef<string | null>(null);
   const backgroundBehaviorRef = useRef(backgroundBehavior);
   backgroundBehaviorRef.current = backgroundBehavior;
   // The behavior applied when the app left the foreground, undone on return.
@@ -257,7 +266,9 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
 
     (async () => {
       try {
-        const handle = await subscribeStreaming(atmosphere, request, {
+        const carried = resumeRef.current;
+        const handle = await subscribeStreaming(atmosphere,
+          carried && !request.resume ? { ...request, resume: carried } : request, {
           onOpen: () => {
             if (cancelled) return;
             // An open transport retires any earlier connection error.
@@ -362,6 +373,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
       cancelled = true;
       unbindStatus?.();
       unbindStatus = null;
+      resumeRef.current = handleRef.current?.resumePoint ?? resumeRef.current;
       handleRef.current?.close();
       handleRef.current = null;
       // The binding is gone, so the handle's own close event never reaches

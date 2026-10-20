@@ -200,7 +200,9 @@ missed from that point, a `broadcastReply` room's turns asked meanwhile
 included, and nothing it already holds. `Subscription.resumePoint` (and
 `StreamingHandle.resumePoint`) reads the value; pass it as `request.resume` to a
 subscription that replaces a closed one (it gets a new tracking id, so only
-the resume point links it to what the closed one received). It is kept in memory only: a reloaded page has received nothing, and gets
+the resume point links it to what the closed one received), as `useStreamingRN`
+does with `backgroundBehavior: 'disconnect'`, which closes the stream in the
+background and opens a new one on return. It is kept in memory only: a reloaded page has received nothing, and gets
 the run replayed from its start. A server that predates it ignores it.
 
 ## Examples
