@@ -288,12 +288,82 @@ for knob in LLM_API_KEY LLM_MODE; do
         fail "the AI auto-configuration reads $knob from the environment" "no env(\"$knob\") in $AI_AUTOCONFIG"
     fi
 done
-keyless_samples=$(jq -r '.samples[] | select(.packaging == "spring-boot" and (.envVars // {} | has("LLM_API_KEY"))) | .name' "$SAMPLES_JSON")
-keyless_count=$(printf '%s\n' "$keyless_samples" | grep -c .)
-if [ "$keyless_count" -ge 9 ]; then
-    pass "$keyless_count Spring Boot samples document LLM_API_KEY"
+documented_key=$(jq -r '.samples[] | select(.packaging == "spring-boot" and (.envVars // {} | has("LLM_API_KEY"))) | .name' "$SAMPLES_JSON")
+
+# A sample whose code reaches AiConfig is covered even when samples.json is
+# silent about it: every sample whose pom depends, directly or through the
+# repo's own modules, on atmosphere-ai (AiConfig and the AI auto-configuration
+# live there). The edges come from the module poms; test-scoped and managed
+# dependencies do not count.
+ai_tmp=$(mktemp -d)
+for pom in $(find "$REPO_ROOT/modules" -name pom.xml -not -path '*/target/*' -not -path '*/node_modules/*'); do
+    awk '
+        /<parent>/ {inparent=1} /<\/parent>/ {inparent=0; next}
+        /<dependencyManagement>/ {indm=1} /<\/dependencyManagement>/ {indm=0}
+        /<build>/ {inbuild=1} /<\/build>/ {inbuild=0}
+        /<dependency>/ {indep=1; dep=""; scope=""}
+        indep && /<artifactId>/ {gsub(/.*<artifactId>|<\/artifactId>.*/, ""); dep=$0}
+        indep && /<scope>/ {gsub(/.*<scope>|<\/scope>.*/, ""); scope=$0}
+        /<\/dependency>/ {indep=0; if (!indm && scope != "test" && dep != "") deps[dep]=1}
+        !inparent && !indep && !indm && !inbuild && self == "" && /<artifactId>/ {gsub(/.*<artifactId>|<\/artifactId>.*/, ""); self=$0}
+        END {for (d in deps) print self "\t" d}
+    ' "$pom"
+done > "$ai_tmp/edges"
+echo atmosphere-ai > "$ai_tmp/reach"
+while :; do
+    before=$(wc -l < "$ai_tmp/reach")
+    awk -F'\t' 'NR==FNR {r[$1]=1; next} ($2 in r) {print $1}' "$ai_tmp/reach" "$ai_tmp/edges" >> "$ai_tmp/reach"
+    sort -u -o "$ai_tmp/reach" "$ai_tmp/reach"
+    [ "$(wc -l < "$ai_tmp/reach")" -eq "$before" ] && break
+done
+reaches_ai=""
+for sample_dir in "$REPO_ROOT"/samples/*/; do
+    [ -f "$sample_dir/pom.xml" ] || continue
+    if grep -o '<artifactId>[^<]*</artifactId>' "$sample_dir/pom.xml" | sed 's/<[^>]*>//g' \
+            | grep -qxF -f "$ai_tmp/reach"; then
+        reaches_ai="$reaches_ai $(basename "$sample_dir")"
+    fi
+done
+rm -rf "$ai_tmp"
+
+# Samples that reach AiConfig but never hand a prompt to a model it configures,
+# so LLM_MODE changes nothing they do. Each reason is checked in the sample's code.
+no_llm_path="
+quarkus-chat:broadcast-chat-only
+spring-boot-chat:broadcast-chat-only
+spring-boot-durable-sessions:broadcast-chat-only
+spring-boot-otel-chat:broadcast-chat-only
+spring-boot-admin-bundle:no-AI-endpoint
+spring-boot-mcp-server:headless-@Agent-with-deterministic-MCP-tools
+spring-boot-coding-agent:@Prompt-answers-with-session.send-only
+spring-boot-ms-governance-chat:canned-session.send-replies
+spring-boot-spring-ai-advisors:LocalEchoChatModel-is-the-model
+spring-boot-guarded-email-agent:DemoPlanRuntime-keyword-planner
+spring-boot-passivation-agent:DemoContinuationRuntime
+spring-boot-reattach-harness:in-process-PacedModelClient
+spring-boot-browser-agent:Cohere-pinned-needs-COHERE_API_KEY
+quarkus-ai-chat:Quarkus-LangChain4j-client-ignores-LLM_MODE
+"
+reaches_count=$(printf '%s\n' $reaches_ai | grep -c .)
+if [ "$reaches_count" -ge 20 ]; then
+    pass "$reaches_count samples reach AiConfig through their dependencies"
 else
-    fail "$keyless_count Spring Boot samples document LLM_API_KEY" "expected at least 9 AiConfig samples"
+    fail "$reaches_count samples reach AiConfig through their dependencies" "expected at least 20; the pom walk is broken"
+fi
+for entry in $no_llm_path; do
+    name=${entry%%:*}
+    case " $reaches_ai " in
+        *" $name "*) ;;
+        *) fail "no-LLM-path exclusion $name still reaches AiConfig" "drop it from the list" ;;
+    esac
+done
+no_llm_names=$(printf '%s\n' $no_llm_path | sed 's/:.*//')
+keyless_samples=$( { printf '%s\n' $documented_key; printf '%s\n' $reaches_ai | grep -vxF -e "$no_llm_names"; } | sort -u)
+keyless_count=$(printf '%s\n' "$keyless_samples" | grep -c .)
+if [ "$keyless_count" -ge 14 ]; then
+    pass "$keyless_count samples reach a model through AiConfig"
+else
+    fail "$keyless_count samples reach a model through AiConfig" "expected at least 14"
 fi
 for keyless in $keyless_samples; do
     out=$("$CLI" info "$keyless" 2>&1)
