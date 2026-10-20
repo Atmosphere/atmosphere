@@ -30,6 +30,10 @@ import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Map;
+
 /**
  * Collaborative AI classroom endpoint. All clients connected to the same
  * room share a broadcaster — when one student asks a question, every
@@ -88,6 +92,18 @@ public class AiClassroom {
     private static final Logger logger = LoggerFactory.getLogger(AiClassroom.class);
 
     /**
+     * The room each connected member joined, recorded at {@code @Ready} while
+     * its request is live. {@code @Disconnect} reads it from here: by then the
+     * request may be gone, and reading it throws ("Request object no longer
+     * valid") when the connection is torn down while the callback runs.
+     * Keyed by the resource itself, not its tracking id: a connection that a
+     * reconnect replaced under the same id must not take the live one's room
+     * with it when it leaves.
+     */
+    private final Map<AtmosphereResource, String> roomOfMember =
+            Collections.synchronizedMap(new IdentityHashMap<>());
+
+    /**
      * The {@code {room}} this resource connected to. {@code AiEndpointHandler}
      * records it on the resource's request before {@code @Ready}; a resource
      * whose request is gone (a recycled one at disconnect) has no room left.
@@ -100,9 +116,11 @@ public class AiClassroom {
 
     @Ready
     public void onReady(AtmosphereResource resource) {
+        var room = roomOf(resource);
+        roomOfMember.put(resource, room);
         logger.info("Student {} joined room '{}' (broadcaster: {})",
-                resource.uuid(), roomOf(resource), resource.getBroadcaster().getID());
-        broadcastPresence(resource, "join");
+                resource.uuid(), room, resource.getBroadcaster().getID());
+        broadcastPresence(resource, room, "join");
     }
 
     @Disconnect
@@ -112,8 +130,13 @@ public class AiClassroom {
             logger.debug("Ignoring disconnect because resource is null");
             return;
         }
-        logger.info("Student {} left room '{}'", resource.uuid(), roomOf(resource));
-        broadcastPresence(resource, "leave");
+        // Never the live request here: it may already be out of scope.
+        var room = roomOfMember.remove(resource);
+        if (room == null) {
+            room = "unknown";
+        }
+        logger.info("Student {} left room '{}'", resource.uuid(), room);
+        broadcastPresence(resource, room, "leave");
     }
 
     /**
@@ -131,11 +154,11 @@ public class AiClassroom {
      * the correct snapshot from the first event after rejoin, without a
      * separate query endpoint.
      */
-    private void broadcastPresence(AtmosphereResource resource, String action) {
+    private void broadcastPresence(AtmosphereResource resource, String room, String action) {
         var broadcaster = resource.getBroadcaster();
         if (broadcaster == null) {
             logger.debug("Skipping presence {} for resource {} in room '{}' because broadcaster is null",
-                    action, resource.uuid(), roomOf(resource));
+                    action, resource.uuid(), room);
             return;
         }
         int count = broadcaster.getAtmosphereResources().size();
