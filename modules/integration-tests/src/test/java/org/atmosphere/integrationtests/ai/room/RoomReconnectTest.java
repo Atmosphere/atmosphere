@@ -589,9 +589,14 @@ public class RoomReconnectTest {
     /**
      * A member whose connection is lost while the room streams a long answer
      * fast, and that comes back at once under its tracking id with its resume
-     * point, holds every text frame of the turn once: the frames the room
-     * broadcast while the member was joining it again — after the cache handed
-     * over what it kept, before the member was a member again — reach it too.
+     * point, is written every frame of the turn past that point once, and none
+     * at or below it: the frames the room broadcast while the member was
+     * joining it again — after the cache handed over what it kept, before the
+     * member was a member again — reach it too, and the cache and the room's
+     * live delivery never both write one. The check is against the resume
+     * point the member sent, not against what its lost socket shows: that
+     * socket may still hand over frames it read before the drop after the
+     * point was taken, frames the server rightly writes again.
      */
     private void dropMidTurn(String name) throws Exception {
         try (var proxy = new DroppingProxy(cachedServer.getPort())) {
@@ -601,8 +606,9 @@ public class RoomReconnectTest {
             classmate.send("stream:" + name);
             member.await(frames -> count(frames, "streaming-text") >= 60, name + ": the member sees the answer start");
             proxy.drop();
+            var resume = member.resumePoint();
             var back = connect(proxy.port(), CachedRoomTestEndpoint.PATH, member.trackingId(), member.heldRunId(),
-                    member.resumePoint());
+                    resume);
             classmate.await(frames -> count(frames, "complete") >= 1, name + ": the turn ends");
             back.await(frames -> count(frames, "complete") == 1, name + ": the member receives the end");
             Thread.sleep(300);
@@ -610,24 +616,35 @@ public class RoomReconnectTest {
             var session = classmate.runFrames().stream()
                     .filter(f -> "streaming-text".equals(f.path("type").asString()))
                     .map(f -> f.path("sessionId").asString()).findFirst().orElseThrow();
-            var held = new java.util.TreeMap<Long, Integer>();
+            // What the member declared it held of the turn, in the resume point it sent.
+            var declared = java.util.Arrays.stream(resume.split(","))
+                    .filter(pair -> pair.startsWith(session + ":"))
+                    .mapToLong(pair -> Long.parseLong(pair.substring(session.length() + 1)))
+                    .findFirst().orElse(0L);
+            var held = new java.util.TreeSet<Long>();
             for (var frame : member.runFrames()) {
-                if (session.equals(frame.path("sessionId").asString())) {
-                    held.merge(frame.path("seq").asLong(), 1, Integer::sum);
+                var seq = frame.path("seq").asLong();
+                if (session.equals(frame.path("sessionId").asString()) && seq <= declared) {
+                    held.add(seq);
                 }
             }
+            var rejoined = new java.util.TreeMap<Long, Integer>();
             for (var frame : back.runFrames()) {
                 if (session.equals(frame.path("sessionId").asString())) {
-                    held.merge(frame.path("seq").asLong(), 1, Integer::sum);
+                    rejoined.merge(frame.path("seq").asLong(), 1, Integer::sum);
                 }
             }
             var missing = classmate.runFrames().stream()
                     .filter(f -> session.equals(f.path("sessionId").asString())
                             && !"progress".equals(f.path("type").asString()))
-                    .map(f -> f.path("seq").asLong()).filter(seq -> !held.containsKey(seq)).toList();
-            assertEquals(List.of(), missing, name + ": no frame of the turn is lost across the drop");
-            assertEquals(List.of(), held.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey)
-                    .toList(), name + ": no frame is written twice");
+                    .map(f -> f.path("seq").asLong())
+                    .filter(seq -> !held.contains(seq) && !rejoined.containsKey(seq)).toList();
+            var context = " (resume point sent: " + resume + ")";
+            assertEquals(List.of(), missing, name + ": no frame of the turn is lost across the drop" + context);
+            assertEquals(List.of(), rejoined.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey)
+                    .toList(), name + ": the rejoined member is written no frame twice" + context);
+            assertEquals(List.of(), rejoined.keySet().stream().filter(seq -> seq <= declared).toList(),
+                    name + ": the rejoined member is written no frame it declared it held" + context);
             back.close();
             classmate.close();
         }
@@ -870,15 +887,19 @@ public class RoomReconnectTest {
         }
 
         /**
-         * The resume point atmosphere.js sends: the last {@code seq} received
-         * of each session, the most recently received last, up to 16.
+         * The resume point atmosphere.js sends: the highest {@code seq}
+         * received of each session, the most recently received last, up to 16.
+         * Read while the lost socket may still be handing over frames it read
+         * before the connection went: those are past the point it names, and
+         * the server rightly writes them again.
          */
         String resumePoint() {
             var last = new LinkedHashMap<String, Long>();
             for (var frame : frames) {
                 var session = frame.path("sessionId").asString();
-                last.remove(session);
-                last.put(session, frame.path("seq").asLong());
+                var seq = frame.path("seq").asLong();
+                var held = last.remove(session);
+                last.put(session, held != null && held > seq ? held : seq);
             }
             return last.entrySet().stream().skip(Math.max(0, last.size() - 16))
                     .map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(","));
