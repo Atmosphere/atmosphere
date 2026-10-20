@@ -142,12 +142,12 @@ public class DeferredStreamEndDeliveryTest {
         var session = StreamingSessions.start("pii-summary-" + UUID.randomUUID(), sender);
 
         session.send("Noted.");
-        session.complete("Reach me at user@example.com");
+        session.complete("Reach me at user@acme.io");
 
         var terminal = awaitTerminal();
         assertNotNull(terminal);
         assertEquals(Set.of(sender), terminal.targets());
-        assertFalse(terminal.message().data().contains("user@example.com"), terminal.message().data());
+        assertFalse(terminal.message().data().contains("user@acme.io"), terminal.message().data());
     }
 
     @Test

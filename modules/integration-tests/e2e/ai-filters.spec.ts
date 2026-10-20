@@ -31,7 +31,7 @@ test.describe('AI Filters E2E', () => {
       for (const c of clients) {
         await c.waitForDone();
         const response = c.fullResponse;
-        expect(response).not.toContain('john.doe@example.com');
+        expect(response).not.toContain('john.doe@acme.io');
         expect(response).toContain('[REDACTED]');
       }
     } finally {

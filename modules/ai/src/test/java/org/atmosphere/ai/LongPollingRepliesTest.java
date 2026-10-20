@@ -200,12 +200,12 @@ class LongPollingRepliesTest {
         // No sentence boundary: the PII filter holds the text back until the
         // terminal frame, then sends it in that frame's place and defers the
         // terminal frame past it.
-        session.send("mail me at alice@example.com");
+        session.send("mail me at alice@acme.io");
         session.complete();
 
         var frames = take(uuid);
         assertEquals(List.of("streaming-text", "complete"), kinds(frames));
-        assertFalse(texts(frames).get(0).contains("alice@example.com"), "the filter chain must have redacted it");
+        assertFalse(texts(frames).get(0).contains("alice@acme.io"), "the filter chain must have redacted it");
     }
 
     @Test

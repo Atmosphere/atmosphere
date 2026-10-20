@@ -25,13 +25,29 @@ import java.util.regex.Pattern;
  */
 public final class PiiPatterns {
 
+    /**
+     * A domain reserved for documentation and testing (RFC 2606, RFC 6761):
+     * {@code example.com}, {@code example.net}, {@code example.org} and their
+     * subdomains, and any name under the {@code example}, {@code test},
+     * {@code invalid} and {@code localhost} top-level domains — matched
+     * case-insensitively and only when it ends the address, so
+     * {@code example.com.evil.io} or {@code notexample.com} is not one.
+     */
+    private static final String RESERVED_DOMAIN =
+            "(?i:(?:[a-z0-9\\-]+\\.)*(?:example\\.(?:com|net|org)"
+                    + "|[a-z0-9\\-]+\\.(?:example|test|invalid|localhost)))"
+                    + "(?![a-zA-Z0-9\\-]|\\.[a-zA-Z0-9\\-])";
+
     /** Email addresses. The negative lookbehind rejects mid-run start
      *  positions and the possessive local-part quantifier skips pointless
      *  backtracking, keeping the scan linear on long runs of local-part
      *  characters (CodeQL java/polynomial-redos). Matches are unchanged:
-     *  leftmost-first semantics already began every match at a run start. */
+     *  leftmost-first semantics already began every match at a run start.
+     *  An address at a reserved documentation domain ({@code alice@example.com}
+     *  in a code sample) belongs to no one and is not matched. */
     public static final Pattern EMAIL =
-            Pattern.compile("(?<![a-zA-Z0-9._%+\\-])[a-zA-Z0-9._%+\\-]++@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
+            Pattern.compile("(?<![a-zA-Z0-9._%+\\-])[a-zA-Z0-9._%+\\-]++@(?!" + RESERVED_DOMAIN
+                    + ")[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
 
     /** US phone numbers (with optional +1, separators). */
     public static final Pattern US_PHONE =

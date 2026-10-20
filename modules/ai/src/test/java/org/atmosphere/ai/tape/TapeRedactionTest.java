@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class TapeRedactionTest {
 
-    private static final String EMAIL = "alice@example.com";
+    private static final String EMAIL = "alice@acme.io";
     private static final String SSN = "123-45-6789";
 
     private static TapeRecorder.Config redactingConfig() {

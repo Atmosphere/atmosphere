@@ -55,7 +55,7 @@ public class FakeLlmClient implements LlmClient {
     /** Create a fake client that emits streaming texts containing PII data. */
     public static FakeLlmClient withPii(String modelName) {
         return new FakeLlmClient(modelName, new String[]{
-                "Contact us at ", "john.doe@example.com", " or call ",
+                "Contact us at ", "john.doe@acme.io", " or call ",
                 "555-123-4567", ". ", "SSN is ", "123-45-6789", "."
         }, 0, -1);
     }

@@ -135,7 +135,7 @@ class GuardrailsTest {
     void piiGuardrailRedactsEmailInRequest() {
         var g = new PiiRedactionGuardrail();
         var req = new AiRequest(
-                "Contact me at alice@example.com about the invoice",
+                "Contact me at alice@acme.io about the invoice",
                 null, null, null, null, null, null,
                 java.util.Map.of(), java.util.List.of());
         var result = g.inspectRequest(req);
@@ -143,7 +143,7 @@ class GuardrailsTest {
         var modified = ((AiGuardrail.GuardrailResult.Modify) result).modifiedRequest();
         assertTrue(modified.message().contains("[redacted-email]"),
                 "email must be redacted: " + modified.message());
-        assertTrue(!modified.message().contains("alice@example.com"),
+        assertTrue(!modified.message().contains("alice@acme.io"),
                 "original email must not leak: " + modified.message());
     }
 

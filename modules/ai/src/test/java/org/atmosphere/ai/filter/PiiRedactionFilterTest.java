@@ -41,7 +41,7 @@ public class PiiRedactionFilterTest {
 
     @Test
     public void testRedactsTheTextOfARoomPromptEcho() throws Exception {
-        var raw = new RawMessage(AiStreamMessage.prompt("mail me at user@example.com", "member-1", "s1", 1).toJson());
+        var raw = new RawMessage(AiStreamMessage.prompt("mail me at user@acme.io", "member-1", "s1", 1).toJson());
 
         var action = filter.filter("b1", raw, raw);
 
@@ -64,7 +64,7 @@ public class PiiRedactionFilterTest {
 
     @Test
     public void testRedactsEmail() {
-        assertEquals("[REDACTED]", filter.redact("user@example.com"));
+        assertEquals("[REDACTED]", filter.redact("user@acme.io"));
     }
 
     @Test
@@ -86,9 +86,9 @@ public class PiiRedactionFilterTest {
 
     @Test
     public void testRedactsMultiplePatterns() {
-        var text = "Contact user@example.com or call 555-123-4567.";
+        var text = "Contact user@acme.io or call 555-123-4567.";
         var result = filter.redact(text);
-        assertFalse(result.contains("user@example.com"));
+        assertFalse(result.contains("user@acme.io"));
         assertFalse(result.contains("555-123-4567"));
         assertTrue(result.contains("[REDACTED]"));
     }
@@ -109,8 +109,8 @@ public class PiiRedactionFilterTest {
 
     @Test
     public void testEmailPrecededByLocalPartRunStillRedacted() {
-        assertEquals("[REDACTED]", filter.redact("%".repeat(1000) + "bob@example.com"));
-        assertEquals("id [REDACTED]", filter.redact("id 12345bob@example.com"));
+        assertEquals("[REDACTED]", filter.redact("%".repeat(1000) + "bob@acme.io"));
+        assertEquals("id [REDACTED]", filter.redact("id 12345bob@acme.io"));
     }
 
     @Test
@@ -120,12 +120,12 @@ public class PiiRedactionFilterTest {
         assertEquals(BroadcastAction.ACTION.ABORT, result1.action());
 
         // Second streaming text with sentence boundary — should flush with redaction
-        var result2 = sendStreamingText("user@example.com.", "s1", 2);
+        var result2 = sendStreamingText("user@acme.io.", "s1", 2);
         assertEquals(BroadcastAction.ACTION.CONTINUE, result2.action());
 
         var raw = (RawMessage) result2.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
-        assertFalse(parsed.data().contains("user@example.com"));
+        assertFalse(parsed.data().contains("user@acme.io"));
         assertTrue(parsed.data().contains("[REDACTED]"));
     }
 
@@ -163,7 +163,7 @@ public class PiiRedactionFilterTest {
     @Test
     public void testCustomReplacement() {
         var customFilter = new PiiRedactionFilter("***");
-        assertEquals("***", customFilter.redact("user@example.com"));
+        assertEquals("***", customFilter.redact("user@acme.io"));
     }
 
     @Test
@@ -190,7 +190,7 @@ public class PiiRedactionFilterTest {
     public void testRemovePattern() {
         var customFilter = new PiiRedactionFilter();
         customFilter.removePattern("email");
-        assertEquals("user@example.com", customFilter.redact("user@example.com"));
+        assertEquals("user@acme.io", customFilter.redact("user@acme.io"));
     }
 
     @Test

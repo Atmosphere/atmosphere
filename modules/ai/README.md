@@ -2509,7 +2509,12 @@ Four zero-dep implementations ship in-tree:
 - `PiiRedactionGuardrail` — regex-based redaction of email / phone /
   credit card / US SSN / IPv4 in requests AND responses. Default mode
   Blocks on a response hit (the SPI cannot rewrite an already-emitted
-  stream, so log-only was security theatre).
+  stream, so log-only was security theatre). An email address at a domain
+  reserved for documentation and testing (RFC 2606 / RFC 6761:
+  `example.com`, `example.net`, `example.org` and their subdomains, and
+  `*.example`, `*.test`, `*.invalid`, `*.localhost`, any case) is not PII:
+  `alice@example.com` in a code answer passes. `PiiRedactionFilter` and the
+  session tape's `PiiTapeRedactor` share the same definition.
 - `OutputLengthZScoreGuardrail` — rolling-window z-score on response
   length. Blocks outliers beyond N standard deviations. Catches
   runaway prompts and injection payloads that balloon responses

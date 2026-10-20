@@ -271,7 +271,7 @@ class RunReattachSupportTest {
      */
     @Test
     void replayRoutesFramesThroughBroadcasterFilterChain() {
-        handle.replayBuffer().capture("streaming-text", "contact me at alice@example.com");
+        handle.replayBuffer().capture("streaming-text", "contact me at alice@acme.io");
         var writes = new ArrayList<String>();
         var resource = mockResourceWithRunIdAndCaller(
                 handle.runId(), null, "alice", writes);
@@ -296,7 +296,7 @@ class RunReattachSupportTest {
                 + "frames — a direct response.getWriter() write that bypasses the "
                 + "filter chain would leak the email back to the client: "
                 + writes.get(0));
-        assertTrue(!writes.get(0).contains("alice@example.com"),
+        assertTrue(!writes.get(0).contains("alice@acme.io"),
                 "original PII must not leak on the replay path: " + writes.get(0));
     }
 

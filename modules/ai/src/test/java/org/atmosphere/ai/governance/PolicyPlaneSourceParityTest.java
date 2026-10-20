@@ -55,7 +55,7 @@ class PolicyPlaneSourceParityTest {
                   mode: block
             """;
 
-    private static final String OFFENDING_MESSAGE = "my email is test@example.com";
+    private static final String OFFENDING_MESSAGE = "my email is test@acme.io";
 
     @Test
     void yamlAndProgrammaticSourcesDenyIdentically() throws Exception {

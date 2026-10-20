@@ -37,7 +37,12 @@ import java.util.List;
  * only the redacted form. Substitutions:
  *
  * <ul>
- *   <li>Email → {@code [redacted-email]}</li>
+ *   <li>Email → {@code [redacted-email]}, except an address at a domain
+ *       reserved for documentation and testing (RFC 2606 / RFC 6761:
+ *       {@code example.com}/{@code .net}/{@code .org} and their subdomains,
+ *       {@code *.example}, {@code *.test}, {@code *.invalid},
+ *       {@code *.localhost}): it belongs to no one, so a code answer using
+ *       {@code alice@example.com} is neither redacted nor blocked</li>
  *   <li>Phone (NA / international E.164) → {@code [redacted-phone]}</li>
  *   <li>Credit card (13–19 digits with Luhn-shaped grouping) → {@code [redacted-cc]}</li>
  *   <li>US SSN-shaped → {@code [redacted-ssn]}</li>
@@ -71,8 +76,8 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
     public record Pattern(java.util.regex.Pattern regex, String replacement, String kind) { }
 
     private static final List<Pattern> DEFAULT_PATTERNS = List.of(
-            new Pattern(java.util.regex.Pattern.compile(
-                    "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"),
+            // The shared definition, so every PII surface agrees on what an email is.
+            new Pattern(org.atmosphere.ai.filter.PiiPatterns.EMAIL,
                     "[redacted-email]", "email"),
             new Pattern(java.util.regex.Pattern.compile(
                     "\\+?\\d{1,3}[\\s.-]?\\(?\\d{2,4}\\)?[\\s.-]?\\d{3}[\\s.-]?\\d{3,4}"),
