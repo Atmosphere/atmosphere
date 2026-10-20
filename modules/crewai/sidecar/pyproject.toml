@@ -50,6 +50,7 @@ dependencies = [
 dev = [
     "pytest>=7",
     "pytest-asyncio>=0.23",
+    "pytest-timeout>=2.3",
     "httpx>=0.27",
 ]
 
@@ -76,3 +77,6 @@ include = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# A hung SSE stream must fail its own test, named, instead of stalling the
+# whole run until the CI job timeout. The suite runs in seconds.
+timeout = 60
