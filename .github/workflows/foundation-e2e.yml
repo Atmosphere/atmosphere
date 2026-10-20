@@ -291,7 +291,7 @@ jobs:
           echo $! > /tmp/cls.pid
 
       - name: Wait for ai-classroom readiness
-        run: npx --yes wait-on --timeout 120000 http://localhost:8080/
+        run: npx --yes wait-on --timeout 120000 http://localhost:8080/atmosphere/console/
 
       - name: Run ai-classroom spec
         working-directory: e2e
