@@ -190,7 +190,11 @@ public final class RoomCatchUp {
             }
             done = true;
             // Under the lock: a frame the room writes meanwhile waits in beforeLive.
-            writeFrames(frames(Set.of()));
+            var frames = new ArrayList<String>();
+            for (var frame : inSessionOrder(frames(Set.of()))) {
+                frames.add((String) frame);
+            }
+            writeFrames(frames);
         }
     }
 
@@ -211,7 +215,8 @@ public final class RoomCatchUp {
      * The messages to write the member instead of {@code cached}, what the
      * room's cache kept for it while it was away: the catch-up's frames the
      * cache does not hold, each before the cached frames of its session that
-     * follow it, then the cached messages but the frames the client holds.
+     * follow it, then the cached messages but the frames the client holds,
+     * the frames of each session in ascending {@code seq} ({@link #inSessionOrder}).
      * The catch-up counts as written.
      */
     public List<Object> mergeCached(List<?> cached) {
@@ -224,7 +229,7 @@ public final class RoomCatchUp {
                 }
             }
             if (done) {
-                return kept;
+                return inSessionOrder(kept);
             }
             done = true;
             var cachedKeys = new HashSet<String>();
@@ -240,11 +245,11 @@ public final class RoomCatchUp {
                 // A reconnect under its tracking id with the run id only: the
                 // cache, which kept what was broadcast once the loss was
                 // noticed, wrote it what it missed of the run.
-                return kept;
+                return inSessionOrder(kept);
             }
             var frames = frames(cachedKeys);
             if (frames.isEmpty()) {
-                return kept;
+                return inSessionOrder(kept);
             }
             var merged = new ArrayList<Object>(frames.size() + kept.size());
             var pending = new ArrayList<String>();
@@ -276,8 +281,52 @@ public final class RoomCatchUp {
             merged.addAll(pending);
             logger.info("Room {}: {} frame(s) caught up for {} with the {} the cache kept", roomId, frames.size(),
                     resource.uuid(), kept.size());
-            return merged;
+            return inSessionOrder(merged);
         }
+    }
+
+    /**
+     * {@code messages}, as written to a member at once, with the AI frames of
+     * each session in ascending {@code seq}, each once, in the places that
+     * session's frames held; a message that is no AI frame keeps its place.
+     * The client drops a frame numbered below one it holds, so a frame
+     * written after a later one of its session is lost from the answer — and
+     * neither the room's cache (a frame whose write failed as the connection
+     * died is put back after the frames cached when they were broadcast) nor
+     * the replay's capture order is the session's.
+     *
+     * @param messages the messages, frames ({@link RawMessage} or JSON strings) among them
+     * @return a new list, ordered so
+     */
+    public static List<Object> inSessionOrder(List<?> messages) {
+        var slots = new LinkedHashMap<String, List<Integer>>();
+        var bySession = new HashMap<String, java.util.TreeMap<Long, Object>>();
+        var out = new ArrayList<Object>(messages);
+        for (var i = 0; i < out.size(); i++) {
+            var key = key(text(out.get(i)));
+            if (key != null) {
+                slots.computeIfAbsent(key.session(), s -> new ArrayList<>()).add(i);
+                // The first of a frame held twice is kept.
+                bySession.computeIfAbsent(key.session(), s -> new java.util.TreeMap<>())
+                        .putIfAbsent(key.seq(), out.get(i));
+            }
+        }
+        var dropped = false;
+        for (var entry : slots.entrySet()) {
+            var ordered = bySession.get(entry.getKey()).values().iterator();
+            for (var slot : entry.getValue()) {
+                if (ordered.hasNext()) {
+                    out.set(slot, ordered.next());
+                } else {
+                    out.set(slot, null);
+                    dropped = true;
+                }
+            }
+        }
+        if (dropped) {
+            out.removeIf(java.util.Objects::isNull);
+        }
+        return out;
     }
 
     /** Whether {@code json} is a frame the client holds or the catch-up wrote. Caller may hold no lock. */

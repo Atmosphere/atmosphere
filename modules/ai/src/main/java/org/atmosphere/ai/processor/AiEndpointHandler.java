@@ -1060,6 +1060,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 writeThrough(event, resource);
                 return;
             }
+            // The cache's order is not the session's: a frame whose write failed
+            // as the connection died was put back after later ones.
+            event.setMessage(org.atmosphere.ai.resume.RoomCatchUp.inSessionOrder(cached));
+            message = event.getMessage();
         } else if (catchUp != null && !catchUp.beforeLive(message)) {
             // A frame the member's catch-up wrote, or that its client holds.
             return;
