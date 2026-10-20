@@ -93,6 +93,22 @@ class ConsoleInfoWithoutChatEndpointHttpE2eTest {
         }
     }
 
+    @Test
+    void headOfTheRootRedirectsToTheConsoleLikeGet() throws Exception {
+        // The Console's AG-UI transport probes the origin with HEAD / on every
+        // connect; answered 404, the browser logs it red.
+        try (var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build()) {
+            var response = client.send(HttpRequest.newBuilder(
+                            URI.create("http://localhost:" + port + "/?token=x"))
+                            .method("HEAD", HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.discarding());
+            assertEquals(302, response.statusCode(), "HEAD / must redirect like GET /");
+            var location = response.headers().firstValue("Location").orElse("");
+            assertTrue(location.endsWith("/atmosphere/console/?token=x"),
+                    "HEAD / must point at the Console with its query, Location=" + location);
+        }
+    }
+
     private String consoleInfo() throws Exception {
         try (var client = HttpClient.newHttpClient()) {
             var request = HttpRequest.newBuilder(

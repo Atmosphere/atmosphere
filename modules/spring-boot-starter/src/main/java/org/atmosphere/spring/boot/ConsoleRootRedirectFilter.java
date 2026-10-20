@@ -27,10 +27,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 
 /**
- * Sends {@code GET /} to the Atmosphere Console ({@code /atmosphere/console/},
- * query string preserved) when the application itself serves nothing at
- * {@code /}, so an app without its own root page does not land on Spring's
- * Whitelabel 404.
+ * Sends {@code GET /} and {@code HEAD /} to the Atmosphere Console
+ * ({@code /atmosphere/console/}, query string preserved) when the application
+ * itself serves nothing at {@code /}, so an app without its own root page does
+ * not land on Spring's Whitelabel 404. {@code HEAD} is answered like
+ * {@code GET}: the Console probes the origin with {@code HEAD /} (its AG-UI
+ * transport does on every connect), and a 404 there is logged red in the
+ * browser.
  *
  * <p>The application answers first: the request runs down the chain, and only
  * a {@code 404} sent through {@code sendError} — what the dispatcher answers
@@ -47,7 +50,7 @@ final class ConsoleRootRedirectFilter implements Filter {
             throws IOException, ServletException {
         if (!(req instanceof HttpServletRequest httpReq)
                 || !(res instanceof HttpServletResponse httpRes)
-                || !"GET".equalsIgnoreCase(httpReq.getMethod())
+                || !isGetOrHead(httpReq.getMethod())
                 || !"/".equals(httpReq.getRequestURI())) {
             chain.doFilter(req, res);
             return;
@@ -63,6 +66,10 @@ final class ConsoleRootRedirectFilter implements Filter {
             httpRes.sendRedirect(CONSOLE_PATH
                     + (query != null && !query.isBlank() ? "?" + query : ""));
         }
+    }
+
+    private static boolean isGetOrHead(String method) {
+        return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
     }
 
     /** Holds back a 404 sent through {@code sendError}; passes everything else. */

@@ -49,6 +49,16 @@ class ConsoleRootRedirectFilterTest {
     }
 
     @Test
+    void headOfAnUnservedRootRedirectsLikeGet() throws Exception {
+        var req = request("HEAD", "/");
+        req.setQueryString("token=x");
+        var res = new MockHttpServletResponse();
+        filter.doFilter(req, res, NOTHING_MAPPED);
+        assertThat(res.getStatus()).isEqualTo(302);
+        assertThat(res.getRedirectedUrl()).isEqualTo("/atmosphere/console/?token=x");
+    }
+
+    @Test
     void rootTheApplicationServesIsLeftAlone() throws Exception {
         var res = new MockHttpServletResponse();
         filter.doFilter(request("GET", "/"), res, (req, r) -> r.getWriter().write("own page"));

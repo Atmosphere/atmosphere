@@ -1405,6 +1405,26 @@ public class AtmosphereAiAutoConfiguration {
         return registration;
     }
 
+    /**
+     * Sends {@code GET /} and {@code HEAD /} to the Console when the
+     * application serves nothing at {@code /} (see
+     * {@link ConsoleRootRedirectFilter}), as the Spring Boot 4 starter does.
+     * Registered beside the Console filter: the samples dropped their own
+     * root page for this redirect, so without it they answer {@code /} with
+     * the Whitelabel 404 on Spring Boot 3. Opt out via
+     * {@code atmosphere.ai.console.root-redirect=false}.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereConsoleRootRedirect")
+    @ConditionalOnProperty(name = "atmosphere.ai.console.root-redirect", matchIfMissing = true)
+    FilterRegistrationBean<Filter> atmosphereConsoleRootRedirect() {
+        var registration = new FilterRegistrationBean<Filter>(new ConsoleRootRedirectFilter());
+        registration.addUrlPatterns("/*");
+        registration.setName("atmosphereConsoleRootRedirect");
+        registration.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+        return registration;
+    }
+
     @Bean
     ApplicationListener<WebServerInitializedEvent> atmosphereAiConsoleLog() {
         return event -> {
