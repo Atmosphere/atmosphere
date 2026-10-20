@@ -34,6 +34,8 @@ import org.atmosphere.util.ReaderInputStream;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -42,6 +44,7 @@ import java.io.SequenceInputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -70,6 +73,8 @@ import java.util.concurrent.ConcurrentMap;
 public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(RoomProtocolInterceptor.class);
+
+    private static final ObjectMapper JSON = JsonMapper.builder().build();
 
     /**
      * Init-param: the largest HTTP request body, in bytes, read as a room
@@ -188,6 +193,14 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         // LEAVE watcher (DefaultRoom's own auto-leave) fires first announces once.
         announceDropOf(r, join.room(), room, member);
 
+        // A room with history replays it from its history store below. What
+        // the room's cache holds for this connection would be written by
+        // room.join() as well, so it is taken out first: the room's messages
+        // in it are replayed from history, once; anything else is sent after.
+        var history = room instanceof DefaultRoom defaultRoom && defaultRoom.historySize() > 0
+                ? defaultRoom : null;
+        var held = history != null ? takeCached(r, history) : List.<Object>of();
+
         if (member != null) {
             room.join(r, member);
         } else {
@@ -203,15 +216,15 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         var presence = RoomProtocolCodec.encodePresence(join.room(), "join", member);
         room.broadcast(presence, r);
 
-        // Replay history. If the client supplied a sinceId cursor and the
-        // room supports it, send only entries with id > sinceId (avoids the
-        // duplicate-message-on-reconnect problem). Otherwise fall back to
-        // the legacy BroadcasterCache-driven replay.
-        if (join.sinceId() != null && room instanceof DefaultRoom defaultRoom
-                && defaultRoom.historySize() > 0) {
-            replayHistorySince(r, defaultRoom, join);
-        } else {
-            replayCachedMessages(r, room);
+        // Replay history: what came after the client's sinceId cursor, or,
+        // for a client joining without one (a new member), all the room keeps.
+        if (history != null) {
+            replayHistorySince(r, history, join);
+            for (var message : held) {
+                if (!isRoomMessage(message)) {
+                    sendToResource(r, message.toString());
+                }
+            }
         }
 
         logger.debug("Handled JOIN for {} in room '{}'", r.uuid(), join.room());
@@ -219,7 +232,8 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
     private void replayHistorySince(AtmosphereResource r, DefaultRoom room,
                                     RoomProtocolMessage.Join join) {
-        var entries = room.historySince(join.sinceId());
+        long sinceId = join.sinceId() != null ? join.sinceId() : 0L;
+        var entries = room.historySince(sinceId);
         for (var entry : entries) {
             var encoded = RoomProtocolCodec.encodeMessage(
                     join.room(), entry.id(), entry.fromMemberId(), entry.data());
@@ -227,7 +241,7 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         }
         if (logger.isDebugEnabled()) {
             logger.debug("Replayed {} entries to {} (sinceId={})",
-                    entries.size(), r.uuid(), join.sinceId());
+                    entries.size(), r.uuid(), sinceId);
         }
     }
 
@@ -409,19 +423,29 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         return Optional.empty();
     }
 
-    private void replayCachedMessages(AtmosphereResource r, Room room) {
-        if (!(room instanceof DefaultRoom defaultRoom) || defaultRoom.historySize() <= 0) {
-            return;
-        }
-        var cache = defaultRoom.broadcaster().getBroadcasterConfig().getBroadcasterCache();
+    /** Take what the room's cache holds for {@code r}'s connection. */
+    private static List<Object> takeCached(AtmosphereResource r, DefaultRoom room) {
+        var cache = room.broadcaster().getBroadcasterConfig().getBroadcasterCache();
         if (cache == null) {
-            return;
+            return List.of();
         }
-        var cached = cache.retrieveFromCache(defaultRoom.broadcaster().getID(), r.uuid());
-        if (cached != null) {
-            for (var msg : cached) {
-                sendToResource(r, msg.toString());
-            }
+        var cached = cache.retrieveFromCache(room.broadcaster().getID(), r.uuid());
+        return cached != null ? cached : List.of();
+    }
+
+    /**
+     * Whether {@code message} is a room message the history store recorded
+     * (a {@code message} frame carrying a server-assigned id).
+     */
+    private static boolean isRoomMessage(Object message) {
+        try {
+            var node = JSON.readTree(message.toString());
+            var type = node.path("type");
+            return node.isObject() && type.isString() && "message".equals(type.asString())
+                    && node.path("id").asLong(0) > 0;
+        } catch (RuntimeException e) {
+            logger.trace("Cached frame is not JSON: {}", message, e);
+            return false;
         }
     }
 

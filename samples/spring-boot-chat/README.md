@@ -86,6 +86,10 @@ The lobby is set up before the server takes connections, not on
 `ApplicationReadyEvent`: that event comes after the port opens, and messages sent
 in between would be missing from the history a re-joining member is replayed from.
 
+A member joining the lobby is replayed its history once, in order: a new member
+(or a reloaded page, which joins without a cursor) gets the last 50 messages, and
+a member coming back with a `sinceId` cursor gets only what came after it.
+
 ### ChatRoomsController.java — REST API
 
 ```java
@@ -219,6 +223,7 @@ mvn test -pl samples/spring-boot-chat
 |------|--------|
 | `WAsyncChatIntegrationTest` | Chat broadcast delivery over WebSocket, SSE, and long-polling using the wAsync Java client |
 | `ChatRoomsIntegrationTest` | Room API wiring — lobby pre-created with history, `GET /api/rooms` shape |
+| `RoomHistoryReplayTest` | Over a real WebSocket, a new member joining after 7 messages to a room keeping 5 gets the last 5 once, in order; a member back with a `sinceId` cursor gets only what it missed |
 | `RoomPresenceDeliveryTest` | **Presence actually tracks membership.** Two real WebSocket subscribers join/leave over the Room Protocol; a `presence/join` then `presence/leave` frame is delivered to the other member, `Room#size()` / `memberInfo()` and `GET /api/rooms` advance to two members and shrink back, and server-side `PresenceEvent`s fire. The Java/JVM mirror of the browser-side `presence-count.spec.ts` / `rooms-api.spec.ts` Playwright specs. |
 
 ## Project Structure

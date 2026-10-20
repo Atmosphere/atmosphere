@@ -990,8 +990,9 @@ lobby.enableHistory(50);  // ring buffer of the last 50 broadcasts
 
 `RoomProtocolCodec` now emits an `id` field on every message and accepts `sinceId`
 on the join frame; `RoomProtocolInterceptor` replays history entries with
-`id > sinceId` when the cursor is present, falling back to the legacy
-`BroadcasterCache` replay when `sinceId` is omitted (legacy clients keep working).
+`id > sinceId` when the cursor is present, and the whole history (the last N
+messages the room keeps) to a join without one, such as a new member's. Each
+message is replayed once, even when the room's cache also holds it for that client.
 
 The same primitive ships for Vue (`useMessageHistory` composable returning a `Ref<number>`),
 Svelte (`createMessageHistoryStore`, readable store of `lastSeenId`), and React Native
