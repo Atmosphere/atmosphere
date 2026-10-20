@@ -78,22 +78,38 @@ public final class RoomCatchUp {
     private final ResumePoint point;
     private final String roomId;
     private final RunRegistry registry;
+    /**
+     * The session of the room run whose id the reconnect carried, when it
+     * carried no resume point; {@code null} otherwise ({@link #prepare}).
+     */
+    private final String runSession;
     /** Guarded by {@code written}: whether the catch-up was written (or found empty). */
     private boolean done;
     /** Guarded by itself: session id -> the {@code seq}s of the frames the catch-up wrote. */
     private final Map<String, Set<Long>> written = new HashMap<>();
 
-    private RoomCatchUp(AtmosphereResource resource, ResumePoint point, String roomId, RunRegistry registry) {
+    private RoomCatchUp(AtmosphereResource resource, ResumePoint point, String roomId, RunRegistry registry,
+                        String runSession) {
         this.resource = resource;
         this.point = point;
         this.roomId = roomId;
         this.registry = registry;
+        this.runSession = runSession;
     }
 
     /**
      * Prepare the catch-up of {@code resource}, about to join the room
-     * {@code roomId}, when its request carries a {@link ResumePoint}; a no-op
-     * otherwise, which leaves the reconnect as it was without one.
+     * {@code roomId}, when its request carries a {@link ResumePoint}, or else
+     * the id of a run of the room ({@code X-Atmosphere-Run-Id}) the caller may
+     * reattach to: a page reloaded in the middle of a turn, which holds none
+     * of it, is then caught up on the whole run, its frames written in order
+     * before any frame the room writes it, rather than by a replay that runs
+     * alongside the room's broadcast and that a live frame overtook (the
+     * client, which drops a frame numbered below one it has, lost the
+     * frames in between). The room's cache, when it wrote the connection
+     * frames of that run as it joined, wrote it what it missed, and the run is
+     * not written again. A no-op otherwise, which leaves the reconnect as it
+     * was.
      *
      * @param resource the reconnecting connection, not suspended yet
      * @param registry the registry holding the room's runs
@@ -104,16 +120,42 @@ public final class RoomCatchUp {
             return;
         }
         var point = ResumePoint.of(resource);
+        String runSession = null;
         if (point.isEmpty()) {
-            return;
+            runSession = roomRunSession(resource, registry, roomId);
+            if (runSession == null) {
+                return;
+            }
+            point = java.util.Optional.of(new ResumePoint(Map.of(runSession, 0L)));
         }
         try {
-            var catchUp = new RoomCatchUp(resource, point.get(), roomId, registry);
+            var catchUp = new RoomCatchUp(resource, point.get(), roomId, registry, runSession);
             resource.getRequest().setAttribute(ATTRIBUTE, catchUp);
             logger.debug("Prepared {}", catchUp);
         } catch (RuntimeException e) {
             logger.trace("Unable to prepare the catch-up of {}", resource.uuid(), e);
         }
+    }
+
+    /**
+     * The session that numbered the frames of the run of room {@code roomId}
+     * whose id the request of {@code resource} carries, when the caller may
+     * reattach to it; {@code null} otherwise.
+     */
+    private static String roomRunSession(AtmosphereResource resource, RunRegistry registry, String roomId) {
+        var runId = RunReattachSupport.pendingRunId(resource);
+        if (runId == null) {
+            return null;
+        }
+        var run = registry.lookupReplayable(runId).orElse(null);
+        if (run == null || !roomId.equals(run.replayBuffer().roomId())) {
+            return null;
+        }
+        var request = resource.getRequest();
+        if (request == null || !RunReattachSupport.callerOwnsRun(request, run.userId())) {
+            return null;
+        }
+        return run.replayBuffer().frameSessionId();
     }
 
     /** The catch-up of {@code resource}, or {@code null} when it has none. */
@@ -193,6 +235,12 @@ public final class RoomCatchUp {
                     cachedKeys.add(key.session() + '#' + key.seq());
                     cachedSessions.add(key.session());
                 }
+            }
+            if (runSession != null && cachedSessions.contains(runSession)) {
+                // A reconnect under its tracking id with the run id only: the
+                // cache, which kept what was broadcast once the loss was
+                // noticed, wrote it what it missed of the run.
+                return kept;
             }
             var frames = frames(cachedKeys);
             if (frames.isEmpty()) {

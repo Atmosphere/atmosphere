@@ -24,7 +24,8 @@ import java.util.concurrent.TimeUnit;
  * The turns of the room endpoints: a prompt {@code turn:<name>} is answered
  * with {@link #CHUNKS} text chunks and {@code complete}; {@code hold:<name>}
  * sends {@link #HELD_AFTER} of them, waits for {@link #RELEASE}, then sends
- * the rest and completes.
+ * the rest and completes; {@code stream:<name>} sends {@link #STREAM_CHUNKS}
+ * chunks one every millisecond or so, as a model streams a long answer.
  */
 public final class RoomTurns {
 
@@ -32,6 +33,8 @@ public final class RoomTurns {
     public static final int CHUNKS = 8;
     /** The chunks a {@code hold:} turn sends before it waits. */
     public static final int HELD_AFTER = 3;
+    /** The text chunks of a {@code stream:} turn. */
+    public static final int STREAM_CHUNKS = 600;
     /** Released to let a {@code hold:} turn finish. */
     public static volatile CountDownLatch RELEASE = new CountDownLatch(1);
 
@@ -40,6 +43,20 @@ public final class RoomTurns {
 
     public static void answer(String message, StreamingSession session) {
         var name = message.substring(message.indexOf(':') + 1);
+        if (message.startsWith("stream:")) {
+            for (var i = 0; i < STREAM_CHUNKS; i++) {
+                session.send(name + "-" + i + " ");
+                try {
+                    Thread.sleep(0, 500_000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    session.error(e);
+                    return;
+                }
+            }
+            session.complete();
+            return;
+        }
         for (var i = 0; i < CHUNKS; i++) {
             if (message.startsWith("hold:") && i == HELD_AFTER) {
                 try {

@@ -497,6 +497,57 @@ public class RoomReconnectTest {
         }
     }
 
+    @Timeout(value = 120, unit = TimeUnit.SECONDS)
+    @Test
+    public void aPageReloadedWhileTheRoomStreamsGetsTheWholeTurnInOrderAndKeepsListening() throws Exception {
+        for (var round = 0; round < 5; round++) {
+            for (var server : List.of(uncachedServer, cachedServer)) {
+                var path = server == cachedServer ? CachedRoomTestEndpoint.PATH : UncachedRoomTestEndpoint.PATH;
+                reloadMidTurn(server.getPort(), path, "r" + round + (server == cachedServer ? "c" : "u"));
+            }
+        }
+    }
+
+    /**
+     * The asker's page reloads (a WebSocket going-away close, then a new
+     * connection under a new tracking id carrying the run id) while the room
+     * streams its long answer: the reloaded page receives every frame of the
+     * turn once, numbered in order on the wire, and the room's next turn.
+     */
+    private void reloadMidTurn(int port, String path, String name) throws Exception {
+        var asker = connect(port, path, "0", null);
+        var classmate = connect(port, path, "0", null);
+        asker.send("stream:" + name);
+        asker.await(frames -> count(frames, "streaming-text") >= 60, "the asker must see the answer start");
+        var runId = asker.heldRunId();
+        assertTrue(runId != null, "the asker holds the run id");
+        asker.socket.sendClose(1001, "reload").get(5, TimeUnit.SECONDS);
+
+        var reloaded = connect(port, path, "0", runId);
+        classmate.await(frames -> count(frames, "complete") >= 1, "the turn must end");
+        reloaded.await(frames -> count(frames, "complete") == 1, "the reloaded page must receive the end");
+        var session = classmate.runFrames().stream().filter(f -> "streaming-text".equals(f.path("type").asString()))
+                .map(f -> f.path("sessionId").asString()).findFirst().orElseThrow();
+        var seqs = reloaded.runFrames().stream().filter(f -> session.equals(f.path("sessionId").asString()))
+                .map(f -> f.path("seq").asLong()).toList();
+        for (var i = 1; i < seqs.size(); i++) {
+            assertTrue(seqs.get(i) > seqs.get(i - 1), name + ": the turn's frames reach the reloaded page in order: "
+                    + seqs.get(i - 1) + " then " + seqs.get(i));
+        }
+        var texts = reloaded.runFrames().stream().filter(f -> session.equals(f.path("sessionId").asString())
+                && "streaming-text".equals(f.path("type").asString())).map(f -> f.path("data").asString()).toList();
+        var expected = new ArrayList<String>();
+        for (var i = 0; i < RoomTurns.STREAM_CHUNKS; i++) {
+            expected.add(name + "-" + i + " ");
+        }
+        assertEquals(expected, texts, name + ": every text of the turn once, in order");
+
+        classmate.send("turn:" + name + "-next");
+        reloaded.await(frames -> count(frames, "complete") == 2, name + ": the reloaded page must hear the next turn");
+        reloaded.close();
+        classmate.close();
+    }
+
     /**
      * The frames {@code before} the drop and {@code after} the reconnect hold
      * every text of the turn {@code name}, in order, and one terminal frame,
