@@ -391,8 +391,12 @@ public class CeoCoordinator {
         if (teamToolRegistry == null || budgetApprovalGate == null) {
             return;
         }
+        // A cancelled run (operator cancel, the user's cancel, the client gone)
+        // is denied before the gate is asked, and after it if the cancel lands
+        // while the approver decides.
         var gated = new GatedToolDispatcher(
-                new RegistryToolDispatcher(teamToolRegistry), budgetApprovalGate);
+                new RegistryToolDispatcher(teamToolRegistry), budgetApprovalGate,
+                session::isTurnCancelled);
         var args = Map.<String, Object>of("amount", "50000");
         session.emit(new AiEvent.ToolStart("commit_budget", args));
         try {

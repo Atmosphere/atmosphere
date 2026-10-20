@@ -17,6 +17,7 @@ package org.atmosphere.verifier.execute;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 /**
  * {@link ToolDispatcher} decorator that runs each tool call past an
@@ -45,14 +46,34 @@ public final class GatedToolDispatcher implements ToolDispatcher {
 
     private final ToolDispatcher delegate;
     private final ApprovalGate gate;
+    private final BooleanSupplier cancelled;
 
     public GatedToolDispatcher(ToolDispatcher delegate, ApprovalGate gate) {
+        this(delegate, gate, () -> false);
+    }
+
+    /**
+     * A gated dispatcher for a run that can be cancelled: once
+     * {@code cancelled} answers {@code true} a call is denied without asking
+     * the gate, and a call the gate approved is not dispatched when the run
+     * was cancelled while the approver decided. Pass the turn's
+     * {@code StreamingSession::isTurnCancelled} from a {@code @Prompt} method.
+     *
+     * @param delegate  the dispatcher that runs approved calls
+     * @param gate      the approval gate
+     * @param cancelled whether the run was cancelled
+     */
+    public GatedToolDispatcher(ToolDispatcher delegate, ApprovalGate gate, BooleanSupplier cancelled) {
         this.delegate = Objects.requireNonNull(delegate, "delegate");
         this.gate = Objects.requireNonNull(gate, "gate");
+        this.cancelled = Objects.requireNonNull(cancelled, "cancelled");
     }
 
     @Override
     public String dispatch(String toolName, Map<String, Object> args) {
+        if (cancelled.getAsBoolean()) {
+            throw new ApprovalDeniedException(toolName, "the run was cancelled");
+        }
         boolean approved;
         try {
             approved = gate.approve(toolName, args);
@@ -65,6 +86,9 @@ public final class GatedToolDispatcher implements ToolDispatcher {
         }
         if (!approved) {
             throw new ApprovalDeniedException(toolName, "denied by approval gate");
+        }
+        if (cancelled.getAsBoolean()) {
+            throw new ApprovalDeniedException(toolName, "the run was cancelled");
         }
         return delegate.dispatch(toolName, args);
     }

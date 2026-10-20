@@ -69,6 +69,48 @@ class GatedToolDispatcherTest {
     }
 
     @Test
+    void aCancelledRunIsDeniedWithoutAskingTheGate() {
+        // An operator cancelled the run before its consequential action: the
+        // approver is not asked and the tool does not fire.
+        var delegateCalled = new AtomicBoolean(false);
+        var gateAsked = new AtomicBoolean(false);
+        ToolDispatcher delegate = (name, args) -> {
+            delegateCalled.set(true);
+            return "should not happen";
+        };
+        ApprovalGate allow = (name, args) -> {
+            gateAsked.set(true);
+            return true;
+        };
+
+        ApprovalDeniedException ex = assertThrows(ApprovalDeniedException.class,
+                () -> new GatedToolDispatcher(delegate, allow, () -> true)
+                        .dispatch("commit_budget", Map.of("amount", "50000")));
+        assertTrue(ex.getMessage().contains("cancelled"), ex.getMessage());
+        assertFalse(gateAsked.get(), "a cancelled run must not ask the approver");
+        assertFalse(delegateCalled.get(), "a cancelled run must not dispatch the tool");
+    }
+
+    @Test
+    void aRunCancelledWhileTheApproverDecidesDoesNotDispatch() {
+        var delegateCalled = new AtomicBoolean(false);
+        var cancelled = new AtomicBoolean(false);
+        ToolDispatcher delegate = (name, args) -> {
+            delegateCalled.set(true);
+            return "should not happen";
+        };
+        ApprovalGate approveThenCancel = (name, args) -> {
+            cancelled.set(true);
+            return true;
+        };
+
+        assertThrows(ApprovalDeniedException.class,
+                () -> new GatedToolDispatcher(delegate, approveThenCancel, cancelled::get)
+                        .dispatch("commit_budget", Map.of()));
+        assertFalse(delegateCalled.get(), "an approval that outlived the run must not dispatch");
+    }
+
+    @Test
     void gateThatThrowsFailsClosed() {
         var delegateCalled = new AtomicBoolean(false);
         ToolDispatcher delegate = (name, args) -> {
