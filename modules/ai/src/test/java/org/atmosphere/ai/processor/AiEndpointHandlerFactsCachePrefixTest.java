@@ -138,6 +138,51 @@ class AiEndpointHandlerFactsCachePrefixTest {
         }
     }
 
+    /**
+     * The thread that hands a prompt to the endpoint — the transport's: a
+     * WebTransport event loop, which also flushes the writes queued to the
+     * connection — gets it back as soon as the run is announced. The rest of
+     * the turn's setup (here a slow fact resolution) runs on the run's own
+     * thread, so the run-id frame leaves while it runs, and the turn still
+     * gets its facts.
+     */
+    @Test
+    void theCallerGetsItsThreadBackOnceTheRunIsAnnouncedNotAfterTheTurnsSetup() throws Exception {
+        var release = new CountDownLatch(1);
+        var resolving = new CountDownLatch(1);
+        config.properties().put(FactResolver.FACT_RESOLVER_PROPERTY, (FactResolver) request -> {
+            resolving.countDown();
+            try {
+                release.await(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new FactResolver.FactBundle(java.util.Map.of("slow.fact", "resolved"));
+        });
+        var runtime = new RecordingRuntime();
+        var handler = new AiEndpointHandler(new StubEndpoint(), promptMethod, 30_000L,
+                PERSONA, "/ai/facts", runtime, List.<AiInterceptor>of(),
+                null, AnnotatedLifecycle.scan(StubEndpoint.class));
+        var resource = subscriber();
+
+        var returned = new CountDownLatch(1);
+        var caller = Thread.ofVirtual().start(() -> {
+            handler.dispatchPrompt(resource, "plan a trip");
+            returned.countDown();
+        });
+        try {
+            assertTrue(resolving.await(10, TimeUnit.SECONDS), "the turn's setup resolves the facts");
+            assertTrue(returned.await(2, TimeUnit.SECONDS),
+                    "dispatchPrompt returns while the facts are still being resolved");
+        } finally {
+            release.countDown();
+            caller.join(10_000);
+        }
+        assertTrue(runtime.dispatched.await(10, TimeUnit.SECONDS), "the turn runs once the facts are resolved");
+        assertTrue(runtime.lastContext.get().systemPrompt().contains("slow.fact"),
+                "the turn's system prompt carries the facts resolved on its own thread");
+    }
+
     private AtmosphereResource subscriber() {
         var r = new AtmosphereResourceImpl(config, room,
                 AtmosphereRequestImpl.newInstance(),
