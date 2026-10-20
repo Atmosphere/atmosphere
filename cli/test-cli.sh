@@ -2207,6 +2207,25 @@ assert_contains "$urls" "$raw/atmosphere-9.9.9/cli/samples.json" "a 9.9.9 instal
 urls=$(run_installer "$inst_tmp/install-release.sh" ATMOSPHERE_INSTALL_REF=my-branch)
 assert_contains "$urls" "$raw/my-branch/cli/atmosphere" "ATMOSPHERE_INSTALL_REF overrides the ref"
 
+# The final check verifies the CLI the installer wrote, not the first
+# `atmosphere` on the PATH: an earlier install (Homebrew) must not read as a
+# completed installation.
+mkdir -p "$inst_tmp/other"
+printf '#!/bin/sh\necho "Atmosphere 0.0.1"\n' > "$inst_tmp/other/atmosphere"
+chmod +x "$inst_tmp/other/atmosphere"
+run_installer "$INSTALLER" PATH="$inst_tmp/bin:$inst_tmp/other:$PATH" > /dev/null
+out=$(cat "$inst_tmp/out")
+assert_not_contains "$out" "Installation complete!" \
+    "install.sh does not report success when another atmosphere shadows the one it installed"
+assert_contains "$out" "$inst_tmp/other/atmosphere" "install.sh names the atmosphere that shadows its install"
+run_installer "$INSTALLER" PATH="$inst_tmp/bin:$inst_tmp/dest:$inst_tmp/other:$PATH" > /dev/null
+out=$(cat "$inst_tmp/out")
+assert_contains "$out" "Installation complete!" "install.sh reports success when the PATH finds the CLI it installed"
+sed 's|^    "$installed" version|    "$installed.broken" version|' "$INSTALLER" > "$inst_tmp/install-broken.sh"
+run_installer "$inst_tmp/install-broken.sh" PATH="$inst_tmp/bin:$inst_tmp/dest:$PATH" > /dev/null
+out=$(cat "$inst_tmp/out")
+assert_contains "$out" "the installed CLI does not run" "install.sh fails when the CLI it installed does not run"
+
 rm -rf "$inst_tmp"
 printf "\n"
 

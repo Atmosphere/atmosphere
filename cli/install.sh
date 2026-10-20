@@ -126,11 +126,20 @@ install_cli() {
         cp "$tmp_dir/samples.json" "$INSTALL_DIR/samples.json" 2>/dev/null || true
     fi
 
-    # Verify
-    if command -v atmosphere >/dev/null 2>&1; then
+    # Verify the CLI this installer wrote, not whichever `atmosphere` the PATH
+    # finds first: an earlier install (Homebrew, SDKMAN) may shadow it.
+    installed="${INSTALL_DIR%/}/atmosphere"
+    "$installed" version >/dev/null 2>&1 \
+        || die "the installed CLI does not run: $installed version"
+    on_path=$(command -v atmosphere 2>/dev/null || true)
+    if [ "$on_path" = "$installed" ]; then
         ok "Installation complete!"
+    elif [ -n "$on_path" ]; then
+        warn "Installed $installed, but another atmosphere comes first on your PATH: $on_path"
+        printf "\n  Remove it, or put %s first in your PATH:\n" "$INSTALL_DIR"
+        printf "    export PATH=\"%s:\$PATH\"\n\n" "$INSTALL_DIR"
     else
-        warn "$INSTALL_DIR may not be in your PATH"
+        warn "Installed $installed, but $INSTALL_DIR may not be in your PATH"
         printf "\n  Add to your shell profile:\n"
         printf "    export PATH=\"%s:\$PATH\"\n\n" "$INSTALL_DIR"
     fi
