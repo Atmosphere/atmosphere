@@ -13,7 +13,7 @@ React Native / Expo client for the [AI Classroom](../README.md) backend. Demonst
 - LaTeX math in a reply (`\( \)`, `\[ \]`, `$ $`, `$$ $$`) is shown as Unicode
   text (`b = √144`, `x²`, `(b/a)x`) by `mathText.ts`, since the markdown
   renderer has no math support; `bun test` runs its tests
-- AppState-aware: suspends connection when app goes to background
+- AppState-aware: keeps the stream open in the background (`backgroundBehavior` defaults to `keep-alive`), so an answer streaming when the app is backgrounded keeps arriving
 - Connection-aware: a question asked while the stream is down is queued and
   sent on reconnect — never dropped (see [Offline behaviour](#offline-behaviour))
 
