@@ -1152,7 +1152,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // on the first read, and the prompt is then handed back undispatched.
         final java.util.Map<String, String> businessMdc;
         final boolean roomBroadcast;
-        final String effectivePrompt;
         final String runUserId;
         try {
             businessMdc = snapshotBusinessMdc(resource);
@@ -1170,16 +1169,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 resource.getRequest().setAttribute(
                         StreamingSessions.ROOM_BROADCAST_ATTRIBUTE, roomBroadcast);
             }
-            // Append grounded facts to the END of the system prompt via
-            // FactResolver. Appending (not prepending) keeps the stable
-            // persona/skills text a byte-identical prefix across turns so
-            // provider prompt-prefix caches keep hitting while volatile facts
-            // (time.now changes every minute) ride in a trailing block.
-            // DefaultFactResolver supplies time.now + time.timezone; apps can
-            // install a richer resolver via FactResolverHolder.install(). Every
-            // turn pays one resolver call per endpoint — no ThreadLocal, no
-            // per-@AiTool wiring.
-            effectivePrompt = appendResolvedFacts(systemPrompt, resource);
             runUserId = resolveRunOwner(resource);
         } catch (IllegalStateException e) {
             logger.debug("Request of connection {} is no longer usable; prompt not dispatched to it",
@@ -1249,92 +1238,18 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
         var session = new AiStreamingSession(traced, runtime,
-                effectivePrompt, model, interceptors, run, memory,
+                systemPrompt, model, interceptors, run, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
         AiStreamingSession.registerActive(session);
 
-        // Thread the decoded multi-modal parts into the session so the next
-        // stream(text) call (typically from the @Prompt method) encodes them
-        // onto the outbound model request. No-op when the frame was plain text.
-        if (!multiModal.parts().isEmpty()) {
-            session.setPendingInputParts(multiModal.parts());
-        }
-
-        // Propagate endpoint-scoped cache / retry policies from @AiEndpoint.
-        if (cachePolicy != null) {
-            session.setCachePolicy(cachePolicy);
-        }
-        if (responseCache != null) {
-            session.setResponseCache(responseCache, responseCacheTtl);
-        }
-        if (endpointRetryPolicy != null) {
-            session.setRetryPolicy(endpointRetryPolicy);
-        }
-        if (structuredOutputRetries > 0) {
-            session.setStructuredOutputRetries(structuredOutputRetries);
-        }
-        if (maxToolsPerRequest > 0) {
-            session.setMaxToolsPerRequest(maxToolsPerRequest);
-        }
-        if (ragRetrieval != null) {
-            session.setRagRetrieval(ragRetrieval);
-        }
-        var routing = intentRouting;
-        if (routing != null) {
-            session.setIntentRouting(routing);
-        }
-
-        // Publish the handler's injectables map (AgentFleet, AgentIdentity,
-        // AgentState, ...) onto the session so @AiTool methods can declare
-        // these types as parameters — no ThreadLocal shim required.
-        // Include the live AtmosphereResource so tools can reach request
-        // attributes (user id, session id) without a separate accessor.
-        var codeExec = org.atmosphere.ai.code.CodeExecSupport.shared();
-        boolean codeExecEnabled = codeExec.isEnabled();
-        if (!injectables.isEmpty() || resource != null || codeExecEnabled) {
-            var toolScope = new java.util.LinkedHashMap<Class<?>, Object>(injectables);
-            if (resource != null) {
-                toolScope.putIfAbsent(AtmosphereResource.class, run);
-            }
-            // Provision a lazy, session-scoped sandbox for the code_exec tool and
-            // bind its teardown to this session's terminal path (Invariants #1/#2).
-            // No container is started unless the model actually calls code_exec.
-            if (codeExecEnabled) {
-                var sandbox = codeExec.install(session, session.sessionId());
-                if (sandbox != null) {
-                    toolScope.put(org.atmosphere.ai.code.CodeSandbox.class, sandbox);
-                }
-            }
-            // Harness FILESYSTEM: the processor registered a per-agent
-            // provider (the conversation id is unknown at registration time);
-            // scope it here so built-in file tools and user @AiTool methods
-            // declaring AgentFileSystem both receive the store rooted at
-            // files/{conversationId}/ — the same conversation identity the
-            // memory path uses (ai.conversationId attribute, else the
-            // resource uuid). Non-fatal on failure: the tools then report
-            // "no agent filesystem is bound" instead of breaking dispatch.
-            if (injectables.get(org.atmosphere.ai.fs.AgentFileSystemProvider.class)
-                    instanceof org.atmosphere.ai.fs.AgentFileSystemProvider fsProvider) {
-                try {
-                    toolScope.putIfAbsent(org.atmosphere.ai.fs.AgentFileSystem.class,
-                            fsProvider.forConversation(conversationId(run)));
-                } catch (RuntimeException e) {
-                    logger.warn("Agent filesystem not scoped for resource {}: {}",
-                            resource.uuid(), e.getMessage());
-                }
-            }
-            session.setInjectables(toolScope);
-        }
-
-        // Set pre-stream hook so journal cards emit before LLM starts
-        if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
-            session.setPreStreamHook(hook);
-        }
-
-        // Register this run with the process-wide RunRegistry so a
-        // reconnecting client can look up the live AgentResumeHandle via the
-        // X-Atmosphere-Run-Id header (Primitive #8 — now with a real
-        // producer rather than a published-but-dead API).
+        // The run is registered and its id goes out (X-Atmosphere-Run-Id) as soon
+        // as its session exists, before the rest of the turn's setup — the facts
+        // of the request, the tools' scope, the @Prompt method, its context
+        // providers, gateway admission and interceptors — so a page reloaded
+        // while that setup runs (a slow first turn) can reattach by it. What
+        // could go wrong after this point ends the run, which a client that
+        // reattached by its id then sees end. A reconnecting client looks the
+        // live AgentResumeHandle up by that id in the process-wide RunRegistry.
         // Cancelling the handle via RunRegistry (or admin plane) must
         // actually interrupt the @Prompt virtual thread; we close over
         // promptThreadRef after it's started below.
@@ -1361,102 +1276,207 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             tape.bindRun(handle.runId(), runUserId);
         }
 
-        // Durable-execution spine: when an operator has opted in (a journal is
-        // resolved), install the per-run scope — the single-writer lease plus
-        // the journal binding — BEFORE the @Prompt body dispatches, so the
-        // journaled tool-memo and LLM-round seams record (or, on a re-drive,
-        // replay) against it. Disabled by default: beginDrive returns empty and
-        // the seams take their byte-identical non-durable path.
-        var durableSpine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
-        var durableScope = durableSpine.beginDrive(handle.runId(), runUserId, pathTemplate);
+        try {
+            // Append grounded facts to the END of the system prompt via
+            // FactResolver. Appending (not prepending) keeps the stable
+            // persona/skills text a byte-identical prefix across turns so
+            // provider prompt-prefix caches keep hitting while volatile facts
+            // (time.now changes every minute) ride in a trailing block.
+            // DefaultFactResolver supplies time.now + time.timezone; apps can
+            // install a richer resolver via FactResolverHolder.install(). Every
+            // turn pays one resolver call per endpoint — no ThreadLocal, no
+            // per-@AiTool wiring. Read through the run's view of the
+            // connection: the page may have reloaded since the run id went out.
+            session.setSystemPrompt(appendResolvedFacts(systemPrompt, run));
 
-        // Single terminal flag for the durable spine: set true only when the
-        // @Prompt body returned normally, read in finally so completeDrive runs
-        // exactly once on every exit path (success, error, Error, timeout-via-
-        // interrupt) — releasing the lease and marking the run terminal. A run
-        // the body left open (leftOpen) completes its drive at its real end
-        // instead, succeeded only when its session completed.
-        final boolean[] durableSuccess = {false};
-        final boolean[] leftOpen = {false};
-        if (suspendTimeout > 0) {
-            // Read before the prompt thread starts, so the session's deadline
-            // is never later than the watchdog's below: an intent confirmation
-            // wait ends (and escalates) before the watchdog interrupts the turn.
-            session.setTurnDeadline(java.time.Instant.now().plusMillis(suspendTimeout));
-        }
-        var promptThread = Thread.startVirtualThread(() -> {
-            // Apply business.* MDC on the VT so every log record emitted
-            // during the turn (pipeline / runtime / tool calls) carries the
-            // tenant/customer/session tags. Clear in finally — otherwise
-            // the VT pool leaks keys across turns.
-            businessMdc.forEach(org.slf4j.MDC::put);
-            // Static AiConfig / AgentRuntimeResolver reads in the @Prompt
-            // method (user code) see this endpoint's application.
-            var binding = org.atmosphere.ai.AiEnvironment.bind(aiEnvironment);
-            try {
-                // Scope confines what the user asked: admit the inbound message
-                // before the @Prompt method runs, so an off-scope prompt never
-                // drives its work (a coordinator's fleet dispatch, tool calls).
-                // A breach streams the inbound message, which renders the
-                // recorded block or redirect through the session.
-                if (session.admitScope(promptText)) {
-                    if (roomBroadcast) {
-                        // Every member of the room sees what this one asked, as
-                        // the turn's first frame, once the turn is admitted (the
-                        // session decides when: see setPromptEcho). Recorded with
-                        // the run, so a client that reattaches is replayed it.
-                        // An approval answer never gets here (the fast path
-                        // above), nor does a prompt a breach refused.
-                        // Named by its room member id: the tracking id is a capability.
-                        var from = org.atmosphere.ai.RoomMemberIds.of(resource.uuid());
-                        session.setPromptEcho(promptText, text -> capturing.sendPrompt(text, from));
-                    }
-                    invokePrompt(promptText, session, run);
-                } else {
-                    session.stream(promptText);
-                }
-                durableSuccess[0] = true;
-                leftOpen[0] = endRunWithItsSession(session, replayBuffer, runExecutionHandle, registry, handle);
-            } catch (Throwable t) {
-                // Throwable, not Exception: an Error the @Prompt path throws
-                // without reflection wrapping it must end the run too, or its
-                // handle never completes and the run never leaves the registry.
-                Throwable cause = t;
-                if (t instanceof java.lang.reflect.InvocationTargetException ite
-                        && ite.getCause() != null) {
-                    cause = ite.getCause();
-                }
-                logger.error("Error invoking @Prompt method", cause);
-                // Route the terminal error through the session, whose capture
-                // records the failure envelope in the replay buffer — a
-                // reconnecting client must be able to tell the turn
-                // terminated in error, not just see the partial text and
-                // hang waiting for a complete frame that never arrives. An
-                // Error gets the same frame (Invariant #2); a failure to write
-                // it must not stop the handle completing or the Error rethrowing.
-                try {
-                    session.error(cause);
-                } catch (RuntimeException writeFailure) {
-                    logger.warn("Could not send the terminal error of the @Prompt to {}: {}",
-                            resource.uuid(), writeFailure.toString(), writeFailure);
-                }
-                runExecutionHandle.completeExceptionally(cause);
-                if (cause instanceof Error err) {
-                    throw err;
-                }
-            } finally {
-                if (leftOpen[0]) {
-                    durableScope.ifPresent(c -> replayBuffer.whenTerminated().whenComplete((end, failure) ->
-                            completeDurableDrive(durableSpine, c,
-                                    end != null && "complete".equals(end.type()))));
-                } else {
-                    durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
-                }
-                businessMdc.keySet().forEach(org.slf4j.MDC::remove);
-                binding.close();
+            // Thread the decoded multi-modal parts into the session so the next
+            // stream(text) call (typically from the @Prompt method) encodes them
+            // onto the outbound model request. No-op when the frame was plain text.
+            if (!multiModal.parts().isEmpty()) {
+                session.setPendingInputParts(multiModal.parts());
             }
-        });
-        promptThreadRef.set(promptThread);
+
+            // Propagate endpoint-scoped cache / retry policies from @AiEndpoint.
+            if (cachePolicy != null) {
+                session.setCachePolicy(cachePolicy);
+            }
+            if (responseCache != null) {
+                session.setResponseCache(responseCache, responseCacheTtl);
+            }
+            if (endpointRetryPolicy != null) {
+                session.setRetryPolicy(endpointRetryPolicy);
+            }
+            if (structuredOutputRetries > 0) {
+                session.setStructuredOutputRetries(structuredOutputRetries);
+            }
+            if (maxToolsPerRequest > 0) {
+                session.setMaxToolsPerRequest(maxToolsPerRequest);
+            }
+            if (ragRetrieval != null) {
+                session.setRagRetrieval(ragRetrieval);
+            }
+            var routing = intentRouting;
+            if (routing != null) {
+                session.setIntentRouting(routing);
+            }
+
+            // Publish the handler's injectables map (AgentFleet, AgentIdentity,
+            // AgentState, ...) onto the session so @AiTool methods can declare
+            // these types as parameters — no ThreadLocal shim required.
+            // Include the live AtmosphereResource so tools can reach request
+            // attributes (user id, session id) without a separate accessor.
+            var codeExec = org.atmosphere.ai.code.CodeExecSupport.shared();
+            boolean codeExecEnabled = codeExec.isEnabled();
+            if (!injectables.isEmpty() || resource != null || codeExecEnabled) {
+                var toolScope = new java.util.LinkedHashMap<Class<?>, Object>(injectables);
+                if (resource != null) {
+                    toolScope.putIfAbsent(AtmosphereResource.class, run);
+                }
+                // Provision a lazy, session-scoped sandbox for the code_exec tool and
+                // bind its teardown to this session's terminal path (Invariants #1/#2).
+                // No container is started unless the model actually calls code_exec.
+                if (codeExecEnabled) {
+                    var sandbox = codeExec.install(session, session.sessionId());
+                    if (sandbox != null) {
+                        toolScope.put(org.atmosphere.ai.code.CodeSandbox.class, sandbox);
+                    }
+                }
+                // Harness FILESYSTEM: the processor registered a per-agent
+                // provider (the conversation id is unknown at registration time);
+                // scope it here so built-in file tools and user @AiTool methods
+                // declaring AgentFileSystem both receive the store rooted at
+                // files/{conversationId}/ — the same conversation identity the
+                // memory path uses (ai.conversationId attribute, else the
+                // resource uuid). Non-fatal on failure: the tools then report
+                // "no agent filesystem is bound" instead of breaking dispatch.
+                if (injectables.get(org.atmosphere.ai.fs.AgentFileSystemProvider.class)
+                        instanceof org.atmosphere.ai.fs.AgentFileSystemProvider fsProvider) {
+                    try {
+                        toolScope.putIfAbsent(org.atmosphere.ai.fs.AgentFileSystem.class,
+                                fsProvider.forConversation(conversationId(run)));
+                    } catch (RuntimeException e) {
+                        logger.warn("Agent filesystem not scoped for resource {}: {}",
+                                resource.uuid(), e.getMessage());
+                    }
+                }
+                session.setInjectables(toolScope);
+            }
+
+            // Set pre-stream hook so journal cards emit before LLM starts
+            if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
+                session.setPreStreamHook(hook);
+            }
+
+            // Durable-execution spine: when an operator has opted in (a journal is
+            // resolved), install the per-run scope — the single-writer lease plus
+            // the journal binding — BEFORE the @Prompt body dispatches, so the
+            // journaled tool-memo and LLM-round seams record (or, on a re-drive,
+            // replay) against it. Disabled by default: beginDrive returns empty and
+            // the seams take their byte-identical non-durable path.
+            var durableSpine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
+            var durableScope = durableSpine.beginDrive(handle.runId(), runUserId, pathTemplate);
+
+            // Single terminal flag for the durable spine: set true only when the
+            // @Prompt body returned normally, read in finally so completeDrive runs
+            // exactly once on every exit path (success, error, Error, timeout-via-
+            // interrupt) — releasing the lease and marking the run terminal. A run
+            // the body left open (leftOpen) completes its drive at its real end
+            // instead, succeeded only when its session completed.
+            final boolean[] durableSuccess = {false};
+            final boolean[] leftOpen = {false};
+            if (suspendTimeout > 0) {
+                // Read before the prompt thread starts, so the session's deadline
+                // is never later than the watchdog's below: an intent confirmation
+                // wait ends (and escalates) before the watchdog interrupts the turn.
+                session.setTurnDeadline(java.time.Instant.now().plusMillis(suspendTimeout));
+            }
+            var promptThread = Thread.startVirtualThread(() -> {
+                // Apply business.* MDC on the VT so every log record emitted
+                // during the turn (pipeline / runtime / tool calls) carries the
+                // tenant/customer/session tags. Clear in finally — otherwise
+                // the VT pool leaks keys across turns.
+                businessMdc.forEach(org.slf4j.MDC::put);
+                // Static AiConfig / AgentRuntimeResolver reads in the @Prompt
+                // method (user code) see this endpoint's application.
+                var binding = org.atmosphere.ai.AiEnvironment.bind(aiEnvironment);
+                try {
+                    // Scope confines what the user asked: admit the inbound message
+                    // before the @Prompt method runs, so an off-scope prompt never
+                    // drives its work (a coordinator's fleet dispatch, tool calls).
+                    // A breach streams the inbound message, which renders the
+                    // recorded block or redirect through the session.
+                    if (session.admitScope(promptText)) {
+                        if (roomBroadcast) {
+                            // Every member of the room sees what this one asked, as
+                            // the turn's first frame, once the turn is admitted (the
+                            // session decides when: see setPromptEcho). Recorded with
+                            // the run, so a client that reattaches is replayed it.
+                            // An approval answer never gets here (the fast path
+                            // above), nor does a prompt a breach refused.
+                            // Named by its room member id: the tracking id is a capability.
+                            var from = org.atmosphere.ai.RoomMemberIds.of(resource.uuid());
+                            session.setPromptEcho(promptText, text -> capturing.sendPrompt(text, from));
+                        }
+                        invokePrompt(promptText, session, run);
+                    } else {
+                        session.stream(promptText);
+                    }
+                    durableSuccess[0] = true;
+                    leftOpen[0] = endRunWithItsSession(session, replayBuffer, runExecutionHandle, registry, handle);
+                } catch (Throwable t) {
+                    // Throwable, not Exception: an Error the @Prompt path throws
+                    // without reflection wrapping it must end the run too, or its
+                    // handle never completes and the run never leaves the registry.
+                    Throwable cause = t;
+                    if (t instanceof java.lang.reflect.InvocationTargetException ite
+                            && ite.getCause() != null) {
+                        cause = ite.getCause();
+                    }
+                    logger.error("Error invoking @Prompt method", cause);
+                    // Route the terminal error through the session, whose capture
+                    // records the failure envelope in the replay buffer — a
+                    // reconnecting client must be able to tell the turn
+                    // terminated in error, not just see the partial text and
+                    // hang waiting for a complete frame that never arrives. An
+                    // Error gets the same frame (Invariant #2); a failure to write
+                    // it must not stop the handle completing or the Error rethrowing.
+                    try {
+                        session.error(cause);
+                    } catch (RuntimeException writeFailure) {
+                        logger.warn("Could not send the terminal error of the @Prompt to {}: {}",
+                                resource.uuid(), writeFailure.toString(), writeFailure);
+                    }
+                    runExecutionHandle.completeExceptionally(cause);
+                    if (cause instanceof Error err) {
+                        throw err;
+                    }
+                } finally {
+                    if (leftOpen[0]) {
+                        durableScope.ifPresent(c -> replayBuffer.whenTerminated().whenComplete((end, failure) ->
+                                completeDurableDrive(durableSpine, c,
+                                        end != null && "complete".equals(end.type()))));
+                    } else {
+                        durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
+                    }
+                    businessMdc.keySet().forEach(org.slf4j.MDC::remove);
+                    binding.close();
+                }
+            });
+            promptThreadRef.set(promptThread);
+        } catch (RuntimeException | Error e) {
+            // The run id went out: a client that reattached by it is told the
+            // run ended, and the run leaves the registry.
+            logger.error("Could not start run {} of {}", handle.runId(), resource.uuid(), e);
+            try {
+                session.error(e);
+            } catch (RuntimeException writeFailure) {
+                logger.warn("Could not send the end of run {} to {}: {}",
+                        handle.runId(), resource.uuid(), writeFailure.toString(), writeFailure);
+            }
+            runExecutionHandle.completeExceptionally(e);
+            throw e;
+        }
+        final var promptThread = promptThreadRef.get();
 
         if (suspendTimeout > 0) {
             Thread.startVirtualThread(() -> {

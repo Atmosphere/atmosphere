@@ -37,8 +37,15 @@ public class RequestReadingInterceptor implements AiInterceptor {
     /** What each {@code beforeCompletion} read. */
     public static final List<String> READS = new CopyOnWriteArrayList<>();
 
+    /** A prompt this interceptor refuses, as an admission policy refuses a turn. */
+    static final String DENIED = "deny this turn";
+    static final String DENIAL = "Denied by the test's admission policy";
+
     @Override
     public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+        if (DENIED.equals(request.message())) {
+            throw new org.atmosphere.ai.RequestDeniedException(DENIAL);
+        }
         resource.getRequest().setAttribute(ATTRIBUTE, "stamped:" + request.message());
         return request;
     }

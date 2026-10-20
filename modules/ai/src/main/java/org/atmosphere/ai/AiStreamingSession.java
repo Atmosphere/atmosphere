@@ -102,7 +102,8 @@ public class AiStreamingSession implements StreamingSession {
 
     private final StreamingSession delegate;
     private final AgentRuntime runtime;
-    private final String systemPrompt;
+    /** The endpoint's system prompt; with the request's facts once the endpoint resolved them. */
+    private volatile String systemPrompt;
     private final String model;
     private final List<AiInterceptor> interceptors;
     private final AtmosphereResource resource;
@@ -1120,6 +1121,18 @@ public class AiStreamingSession implements StreamingSession {
             delegate.sendMetadata(
                     org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER, runId);
         }
+    }
+
+    /**
+     * Replace the system prompt this session's turn sends the model. The
+     * endpoint handler starts the session with the endpoint's system prompt,
+     * announces the run, then sets the prompt with the request's resolved
+     * facts appended, before the {@code @Prompt} method runs.
+     *
+     * @param systemPrompt the system prompt; {@code null} for none
+     */
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt != null ? systemPrompt : "";
     }
 
     @Override

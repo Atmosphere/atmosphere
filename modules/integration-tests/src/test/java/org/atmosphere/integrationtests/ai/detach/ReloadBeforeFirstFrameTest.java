@@ -74,6 +74,8 @@ public class ReloadBeforeFirstFrameTest {
     /** The tokens a {@code hold mid-answer} prompt is answered with before the model waits for {@link #MID_ANSWER}. */
     private static final int HELD_AFTER = 5;
     private static volatile CountDownLatch MID_ANSWER = new CountDownLatch(1);
+    /** Holds the turn's setup (its fact resolution) while not {@code null}. */
+    private static volatile CountDownLatch SLOW_FACTS;
 
     private HttpServer model;
     private EmbeddedAtmosphereServer server;
@@ -132,6 +134,21 @@ public class ReloadBeforeFirstFrameTest {
                 .withInitParam("org.atmosphere.ai.llmBaseUrl",
                         "http://127.0.0.1:" + model.getAddress().getPort() + "/v1");
         server.start();
+        // The turn's setup reads the facts of the request before the @Prompt
+        // method runs; SLOW_FACTS holds it there while a test needs it to.
+        server.getFramework().getAtmosphereConfig().properties().put(
+                org.atmosphere.ai.facts.FactResolver.FACT_RESOLVER_PROPERTY,
+                (org.atmosphere.ai.facts.FactResolver) request -> {
+                    var hold = SLOW_FACTS;
+                    try {
+                        if (hold != null && !hold.await(30, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("facts never released");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return org.atmosphere.ai.facts.FactResolver.FactBundle.empty();
+                });
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         httpClient.send(HttpRequest.newBuilder(URI.create(server.getBaseUrl() + "/")).GET().build(),
                 HttpResponse.BodyHandlers.discarding());
@@ -141,6 +158,10 @@ public class ReloadBeforeFirstFrameTest {
     public void tearDown() throws Exception {
         DetachTestEndpoint.RELEASE.countDown();
         MID_ANSWER.countDown();
+        var facts = SLOW_FACTS;
+        if (facts != null) {
+            facts.countDown();
+        }
         // setUp may have stopped before building these (an LLM_* variable set in the JVM).
         if (httpClient != null) {
             httpClient.shutdownNow();
@@ -246,6 +267,79 @@ public class ReloadBeforeFirstFrameTest {
         assertEquals(List.of("teeth@" + path), DetachToolAgent.LOOKUPS,
                 "the tool read, after the reload, the request the prompt came on");
         reloaded.close();
+    }
+
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void theRunIdArrivesBeforeTheTurnsSetupAndAReloadDuringItGetsTheWholeAnswer() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachTestEndpoint.RELEASE.countDown();
+        var facts = new CountDownLatch(1);
+        SLOW_FACTS = facts;
+        try {
+            var page = connect("0", null);
+            page.socket.sendText("hello", true).join();
+            // The setup (here the facts of the request) has not finished: the
+            // run id is the page's already.
+            page.await(frames -> runId(frames) != null,
+                    "the page must receive the run id while the turn's setup runs");
+            var runId = runId(page.frames());
+
+            page.socket.sendClose(1001, "reload").get(5, TimeUnit.SECONDS);
+            Thread.sleep(500);
+            var reloaded = connect("0", runId);
+            facts.countDown();
+
+            reloaded.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal),
+                    "the reloaded page must receive the end of the run");
+            Thread.sleep(300);
+            assertEquals(List.of("complete"), reloaded.frames().stream().filter(ReloadBeforeFirstFrameTest::terminal)
+                    .map(f -> f.path("type").asString()).toList(), "the run completes: " + describe(reloaded.frames()));
+            var expected = new StringBuilder();
+            for (var i = 0; i < TOKENS; i++) {
+                expected.append('t').append(i).append(' ');
+            }
+            assertEquals(expected.toString(), String.join("", texts(reloaded.frames())),
+                    "the reloaded page receives the whole answer, once");
+            reloaded.close();
+        } finally {
+            SLOW_FACTS = null;
+            facts.countDown();
+        }
+    }
+
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aTurnRefusedAfterItsRunIdWasSentEndsForThePageThatReattached() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachTestEndpoint.RELEASE.countDown();
+        var facts = new CountDownLatch(1);
+        SLOW_FACTS = facts;
+        try {
+            var page = connect("0", null);
+            page.socket.sendText(RequestReadingInterceptor.DENIED, true).join();
+            page.await(frames -> runId(frames) != null,
+                    "the page must receive the run id while the turn's setup runs");
+            var runId = runId(page.frames());
+
+            page.socket.sendClose(1001, "reload").get(5, TimeUnit.SECONDS);
+            Thread.sleep(500);
+            var reloaded = connect("0", runId);
+            facts.countDown();
+
+            reloaded.await(frames -> frames.stream().anyMatch(ReloadBeforeFirstFrameTest::terminal),
+                    "the reloaded page must receive the end of the refused run");
+            Thread.sleep(300);
+            var ends = reloaded.frames().stream().filter(ReloadBeforeFirstFrameTest::terminal).toList();
+            assertEquals(List.of("error"), ends.stream().map(f -> f.path("type").asString()).toList(),
+                    "the refused run ends with one error frame: " + describe(reloaded.frames()));
+            assertEquals(RequestReadingInterceptor.DENIAL, ends.get(0).path("data").asString());
+            assertEquals(List.of(), texts(reloaded.frames()), "a refused run writes no answer");
+            reloaded.close();
+        } finally {
+            SLOW_FACTS = null;
+            facts.countDown();
+        }
     }
 
     private static boolean terminal(JsonNode frame) {

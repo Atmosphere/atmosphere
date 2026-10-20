@@ -557,7 +557,11 @@ the `@Prompt` body dispatches. From there:
 
 **Resume** is reached two ways. The atmosphere.js streaming client captures the
 run id the server emits — as an `X-Atmosphere-Run-Id` metadata frame at run start
-(`AiStreamingSession.setRunId`) — into `request.runId`, and re-sends it as the
+(`AiStreamingSession.setRunId`), as soon as the run is registered and before the
+rest of the turn's setup (the request's facts, the tools' scope, the `@Prompt`
+method, its context providers, gateway admission and interceptors), so a page
+reloaded while that setup runs reattaches by it; a turn refused after that ends
+with an `error` frame the reattached page receives — into `request.runId`, and re-sends it as the
 `X-Atmosphere-Run-Id` parameter on every reconnect (`protocol.buildUrl`). So a
 client that drops mid-run and reconnects to a run no longer live auto-re-drives it
 to the reconnected client (`DurableSessionInterceptor` reads the parameter; the
