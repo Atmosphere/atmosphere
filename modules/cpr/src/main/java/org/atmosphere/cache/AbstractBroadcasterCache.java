@@ -53,9 +53,10 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); // 1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared;
-    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<>();
+    // Copy-on-write: a broadcast iterates them while another thread registers one.
+    protected final List<BroadcasterCacheInspector> inspectors = new java.util.concurrent.CopyOnWriteArrayList<>();
     protected final List<Object> emptyList = List.of();
-    protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
+    protected final List<BroadcasterCacheListener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     protected AtmosphereConfig config;
 
     @Override

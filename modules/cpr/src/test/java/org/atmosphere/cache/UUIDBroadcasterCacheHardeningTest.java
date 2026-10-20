@@ -46,6 +46,50 @@ public class UUIDBroadcasterCacheHardeningTest {
         config.getBroadcasterFactory().destroy();
     }
 
+    /**
+     * An inspector registered while a broadcast is inspected (a connection
+     * joining a broadcaster registers its inspector as another member's frame
+     * is being cached) must not fail the broadcast: the failure dropped the
+     * message for every member of the broadcaster.
+     */
+    @Test
+    public void anInspectorAddedWhileAMessageIsInspectedDoesNotFailTheBroadcast() {
+        cache.cacheCandidate("b1", "client1");
+        cache.inspector(message -> {
+            cache.inspector(m -> true);
+            return true;
+        });
+
+        assertDoesNotThrow(() -> cache.addToCache("b1", "client1", new BroadcastMessage("msg")));
+        assertEquals(1, cache.messages().get("client1").size());
+    }
+
+    /** A listener added while the listeners are notified does not fail the cache write either. */
+    @Test
+    public void aListenerAddedWhileTheListenersAreNotifiedDoesNotFailTheWrite() {
+        cache.cacheCandidate("b1", "client1");
+        cache.addBroadcasterCacheListener(new org.atmosphere.cpr.BroadcasterCacheListener() {
+            @Override
+            public void onAddCache(String broadcasterId, CacheMessage cacheMessage) {
+                cache.addBroadcasterCacheListener(new org.atmosphere.cpr.BroadcasterCacheListener() {
+                    @Override
+                    public void onAddCache(String id, CacheMessage message) {
+                    }
+
+                    @Override
+                    public void onRemoveCache(String id, CacheMessage message) {
+                    }
+                });
+            }
+
+            @Override
+            public void onRemoveCache(String broadcasterId, CacheMessage cacheMessage) {
+            }
+        });
+
+        assertDoesNotThrow(() -> cache.addToCache("b1", "client1", new BroadcastMessage("msg")));
+    }
+
     @Test
     public void testMaxPerClientEvictsOldest() {
         cache.setMaxPerClient(3);

@@ -2140,12 +2140,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * broadcast, so never cached: they are dispatched to their sender's
      * connection.
      */
-    private void registerCacheInspector(Broadcaster broadcaster) {
+    static void registerCacheInspector(Broadcaster broadcaster) {
         var cache = broadcaster.getBroadcasterConfig().getBroadcasterCache();
-        if (cache != null) {
-            cache.inspector(new AiResponseCacheInspector(false));
+        if (cache == null) {
+            return;
         }
+        // Once per cache: every connection to the path comes here, and an
+        // inspector added per connection grew the cache's list without bound.
+        synchronized (INSPECTED_CACHES) {
+            if (!INSPECTED_CACHES.add(cache)) {
+                return;
+            }
+        }
+        cache.inspector(new AiResponseCacheInspector(false));
     }
+
+    /** The caches {@link #registerCacheInspector} registered its inspector with; weak, so a destroyed cache leaves. */
+    private static final java.util.Set<org.atmosphere.cpr.BroadcasterCache> INSPECTED_CACHES =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
 
     /**
      * Registers configured broadcast filters on the broadcaster, guarding

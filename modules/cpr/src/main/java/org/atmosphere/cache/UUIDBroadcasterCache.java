@@ -25,13 +25,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -61,7 +61,10 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private final Map<String, Long> activeClients = new ConcurrentHashMap<>();
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
-    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<>();
+    // Copy-on-write: a broadcast iterates them while a connection joining the
+    // broadcaster registers its own; a LinkedList failed that broadcast with a
+    // ConcurrentModificationException, dropping the message for every member.
+    protected final List<BroadcasterCacheInspector> inspectors = new CopyOnWriteArrayList<>();
     private ScheduledFuture<?> scheduledFuture;
     protected ScheduledExecutorService taskScheduler;
     private long clientIdleTime = TimeUnit.SECONDS.toMillis(60); // 1 minutes
@@ -71,7 +74,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private int maxTotal = 100_000;
     private boolean shared = true;
     protected final List<Object> emptyList = List.of();
-    protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
+    protected final List<BroadcasterCacheListener> listeners = new CopyOnWriteArrayList<>();
     private UUIDProvider uuidProvider;
     private final AtomicLong evictions = new AtomicLong();
     private final AtomicLong cacheHits = new AtomicLong();
