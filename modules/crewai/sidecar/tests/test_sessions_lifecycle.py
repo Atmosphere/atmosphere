@@ -81,9 +81,11 @@ def test_delete_during_stream_cancels_producer() -> None:
     """If the client cancels mid-stream, the producer must stop emitting
     further tokens. We verify by checking the registry releases the
     session id (no leak)."""
-    # Slow chunks (use the streaming hold) so the cancel has time to land.
     fake = FakeCrew(chunks=["a", "b", "c", "d", "e"], hold_seconds=0.0)
-    registry = SessionRegistry(max_sessions=4, queue_size=4)
+    # Room for every frame (session + 5 tokens + usage) even when the
+    # producer finishes before the client reads, so the stream completes
+    # naturally under any TestClient scheduling.
+    registry = SessionRegistry(max_sessions=4, queue_size=8)
 
     def factory(_msg: str, _hist: list[dict[str, str]]) -> FakeCrew:
         return fake
@@ -97,6 +99,7 @@ def test_delete_during_stream_cancels_producer() -> None:
                   "history": [], "options": {}},
         ) as response:
             body = b"".join(response.iter_bytes()).decode("utf-8")
+        assert body.endswith("event: done\ndata: {}\n\n"), body
         sid = _read_session_id(body)
         # DELETE after natural completion: still 204.
         assert client.delete(f"/v1/sessions/{sid}").status_code == 204
