@@ -187,6 +187,44 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     if (set.size > MAX_TRACKED_TURNS) set.delete(set.values().next().value as string)
   }
 
+  // The prompt of this tab's turn in flight, kept in sessionStorage with the
+  // turn's session and run id. The server records a prompt with the run for a
+  // broadcastReply room only, so a per-client run reattached after a reload
+  // replays its reply alone; the Console shows the prompt from here. A
+  // replayed prompt frame (a room's) supersedes it, and the turn's terminal
+  // frame ends it.
+  const IN_FLIGHT_PROMPT_KEY = 'atmosphere.console.inFlightPrompt'
+  type InFlightPrompt = { sessionId: string; runId: string; text: string }
+  let promptAwaitingRun: string | null = null
+  let inFlightPromptShown: string | null = null
+  function inFlightPrompt(): InFlightPrompt | null {
+    try {
+      const p = JSON.parse(sessionStorage.getItem(IN_FLIGHT_PROMPT_KEY) ?? 'null')
+      return p && typeof p.sessionId === 'string' && typeof p.runId === 'string'
+        && typeof p.text === 'string' ? p : null
+    } catch {
+      return null
+    }
+  }
+  function keepInFlightPrompt(prompt: InFlightPrompt | null) {
+    try {
+      if (prompt) sessionStorage.setItem(IN_FLIGHT_PROMPT_KEY, JSON.stringify(prompt))
+      else sessionStorage.removeItem(IN_FLIGHT_PROMPT_KEY)
+    } catch { /* storage unavailable: a reload shows the reply without its prompt */ }
+  }
+  function ofInFlightPrompt(msg: Record<string, unknown>, prompt: InFlightPrompt | null): prompt is InFlightPrompt {
+    return !!prompt && (msg.sessionId === prompt.sessionId || msg.sessionId === prompt.runId)
+  }
+  /** Before the first replayed text of the turn this tab sent before a reload: its prompt. */
+  function restoreInFlightPrompt(msg: Record<string, unknown>) {
+    // Only the first text of a bubble can open a turn: no storage read per chunk.
+    if (currentAssistantMessage) return
+    const prompt = inFlightPrompt()
+    if (!ofInFlightPrompt(msg, prompt) || inFlightPromptShown === prompt.runId) return
+    inFlightPromptShown = prompt.runId
+    messages.value = [...messages.value, { id: crypto.randomUUID(), role: 'user', content: prompt.text, timestamp: Date.now() }]
+  }
+
   // This tab's room member ids (roomMemberId of each tracking id it had), kept
   // in sessionStorage so a prompt it sent before a reload, replayed with its
   // run, renders as its own bubble rather than another member's. A duplicated
@@ -319,6 +357,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   function handleStreamingEvent(msg: Record<string, unknown>) {
     if (alreadyReceived(msg)) return
     const type = (msg.type as string) || (msg.event as string)
+    if ((type === 'prompt' || type === 'complete' || type === 'error' || type === 'cancelled')
+        && ofInFlightPrompt(msg, inFlightPrompt())) {
+      keepInFlightPrompt(null)
+    }
 
     if (!type && typeof msg.message === 'string' && msg.message) {
       // Event-less frame: a broadcast-mode payload ({author?, message, time?})
@@ -341,6 +383,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         isStreaming.value = true
         if (streamStartedAt === 0) startTurnStats()
         streamTokenCount += 1
+        restoreInFlightPrompt(msg)
         appendToAssistant(
           typeof msg.data === 'string'
             ? msg.data
@@ -447,6 +490,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         if (msg.key === RUN_ID_KEY && typeof msg.value === 'string' && typeof msg.sessionId === 'string') {
           // A turn's run id: its prompt replayed on a reattach comes under it.
           runOfSession.set(msg.sessionId, msg.value)
+          if (promptAwaitingRun !== null) {
+            keepInFlightPrompt({ sessionId: msg.sessionId, runId: msg.value, text: promptAwaitingRun })
+            inFlightPromptShown = msg.value
+            promptAwaitingRun = null
+          }
           if (runOfSession.size > MAX_TRACKED_TURNS) {
             runOfSession.delete(runOfSession.keys().next().value as string)
           }
@@ -817,6 +865,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
     if (offlineSend) queuedBubbleIds.add(userMessage.id)
     lastSentUserMessageId = userMessage.id
+    promptAwaitingRun = text.trim()
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
     agentSteps.value = {}
@@ -881,6 +930,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     governanceFeedback.value = null
     stats.value = null
     currentAssistantMessage = null
+    promptAwaitingRun = null
+    keepInFlightPrompt(null)
     // The suffixed bubbles are gone; queued sends themselves stay queued.
     queuedBubbleIds.clear()
     // The Workspace tab's live plan belongs to the conversation being

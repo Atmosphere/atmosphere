@@ -24,6 +24,7 @@ vi.mock('../transports', () => ({
       connect: async () => {},
       send: (text: string) => { sent.push(text) },
       close: () => {},
+      disconnect: () => {},
     }
   }),
 }))
@@ -709,5 +710,90 @@ describe('a broadcastReply room', () => {
       { user: true, text: 'theirs?' },
       { user: false, text: 'reply' },
     ])
+  })
+})
+
+describe('the prompt of a turn reattached after a reload', () => {
+  // 2026-10-19 re-test (spring-boot-ai-chat): a reload in the middle of an
+  // answer brought the reply back but not the prompt that asked it (2 bubbles
+  // before, 1 after). The server records a prompt with the run for a
+  // broadcastReply room only, so a per-client run replays its reply alone.
+  beforeEach(() => {
+    transportUuid = 'tab-self'
+    sessionStorage.clear()
+  })
+
+  async function mountPage() {
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    const wrapper = mount(defineComponent({
+      setup() {
+        const chat = useAtmosphereChat('/atmosphere/ai-chat')
+        state.chat = chat
+        return () => h('div', chat.messages.value.map(m => h(ChatMessage, { message: m, key: m.id })))
+      },
+    }))
+    await nextTick()
+    await new Promise(resolve => queueMicrotask(() => resolve(null)))
+    return { chat: state.chat!, wrapper }
+  }
+
+  const bubbles = (wrapper: { findAll: (s: string) => { classes(): string[]; find(s: string): { text(): string } }[] }) =>
+    wrapper.findAll('[data-testid="message-bubble"]').map(b => ({
+      user: b.classes().includes('message--user'),
+      text: b.find('.message-content').text(),
+    }))
+
+  /** The page before the reload: it sent the prompt and received the start of the reply. */
+  async function askThenReload() {
+    const before = await mountPage()
+    before.chat.send('list ten primes')
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-1', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: '2, 3', sessionId: 's1', seq: 2 })
+    await nextTick()
+    expect(bubbles(before.wrapper).map(b => b.user)).toEqual([true, false])
+    before.wrapper.unmount()
+    // The reloaded page connects under a new tracking id.
+    transportUuid = 'tab-after-reload'
+    return mountPage()
+  }
+
+  it('shows the prompt again before the replayed reply of a per-client run', async () => {
+    const { wrapper } = await askThenReload()
+    handlers.onEvent({ type: 'streaming-text', data: '2, 3', sessionId: 's1', seq: 2 })
+    handlers.onEvent({ type: 'streaming-text', data: ', 5', sessionId: 's1', seq: 3 })
+    handlers.onEvent({ type: 'complete', sessionId: 's1', seq: 4 })
+    await nextTick()
+
+    expect(bubbles(wrapper)).toEqual([
+      { user: true, text: 'list ten primes' },
+      { user: false, text: '2, 3, 5' },
+    ])
+  })
+
+  it('shows it once when the run replays its own prompt frame (a broadcastReply room)', async () => {
+    // roomMemberId('tab-self'), the member this tab was before the reload.
+    sessionStorage.setItem('atmosphere.console.roomMemberIds', JSON.stringify(['8b41605f4f4f611de1d4907b3de0e97f']))
+    const { wrapper } = await askThenReload()
+    handlers.onEvent({ type: 'prompt', text: 'list ten primes', from: '8b41605f4f4f611de1d4907b3de0e97f', sessionId: 's1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: '2, 3', sessionId: 's1', seq: 2 })
+    await nextTick()
+
+    expect(bubbles(wrapper).filter(b => b.user)).toEqual([{ user: true, text: 'list ten primes' }])
+  })
+
+  it('does not show a finished turn\'s prompt again', async () => {
+    const before = await mountPage()
+    before.chat.send('hello')
+    handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: 'run-2', sessionId: 's2', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'hi', sessionId: 's2', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's2', seq: 3 })
+    await nextTick()
+    expect(bubbles(before.wrapper)).toEqual([{ user: true, text: 'hello' }, { user: false, text: 'hi' }])
+    before.wrapper.unmount()
+
+    const { wrapper } = await mountPage()
+    handlers.onEvent({ type: 'streaming-text', data: 'hi', sessionId: 's2', seq: 2 })
+    await nextTick()
+    expect(bubbles(wrapper).filter(b => b.user)).toEqual([])
   })
 })
