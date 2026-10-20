@@ -110,6 +110,14 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                             // one: mark the eviction so it does not read as the client leaving.
                             ((AtmosphereResourceImpl) r).getAtmosphereResourceEvent().setCancelled(true);
                             webSocket.close();
+                            // A container that reports the close later (Netty, Jetty), or never
+                            // for a dead peer, leaves the resource suspended: end it here, so
+                            // the removal below does not read as the application excluding the
+                            // client from the BroadcasterCache. The client reconnects under its
+                            // uuid and must get what was broadcast while it was away.
+                            if (!r.isCancelled()) {
+                                ((AsynchronousProcessor) config.framework().getAsyncSupport()).endRequest((AtmosphereResourceImpl) r, true);
+                            }
                         } else {
                             ((AsynchronousProcessor) config.framework().getAsyncSupport()).endRequest((AtmosphereResourceImpl) r, true);
                         }
