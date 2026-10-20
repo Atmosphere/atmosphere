@@ -72,7 +72,8 @@ const SUPERSCRIPT: Record<string, string> = {
   '9': '⁹', '+': '⁺', '-': '⁻', '−': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', i: 'ⁱ',
   a: 'ᵃ', b: 'ᵇ', c: 'ᶜ', d: 'ᵈ', e: 'ᵉ', f: 'ᶠ', g: 'ᵍ', h: 'ʰ', j: 'ʲ', k: 'ᵏ', l: 'ˡ',
   m: 'ᵐ', o: 'ᵒ', p: 'ᵖ', r: 'ʳ', s: 'ˢ', t: 'ᵗ', u: 'ᵘ', v: 'ᵛ', w: 'ʷ', x: 'ˣ', y: 'ʸ',
-  z: 'ᶻ', '′': '′', '∗': '*', '°': '°',
+  // `^\circ` is how TeX writes a degree sign: a raised ring is °, not ∘.
+  z: 'ᶻ', '′': '′', '∗': '*', '°': '°', '∘': '°',
 };
 
 const SUBSCRIPT: Record<string, string> = {

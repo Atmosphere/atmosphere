@@ -75,6 +75,13 @@ describe('math in a reply, as the bubble shows it', () => {
     expect(renderMath(partial + '4}\\)')).toBe('Then b = √144');
   });
 
+  test('a degree sign written as ^\\circ reads as °', () => {
+    // Verbatim shape from the math room (re-test 2026-10-19): it showed "30^∘".
+    expect(renderMath('\\( \\sin(30^\\circ) = \\frac{a}{c} \\) and \\(90^{\\circ}\\)')).toBe(
+      'sin(30°) = a/c and 90°',
+    );
+  });
+
   test('characters markdown would read as emphasis are escaped', () => {
     expect(shown(renderMath('\\(a_n * b_n\\)'))).toEqual(['aₙ * bₙ']);
     expect(shown(renderMath('\\(x_{big} * [y]\\)'))).toEqual(['x_(big) * [y]']);
@@ -100,6 +107,8 @@ describe('texToText', () => {
     ['\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1', 'lim_(x → 0) (sin x)/x = 1'],
     ['\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}', 'a = b\nc = d'],
     ['123456 \\times 789 = 97406784', '123456 × 789 = 97406784'],
+    ['\\angle A = 45^\\circ', '∠ A = 45°'],
+    ['f \\circ g', 'f ∘ g'],
   ])('%s', (tex, text) => {
     expect(texToText(tex)).toBe(text);
   });
