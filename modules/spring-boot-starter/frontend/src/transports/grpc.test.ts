@@ -159,6 +159,56 @@ describe('GrpcChatTransport', () => {
     })
   })
 
+  // grpc-chat re-test: a burst of 20 messages arrived on the other page out of
+  // order. Each send was its own fetch, started at once, and the server handled
+  // them on parallel threads, broadcasting each when its handling finished.
+  it('sends a burst in order: each Send starts after the previous one settled', async () => {
+    const handled: string[] = []
+    // The first Send is handled slowest, the fourth at once.
+    const delays = [40, 5, 25, 0, 15]
+    let sends = 0
+    const fetchMock = vi.fn(async (url: string, init: { body: string }) => {
+      if (url.endsWith('/Subscribe')) return envelopeStream(ACK)
+      const { payload } = JSON.parse(init.body)
+      await new Promise(r => setTimeout(r, delays[sends++]))
+      handled.push(payload)
+      return new Response('{}', { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const t = new GrpcChatTransport(options(), handlers([]))
+    await t.connect()
+    const burst = ['g00', 'g01', 'g02', 'g03', 'g04']
+    for (const text of burst) t.send(text)
+
+    await vi.waitFor(() => expect(handled).toHaveLength(burst.length), { timeout: 2000 })
+    expect(handled).toEqual(burst.map(text => `console-1a2b: ${text}`))
+  })
+
+  it('reports a failed Send and goes on with the next message', async () => {
+    const handled: string[] = []
+    const fetchMock = vi.fn(async (url: string, init: { body: string }) => {
+      if (url.endsWith('/Subscribe')) return envelopeStream(ACK)
+      const { payload } = JSON.parse(init.body)
+      if (payload.endsWith('two')) throw new TypeError('Failed to fetch')
+      if (payload.endsWith('three')) return new Response('', { status: 503 })
+      handled.push(payload)
+      return new Response('{}', { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const events: Array<Record<string, unknown>> = []
+    const t = new GrpcChatTransport(options(), handlers(events))
+    await t.connect()
+    for (const text of ['one', 'two', 'three', 'four']) t.send(text)
+
+    await vi.waitFor(() => expect(handled).toEqual(['console-1a2b: one', 'console-1a2b: four']))
+    expect(events).toEqual([
+      { type: 'error', data: 'TypeError: Failed to fetch' },
+      { type: 'error', data: 'gRPC send failed: HTTP 503' },
+    ])
+  })
+
   it('surfaces an error trailer from the end-of-stream frame', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(envelopeStream(
       ACK,

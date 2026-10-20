@@ -115,9 +115,17 @@ export class GrpcChatTransport implements ChatTransport {
     }
   }
 
+  // Sends go out one at a time, in the order sent: the server handles each
+  // unary Send on a thread of its own and broadcasts it when done, so Sends in
+  // flight together reached the room in any order. unarySend never rejects (a
+  // failure is reported for its message), so one failed Send does not stop
+  // the ones after it.
+  private sending: Promise<void> = Promise.resolve()
+
   send(text: string): void {
-    if (!this.trackingId) return
-    void this.unarySend(text)
+    const trackingId = this.trackingId
+    if (!trackingId) return
+    this.sending = this.sending.then(() => this.unarySend(text, trackingId))
   }
 
   sendControl(): void {
@@ -243,7 +251,7 @@ export class GrpcChatTransport implements ChatTransport {
     // HEARTBEAT and other types need no rendering.
   }
 
-  private async unarySend(text: string): Promise<void> {
+  private async unarySend(text: string, trackingId: string): Promise<void> {
     try {
       const res = await fetch(`${this.options.endpoint}/Send`, {
         method: 'POST',
@@ -252,7 +260,7 @@ export class GrpcChatTransport implements ChatTransport {
           type: 'MESSAGE',
           topic: GrpcChatTransport.TOPIC,
           payload: `${this.options.author ?? 'console'}: ${text}`,
-          trackingId: this.trackingId,
+          trackingId,
         }),
       })
       if (!res.ok) {
