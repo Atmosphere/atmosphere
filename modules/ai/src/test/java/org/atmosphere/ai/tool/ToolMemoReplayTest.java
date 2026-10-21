@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.resume.DurableRunContext;
 import org.atmosphere.ai.resume.DurableRunScopeHolder;
+import org.atmosphere.ai.resume.EffectJournal;
 import org.atmosphere.ai.resume.EffectKeys;
 import org.atmosphere.ai.resume.EffectKind;
 import org.atmosphere.ai.resume.InMemoryEffectJournal;
@@ -89,6 +90,39 @@ class ToolMemoReplayTest {
         var key = EffectKeys.toolCall(RUN_ID, "echo", ARGS, 0);
         assertEquals("ok", journal.lookupCommitted(RUN_ID, key).orElseThrow().resultPayload(),
                 "the terminal outcome is committed for replay");
+    }
+
+    /**
+     * The tool ran and its end frame went out, then the journal could not
+     * record it (disk full, database locked): the call keeps its one end frame
+     * and its result, and stays PENDING so a resume re-runs it, as after a
+     * crash at that point. Before, the commit failure was thrown into the
+     * runtime bridge, which reported a second end, a tool-error, for the call.
+     */
+    @Test
+    void aJournalThatCannotRecordTheCallLeavesItsOneEndFrameAndItsResult() {
+        var delegate = new InMemoryEffectJournal();
+        var journal = (EffectJournal) java.lang.reflect.Proxy.newProxyInstance(
+                EffectJournal.class.getClassLoader(), new Class<?>[] {EffectJournal.class},
+                (proxy, method, methodArgs) -> {
+                    if ("commit".equals(method.getName())) {
+                        throw new IllegalStateException("Failed to commit effect for run " + RUN_ID);
+                    }
+                    try {
+                        return method.invoke(delegate, methodArgs);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+        DurableRunScopeHolder.install(RUN_ID, new DurableRunContext(RUN_ID, journal, false, "owner", "owner"));
+        var session = new CapturingSession(new CountingExecutor("ok"));
+
+        var result = call(session);
+
+        assertEquals("ok", result);
+        assertEquals(List.of("ToolStart", "ToolResult"), session.frames());
+        var key = EffectKeys.toolCall(RUN_ID, "echo", ARGS, 0);
+        assertTrue(delegate.lookupCommitted(RUN_ID, key).isEmpty(), "nothing was committed");
     }
 
     @Test

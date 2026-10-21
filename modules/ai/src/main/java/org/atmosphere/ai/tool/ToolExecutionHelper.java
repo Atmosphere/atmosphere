@@ -628,7 +628,16 @@ public final class ToolExecutionHelper {
             journal.markFailed(ctx.runId(), key, errorMessage(e));
             throw e;
         }
-        journal.commit(ctx.runId(), key, recordedPayload(result));
+        try {
+            journal.commit(ctx.runId(), key, recordedPayload(result));
+        } catch (RuntimeException e) {
+            // The tool ran and its end frame is out: a bookkeeping failure now
+            // loses durability, never the call (as for an approval decision). The
+            // effect stays PENDING, so a resume re-runs it, as after a crash here;
+            // throwing would make the runtime bridge report a second end for it.
+            logger.warn("Tool {} outcome could not be committed to the effect journal ({}); "
+                    + "the call stands but a resume will run it again", toolName, e.toString());
+        }
         return result.text();
     }
 
