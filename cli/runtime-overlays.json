@@ -39,7 +39,7 @@
         { "groupId": "org.atmosphere", "artifactId": "atmosphere-agentscope" },
         { "groupId": "io.agentscope", "artifactId": "agentscope-core", "version": "${agentscope.version}" }
       ],
-      "note": "Requires a user-supplied ReActAgent @Bean — AgentScope's Model surface (DashScope, OpenAI-compatible) needs provider-specific construction that can't be assembled from generic llm.* properties."
+      "note": "The auto-configuration builds an OpenAI-compatible model and a default ReActAgent from llm.* (LLM_MODE=local targets Ollama keyless); supply your own ReActAgent @Bean for another provider or a custom agent."
     },
     "spring-ai-alibaba": {
       "description": "Spring AI Alibaba (Alibaba Cloud AI) — Spring AI extension with multi-agent / graph orchestration; buffered streaming",
@@ -61,7 +61,7 @@
         "id": "embabel-releases",
         "url": "https://repo.embabel.com/artifactory/libs-release"
       },
-      "note": "Embabel 1.5.0 is built on Spring Boot 4.1 / Spring AI 2.0, so this overlay builds on the default Spring Boot 4 profile — no -Pspring-boot3 needed."
+      "note": "Embabel 1.5.0 is built on Spring Boot 4.1 / Spring AI 2.0, so this overlay builds on the default Spring Boot 4 profile — no -Pspring-boot3 needed. The overlay serves a GEMINI_API_KEY. To run Embabel on LLM_MODE=local (Ollama) or another OpenAI-compatible LLM_BASE_URL, replace embabel-agent-starter-gemini with com.embabel.agent:embabel-agent-starter-openai-custom: the adapter maps the endpoint, key and model into it. Keep only one of the two: the openai-custom starter refuses to start without its own API key."
     },
     "semantic-kernel": {
       "description": "Microsoft Semantic Kernel (Java)",
