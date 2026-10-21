@@ -355,6 +355,62 @@ public class ComposeGeneratorTest {
         assertEquals("88.0.0", model.get("springBootVersion"));
     }
 
+    @Test
+    void generateProject_coordinatorCallsTheSkillItsAgentsServe(@TempDir Path tmp) throws IOException {
+        // A composed @Agent serves A2A through its "default" skill, which takes a
+        // "message" argument; a call to any other skill fails "Unknown skill".
+        var skillsDir = tmp.resolve("skills");
+        Files.createDirectories(skillsDir);
+        Files.writeString(skillsDir.resolve("coordinator.md"), """
+                ---
+                name: lead
+                description: "Team lead"
+                role: coordinator
+                ---
+                # Lead
+
+                ## Fleet
+                - worker: Does work
+                - helper: Helps
+                - reviewer: Reviews
+
+                ## Workflow
+                worker, helper -> reviewer
+                """);
+        for (var name : List.of("worker", "helper", "reviewer")) {
+            Files.writeString(skillsDir.resolve(name + ".md"), """
+                    ---
+                    name: %s
+                    description: "An agent"
+                    ---
+                    # Agent
+                    """.formatted(name));
+        }
+        var g = gen();
+        g.scriptDir = Path.of("").toAbsolutePath();
+        for (var file : List.of("coordinator.md", "worker.md", "helper.md", "reviewer.md")) {
+            var desc = g.parseSkillFile(skillsDir.resolve(file));
+            if ("coordinator".equals(desc.role)) g.coordinator = desc;
+            else g.agents.add(desc);
+        }
+        g.workflowSteps = g.parseWorkflow(g.coordinator.content);
+        var outputDir = tmp.resolve("output");
+        g.generateProject(g.buildModel(), outputDir);
+
+        var coordContent = Files.readString(findFile(outputDir.resolve("coordinator"), "Lead.java"));
+        assertFalse(coordContent.contains("\"execute\""), coordContent);
+        // The parallel step and the sequential one both call the default skill with a message.
+        assertTrue(coordContent.contains("fleet.call(\"worker\", \"default\", Map.<String, Object>of(\"message\""),
+                coordContent);
+        assertTrue(coordContent.contains("fleet.call(\"helper\", \"default\", Map.<String, Object>of(\"message\""),
+                coordContent);
+        assertTrue(coordContent.contains("fleet.agent(\"reviewer\").call(\"default\", Map.<String, Object>of(\"message\""),
+                coordContent);
+        // A failed call is reported as a tool error, not as a result.
+        assertTrue(coordContent.contains("emitResult(session, \"worker\", workerResult)"), coordContent);
+        assertTrue(coordContent.contains("session.emit(new AiEvent.ToolError(agent, result.text()))"), coordContent);
+    }
+
     // ========== Auto-Generated Coordinator ==========
 
     @Test

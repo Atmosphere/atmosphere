@@ -24,6 +24,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.fleet.AgentResult;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
@@ -62,8 +63,8 @@ public class {{agent.className}} {
 {{#isSequential}}
 {{#agents}}
         session.emit(new AiEvent.ToolStart("{{name}}", Map.<String, Object>of("input", message)));
-        var {{varName}}Result = fleet.agent("{{name}}").call("execute", Map.<String, Object>of("input", {{#hasPreviousVars}}buildInput(message{{#previousVars}}, {{.}}.text(){{/previousVars}}){{/hasPreviousVars}}{{^hasPreviousVars}}message{{/hasPreviousVars}}));
-        session.emit(new AiEvent.ToolResult("{{name}}", {{varName}}Result.text()));
+        var {{varName}}Result = fleet.agent("{{name}}").call("default", Map.<String, Object>of("message", {{#hasPreviousVars}}buildInput(message{{#previousVars}}, {{.}}.text(){{/previousVars}}){{/hasPreviousVars}}{{^hasPreviousVars}}message{{/hasPreviousVars}}));
+        emitResult(session, "{{name}}", {{varName}}Result);
 {{/agents}}
 {{/isSequential}}
 {{#isParallel}}
@@ -72,18 +73,27 @@ public class {{agent.className}} {
 {{/agents}}
         var step{{stepNumber}}Results = fleet.parallel(
 {{#agents}}
-                fleet.call("{{name}}", "execute", Map.<String, Object>of("input", {{#hasPreviousVars}}buildInput(message{{#previousVars}}, {{.}}.text(){{/previousVars}}){{/hasPreviousVars}}{{^hasPreviousVars}}message{{/hasPreviousVars}})){{^-last}},{{/-last}}
+                fleet.call("{{name}}", "default", Map.<String, Object>of("message", {{#hasPreviousVars}}buildInput(message{{#previousVars}}, {{.}}.text(){{/previousVars}}){{/hasPreviousVars}}{{^hasPreviousVars}}message{{/hasPreviousVars}})){{^-last}},{{/-last}}
 {{/agents}}
         );
 {{#agents}}
         var {{varName}}Result = step{{stepNumber}}Results.get("{{name}}");
-        session.emit(new AiEvent.ToolResult("{{name}}", {{varName}}Result.text()));
+        emitResult(session, "{{name}}", {{varName}}Result);
 {{/agents}}
 {{/isParallel}}
 
 {{/workflowSteps}}
         // Synthesize all agent results via LLM
         session.stream(message);
+    }
+
+    /** Report an agent's reply as its tool result, or a failed call as a tool error. */
+    private static void emitResult(StreamingSession session, String agent, AgentResult result) {
+        if (result.success()) {
+            session.emit(new AiEvent.ToolResult(agent, result.text()));
+        } else {
+            session.emit(new AiEvent.ToolError(agent, result.text()));
+        }
     }
 
     private static String buildInput(String original, String... results) {
