@@ -246,7 +246,10 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
                     .toolSpecifications(toolSpecifications)
                     .build();
 
-            if (cancelled.get()) {
+            // A tool round that ended the turn (an approval that ran out with
+            // the turn's time limit, a cancel) calls the model no more: what it
+            // answered would go nowhere, and the turn would wait for it.
+            if (cancelled.get() || session.isTurnCancelled() || session.isClosed()) {
                 return;
             }
             var nextHandler = new ToolAwareStreamingResponseHandler(

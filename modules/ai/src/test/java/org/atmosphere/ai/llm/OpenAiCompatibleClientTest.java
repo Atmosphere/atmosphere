@@ -614,6 +614,47 @@ public class OpenAiCompatibleClientTest {
         verify(httpClient, atMost(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
+    /**
+     * A tool round that ended the turn (an approval that ran out with the
+     * turn's time limit ends the session with an error) calls the model no
+     * more: one HTTP call, not a follow-up whose answer goes nowhere while the
+     * {@code @Prompt} method waits for it.
+     */
+    @Test
+    public void testToolRoundThatEndedTheTurnMakesNoFollowUpCall() throws Exception {
+        var toolCallResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"echo","arguments":"{}"}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """;
+        var httpClient = mockHttpClientSequence(new MockResponse(200, toolCallResponse),
+                new MockResponse(200, toolCallResponse));
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+        var session = new org.atmosphere.ai.CollectingSession();
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("echo", "Echo tool")
+                .executor(args -> {
+                    session.error(new org.atmosphere.ai.ApprovalTimedOutException(
+                            "Approval for tool 'echo' was not given before the turn's time limit", "apr_1", "echo"));
+                    return "{\"status\":\"timeout\"}";
+                })
+                .build();
+        var request = ChatCompletionRequest.builder("test")
+                .user("loop")
+                .tools(java.util.List.of(tool))
+                .build();
+
+        client.streamChatCompletion(request, session);
+
+        assertTrue(session.isClosed(), "the tool round ended the turn");
+        verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
     @Test
     public void testStrictPolicyFailsOnOverflow() throws Exception {
         // FAIL overflow must surface a ToolLoopExhaustedException via

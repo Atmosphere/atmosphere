@@ -608,6 +608,36 @@ public class LangChain4jStreamingAdapterTest {
     }
 
     /** A LangChain4j response whose AiMessage always carries one tool request. */
+    /**
+     * A tool round that ended the turn (an approval that ran out with the
+     * turn's time limit ends the session with an error) calls the model no
+     * more: the follow-up round's text went nowhere, and the {@code @Prompt}
+     * method waited for it past its own time limit.
+     */
+    @Test
+    public void testToolRoundThatEndedTheTurnDispatchesNoFollowUp() {
+        var collecting = new org.atmosphere.ai.CollectingSession();
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("add", "Add numbers")
+                .parameter("a", "First", "integer")
+                .executor(args -> {
+                    collecting.error(new org.atmosphere.ai.ApprovalTimedOutException(
+                            "Approval for tool 'add' was not given before the turn's time limit", "apr_1", "add"));
+                    return "{\"status\":\"timeout\"}";
+                })
+                .build();
+        var model = alwaysToolRequestModel();
+        var handler = new ToolAwareStreamingResponseHandler(
+                collecting, model, List.of(), List.of(), Map.of("add", tool),
+                null, List.of(), new java.util.concurrent.atomic.AtomicBoolean(),
+                null, null);
+
+        handler.onCompleteResponse(toolRequestResponse());
+
+        assertTrue(collecting.isClosed(), "the tool round ended the turn");
+        verify(model, never()).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
+        assertFalse(handler.followUpDispatched(), "no follow-up round once the turn ended");
+    }
+
     private static ChatResponse toolRequestResponse() {
         var request = dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
                 .id("call-1")

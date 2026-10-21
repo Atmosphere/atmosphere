@@ -699,7 +699,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.approvalStrategy(), request.parts(), request.listeners(),
                     request.cacheHint(), request.retryPolicy(), request.approvalPolicy(),
                     request.toolLoopPolicy(), null, request.logprobs(), request.decisionField());
-            if (cancelled.get() || session.isTurnCancelled()) {
+            // A tool round that ended the turn (an approval that ran out with
+            // the turn's time limit, a cancel) calls the model no more: what it
+            // answered would go nowhere, and the turn would wait for it.
+            if (cancelled.get() || session.isTurnCancelled() || session.isClosed()) {
                 return;
             }
             doStreamWithToolLoop(followUp, session, toolRound + 1, cancelled, streamSink,
