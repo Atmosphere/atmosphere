@@ -637,6 +637,38 @@ class CohereChatClientTest {
                 "no apply flag must keep the wire free of response_format: " + body);
     }
 
+    /**
+     * A tool round that ended the turn (an approval that ran out with the
+     * turn's time limit ends the session with an error) calls the model no
+     * more: one HTTP call, not a follow-up whose answer goes nowhere while the
+     * {@code @Prompt} method waits for it.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void toolRoundThatEndedTheTurnMakesNoFollowUpCall() throws Exception {
+        var httpClient = mockAlwaysToolResponse();
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var session = new CollectingSession();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> {
+                    session.error(new org.atmosphere.ai.ApprovalTimedOutException(
+                            "Approval for tool 'calculator' was not given before the turn's time limit",
+                            "apr_1", "calculator"));
+                    return "{\"status\":\"timeout\"}";
+                })
+                .build();
+        var context = toolContext(calculator);
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+
+        assertTrue(session.isClosed(), "the tool round ended the turn");
+        verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
     private static AgentExecutionContext textContext() {
         return new AgentExecutionContext(
                 "Hi", "You are helpful", "command-a-plus-05-2026",

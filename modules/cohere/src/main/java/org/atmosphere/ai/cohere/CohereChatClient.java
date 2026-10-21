@@ -243,6 +243,12 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                 session.complete();
                 return;
             }
+            // A tool round that ended the turn (an approval that ran out with
+            // the turn's time limit, a cancel) calls the model no more: what it
+            // answered would go nowhere, and the turn would wait for it.
+            if (session.isTurnCancelled() || session.isClosed()) {
+                return;
+            }
             for (var entry : roundOutcome.toolResults().entrySet()) {
                 working.add(toolResultMessage(entry.getKey(), entry.getValue()));
             }
