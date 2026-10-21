@@ -35,7 +35,7 @@ vi.mock('atmosphere.js', async (importOriginal) => {
   return { ...actual, Atmosphere: FakeAtmosphere }
 })
 
-const { ConnectionStatus } = await import('atmosphere.js')
+const { ConnectionStatus, computeReconnectDelay, maxReconnectAttempts } = await import('atmosphere.js')
 const { AtmosphereChatTransport } = await import('./atmosphere')
 
 describe('AtmosphereChatTransport error pass-through', () => {
@@ -133,5 +133,59 @@ describe('AtmosphereChatTransport broadcast envelope', () => {
     transport.send('hello')
     const push = (captured.subs[0] as unknown as { push: Mock<(m: string) => void> }).push
     expect(JSON.parse(push.mock.calls[0][0])).toMatchObject({ author: 'console-1a2b', message: 'hello' })
+  })
+})
+
+/**
+ * A durable-sessions page lost the messages broadcast during an outage of a
+ * minute or more: the broadcaster's UUIDBroadcasterCache keeps a disconnected
+ * client's messages for 60 s (clientIdleTime), while the atmosphere.js default
+ * backoff the Console used grew to 48-96 s between attempts from the sixth
+ * one, so the Console came back after the cache had dropped it. The schedule
+ * is read through atmosphere.js's own computeReconnectDelay, from the request
+ * the Console subscribes with.
+ */
+describe('AtmosphereChatTransport reconnect schedule', () => {
+  it('never waits more than 25 s between attempts, growing exponentially up to that', async () => {
+    captured.requests = []
+    captured.subs = []
+    const transport = new AtmosphereChatTransport(
+      {
+        endpoint: '/atmosphere/chat',
+        isBroadcast: () => true,
+        status: new ConnectionStatus({ initialTransport: 'websocket' }),
+        maxReconnectOnClose: 10,
+      },
+      {
+        onOpen() {}, onClose() {}, onError() {}, onReconnect() {},
+        onReopen() {}, onClientTimeout() {}, onFailureToReconnect() {},
+        onEvent() {}, onRawText() {},
+      },
+    )
+    await transport.connect()
+    const request = captured.requests[0] as Parameters<typeof computeReconnectDelay>[0]
+      & Parameters<typeof maxReconnectAttempts>[0]
+
+    // The quota is still the Console's own.
+    expect(maxReconnectAttempts(request)).toBe(10)
+
+    // Worst-case jitter: the longest wait the schedule can produce.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.9999)
+    try {
+      const waits = Array.from({ length: 10 }, (_, i) => computeReconnectDelay(request, i + 1, () => 0.9999))
+      for (const wait of waits) expect(wait).toBeLessThanOrEqual(25_000)
+      // Exponential below the cap: 3 s, 6 s, 12 s, 24 s, then the 25 s cap.
+      expect(waits.slice(0, 4).map(w => Math.round(w / 1000))).toEqual([3, 6, 12, 24])
+      expect(Math.round(waits[9] / 1000)).toBe(25)
+      for (let i = 1; i < waits.length; i++) expect(waits[i]).toBeGreaterThanOrEqual(waits[i - 1])
+
+      // The jitter still spreads the tabs reconnecting at the cap: the lowest
+      // jitter halves the capped wait.
+      random.mockReturnValue(0)
+      expect(computeReconnectDelay(request, 10, () => 0)).toBe(12_500)
+      expect(computeReconnectDelay(request, 1, () => 0)).toBe(1_500)
+    } finally {
+      random.mockRestore()
+    }
   })
 })

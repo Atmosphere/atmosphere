@@ -83,6 +83,31 @@ function withAuthToken(wsUrl: string): string {
   return wsUrl + (wsUrl.includes('?') ? '&' : '?') + 'X-Atmosphere-Auth=' + encodeURIComponent(token)
 }
 
+/** Wait before the first reconnect attempt; it doubles on each attempt after. */
+export const RECONNECT_INTERVAL_MS = 3000
+
+/**
+ * Longest wait between two reconnect attempts. A broadcaster's
+ * UUIDBroadcasterCache (the @ManagedService default) keeps what a disconnected
+ * client missed for its clientIdleTime, 60 s by default, then drops the
+ * client. atmosphere.js's default backoff doubles up to 32x the interval
+ * (48-96 s from the sixth attempt), so after an outage of a minute or more
+ * the Console came back after the cache had dropped it, and the messages
+ * broadcast meanwhile were lost.
+ */
+export const MAX_RECONNECT_WAIT_MS = 25_000
+
+/**
+ * Wait before reconnect attempt `attempt` (1-based): the atmosphere.js default
+ * shape, `RECONNECT_INTERVAL_MS * 2^min(attempt - 1, 5)` scaled by a jitter in
+ * `[0.5, 1)`, with the exponential part capped at {@link MAX_RECONNECT_WAIT_MS}
+ * first so the jitter still spreads the tabs that reconnect at the cap.
+ */
+export function consoleReconnectDelay(attempt: number, random: () => number = Math.random): number {
+  const exponential = RECONNECT_INTERVAL_MS * Math.pow(2, Math.min(Math.max(attempt, 1) - 1, 5))
+  return Math.min(exponential, MAX_RECONNECT_WAIT_MS) * (0.5 + random() * 0.5)
+}
+
 /** What a fallback rebuild carries over from the subscription it replaces. */
 interface CarryOver {
   trackingId?: string
@@ -142,7 +167,11 @@ export class AtmosphereChatTransport implements ChatTransport {
         } : {}),
         ...(wt?.certificateHash ? { serverCertificateHashes: [wt.certificateHash] } : {}),
         reconnect: true,
-        reconnectInterval: 3000,
+        reconnectInterval: RECONNECT_INTERVAL_MS,
+        // Exponential backoff capped well under the server cache's 60 s idle
+        // time (see MAX_RECONNECT_WAIT_MS). No maxAttempts: the quota stays
+        // maxReconnectOnClose below.
+        retryStrategy: { strategy: 'custom', customCalculate: (attempt: number) => consoleReconnectDelay(attempt) },
         // WT reconnects after a server restart fail deterministically (the
         // sidecar's self-signed cert regenerates per boot, so the stale hash
         // can never handshake) — cap the WT quota so the WebSocket fallback
@@ -278,7 +307,7 @@ export class AtmosphereChatTransport implements ChatTransport {
       } catch {
         this.teardown()
         handlers.onReconnect()
-        await new Promise(resolve => setTimeout(resolve, 3000))
+        await new Promise(resolve => setTimeout(resolve, RECONNECT_INTERVAL_MS))
       }
     }
     handlers.onFailureToReconnect()

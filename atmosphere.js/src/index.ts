@@ -34,6 +34,9 @@ export { BaseTransport } from './transports/base';
 export { AtmosphereProtocol } from './utils/protocol';
 export { SEND_ERROR_NAME, isSendError } from './utils/send-error';
 export { roomMemberId } from './utils/room-member-id';
+// The wait before each reconnect attempt and the attempt quota a request gets,
+// so a caller can check the schedule its options produce.
+export { computeReconnectDelay, maxReconnectAttempts } from './utils/reconnect-delay';
 
 // Export room support
 export { AtmosphereRooms } from './room/rooms';
