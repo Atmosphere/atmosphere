@@ -32,7 +32,7 @@ import kotlin.test.assertTrue
  * The sample's UI is the Atmosphere Console, served by its own Jetty: `/`
  * redirects to it keeping the query string (GET and HEAD), the bundle is
  * served at `/atmosphere/console/`, and `/api/console/info` points it at the
- * broadcast chat on `/chat`.
+ * broadcast chat on `/chat`. The favicon is served too.
  */
 class KotlinDslChatConsoleTest {
 
@@ -86,6 +86,13 @@ class KotlinDslChatConsoleTest {
         val asset = Regex("/atmosphere/console/assets/[^\"]+\\.js").find(page.body())?.value
         assertTrue(asset != null, "the page loads its script")
         assertEquals(200, send("GET", asset).statusCode())
+    }
+
+    @Test
+    fun `the favicon is served`() {
+        val icon = send("GET", "/favicon.ico")
+        assertEquals(200, icon.statusCode())
+        assertTrue(icon.body().isNotEmpty(), "the icon has content")
     }
 
     @Test

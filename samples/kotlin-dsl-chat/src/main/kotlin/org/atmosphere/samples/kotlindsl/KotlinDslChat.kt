@@ -276,6 +276,8 @@ object KotlinDslChat {
         // Resolve the full request path (atmosphere/console/assets/...) against webapp/.
         console.setInitParameter("pathInfoOnly", "false")
         context.addServlet(console, "/atmosphere/console/*")
+        // The same servlet serves webapp/favicon.ico, which browsers ask for.
+        context.addServlet(console, "/favicon.ico")
         // The directory URL itself is the Console's page.
         context.addServlet(ServletHolder("console-index", ConsoleIndexServlet::class.java), "/atmosphere/console/")
         context.addServlet(ServletHolder("console-info", ConsoleInfoServlet::class.java), "/api/console/info")
