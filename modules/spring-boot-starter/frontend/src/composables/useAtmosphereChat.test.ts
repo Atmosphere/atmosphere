@@ -39,6 +39,7 @@ vi.mock('../transports', () => ({
 
 import { useAtmosphereChat } from './useAtmosphereChat'
 import ChatInput from '../components/ChatInput.vue'
+import ToolCard from '../components/ToolCard.vue'
 import ChatMessage from '../components/ChatMessage.vue'
 import { loadMath } from '../lib/markdown'
 
@@ -197,6 +198,48 @@ describe('governance feedback frames', () => {
     chat.send('and the weather?')
     await nextTick()
     expect(chat.governanceFeedback.value).toBeNull()
+  })
+})
+
+describe('a tool whose approval was not given', () => {
+  // 2026-10-20 re-test (spring-boot-ai-tools): an approval that ran out with
+  // its turn left its card reading "✓ Reset City Data Awaiting approval",
+  // the tool never having run.
+  const TIMEOUT = '{"status":"timeout","message":"Approval for tool \'reset_city_data\' was not given before the turn\'s time limit; the turn ended."}'
+
+  async function cardAfter(result: string) {
+    const { chat } = await mountChat()
+    chat.send('reset Osaka')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'reset_city_data', arguments: { city: 'Osaka' } }, sessionId: 's-tool', seq: 1 })
+    handlers.onEvent({ event: 'approval-required', data: { approvalId: 'apr_1', toolName: 'reset_city_data', arguments: { city: 'Osaka' }, message: 'Reset?', expiresIn: 120 }, sessionId: 's-tool', seq: 2 })
+    handlers.onEvent({ event: 'tool-result', data: { toolName: 'reset_city_data', result }, sessionId: 's-tool', seq: 3 })
+    handlers.onEvent({ type: 'error', data: 'Approval for tool \'reset_city_data\' was not given before the turn\'s time limit; the turn ended.', sessionId: 's-tool', seq: 4 })
+    await nextTick()
+    const card = mount(ToolCard, { props: { tool: chat.toolCalls.value[0] } })
+    return {
+      icon: card.find('.tool-icon').text(),
+      status: card.find('.tool-status').text(),
+      buttons: card.findAll('[data-testid="approval-approve"]').length,
+    }
+  }
+
+  it('shows the card timed out, not done and not awaiting approval', async () => {
+    const card = await cardAfter(TIMEOUT)
+    expect(card.status).toBe('Timed out')
+    expect(card.icon).not.toBe('✓')
+    expect(card.buttons).toBe(0)
+  })
+
+  it('shows a tool the approval refused as denied', async () => {
+    const card = await cardAfter('{"status":"cancelled","message":"Action cancelled by user"}')
+    expect(card.status).toBe('Denied')
+    expect(card.icon).not.toBe('✓')
+  })
+
+  it('still shows a tool that ran after its approval as done', async () => {
+    const card = await cardAfter('All cached data for Osaka has been reset.')
+    expect(card.status).toBe('Done')
+    expect(card.icon).toBe('✓')
   })
 })
 

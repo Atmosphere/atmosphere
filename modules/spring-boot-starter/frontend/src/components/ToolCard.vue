@@ -38,20 +38,29 @@ const truncatedResult = computed(() => {
     : props.tool.result
 })
 
+const statusLabel = computed(() => {
+  if (props.tool.outcome === 'timed-out') return 'Timed out'
+  if (props.tool.outcome === 'denied') return 'Denied'
+  if (props.tool.approval) return 'Awaiting approval'
+  return props.tool.done ? 'Done' : 'Working...'
+})
+
 const argEntries = computed(() =>
   Object.entries(props.tool.args).filter(([, v]) => v !== undefined && v !== '')
 )
 </script>
 
 <template>
-  <div class="tool-card" :class="{ 'tool-card--done': tool.done }" data-testid="tool-card">
+  <div class="tool-card" :class="{ 'tool-card--done': tool.done && !tool.outcome, 'tool-card--not-run': tool.outcome }"
+       data-testid="tool-card">
     <div class="tool-header">
       <div class="tool-label">
-        <span class="tool-icon">{{ tool.done ? '\u2713' : '\u25CF' }}</span>
+        <span class="tool-icon">{{ tool.outcome ? '\u2715' : (tool.done ? '\u2713' : '\u25CF') }}</span>
         <span class="tool-name">{{ displayName }}</span>
       </div>
-      <span class="tool-status" :class="{ 'tool-status--approval': tool.approval }">
-        {{ tool.approval ? 'Awaiting approval' : (tool.done ? 'Done' : 'Working...') }}
+      <span class="tool-status"
+            :class="{ 'tool-status--approval': tool.approval, 'tool-status--not-run': tool.outcome }">
+        {{ statusLabel }}
       </span>
     </div>
     <div v-if="argEntries.length" class="tool-args">
@@ -135,6 +144,14 @@ const argEntries = computed(() =>
 
 .tool-status--approval {
   color: #f59e0b;
+}
+
+.tool-card--not-run {
+  border-left-color: #ef4444;
+}
+
+.tool-status--not-run {
+  color: #ef4444;
 }
 
 .approval-prompt {

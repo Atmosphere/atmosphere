@@ -33,6 +33,30 @@ export interface ToolCall {
   result?: string
   done: boolean
   approval?: PendingApproval
+  /** The tool never ran: its approval was not given in time, or was refused. */
+  outcome?: 'timed-out' | 'denied'
+}
+
+/**
+ * The outcome a tool result reports for a tool that never ran because of its
+ * approval: the framework's own `{"status":"timeout"|"cancelled","message":…}`
+ * result, nothing else.
+ */
+export function approvalOutcome(result: unknown): ToolCall['outcome'] {
+  let parsed: unknown = result
+  if (typeof result === 'string') {
+    if (!result.startsWith('{')) return undefined
+    try {
+      parsed = JSON.parse(result)
+    } catch {
+      return undefined
+    }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined
+  const keys = Object.keys(parsed)
+  if (keys.length !== 2 || !keys.includes('status') || !keys.includes('message')) return undefined
+  const status = (parsed as { status?: unknown }).status
+  return status === 'timeout' ? 'timed-out' : status === 'cancelled' ? 'denied' : undefined
 }
 
 export interface SessionStats {
@@ -638,6 +662,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         if (tc) {
           tc.result = typeof result === 'string' ? result : JSON.stringify(result)
           tc.done = true
+          // A result ends the tool's approval, answered or not: no card to answer any more.
+          tc.approval = undefined
+          tc.outcome = approvalOutcome(result)
           toolCalls.value = [...toolCalls.value]
         }
         break
