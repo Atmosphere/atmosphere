@@ -1868,6 +1868,8 @@ POMEOF
     printf "\n"
     printf "  ${BOLD}Run it:${RESET}\n"
     printf "  cd %s && LLM_API_KEY=your-key ./mvnw spring-boot:run\n" "$project_dir"
+    printf "  ${DIM}No key? Run it on a local Ollama model:${RESET}\n"
+    printf "  cd %s && LLM_MODE=local LLM_MODEL=qwen2.5:3b ./mvnw spring-boot:run\n" "$project_dir"
     printf "\n"
     printf "  ${BOLD}Files:${RESET}\n"
     printf "  %s/src/main/resources/prompts/skill.md  ${DIM}(skill file)${RESET}\n" "$project_dir"

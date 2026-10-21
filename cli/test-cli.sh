@@ -1827,6 +1827,7 @@ assert_contains "$output" "Parsed skill: weather-bot" "import: parses skill name
 assert_contains "$output" "weather assistant" "import: parses description from YAML frontmatter"
 assert_contains "$output" "2 @AiTool stubs" "import: generates @AiTool stubs from ## Tools"
 assert_contains "$output" "Project scaffolded" "import: scaffolds project successfully"
+assert_contains "$output" "LLM_MODE=local LLM_MODEL=qwen2.5:3b ./mvnw spring-boot:run" "import: the run hint offers a keyless local model"
 
 # Test 2: Verify generated project structure
 if [ -d "$IMPORT_TMP/test-weather-bot" ]; then
