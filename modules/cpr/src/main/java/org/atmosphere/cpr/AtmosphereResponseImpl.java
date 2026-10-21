@@ -584,6 +584,11 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     @Override
+    public <E extends Exception> void writeThrough(AsyncIOWriter writer, WriteAction<E> action) throws E {
+        this.writer.writeThrough(writer, action);
+    }
+
+    @Override
     public AtmosphereRequest request() {
         return atmosphereRequest;
     }

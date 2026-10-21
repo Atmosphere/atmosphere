@@ -62,7 +62,72 @@ final class ResponseWriter {
     // -- AsyncIOWriter management --
 
     AsyncIOWriter getAsyncIOWriter() {
+        return writer();
+    }
+
+    /**
+     * A writer installed for one thread only ({@link #writeThrough}), over the
+     * writer of an outer one of the same thread, if any.
+     */
+    private record ThreadWriter(ResponseWriter owner, AsyncIOWriter writer, ThreadWriter outer) {
+    }
+
+    /** The writers {@link #writeThrough} installed on the current thread, innermost first. */
+    private static final ThreadLocal<ThreadWriter> THREAD_WRITERS = new ThreadLocal<>();
+
+    /**
+     * The writer this response writes through on the calling thread: the one
+     * {@link #writeThrough} installed for it, else the response's own.
+     */
+    private AsyncIOWriter writer() {
+        for (var w = THREAD_WRITERS.get(); w != null; w = w.outer()) {
+            if (w.owner() == this) {
+                return w.writer();
+            }
+        }
         return asyncIOWriter;
+    }
+
+    /**
+     * Whether the response writes through its {@link AsyncIOWriter} rather than
+     * the native response: as told ({@link #setForceAsyncIOWriter}, or a writer
+     * installed with {@link #setAsyncIOWriter}), or on a thread a writer
+     * {@link #writeThrough} installed is in effect on.
+     */
+    private boolean forced() {
+        if (forceAsyncIOWriter) {
+            return true;
+        }
+        for (var w = THREAD_WRITERS.get(); w != null; w = w.outer()) {
+            if (w.owner() == this) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Run {@code action} with this response writing through {@code writer} on
+     * the calling thread only: another thread writing to the response meanwhile
+     * writes through the response's own writer, not into {@code writer}. A
+     * WebSocket or WebTransport write runs its interceptors that way, collecting
+     * what they write in a buffer of its own; installed with
+     * {@link #setAsyncIOWriter}, the buffer took the frames other threads wrote
+     * to the connection meanwhile (a room's live frame, the frames a reattach
+     * writes), and a frame written once the buffer was read was lost.
+     */
+    <E extends Exception> void writeThrough(AsyncIOWriter writer, AtmosphereResponse.WriteAction<E> action) throws E {
+        var outer = THREAD_WRITERS.get();
+        THREAD_WRITERS.set(new ThreadWriter(this, writer, outer));
+        try {
+            action.run();
+        } finally {
+            if (outer != null) {
+                THREAD_WRITERS.set(outer);
+            } else {
+                THREAD_WRITERS.remove();
+            }
+        }
     }
 
     void setAsyncIOWriter(AsyncIOWriter asyncIOWriter) {
@@ -99,14 +164,14 @@ final class ResponseWriter {
     // -- Validation helpers --
 
     void validAsyncIOWriter(String uuid) throws IOException {
-        if (asyncIOWriter == null) {
+        if (writer() == null) {
             logger.trace("{} invalid state", uuid);
             throw new IOException("AtmosphereResource Cancelled: " + uuid);
         }
     }
 
     boolean validFlushOrClose(String uuid) {
-        if (asyncIOWriter == null) {
+        if (writer() == null) {
             logger.warn("AtmosphereResponse for {} has been closed", uuid);
             return false;
         }
@@ -116,8 +181,8 @@ final class ResponseWriter {
     // -- Status and header writing --
 
     void writeStatusAndHeaders(AtmosphereResponseImpl response) throws IOException {
-        if (writeStatusAndHeader.getAndSet(false) && !forceAsyncIOWriter) {
-            asyncIOWriter.write(response, constructStatusAndHeaders(response));
+        if (writeStatusAndHeader.getAndSet(false) && !forced()) {
+            writer().write(response, constructStatusAndHeaders(response));
         }
     }
 
@@ -151,7 +216,7 @@ final class ResponseWriter {
     // -- Stream/Writer creation --
 
     ServletOutputStream createOutputStream(AtmosphereResponseImpl response, HttpServletResponse nativeResponse) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse) {
+        if (forced() || !delegateToNativeResponse) {
             return new Stream(response, isBuffering(response));
         } else {
             return nativeResponse.getOutputStream() != null ? nativeResponse.getOutputStream() : new ServletOutputStream() {
@@ -172,7 +237,7 @@ final class ResponseWriter {
     }
 
     PrintWriter createWriter(AtmosphereResponseImpl response, HttpServletResponse nativeResponse) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse) {
+        if (forced() || !delegateToNativeResponse) {
             return new Writer(response, new Stream(response, isBuffering(response)));
         } else {
             return nativeResponse.getWriter() != null ? nativeResponse.getWriter() : new PrintWriter(new StringWriter());
@@ -182,13 +247,13 @@ final class ResponseWriter {
     // -- Error/Redirect delegation --
 
     void sendError(AtmosphereResponseImpl response, HttpServletResponse nativeResponse, int sc, String msg) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse) {
+        if (forced() || !delegateToNativeResponse) {
             response.setStatus(sc);
 
             // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
             forceAsyncIOWriter = false; // read by asyncIOWriter.writeError()
-            asyncIOWriter.writeError(response, sc, msg);
+            writer().writeError(response, sc, msg);
             forceAsyncIOWriter = b;
         } else {
             if (!nativeResponse.isCommitted()) {
@@ -200,12 +265,12 @@ final class ResponseWriter {
     }
 
     void sendErrorNoMessage(AtmosphereResponseImpl response, HttpServletResponse nativeResponse, int sc) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse) {
+        if (forced() || !delegateToNativeResponse) {
             response.setStatus(sc);
             // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
             forceAsyncIOWriter = false; // read by asyncIOWriter.writeError()
-            asyncIOWriter.writeError(response, sc, "");
+            writer().writeError(response, sc, "");
             forceAsyncIOWriter = b;
         } else {
             if (!nativeResponse.isCommitted()) {
@@ -217,11 +282,11 @@ final class ResponseWriter {
     }
 
     void sendRedirect(AtmosphereResponseImpl response, HttpServletResponse nativeResponse, String location) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse) {
+        if (forced() || !delegateToNativeResponse) {
             // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
             forceAsyncIOWriter = false; // read by asyncIOWriter.redirect()
-            asyncIOWriter.redirect(response, location);
+            writer().redirect(response, location);
             forceAsyncIOWriter = b;
         } else {
             nativeResponse.sendRedirect(location);
@@ -231,8 +296,9 @@ final class ResponseWriter {
     // -- Close operations --
 
     void close(AtmosphereResponseImpl response) throws IOException {
-        if (asyncIOWriter != null) {
-            asyncIOWriter.close(response);
+        var w = writer();
+        if (w != null) {
+            w.close(response);
         }
     }
 
@@ -373,7 +439,7 @@ final class ResponseWriter {
             return null;
         }
         // WebSocket frames are not rendered as HTML by the browser
-        if (asyncIOWriter instanceof WebSocket) {
+        if (writer() instanceof WebSocket) {
             return data;
         }
         String ct = getContentTypeForSanitization();
@@ -415,9 +481,9 @@ final class ResponseWriter {
             boolean b = forceAsyncIOWriter;
             try {
                 if (data instanceof String s) {
-                    asyncIOWriter.write(response, s);
+                    writer().write(response, s);
                 } else if (data instanceof byte[] bytes) {
-                    asyncIOWriter.write(response, bytes);
+                    writer().write(response, bytes);
                 }
             } catch (IOException e) {
                 handleException(response, e);
@@ -433,9 +499,9 @@ final class ResponseWriter {
                     boolean b = forceAsyncIOWriter;
                     try {
                         if (previous instanceof String s) {
-                            asyncIOWriter.write(response, s);
+                            writer().write(response, s);
                         } else if (previous instanceof byte[] bytes) {
-                            asyncIOWriter.write(response, bytes);
+                            writer().write(response, bytes);
                         }
                     } catch (IOException e) {
                         handleException(response, e);
@@ -518,7 +584,7 @@ final class ResponseWriter {
                 if (buffering && !ResponseWriter.this.completed()) {
                     writeWithBuffering(response, bytes);
                 } else {
-                    asyncIOWriter.write(response, bytes);
+                    writer().write(response, bytes);
                 }
             } catch (IOException e) {
                 handleException(response, e);
@@ -542,7 +608,7 @@ final class ResponseWriter {
                     System.arraycopy(bytes, start, copy, 0, offset);
                     writeWithBuffering(response, copy);
                 } else {
-                    asyncIOWriter.write(response, bytes, start, offset);
+                    writer().write(response, bytes, start, offset);
                 }
             } catch (IOException e) {
                 handleException(response, e);
@@ -562,7 +628,7 @@ final class ResponseWriter {
             boolean b = forceAsyncIOWriter;
             forceAsyncIOWriter = false;
             try {
-                asyncIOWriter.flush(response);
+                writer().flush(response);
             } catch (IOException e) {
                 handleException(response, e);
                 throw e;
@@ -575,7 +641,7 @@ final class ResponseWriter {
         public void close() throws IOException {
             ResponseWriter.this.onComplete(response);
             if (!validFlushOrClose(response.uuid())
-                    || asyncIOWriter instanceof KeepOpenStreamAware) return;
+                    || writer() instanceof KeepOpenStreamAware) return;
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -584,7 +650,7 @@ final class ResponseWriter {
                 if (buffering && !ResponseWriter.this.completed()) {
                     writeWithBuffering(response, null);
                 }
-                asyncIOWriter.close(response);
+                writer().close(response);
             } catch (IOException e) {
                 handleException(response, e);
                 throw e;
@@ -622,7 +688,7 @@ final class ResponseWriter {
                 // Prevent StackOverflow
                 writeStatusAndHeaders(response);
                 forceAsyncIOWriter = false;
-                asyncIOWriter.write(response, new String(chars, offset, lenght));
+                writer().write(response, new String(chars, offset, lenght));
             } catch (IOException e) {
                 handleException(response, e);
                 throw new RuntimeException("I/O write failure", e);
@@ -640,7 +706,7 @@ final class ResponseWriter {
                 writeStatusAndHeaders(response);
                 // Prevent StackOverflow
                 forceAsyncIOWriter = false;
-                asyncIOWriter.write(response, new String(chars));
+                writer().write(response, new String(chars));
             } catch (IOException e) {
                 handleException(response, e);
                 throw new RuntimeException("I/O write failure", e);
@@ -659,7 +725,7 @@ final class ResponseWriter {
                 writeStatusAndHeaders(response);
                 // Prevent StackOverflow
                 forceAsyncIOWriter = false;
-                asyncIOWriter.write(response, s.substring(offset, lenght));
+                writer().write(response, s.substring(offset, lenght));
             } catch (IOException e) {
                 handleException(response, e);
                 throw new RuntimeException("I/O write failure", e);
@@ -678,7 +744,7 @@ final class ResponseWriter {
                 writeStatusAndHeaders(response);
                 // Prevent StackOverflow
                 forceAsyncIOWriter = false;
-                asyncIOWriter.write(response, s);
+                writer().write(response, s);
             } catch (IOException e) {
                 handleException(response, e);
                 throw new RuntimeException("I/O write failure", e);
@@ -696,7 +762,7 @@ final class ResponseWriter {
                 writeStatusAndHeaders(response);
                 // Prevent StackOverflow
                 forceAsyncIOWriter = false;
-                asyncIOWriter.flush(response);
+                writer().flush(response);
             } catch (IOException e) {
                 handleException(response, e);
             } finally {
@@ -707,13 +773,13 @@ final class ResponseWriter {
         @Override
         public void close() {
             if (!validFlushOrClose(response.uuid())
-                    || asyncIOWriter instanceof KeepOpenStreamAware) return;
+                    || writer() instanceof KeepOpenStreamAware) return;
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
             forceAsyncIOWriter = false;
             try {
-                asyncIOWriter.close(response);
+                writer().close(response);
             } catch (IOException e) {
                 handleException(response, e);
             } finally {

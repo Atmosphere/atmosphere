@@ -16,7 +16,6 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -182,18 +181,18 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     protected byte[] transform(AtmosphereResponse response, byte[] b, int offset, int length) throws IOException {
-        AsyncIOWriter a = response.getAsyncIOWriter();
         // NOTE #1961 for now, create a new buffer par transform call and release it after the transform call.
         //      Alternatively, we may cache the buffer in thread-local and use it while this thread invokes
         //      multiple writes and release it when this thread invokes the close method.
         ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
         try {
-            response.asyncIOWriter(buffer);
-            invokeInterceptor(response, b, offset, length);
+            // The buffer collects what this thread's interceptors write, and
+            // only that: a frame another thread writes meanwhile goes to the
+            // connection (and waits for this write), not into the buffer.
+            response.writeThrough(buffer, () -> invokeInterceptor(response, b, offset, length));
             return buffer.stream().toByteArray();
         } finally {
             buffer.close(null);
-            response.asyncIOWriter(a);
         }
     }
 

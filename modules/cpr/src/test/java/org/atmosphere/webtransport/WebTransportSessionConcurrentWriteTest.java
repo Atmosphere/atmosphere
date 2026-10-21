@@ -150,6 +150,66 @@ class WebTransportSessionConcurrentWriteTest {
         assertEquals(List.of("live", "ack", "next"), session.stream);
     }
 
+    /**
+     * A frame written through the response's writer (the run-id
+     * acknowledgement, a room catch-up: {@code response.getWriter().write})
+     * while another thread's write runs the interceptors reaches the stream on
+     * its own. That write had swapped the response's writer for its buffer,
+     * and the response wrote the frame into it: merged into the other frame,
+     * or, written once the buffer was read, lost (a reloaded classroom page
+     * showed {@code is 4 cm calculate} for {@code is 4 cm, calculate}).
+     */
+    @Test
+    void aFrameWrittenThroughTheResponseMeanwhileReachesTheStreamAlone() throws Exception {
+        var session = new RecordingSession(framework.getAtmosphereConfig());
+        var response = AtmosphereResponseImpl.newInstance();
+        response.asyncIOWriter(session);
+        var resource = mock(AtmosphereResource.class);
+        when(resource.getResponse()).thenReturn(response);
+        session.resource(resource);
+
+        var liveIn = new CountDownLatch(1);
+        var liveGo = new CountDownLatch(1);
+        var paused = ConcurrentHashMap.<Thread>newKeySet();
+        session.interceptor(new AsyncIOInterceptorAdapter() {
+            @Override
+            public byte[] transformPayload(AtmosphereResponse r, byte[] draft, byte[] data) {
+                if (Thread.currentThread().getName().equals("writer-live") && paused.add(Thread.currentThread())) {
+                    liveIn.countDown();
+                    try {
+                        liveGo.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return draft;
+            }
+        });
+
+        var failure = new AtomicReference<Throwable>();
+        var liveWriter = Thread.ofPlatform().name("writer-live").start(() -> write(session, response, "live", failure));
+        assertTrue(liveIn.await(5, TimeUnit.SECONDS), "the live frame's write reached the interceptors");
+        var ackWriter = Thread.ofPlatform().name("writer-ack").start(() -> {
+            try {
+                var writer = response.getWriter();
+                writer.write("ack");
+                writer.flush();
+            } catch (Throwable t) {
+                failure.compareAndSet(null, t);
+            }
+        });
+        // Before the fix the frame lands in the live write's buffer at once;
+        // fixed, it waits for the live write to end.
+        ackWriter.join(300);
+        liveGo.countDown();
+        liveWriter.join(5000);
+        ackWriter.join(5000);
+        session.write(response, "next");
+
+        assertNull(failure.get());
+        assertEquals(List.of("live", "ack", "next"), session.stream);
+    }
+
     private static void write(WebTransportSession session, AtmosphereResponse response, String frame,
                               AtomicReference<Throwable> failure) {
         try {

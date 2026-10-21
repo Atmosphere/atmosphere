@@ -67,6 +67,39 @@ public interface AtmosphereResponse extends HttpServletResponse {
     AtmosphereResponse asyncIOWriter(AsyncIOWriter asyncIOWriter);
 
     /**
+     * Something run while the response writes through another writer
+     * ({@link #writeThrough}).
+     *
+     * @param <E> what it may throw
+     */
+    @FunctionalInterface
+    interface WriteAction<E extends Exception> {
+        void run() throws E;
+    }
+
+    /**
+     * Run {@code action} with this response writing through {@code writer} on
+     * the calling thread only, then through its own writer again; another
+     * thread writing to the response meanwhile writes through its own writer.
+     * This default installs {@code writer} for every thread while
+     * {@code action} runs.
+     *
+     * @param writer the writer to write through while {@code action} runs
+     * @param action what writes to the response through {@code writer}
+     * @param <E>    what {@code action} may throw
+     * @throws E when {@code action} throws it
+     */
+    default <E extends Exception> void writeThrough(AsyncIOWriter writer, WriteAction<E> action) throws E {
+        var own = getAsyncIOWriter();
+        asyncIOWriter(writer);
+        try {
+            action.run();
+        } finally {
+            asyncIOWriter(own);
+        }
+    }
+
+    /**
      * Return the associated {@link AtmosphereRequest}.
      *
      * @return the associated {@link AtmosphereRequest}

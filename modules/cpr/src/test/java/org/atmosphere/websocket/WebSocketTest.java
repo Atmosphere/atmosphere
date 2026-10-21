@@ -198,6 +198,83 @@ public class WebSocketTest {
         assertEquals(List.of("first", "second", "next"), socket);
     }
 
+    /**
+     * A frame written through the response's writer while another thread's
+     * write runs the interceptors reaches the socket on its own, not into the
+     * buffer that write collects the interceptors' output in.
+     */
+    @Test
+    public void aFrameWrittenThroughTheResponseMeanwhileReachesTheSocketAlone() throws Exception {
+        List<String> socket = Collections.synchronizedList(new ArrayList<>());
+        WebSocket ws = new WebSocket(framework.getAtmosphereConfig()) {
+            @Override
+            public boolean isOpen() {
+                return true;
+            }
+
+            @Override
+            public WebSocket write(String s) {
+                socket.add(s);
+                return this;
+            }
+
+            @Override
+            public WebSocket write(byte[] b, int offset, int length) {
+                socket.add(new String(b, offset, length));
+                return this;
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
+        response.asyncIOWriter(ws);
+        var resource = mock(AtmosphereResource.class);
+        when(resource.getResponse()).thenReturn(response);
+        ws.resource(resource);
+
+        var liveIn = new CountDownLatch(1);
+        var liveGo = new CountDownLatch(1);
+        var paused = ConcurrentHashMap.<Thread>newKeySet();
+        ws.interceptor(new AsyncIOInterceptorAdapter() {
+            @Override
+            public byte[] transformPayload(AtmosphereResponse r, byte[] draft, byte[] data) {
+                if (Thread.currentThread().getName().equals("writer-live") && paused.add(Thread.currentThread())) {
+                    liveIn.countDown();
+                    try {
+                        liveGo.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return draft;
+            }
+        });
+
+        var failure = new AtomicReference<Throwable>();
+        var liveWriter = Thread.ofPlatform().name("writer-live").start(() -> write(ws, response, "live", failure));
+        assertTrue(liveIn.await(5, TimeUnit.SECONDS));
+        var ackWriter = Thread.ofPlatform().name("writer-ack").start(() -> {
+            try {
+                var writer = response.getWriter();
+                writer.write("ack");
+                writer.flush();
+            } catch (Throwable t) {
+                failure.compareAndSet(null, t);
+            }
+        });
+        // Before the fix the frame lands in the live write's buffer at once.
+        ackWriter.join(300);
+        liveGo.countDown();
+        liveWriter.join(5000);
+        ackWriter.join(5000);
+        ws.write(response, "next");
+
+        assertNull(failure.get());
+        assertEquals(List.of("live", "ack", "next"), socket);
+    }
+
     private static void write(WebSocket ws, AtmosphereResponse response, String frame,
                               AtomicReference<Throwable> failure) {
         try {

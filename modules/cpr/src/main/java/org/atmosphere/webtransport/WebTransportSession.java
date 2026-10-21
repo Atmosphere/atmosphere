@@ -16,7 +16,6 @@
 package org.atmosphere.webtransport;
 
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -297,15 +296,15 @@ public abstract class WebTransportSession extends AtmosphereInterceptorWriter im
     // ── Transform helper ─────────────────────────────────────────────────
 
     protected byte[] transform(AtmosphereResponse response, byte[] b, int offset, int length) throws IOException {
-        AsyncIOWriter a = response.getAsyncIOWriter();
         var buffer = new ByteArrayAsyncWriter();
         try {
-            response.asyncIOWriter(buffer);
-            invokeInterceptor(response, b, offset, length);
+            // The buffer collects what this thread's interceptors write, and
+            // only that: a frame another thread writes meanwhile goes to the
+            // connection (and waits for this write), not into the buffer.
+            response.writeThrough(buffer, () -> invokeInterceptor(response, b, offset, length));
             return buffer.stream().toByteArray();
         } finally {
             buffer.close(null);
-            response.asyncIOWriter(a);
         }
     }
 
