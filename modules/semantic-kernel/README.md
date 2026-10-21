@@ -69,6 +69,42 @@ entry in SK's type table, `object` needs SK's optional schema generator) is
 declared to SK as `double` / `string`; the schema the model sees is the shared
 one.
 
+## API keys over plain http
+
+When `llm.api-key` is set, or `llm.mode=local`, the module builds an
+`OpenAIAsyncClient` for `llm.base-url` (default `http://localhost:11434/v1` in
+local mode, `https://api.openai.com/v1` otherwise) through
+`SemanticKernelOpenAiClientFactory`. The factory sends the API key over plain
+`http` only to a loopback host:
+
+| Endpoint | API key set | No API key |
+|---|---|---|
+| `https://…` | sent | allowed |
+| `http://` + loopback host | sent (local Ollama, vLLM, LM Studio) | allowed |
+| `http://` + any other host | **refused**: the application fails to start, the error names the endpoint and the opt-in | allowed |
+| `http://` + any other host, opt-in set | sent, with a `WARN` at startup that the key goes in cleartext | allowed |
+
+- **Loopback** is read from the URL alone, with no DNS lookup: the name
+  `localhost`, or an IPv4 literal in `127.0.0.0/8`, or the IPv6 literal `::1`.
+  Any other name is not loopback, including `host.docker.internal` and a name
+  that resolves to `127.0.0.1`.
+- **Keyless calls** (no `llm.api-key`, e.g. `llm.mode=local` against Ollama on
+  another machine) go to any host: no secret goes on the wire. The client sends
+  the placeholder `not-needed-for-local`, which a keyless server ignores. The
+  prompts still travel unencrypted on plain `http`.
+- **Opt-in**: set `atmosphere.semantic-kernel.allow-cleartext-api-key=true`
+  in the application's Spring configuration. Spring's standard mapping also
+  reads it from `ATMOSPHERE_SEMANTIC_KERNEL_ALLOW_CLEARTEXT_API_KEY`. The value
+  is read per application context. Only `true` opts in; any other value keeps
+  the refusal.
+- **Clients you build yourself**: `forEndpoint(endpoint, apiKey)` applies the
+  same rule. `forEndpoint(endpoint, apiKey, true)` is the opt-in. An
+  `OpenAIAsyncClient` or `ChatCompletionService` bean you supply yourself does
+  not go through the factory, so the rule does not apply to it.
+
+Only the Semantic Kernel adapter applies this rule. The other runtimes'
+handling of `llm.base-url` is described in their own modules.
+
 ## EmbeddingRuntime
 
 `SemanticKernelEmbeddingRuntime` wraps `TextEmbeddingGenerationService` and is registered via `META-INF/services/org.atmosphere.ai.EmbeddingRuntime`. The SK embedding API is Reactor-based (`Mono<List<Embedding>>`); the adapter calls `.block()` at the synchronous `EmbeddingRuntime.embed()` boundary.

@@ -66,6 +66,13 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
      * <p>{@code LLM_MODE} is honoured alongside {@code llm.mode} because several
      * samples configure the backend entirely through the environment and declare
      * no {@code llm} block at all.</p>
+     *
+     * <p>An API key goes over plain {@code http} only to a loopback host: with a
+     * key and an {@code http} base URL on any other host the application fails
+     * to start, unless it sets
+     * {@value SemanticKernelOpenAiClientFactory#ALLOW_CLEARTEXT_API_KEY_PROPERTY}
+     * to {@code true} (see
+     * {@link SemanticKernelOpenAiClientFactory#forEndpoint(String, String, boolean)}).</p>
      */
     @Bean
     @ConditionalOnMissingBean
@@ -75,7 +82,9 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,
             @Value("${llm.mode:}") String mode,
-            @Value("${LLM_MODE:}") String environmentMode) {
+            @Value("${LLM_MODE:}") String environmentMode,
+            @Value("${" + SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + ":}")
+            String allowCleartextApiKey) {
 
         var local = "local".equalsIgnoreCase(mode) || "local".equalsIgnoreCase(environmentMode);
 
@@ -86,14 +95,14 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
                 ? (local ? "http://localhost:11434/v1" : "https://api.openai.com/v1")
                 : baseUrl;
 
-        // A local server ignores the credential but the factory still needs a
-        // non-blank one, so send a placeholder rather than failing to construct.
-        var resolvedApiKey = (apiKey == null || apiKey.isBlank())
-                ? (local ? "not-needed-for-local" : apiKey)
-                : apiKey;
-
+        // A blank key reaches the factory as keyless: it sends a placeholder the
+        // local server ignores, and lets that call go over plain http to any
+        // host, since it carries no secret. A real key goes over plain http
+        // only to a loopback host, unless the application opts in.
         logger.info("Auto-building SK OpenAIAsyncClient endpoint={} local={}", resolvedBaseUrl, local);
-        return SemanticKernelOpenAiClientFactory.forEndpoint(resolvedBaseUrl, resolvedApiKey);
+        return SemanticKernelOpenAiClientFactory.forEndpoint(resolvedBaseUrl, apiKey,
+                // Only "true" opts in: blank, "false" or anything else keeps the refusal.
+                Boolean.parseBoolean(allowCleartextApiKey.strip()));
     }
 
     @Bean
