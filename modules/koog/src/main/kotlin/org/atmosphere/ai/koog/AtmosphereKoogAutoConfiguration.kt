@@ -25,9 +25,10 @@ import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AiEnvironment
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.core.env.Environment
+import org.springframework.core.env.PropertyResolver
 
 /**
  * Auto-configuration that wires a Koog [PromptExecutor] into [KoogAgentRuntime]
@@ -85,14 +86,46 @@ open class AtmosphereKoogAutoConfiguration {
             val derived = AiConfig.resolveBaseUrl(mode, null, model)
             return if (derived == AiConfig.OPENAI_ENDPOINT) "" else derived
         }
+
+        /**
+         * The model, key, base URL and mode this runtime is built with: for each,
+         * the first non-blank of `atmosphere.koog.*`, `llm.*` (Spring maps the
+         * `LLM_*` environment variable onto it), the `LLM_*` property itself, and
+         * for the key `OPENAI_API_KEY`. Read as first non-blank rather than as a
+         * placeholder chain, whose default applies only when a key is absent: a
+         * blank `llm.api-key: ${LLM_API_KEY:}` would otherwise hide
+         * `OPENAI_API_KEY`. With a Spring Boot starter, `atmosphere.ai.*` reaches
+         * `llm.*` when that is unset (`AtmosphereAiLlmPropertyBridge`).
+         */
+        internal fun resolveSettings(properties: PropertyResolver): KoogSettings {
+            fun first(vararg keys: String): String =
+                keys.firstNotNullOfOrNull { key -> properties.getProperty(key)?.takeIf { it.isNotBlank() } } ?: ""
+            return KoogSettings(
+                model = first("atmosphere.koog.model", "llm.model", "LLM_MODEL").ifEmpty { "gpt-4o" },
+                apiKey = first("atmosphere.koog.api-key", "llm.api-key", "LLM_API_KEY", "OPENAI_API_KEY"),
+                baseUrl = first("atmosphere.koog.base-url", "llm.base-url", "LLM_BASE_URL"),
+                mode = first("llm.mode", "LLM_MODE"))
+        }
     }
+
+    /** The settings [resolveSettings] reads; blank when unset, except the model. */
+    internal data class KoogSettings(val model: String, val apiKey: String, val baseUrl: String, val mode: String)
 
     @org.springframework.context.annotation.Bean
     open fun koogAgentRuntime(
-        @Value("\${atmosphere.koog.model:\${LLM_MODEL:gpt-4o}}") modelName: String,
-        @Value("\${atmosphere.koog.api-key:\${LLM_API_KEY:\${OPENAI_API_KEY:}}}") apiKey: String,
-        @Value("\${atmosphere.koog.base-url:\${LLM_BASE_URL:}}") baseUrl: String,
-        @Value("\${llm.mode:\${LLM_MODE:}}") mode: String,
+        environment: Environment,
+        environmentProvider: ObjectProvider<AiEnvironment>?
+    ): KoogAgentRuntime {
+        val settings = resolveSettings(environment)
+        return koogAgentRuntime(settings.model, settings.apiKey, settings.baseUrl, settings.mode, environmentProvider)
+    }
+
+    /** Builds the runtime from resolved settings; the bean above reads them from the environment. */
+    open fun koogAgentRuntime(
+        modelName: String,
+        apiKey: String,
+        baseUrl: String,
+        mode: String,
         environmentProvider: ObjectProvider<AiEnvironment>? = null
     ): KoogAgentRuntime {
         // A locally served backend (Ollama, vLLM, LM Studio) needs no credential,

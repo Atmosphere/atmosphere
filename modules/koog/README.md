@@ -74,12 +74,13 @@ win too, for every application in the JVM, and are deprecated.
 ## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
 
 The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+With an Atmosphere Spring Boot starter, `atmosphere.ai.mode` / `model` / `api-key` / `base-url` are read too, after `llm.*` and `LLM_*`: see [LLM settings with the Spring Boot starters](../ai/README.md#llm-settings-with-the-spring-boot-starters).
 
 | Setting | Read from (first non-blank wins) | Default |
 |---|---|---|
-| API key | `atmosphere.koog.api-key`, `LLM_API_KEY`, `OPENAI_API_KEY` | none: no executor outside local mode (startup `WARN`) |
-| Base URL | `atmosphere.koog.base-url`, `LLM_BASE_URL` | resolved as below |
-| Model | `atmosphere.koog.model`, `LLM_MODEL` | `gpt-4o` |
+| API key | `atmosphere.koog.api-key`, `llm.api-key`, `LLM_API_KEY`, `OPENAI_API_KEY` | none: no executor outside local mode (startup `WARN`) |
+| Base URL | `atmosphere.koog.base-url`, `llm.base-url`, `LLM_BASE_URL` | resolved as below |
+| Model | `atmosphere.koog.model`, `llm.model`, `LLM_MODEL` | `gpt-4o` |
 | Mode | `llm.mode`, `LLM_MODE` | remote |
 
 In local mode with no key the client sends the placeholder key `not-needed-for-local`.

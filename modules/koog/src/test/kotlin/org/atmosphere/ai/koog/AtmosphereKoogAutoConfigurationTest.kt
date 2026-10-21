@@ -34,6 +34,9 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
+import org.springframework.core.env.MapPropertySource
+import org.springframework.core.env.StandardEnvironment
+import org.springframework.core.env.SystemEnvironmentPropertySource
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
@@ -270,5 +273,74 @@ class AtmosphereKoogAutoConfigurationTest {
         } finally {
             environment.close()
         }
+    }
+
+    /**
+     * An environment with these application properties and these environment
+     * variables only, so a host that exports `LLM_*` does not change the outcome.
+     */
+    private fun springEnvironment(
+        properties: Map<String, Any> = emptyMap(),
+        variables: Map<String, Any> = emptyMap()
+    ): StandardEnvironment {
+        val environment = StandardEnvironment()
+        val sources = environment.propertySources
+        sources.replace(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
+            SystemEnvironmentPropertySource(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, variables))
+        sources.replace(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME,
+            MapPropertySource(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME, emptyMap()))
+        sources.addLast(MapPropertySource("application", properties))
+        return environment
+    }
+
+    @Test
+    fun `llm properties reach Koog, as the other adapters read them`() {
+        // The Spring Boot starters map atmosphere.ai.* onto an unset llm.*; Koog
+        // read only LLM_* and atmosphere.koog.*, so neither reached it.
+        val settings = AtmosphereKoogAutoConfiguration.resolveSettings(springEnvironment(mapOf(
+            "llm.base-url" to "http://gpu-box:8000/v1",
+            "llm.model" to "qwen2.5:7b",
+            "llm.api-key" to "sk-llm",
+            "llm.mode" to "local")))
+        assertEquals(AtmosphereKoogAutoConfiguration.KoogSettings(
+            model = "qwen2.5:7b", apiKey = "sk-llm", baseUrl = "http://gpu-box:8000/v1", mode = "local"), settings)
+    }
+
+    @Test
+    fun `atmosphere koog properties win over llm properties`() {
+        val settings = AtmosphereKoogAutoConfiguration.resolveSettings(springEnvironment(mapOf(
+            "atmosphere.koog.base-url" to "http://koog-only:8000/v1",
+            "atmosphere.koog.model" to "gemini-2.5-flash",
+            "llm.base-url" to "http://gpu-box:8000/v1",
+            "llm.model" to "qwen2.5:7b")))
+        assertEquals("http://koog-only:8000/v1", settings.baseUrl)
+        assertEquals("gemini-2.5-flash", settings.model)
+    }
+
+    @Test
+    fun `the LLM environment variables and OPENAI_API_KEY are still read`() {
+        val settings = AtmosphereKoogAutoConfiguration.resolveSettings(springEnvironment(
+            variables = mapOf("LLM_BASE_URL" to "http://from-env:8000/v1", "LLM_MODEL" to "llama3.2",
+                "LLM_MODE" to "local", "OPENAI_API_KEY" to "sk-openai")))
+        assertEquals(AtmosphereKoogAutoConfiguration.KoogSettings(
+            model = "llama3.2", apiKey = "sk-openai", baseUrl = "http://from-env:8000/v1", mode = "local"), settings)
+    }
+
+    @Test
+    fun `a blank llm api key does not hide OPENAI_API_KEY`() {
+        // llm.api-key: ${LLM_API_KEY:} is blank when the variable is unset; a
+        // placeholder chain would stop at it.
+        val settings = AtmosphereKoogAutoConfiguration.resolveSettings(springEnvironment(
+            properties = mapOf("llm.api-key" to "", "llm.base-url" to ""),
+            variables = mapOf("OPENAI_API_KEY" to "sk-openai")))
+        assertEquals("sk-openai", settings.apiKey)
+        assertEquals("", settings.baseUrl)
+    }
+
+    @Test
+    fun `nothing set keeps the defaults`() {
+        assertEquals(AtmosphereKoogAutoConfiguration.KoogSettings(
+            model = "gpt-4o", apiKey = "", baseUrl = "", mode = ""),
+            AtmosphereKoogAutoConfiguration.resolveSettings(springEnvironment()))
     }
 }
