@@ -148,17 +148,10 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
                 }
 
                 // v1.0.0 SendMessage returns SendMessageResponse with a `task` oneof field;
-                // fall back to bare result for pre-1.0 servers that returned the Task directly.
-                var result = json.get("result");
-                var task = result != null && result.has("task") ? result.get("task") : result;
-                if (task != null && task.has("status")) {
-                    var state = task.get("status").has("state")
-                            ? task.get("status").get("state").stringValue() : "";
-                    if (isFailureState(state)) {
-                        var statusMsg = extractStatusMessage(task);
-                        return AgentResult.failure(agentName, skill,
-                                statusMsg != null ? statusMsg : "Task " + state, duration);
-                    }
+                // pre-1.0 servers returned the Task directly. JsonRpcUtils reads both.
+                var failure = JsonRpcUtils.taskFailure(json);
+                if (failure.isPresent()) {
+                    return AgentResult.failure(agentName, skill, failure.get(), duration);
                 }
 
                 var text = JsonRpcUtils.extractArtifactText(json);
@@ -291,40 +284,6 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
             return parts.get(0).get("text").stringValue();
         }
         return null;
-    }
-
-    /**
-     * Pull the status message text from a Task node, accepting both the
-     * pre-1.0 string form and the v1.0.0 Message-record form. Returns
-     * {@code null} if no message text is present.
-     */
-    private static String extractStatusMessage(tools.jackson.databind.JsonNode task) {
-        if (!task.has("status") || !task.get("status").has("message")) {
-            return null;
-        }
-        var msg = task.get("status").get("message");
-        if (msg.isString()) {
-            return msg.stringValue();
-        }
-        if (msg.isObject() && msg.has("parts")
-                && msg.get("parts").isArray() && !msg.get("parts").isEmpty()
-                && msg.get("parts").get(0).has("text")) {
-            return msg.get("parts").get(0).get("text").stringValue();
-        }
-        return null;
-    }
-
-    /** Match either the v1.0.0 ProtoJSON enum names or the pre-1.0 lowercase forms. */
-    private static boolean isFailureState(String state) {
-        if (state == null) {
-            return false;
-        }
-        return "TASK_STATE_FAILED".equalsIgnoreCase(state)
-                || "TASK_STATE_CANCELED".equalsIgnoreCase(state)
-                || "TASK_STATE_REJECTED".equalsIgnoreCase(state)
-                || "failed".equalsIgnoreCase(state)
-                || "canceled".equalsIgnoreCase(state)
-                || "rejected".equalsIgnoreCase(state);
     }
 
     @Override

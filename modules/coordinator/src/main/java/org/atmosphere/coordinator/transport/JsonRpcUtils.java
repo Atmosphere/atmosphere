@@ -21,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -56,6 +57,55 @@ final class JsonRpcUtils {
     static String buildStreamRequest(String skill, Map<String, Object> args,
                                      Map<String, Object> dispatchMetadata) {
         return buildRequest(METHOD_SEND_STREAMING_MESSAGE, skill, args, dispatchMetadata);
+    }
+
+    /**
+     * The failure a {@code SendMessage} response reports, if its task ended
+     * failed, cancelled or rejected: the status message, else {@code "Task <state>"}.
+     * Reads the v1.0.0 {@code result.task} shape and the pre-1.0 bare task.
+     */
+    static Optional<String> taskFailure(JsonNode json) {
+        var result = json.get("result");
+        var task = result != null && result.has("task") ? result.get("task") : result;
+        if (task == null || !task.has("status")) {
+            return Optional.empty();
+        }
+        var status = task.get("status");
+        var state = status.has("state") ? status.get("state").stringValue() : "";
+        if (!isFailureState(state)) {
+            return Optional.empty();
+        }
+        var message = statusMessage(status);
+        return Optional.of(message != null ? message : "Task " + state);
+    }
+
+    private static String statusMessage(JsonNode status) {
+        if (!status.has("message")) {
+            return null;
+        }
+        var msg = status.get("message");
+        if (msg.isString()) {
+            return msg.stringValue();
+        }
+        if (msg.isObject() && msg.has("parts")
+                && msg.get("parts").isArray() && !msg.get("parts").isEmpty()
+                && msg.get("parts").get(0).has("text")) {
+            return msg.get("parts").get(0).get("text").stringValue();
+        }
+        return null;
+    }
+
+    /** Match either the v1.0.0 ProtoJSON enum names or the pre-1.0 lowercase forms. */
+    static boolean isFailureState(String state) {
+        if (state == null) {
+            return false;
+        }
+        return "TASK_STATE_FAILED".equalsIgnoreCase(state)
+                || "TASK_STATE_CANCELED".equalsIgnoreCase(state)
+                || "TASK_STATE_REJECTED".equalsIgnoreCase(state)
+                || "failed".equalsIgnoreCase(state)
+                || "canceled".equalsIgnoreCase(state)
+                || "rejected".equalsIgnoreCase(state);
     }
 
     /**

@@ -203,17 +203,13 @@ public class LocalAgentTransport implements AgentTransport {
                 return AgentResult.failure(agentName, skill, errorMsg, duration);
             }
 
-            // Check for failed task status
-            var result = json.get("result");
-            if (result != null && result.has("status")) {
-                var state = result.get("status").has("state")
-                        ? result.get("status").get("state").stringValue() : "";
-                if ("failed".equalsIgnoreCase(state) || "canceled".equalsIgnoreCase(state)) {
-                    var statusMsg = result.get("status").has("message")
-                            ? result.get("status").get("message").stringValue()
-                            : "Task " + state;
-                    return AgentResult.failure(agentName, skill, statusMsg, duration);
-                }
+            // A task that ended failed, cancelled or rejected is a failure, read
+            // the same way as over A2A (the v1.0.0 result.task shape included).
+            var failure = JsonRpcUtils.taskFailure(json);
+            if (failure.isPresent()) {
+                logger.warn("Local dispatch to '{}' skill '{}' ended its task unsuccessfully: {}",
+                        agentName, skill, failure.get());
+                return AgentResult.failure(agentName, skill, failure.get(), duration);
             }
 
             var text = JsonRpcUtils.extractArtifactText(json);

@@ -193,6 +193,27 @@ public class LocalAgentTransportTest {
     // --- helpers ---
 
     /**
+     * A local agent whose skill failed answers with the v1.0.0 shape
+     * ({@code result.task.status.state = TASK_STATE_FAILED}): the send is a
+     * failure carrying the agent's message, as it is over A2A, so the
+     * coordinator renders a ToolError rather than "Done".
+     */
+    @Test
+    void aTaskThatFailedInTheAgentIsAFailure() {
+        var framework = new AtmosphereFramework();
+        var transport = new LocalAgentTransport(framework, "writer", "/atmosphere/agent/writer/a2a");
+        framework.addAtmosphereHandler("/atmosphere/agent/writer/a2a", new RecordingDispatchable(new ArrayList<>(),
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"task\":{\"id\":\"t1\",\"status\":"
+                        + "{\"state\":\"TASK_STATE_FAILED\",\"message\":{\"role\":\"ROLE_AGENT\","
+                        + "\"parts\":[{\"text\":\"injected writer failure\"}]}}}}}"));
+
+        var result = transport.send("writer", "default", Map.of("message", "write it"));
+
+        assertFalse(result.success(), "a failed task was reported as success: " + result.text());
+        assertEquals("injected writer failure", result.text());
+    }
+
+    /**
      * Test handler that implements both {@link AtmosphereHandler} and
      * {@link LocalDispatchable}. We capture every dispatched request body
      * so tests can assert the local path was invoked exactly once and no
