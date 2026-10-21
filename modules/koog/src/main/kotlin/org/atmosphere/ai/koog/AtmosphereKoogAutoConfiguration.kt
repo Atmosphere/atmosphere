@@ -100,7 +100,7 @@ open class AtmosphereKoogAutoConfiguration {
         // only on the key returned a runtime with no PromptExecutor, and the
         // failure surfaced far away — the first agent turn died with
         // "PromptExecutor not configured" long after startup logged only a warning.
-        val local = mode.equals("local", ignoreCase = true)
+        val local = mode.trim().equals("local", ignoreCase = true)
         if (apiKey.isBlank() && !local) {
             logger.warn("No API key configured for Koog and llm.mode is not 'local'. "
                 + "Set LLM_API_KEY / OPENAI_API_KEY, or LLM_MODE=local for a local backend.")

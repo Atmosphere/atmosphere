@@ -152,6 +152,13 @@ class AtmosphereKoogAutoConfigurationTest {
     }
 
     @Test
+    fun `local mode is read trimmed, as AiConfig reads it`() {
+        clearExecutor()
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime("qwen2.5:3b", "", "", " local ")
+        assertNotNull(executor())
+    }
+
+    @Test
     fun `a blank base url derives Gemini for a remote non-OpenAI model`() {
         // The regression this closes is a *config* one, but it can only be fixed
         // here. samples/spring-boot-multi-agent-startup-team defaulted
