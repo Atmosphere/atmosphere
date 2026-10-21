@@ -607,6 +607,29 @@ public class AiPipeline {
         // above the tape so the tape records it too.
         var cancelSession = new PipelineCancelSession(session);
         session = cancelSession;
+        try {
+            executeAdmitted(clientId, message, cancelSession, extraMetadata);
+        } catch (RuntimeException e) {
+            // A step that threw (memory, scope install, tool selection, the
+            // runtime) must not leave the client waiting on a session nothing
+            // will end; one that already ended it is not reported twice
+            // (Correctness Invariant #2).
+            if (!session.isClosed()) {
+                session.error(e);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * The body of {@link #execute(String, String, StreamingSession, Map)} once
+     * the session is wrapped: admission, request assembly and the runtime call.
+     *
+     * @param cancelSession the wrapped session the turn writes to
+     */
+    private void executeAdmitted(String clientId, String message, PipelineCancelSession cancelSession,
+                                 Map<String, Object> extraMetadata) {
+        StreamingSession session = cancelSession;
         // Build the initial request metadata from the caller's map plus the
         // pipeline's default cache policy. When both sides carry an
         // {@code ai.cache.hint} the caller wins (putIfAbsent semantics on the

@@ -434,9 +434,12 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * exactly one runtime — the credibility gap the v0.7 gist was called
      * out on.
      *
-     * <p>A rejected admission throws {@link IllegalStateException} with
-     * the gateway's rationale; callers must propagate (Correctness
-     * Invariant #3 — never ignore backpressure).</p>
+     * <p>A rejected admission throws {@link AiProviderException.RateLimited}
+     * with the gateway's rationale (the gateway refuses only on a rate limit);
+     * callers must propagate (Correctness Invariant #3 — never ignore
+     * backpressure). {@link #execute} and {@link #executeWithHandle} end the
+     * session with it, once its retries are spent, so the client sees the
+     * refusal instead of waiting on a session nothing will end.</p>
      *
      * <p>Exposed as a static so Kotlin runtimes ({@code KoogAgentRuntime},
      * {@code EmbabelAgentRuntime}) that implement {@link AgentRuntime}
@@ -456,8 +459,8 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         var decision = gateway.admit(userId, runtimeName,
                 context.model() != null ? context.model() : "default");
         if (!decision.accepted()) {
-            throw new IllegalStateException(
-                    "AiGateway rejected call for user " + userId + ": " + decision.reason());
+            throw new AiProviderException.RateLimited(
+                    "AiGateway rejected call for user " + userId + ": " + decision.reason(), null);
         }
     }
 
@@ -535,12 +538,19 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     private void dispatch(AgentExecutionContext context, StreamingSession session) {
-        var client = resolveClient(context);
-        session.progress(connectingProgress(context));
-        // Install the cross-runtime ToolLoopGuard before fireStart so the guard
-        // observes every onModelStart this runtime emits during the execute.
-        // No-op when no ToolLoopPolicy is attached to context.metadata().
-        var effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+        C client;
+        AgentExecutionContext effectiveContext;
+        try {
+            client = resolveClient(context);
+            session.progress(connectingProgress(context));
+            // Install the cross-runtime ToolLoopGuard before fireStart so the guard
+            // observes every onModelStart this runtime emits during the execute.
+            // No-op when no ToolLoopPolicy is attached to context.metadata().
+            effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+        } catch (RuntimeException e) {
+            endWithError(session, e);
+            throw e;
+        }
         fireStart(effectiveContext);
         try {
             executeWithOuterRetry(client, effectiveContext, session);
@@ -556,8 +566,36 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             }
         } catch (RuntimeException e) {
             fireError(effectiveContext, e);
+            endWithError(session, e);
             throw e;
         }
+    }
+
+    /**
+     * End {@code session} with {@code failure} unless it has already ended: a
+     * dispatch that throws (a gateway refusal, a client that cannot be built,
+     * a request that cannot be assembled, a failed model call whose retries are
+     * spent) ends its session itself, so the client sees the failure whatever
+     * the caller does with the exception, and a runtime that already reported
+     * it through the session is not reported twice (Correctness Invariant #2).
+     * A cancellation is left to the caller that cancelled, which ends the
+     * session as cancelled.
+     *
+     * <p>Public so the Kotlin runtimes that implement {@link AgentRuntime}
+     * directly ({@code KoogAgentRuntime}, {@code EmbabelAgentRuntime}) end
+     * their sessions the same way.</p>
+     *
+     * @param session the session the failed dispatch writes to
+     * @param failure what the dispatch threw, or the failure its handle ended with
+     */
+    public static void endWithError(StreamingSession session, Throwable failure) {
+        if (failure instanceof java.util.concurrent.CompletionException && failure.getCause() != null) {
+            failure = failure.getCause();
+        }
+        if (failure instanceof java.util.concurrent.CancellationException || session.isClosed()) {
+            return;
+        }
+        session.error(failure);
     }
 
     /**
@@ -580,14 +618,24 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     private ExecutionHandle dispatchWithHandle(AgentExecutionContext context, StreamingSession session) {
-        var client = resolveClient(context);
-        session.progress(connectingProgress(context));
-        // Same ToolLoopGuard install as #execute — keeps the cap behavior
-        // identical across sync and cancel-aware entry points (Mode Parity).
-        var effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+        C client;
+        AgentExecutionContext effectiveContext;
+        try {
+            client = resolveClient(context);
+            session.progress(connectingProgress(context));
+            // Same ToolLoopGuard install as #execute — keeps the cap behavior
+            // identical across sync and cancel-aware entry points (Mode Parity).
+            effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+        } catch (RuntimeException e) {
+            endWithError(session, e);
+            throw e;
+        }
         fireStart(effectiveContext);
         try {
             var handle = doExecuteWithHandle(client, effectiveContext, session);
+            // Set when the caller cancels: the failure a cancelled worker ends
+            // with is the caller's to report (as cancelled), not this one's.
+            var cancelRequested = new java.util.concurrent.atomic.AtomicBoolean();
             handle.whenDone().whenComplete((ok, err) -> {
                 // Three outcomes map to two listener events:
                 //   1. future completed exceptionally  → fireError(err)
@@ -599,6 +647,13 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                 // whenDone() with a null value.
                 if (err != null) {
                     fireError(effectiveContext, err);
+                    // A worker that failed without reporting it through the
+                    // session (a gateway refusal on Spring AI Alibaba's worker)
+                    // would otherwise leave the session open: callers read a
+                    // failed whenDone() as already reported to the client.
+                    if (!cancelRequested.get()) {
+                        endWithError(session, err);
+                    }
                 } else if (session.hasErrored()) {
                     fireError(effectiveContext, new java.util.concurrent.CancellationException(
                             "stream reported error via session.error(...)"));
@@ -606,9 +661,26 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                     fireCompletion(effectiveContext);
                 }
             });
-            return handle;
+            return new ExecutionHandle() {
+                @Override
+                public void cancel() {
+                    cancelRequested.set(true);
+                    handle.cancel();
+                }
+
+                @Override
+                public boolean isDone() {
+                    return handle.isDone();
+                }
+
+                @Override
+                public CompletableFuture<Void> whenDone() {
+                    return handle.whenDone();
+                }
+            };
         } catch (RuntimeException e) {
             fireError(effectiveContext, e);
+            endWithError(session, e);
             throw e;
         }
     }

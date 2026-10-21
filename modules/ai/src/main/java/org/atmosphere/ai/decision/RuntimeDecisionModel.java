@@ -365,8 +365,11 @@ public final class RuntimeDecisionModel implements DecisionModel {
                     published.cancel();
                 }
             } catch (RuntimeException | Error e) {
-                // Surface on the sink so the terminal path below is uniform.
-                sink.error(e);
+                // Surface on the sink so the terminal path below is uniform,
+                // unless the runtime ended it before throwing.
+                if (!sink.isClosed()) {
+                    sink.error(e);
+                }
             }
             var terminated = sink.await(remaining());
             usage.accumulateAndGet(sink.usage(), DecisionCapturingSession::sum);

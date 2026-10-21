@@ -224,8 +224,11 @@ public class InteractionService {
         } catch (RuntimeException e) {
             // The runtime threw synchronously before completing the stream — funnel
             // it through the capturing session's terminal path so the failure is
-            // recorded once and the run reaches a completed state (Invariant #2).
-            capturing.error(e);
+            // recorded once and the run reaches a completed state (Invariant #2),
+            // unless the runtime ended the session before throwing.
+            if (!capturing.isClosed()) {
+                capturing.error(e);
+            }
         }
         var terminated = capturing.awaitTerminal(syncTimeout);
         if (!terminated) {
@@ -325,7 +328,9 @@ public class InteractionService {
                     }
                 });
             } catch (RuntimeException ex) {
-                capturing.error(ex);
+                if (!capturing.isClosed()) {
+                    capturing.error(ex);
+                }
                 control.completeExceptionally(ex);
             }
         });

@@ -166,6 +166,30 @@ class NativeStructuredOutputTest {
     }
 
     @Test
+    void autoFallsBackWhenRuntimeEndsSessionAndThrowsSchemaRejection() {
+        var fallbackAttempts = new AtomicInteger();
+        // AbstractAgentRuntime ends the session with the failure and rethrows it:
+        // the guard starts the fall-back from that error, so the throw must not
+        // also fail the turn the fall-back is answering.
+        AgentRuntime runtime = new NativeCapableRuntime(ctx -> {
+            if (NativeStructuredOutput.shouldApply(ctx)) {
+                throw new SchemaRejected();
+            }
+            fallbackAttempts.incrementAndGet();
+            return "{\"name\":\"Carol\",\"age\":25}";
+        }, true);
+        var session = new CollectingSession("native-fallback-throw");
+
+        pipeline(runtime, SimplePerson.class).execute("c1", "make a person", session, Map.of());
+
+        assertTrue(session.await(Duration.ofSeconds(3)));
+        assertFalse(session.failed(), "graceful fall-back must succeed: " + session.failure());
+        assertEquals(1, fallbackAttempts.get(), "fall-back must re-dispatch exactly once");
+        assertTrue(session.text().contains("Carol"),
+                "the fall-back attempt's output must reach the client: " + session.text());
+    }
+
+    @Test
     void nativeHappyPathStreamsWithoutFallback() {
         var nativeAttempts = new AtomicInteger();
         AgentRuntime runtime = new NativeCapableRuntime(ctx -> {
@@ -203,9 +227,20 @@ class NativeStructuredOutputTest {
     /** Runtime that advertises NATIVE_STRUCTURED_OUTPUT and is scripted per call. */
     private static final class NativeCapableRuntime implements AgentRuntime {
         private final java.util.function.Function<AgentExecutionContext, String> script;
+        private final boolean rethrow;
 
         NativeCapableRuntime(java.util.function.Function<AgentExecutionContext, String> script) {
+            this(script, false);
+        }
+
+        /**
+         * @param rethrow also throw a failure after ending the session with it,
+         *                as {@link AbstractAgentRuntime} does
+         */
+        NativeCapableRuntime(java.util.function.Function<AgentExecutionContext, String> script,
+                             boolean rethrow) {
             this.script = script;
+            this.rethrow = rethrow;
         }
 
         @Override
@@ -236,6 +271,9 @@ class NativeStructuredOutputTest {
                 reply = script.apply(context);
             } catch (RuntimeException e) {
                 session.error(e);
+                if (rethrow) {
+                    throw e;
+                }
                 return;
             }
             session.send(reply);

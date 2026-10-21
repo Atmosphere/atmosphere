@@ -82,8 +82,20 @@ final class NativeStructuredDispatch {
         };
 
         var guard = new FallbackGuardSession(finalTarget, fallback);
-        var h1 = runtime.executeWithHandle(nativeContext, guard);
-        currentHandle.set(h1);
+        ExecutionHandle h1;
+        try {
+            h1 = runtime.executeWithHandle(nativeContext, guard);
+        } catch (RuntimeException e) {
+            // A runtime that ends its session before throwing hands a schema
+            // rejection thrown on the calling thread to the guard, which already
+            // started the fall-back: that re-dispatch owns the outcome now.
+            if (!guard.fellBack()) {
+                throw e;
+            }
+            h1 = ExecutionHandle.completed();
+        }
+        // A fall-back already dispatched keeps its handle: cancel reaches it.
+        currentHandle.compareAndSet(null, h1);
         h1.whenDone().whenComplete((v, t) -> {
             // When the guard already triggered the fall-back, the re-dispatch
             // owns completion of `done`; otherwise the native attempt is terminal.

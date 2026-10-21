@@ -327,7 +327,11 @@ public interface AgentRuntime {
                         // turn a failed call into an empty response a caller
                         // cannot tell from a real one (Correctness Invariant #2).
                         failureRef.set(e);
-                        sink.error(e);
+                        // A runtime that ended the session before throwing
+                        // has already reported it: once is enough.
+                        if (!sink.isClosed()) {
+                            sink.error(e);
+                        }
                     } finally {
                         binding.close();
                     }

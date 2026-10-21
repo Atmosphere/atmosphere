@@ -241,12 +241,34 @@ class EmbabelAgentRuntime : AgentRuntime {
      * code that reads the static API on it sees this application.
      */
     override fun execute(context: AgentExecutionContext, session: StreamingSession) {
-        // Admit through the process-wide AiGateway before issuing the native
-        // Embabel dispatch — uniform per-user rate limiting and credential
-        // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
-        org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
-        AiEnvironment.bind(environment()).use {
-            dispatch(context, session)
+        executeEnding(context, session, null)
+    }
+
+    /**
+     * [execute], ending [session] with the failure when the dispatch throws
+     * (a gateway refusal, a platform that is not configured, a failed run), so
+     * the client sees it whatever the caller does with the exception, as
+     * `AbstractAgentRuntime` does (Correctness Invariant #2). A dispatch whose
+     * [cancelled] flag is set is the cancelling caller's to end.
+     */
+    private fun executeEnding(
+        context: AgentExecutionContext,
+        session: StreamingSession,
+        cancelled: AtomicBoolean?
+    ) {
+        try {
+            // Admit through the process-wide AiGateway before issuing the native
+            // Embabel dispatch — uniform per-user rate limiting and credential
+            // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
+            org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+            AiEnvironment.bind(environment()).use {
+                dispatch(context, session)
+            }
+        } catch (e: RuntimeException) {
+            if (cancelled?.get() != true) {
+                org.atmosphere.ai.AbstractAgentRuntime.endWithError(session, e)
+            }
+            throw e
         }
     }
 
@@ -334,7 +356,7 @@ class EmbabelAgentRuntime : AgentRuntime {
         Thread.startVirtualThread {
             activeThread.set(Thread.currentThread())
             try {
-                execute(context, session)
+                executeEnding(context, session, cancelled)
                 done.complete(null)
             } catch (ie: InterruptedException) {
                 // Cooperative cancel: a blocking dispatch (Reactor blockLast /
@@ -343,9 +365,9 @@ class EmbabelAgentRuntime : AgentRuntime {
                 if (!session.isClosed) session.complete()
                 done.complete(null)
             } catch (t: Throwable) {
-                // execute() already fired fireModelError + (on the streaming
-                // path) session.error before propagating; settle whenDone with
-                // the cause so callers observe the failure.
+                // executeEnding() already ended the session with a failure it
+                // threw (unless the run was cancelled); settle whenDone with the
+                // cause so callers observe the failure.
                 done.completeExceptionally(t)
             } finally {
                 activeThread.set(null)

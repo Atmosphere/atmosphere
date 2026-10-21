@@ -2062,7 +2062,11 @@ public class AiStreamingSession implements StreamingSession {
             turnEvent.errorType = e.getClass().getSimpleName();
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             logger.error("Streaming error", e);
-            streamingTarget.error(e);
+            // A runtime that threw has usually ended the session already
+            // (AbstractAgentRuntime does): end it here only if it has not.
+            if (!streamingTarget.isClosed()) {
+                streamingTarget.error(e);
+            }
         } finally {
             turnEvent.commit();
         }

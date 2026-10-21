@@ -76,8 +76,10 @@ class RuntimeGatewayAdmissionParityTest {
                         new String[][] { { "doExecute", "doExecuteWithHandle" } }),
                 new Runtime("embabel",
                         "modules/embabel/src/main/kotlin/org/atmosphere/ai/embabel/EmbabelAgentRuntime.kt",
-                        new String[] { "execute" },
-                        new String[0][]),
+                        new String[] { "executeEnding" },
+                        new String[][] {
+                                { "execute", "executeEnding" },
+                                { "executeWithHandle", "executeEnding" } }),
                 new Runtime("koog",
                         "modules/koog/src/main/kotlin/org/atmosphere/ai/koog/KoogAgentRuntime.kt",
                         new String[] { "execute", "executeWithHandle" },

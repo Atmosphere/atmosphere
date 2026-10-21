@@ -289,7 +289,10 @@ public final class SpawnSubagentTool {
                 try {
                     handleRef.set(runtime.get().executeWithHandle(context, session));
                 } catch (Throwable t) {
-                    session.error(t);
+                    // The runtime may have ended the session before throwing.
+                    if (!session.isClosed()) {
+                        session.error(t);
+                    }
                 }
             });
 
