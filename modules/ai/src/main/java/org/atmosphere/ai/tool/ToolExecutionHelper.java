@@ -57,6 +57,13 @@ public final class ToolExecutionHelper {
     public static final String TURN_CANCELLED_RESULT =
             "{\"error\":\"The run was cancelled; the tool was not executed.\"}";
 
+    /**
+     * The result a tool gets when its turn already ended (an error, an approval
+     * that ran out with the turn) before it was dispatched.
+     */
+    public static final String TURN_ENDED_RESULT =
+            "{\"error\":\"The turn already ended; the tool was not executed.\"}";
+
     /** Serializes reviewer-supplied structured approval responses to JSON. */
     private static final ObjectMapper RESPONSE_JSON = JsonMapper.builder().build();
 
@@ -499,6 +506,14 @@ public final class ToolExecutionHelper {
             logger.debug("Tool {} not dispatched: the turn of session {} was cancelled",
                     toolName, session.sessionId());
             return TURN_CANCELLED_RESULT;
+        }
+        if (session != null && session.isClosed()) {
+            // The turn already ended (an error, or an earlier tool of the same
+            // round whose approval ran out with the turn): a tool left in the
+            // round is not dispatched, and asks for no approval no one sees.
+            logger.debug("Tool {} not dispatched: session {} already ended",
+                    toolName, session.sessionId());
+            return TURN_ENDED_RESULT;
         }
         var ctx = DurableRunScopeHolder.current(session);
         if (ctx == null || ctx.journal() == EffectJournal.NOOP) {

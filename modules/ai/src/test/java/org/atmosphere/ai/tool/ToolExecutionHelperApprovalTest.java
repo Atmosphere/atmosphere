@@ -20,14 +20,17 @@ import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.PendingApproval;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
  * Phase 0 regression guard for the unified HITL path: {@code executeWithApproval}
@@ -163,5 +166,53 @@ class ToolExecutionHelperApprovalTest {
         assertEquals(2, map.size());
         assertEquals("echo", map.get("echo").name());
         assertEquals("delete_account", map.get("delete_account").name());
+    }
+
+    /** A session whose turn's time is up, so an approval timing out ends the turn. */
+    private static final class TurnAtItsLimitSession implements StreamingSession {
+        final AtomicReference<Throwable> error = new AtomicReference<>();
+        @Override public String sessionId() { return "turn-at-its-limit"; }
+        @Override public void send(String text) { }
+        @Override public void sendMetadata(String key, Object value) { }
+        @Override public void progress(String message) { }
+        @Override public void complete() { }
+        @Override public void complete(String summary) { }
+        @Override public void error(Throwable t) { error.compareAndSet(null, t); }
+        @Override public boolean isClosed() { return error.get() != null; }
+        @Override public Optional<Instant> turnDeadline() { return Optional.of(Instant.now()); }
+    }
+
+    /**
+     * The model asked for two approval-gated tools in one round. The first
+     * approval ran out with the turn and ended it: the second tool is neither
+     * dispatched nor asks for an approval no one can see any more (the sweep
+     * saw it park a thread for the full 300 s approval timeout).
+     */
+    @Test
+    void aToolLeftInTheRoundAfterAnApprovalEndedTheTurnIsNotDispatched() {
+        var ran = new AtomicInteger();
+        var asked = new AtomicInteger();
+        ApprovalStrategy timesOut = (approval, s) -> {
+            asked.incrementAndGet();
+            return ApprovalStrategy.ApprovalOutcome.TIMED_OUT;
+        };
+        var session = new TurnAtItsLimitSession();
+        var reset = sensitiveTool(ran);
+        var refund = ToolDefinition.builder("issue_refund", "Refund an order")
+                .parameter("order", "order id", "string")
+                .executor(args -> {
+                    ran.incrementAndGet();
+                    return "refunded";
+                })
+                .requiresApproval("Refund this order?", 60)
+                .build();
+
+        ToolExecutionHelper.executeWithApproval("delete_account", reset, Map.of("userId", "u1"), session, timesOut);
+        assertInstanceOf(org.atmosphere.ai.ApprovalTimedOutException.class, session.error.get());
+
+        assertEquals(ToolExecutionHelper.TURN_ENDED_RESULT, ToolExecutionHelper.executeWithApproval(
+                "issue_refund", refund, Map.of("order", "A-3003"), session, timesOut));
+        assertEquals(1, asked.get(), "the second tool asked for an approval after the turn ended");
+        assertEquals(0, ran.get());
     }
 }
