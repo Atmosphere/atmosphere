@@ -169,4 +169,31 @@ class SemanticKernelToolBridgeTest {
                 "SK runtime must declare TOOL_APPROVAL because every invocation " +
                         "routes through ToolExecutionHelper.executeWithApproval");
     }
+
+    /**
+     * SK hands every tool-call argument over as text; the bridge gives it the
+     * declared JSON type so the shared validation accepts it, and leaves text
+     * that does not parse for that validation to report.
+     */
+    @Test
+    void textArgumentsTakeTheirDeclaredType() {
+        var tool = ToolDefinition.builder("t", "typed")
+                .parameter("count", "an integer", "integer")
+                .parameter("ratio", "a number", "number")
+                .parameter("flag", "a boolean", "boolean")
+                .parameter("name", "a string", "string")
+                .parameter("filter", "an object", "object")
+                .executor(args -> "ok")
+                .build();
+
+        assertEquals(2L, SemanticKernelToolBridge.coerce(tool, "count", "2"));
+        assertEquals(2L, SemanticKernelToolBridge.coerce(tool, "count", "2.0"));
+        assertEquals("2.5", SemanticKernelToolBridge.coerce(tool, "count", "2.5"));
+        assertEquals(0.5d, SemanticKernelToolBridge.coerce(tool, "ratio", "0.5"));
+        assertEquals(Boolean.TRUE, SemanticKernelToolBridge.coerce(tool, "flag", "true"));
+        assertEquals("yes", SemanticKernelToolBridge.coerce(tool, "flag", "yes"));
+        assertEquals("42", SemanticKernelToolBridge.coerce(tool, "name", "42"));
+        assertEquals("{\"a\":1}", SemanticKernelToolBridge.coerce(tool, "filter", "{\"a\":1}"));
+        assertEquals("x", SemanticKernelToolBridge.coerce(tool, "unknown", "x"));
+    }
 }

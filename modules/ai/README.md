@@ -51,7 +51,7 @@ To run a runtime other than the highest-priority one, name it with `atmosphere.a
 | `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, MODEL_ENUMERATION, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 | `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, PLANNING (native PlanNotebook delegation: model-maintained plan tools, persisted through AgentPlanStore, PlanUpdate events) |
 | `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, CANCELLATION (cooperative), PLANNING (native TodoListInterceptor `write_todos` delegation, persisted through AgentPlanStore, PlanUpdate events) *(see runtime caveats below)* |
-| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, MULTI_MODAL, CANCELLATION |
+| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING (turns without tools; a turn with tools answers in one piece), SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, MULTI_MODAL, CANCELLATION |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("12 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push). That enforcement covers the structured table rows and the tight count claims (`All N runtimes`, `N AiCapability`/`N capabilities total`) only; free-form per-runtime narrative below is **not** machine-checked, so keep that prose in sync with the table by hand.
 
@@ -3106,10 +3106,19 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `ToolExecutionHelper.executeWithApproval`. Earlier SK releases claimed tool calling
   needed a compile-time annotation processor or bytecode synthesis; that claim was
   wrong — `KernelFunction`'s protected constructor and abstract `invokeAsync` are
-  designed exactly for this use case. `VISION` / `AUDIO` / `MULTI_MODAL` /
-  `PROMPT_CACHING` / `AGENT_ORCHESTRATION` remain undeclared because SK 1.5.0's
-  `ChatCompletionService.getStreamingChatMessageContentsAsync` does not expose
-  those surfaces on the Atmosphere bridge path.
+  designed exactly for this use case. SK 1.5.0 runs its auto-invoke tool loop only
+  on the non-streaming `getChatMessageContentsAsync`: the streaming call refuses
+  auto-invoke ("ToolCallBehavior auto-invoke is not supported for streaming chat
+  message contents") and its frames drop the model's tool calls. A turn that
+  carries tools (or a per-request `InvocationContext` with auto-invoke on)
+  therefore goes through the non-streaming call, and its answer reaches the client
+  in one piece once the loop ends, with the last round's token usage; a turn
+  without tools streams. A `PreChatCompletion` kernel hook stops the loop before
+  its next model call once a tool round ended the turn (an approval that ran out
+  with the turn's time limit, a cancel). `AUDIO` / `PROMPT_CACHING` /
+  `AGENT_ORCHESTRATION` remain undeclared because SK 1.5.0's
+  `ChatCompletionService` does not expose those surfaces on the Atmosphere
+  bridge path.
 - **AgentScope Java** declares the minimum honest set: `TEXT_STREAMING` rides
   `Flux<Event> ReActAgent.stream(List<Msg>, StreamOptions)` (Reactor — each
   `Event.getMessage().getTextContent()` flows through `session.send()`),

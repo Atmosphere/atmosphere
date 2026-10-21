@@ -84,34 +84,80 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
         return false;
     }
 
+    /** The local OpenAI-compatible server the tool-loop fixture's real SK service talks to. */
+    private static com.sun.net.httpserver.HttpServer toolLoopServer;
+
+    @org.junit.jupiter.api.AfterAll
+    static void stopToolLoopServer() {
+        if (toolLoopServer != null) {
+            toolLoopServer.stop(0);
+        }
+    }
+
     /**
-     * Semantic Kernel auto-invokes the tools inside the streaming call: the
-     * stub's stream invokes the {@code lookup} function of the kernel the
-     * runtime built (the tool round), then streams the answer 300 ms later on
-     * another thread. The handle settles when that one stream ends.
+     * Semantic Kernel runs its auto-invoke loop on the non-streaming call, so
+     * the fixture drives the real {@code OpenAIChatCompletion} against a local
+     * OpenAI-compatible server: a request with no tool result yet is answered
+     * with a {@code lookup} tool call (SK's loop runs the tool through the
+     * runtime's bridge), and the request that carries the tool result is
+     * answered 300 ms later, from the server's thread, with the final text.
      */
     @Override
     protected ToolLoopFixture createToolLoopFixture() {
-        @SuppressWarnings("unchecked")
-        var frame = (StreamingChatContent<Object>) mock(StreamingChatContent.class);
-        when(frame.getContent()).thenReturn(TOOL_LOOP_ANSWER);
-        when(frame.getMetadata()).thenReturn(null);
-        var service = mock(ChatCompletionService.class);
-        when(service.getStreamingChatMessageContentsAsync(any(ChatHistory.class), any(), any()))
-                .thenAnswer(inv -> {
-                    com.microsoft.semantickernel.Kernel kernel = inv.getArgument(1);
-                    return Flux.defer(() -> {
-                        var lookup = kernel.getPlugin("atmosphere_tools").get("lookup");
-                        lookup.invokeAsync(kernel,
-                                com.microsoft.semantickernel.semanticfunctions.KernelArguments.builder()
-                                        .withVariable("city",
-                                                com.microsoft.semantickernel.contextvariables.ContextVariable.of("Paris"))
-                                        .build(), null, null).block();
-                        return Flux.just(frame).delaySubscription(java.time.Duration.ofMillis(300));
-                    }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
-                });
+        var client = SemanticKernelOpenAiClientFactory.forEndpoint(
+                "http://127.0.0.1:" + toolLoopServer().getAddress().getPort() + "/v1", "test-key");
+        var service = com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion.builder()
+                .withOpenAIAsyncClient(client)
+                .withModelId("gpt-4o-mini")
+                .build();
         return new ToolLoopFixture(new TestableSemanticKernelRuntime(service),
                 toolLoopContext("gpt-4o-mini"), TOOL_LOOP_ANSWER);
+    }
+
+    private static synchronized com.sun.net.httpserver.HttpServer toolLoopServer() {
+        if (toolLoopServer != null) {
+            return toolLoopServer;
+        }
+        try {
+            var server = com.sun.net.httpserver.HttpServer.create(
+                    new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+            server.createContext("/", exchange -> {
+                try (exchange) {
+                    var request = new String(exchange.getRequestBody().readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8);
+                    String body;
+                    if (request.contains("\"role\":\"tool\"")) {
+                        Thread.sleep(300);
+                        body = """
+                                {"id":"chatcmpl-2","object":"chat.completion","created":1700000001,
+                                 "model":"gpt-4o-mini","choices":[{"index":0,"finish_reason":"stop",
+                                   "message":{"role":"assistant","content":"%s"}}],
+                                 "usage":{"prompt_tokens":20,"completion_tokens":6,"total_tokens":26}}
+                                """.formatted(TOOL_LOOP_ANSWER);
+                    } else {
+                        body = """
+                                {"id":"chatcmpl-1","object":"chat.completion","created":1700000000,
+                                 "model":"gpt-4o-mini","choices":[{"index":0,"finish_reason":"tool_calls",
+                                   "message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1",
+                                     "type":"function","function":{"name":"atmosphere_tools-lookup",
+                                       "arguments":"{\\"city\\":\\"Paris\\"}"}}]}}],
+                                 "usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
+                                """;
+                    }
+                    var bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().add("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, bytes.length);
+                    exchange.getResponseBody().write(bytes);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            server.start();
+            toolLoopServer = server;
+            return server;
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 
     static class TestableSemanticKernelRuntime extends SemanticKernelAgentRuntime {
@@ -131,10 +177,9 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
 
     @Override
     protected AgentExecutionContext createToolCallContext() {
-        // SK tool-calling is now implemented via SemanticKernelToolBridge;
-        // still return null because the contract's tool-execution assertion
-        // requires a live ChatCompletionService to drive the auto-invoke
-        // loop. Unit-test-level verification lives in SemanticKernelToolBridgeTest.
+        // createRuntime()'s mocked service has no tool loop. The tool round runs
+        // against the real SK service in createToolLoopFixture() and in
+        // SemanticKernelToolCallingTest (tool result, turn end, failure paths).
         return null;
     }
 
@@ -147,6 +192,14 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 List.of(), null, null);
     }
 
+    /**
+     * {@code TEXT_STREAMING} holds for a turn without tools: SK 1.5.0 runs its
+     * auto-invoke tool loop only on the non-streaming call, so a turn with
+     * tools answers in one piece ({@code modules/ai/README.md} capability
+     * matrix). {@code TOOL_CALLING} is proven against the real
+     * {@code OpenAIChatCompletion} by {@link #createToolLoopFixture()} and
+     * {@code SemanticKernelToolCallingTest}.
+     */
     @Override
     protected Set<AiCapability> expectedCapabilities() {
         return Set.of(

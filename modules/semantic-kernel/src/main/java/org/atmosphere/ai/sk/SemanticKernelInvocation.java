@@ -24,7 +24,9 @@ import java.util.Map;
 /**
  * Per-request bridge for overriding the Semantic Kernel
  * {@link InvocationContext} that {@link SemanticKernelAgentRuntime} passes to
- * {@code ChatCompletionService.getStreamingChatMessageContentsAsync(...)}.
+ * {@code ChatCompletionService.getStreamingChatMessageContentsAsync(...)}, or
+ * to {@code getChatMessageContentsAsync(...)} when the context turns SK's
+ * auto-invoke on (SK 1.5.0 runs that loop only on the non-streaming call).
  *
  * <p>SK's {@code InvocationContext} carries the per-invocation execution
  * settings: {@code ToolCallBehavior} (tool dispatch policy + max auto-invoke

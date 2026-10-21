@@ -18,7 +18,7 @@ Use this adapter when Microsoft Semantic Kernel is already your plugin, function
 
 | Atmosphere SPI | SK native type |
 |---------------|----------------|
-| `AgentRuntime` | `ChatCompletionService` (streaming via Reactor `Flux`) |
+| `AgentRuntime` | `ChatCompletionService` (streaming via Reactor `Flux`; a turn with tools via the non-streaming `Mono`) |
 | `EmbeddingRuntime` | `TextEmbeddingGenerationService` (async via Reactor `Mono`) |
 
 ## Capabilities
@@ -26,6 +26,31 @@ Use this adapter when Microsoft Semantic Kernel is already your plugin, function
 See the [capability matrix](../ai/README.md#capability-matrix) in the parent `atmosphere-ai` README for the authoritative cross-runtime view.
 
 SK-specific: TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY. Tool calling rides `SemanticKernelToolBridge` — a direct `KernelFunction<String>` subclass (one per Atmosphere tool) whose overridden `invokeAsync` routes through `ToolExecutionHelper.executeWithApproval`, no annotation processor or bytecode synthesis required.
+
+### A turn with tools does not stream
+
+SK 1.5.0 runs its auto-invoke tool loop only on the non-streaming
+`ChatCompletionService.getChatMessageContentsAsync`. Its streaming call refuses
+auto-invoke (`SKException: ToolCallBehavior auto-invoke is not supported for
+streaming chat message contents`) and drops the model's tool calls from its
+frames, so a manual loop over the stream is not possible either. The runtime
+therefore sends a turn that carries tools — or a per-request
+`InvocationContext` whose `ToolCallBehavior` / `FunctionChoiceBehavior` has
+auto-invoke on — through the non-streaming call:
+
+- the tools run inside SK's loop through `ToolExecutionHelper.executeWithApproval`
+  (`@RequiresApproval`, argument validation, `ToolStart` / `ToolResult` events);
+  SK hands tool arguments over as text, and the bridge gives `integer`,
+  `number` and `boolean` parameters their declared type;
+- the answer reaches the client in one piece once the loop ends, with the last
+  round's token usage;
+- once a tool round ended the turn (an approval that ran out with the turn's
+  time limit, a cancel), a `PreChatCompletion` kernel hook stops the loop
+  before its next model call;
+- a loop that runs out of SK's auto-invoke attempts with tool calls still
+  pending ends the turn with an error, not an empty answer.
+
+A turn without tools streams as before.
 
 ## EmbeddingRuntime
 
@@ -58,8 +83,9 @@ runtime.execute(ctx, session);
 ```
 
 When attached, the runtime passes the user-supplied context verbatim to
-`ChatCompletionService.getStreamingChatMessageContentsAsync(...)`. When
-absent, it builds the default — preserving prior behavior and keeping
+`ChatCompletionService.getStreamingChatMessageContentsAsync(...)`, or to
+`getChatMessageContentsAsync(...)` when it turns auto-invoke on (see above).
+When absent, it builds the default — preserving prior behavior and keeping
 SK's non-null `ToolCallBehavior` requirement satisfied.
 
 ## Known limitations

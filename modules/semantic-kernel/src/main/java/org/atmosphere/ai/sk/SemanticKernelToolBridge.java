@@ -166,7 +166,8 @@ final class SemanticKernelToolBridge {
                 if (arguments != null) {
                     for (var entry : arguments.entrySet()) {
                         var raw = entry.getValue();
-                        args.put(entry.getKey(), raw != null ? raw.getValue() : null);
+                        args.put(entry.getKey(), coerce(tool, entry.getKey(),
+                                raw != null ? raw.getValue() : null));
                     }
                 }
                 // Route through the shared approval helper so @RequiresApproval
@@ -180,6 +181,87 @@ final class SemanticKernelToolBridge {
                 var contextVariable = ContextVariable.of(value);
                 return new FunctionResult<>(contextVariable, value);
             });
+        }
+    }
+
+    /**
+     * Give a model-supplied argument the JSON type its parameter declares.
+     * Semantic Kernel hands every tool-call argument over as text
+     * ({@code {"a":2}} arrives as {@code "2"}), and the shared argument
+     * validation rejects a {@code String} for an {@code integer},
+     * {@code number} or {@code boolean} parameter. Text that does not parse
+     * stays as it is, so the validation reports it; {@code object} and
+     * {@code array} parameters take the JSON text as it is.
+     */
+    static Object coerce(ToolDefinition tool, String name, Object value) {
+        if (!(value instanceof String text)) {
+            return value;
+        }
+        var type = tool.parameters().stream()
+                .filter(p -> p.name().equals(name))
+                .map(ToolParameter::type)
+                .findFirst()
+                .orElse(null);
+        if (type == null) {
+            return value;
+        }
+        var trimmed = text.trim();
+        try {
+            return switch (type) {
+                case "integer" -> new java.math.BigDecimal(trimmed).longValueExact();
+                case "number" -> Double.parseDouble(trimmed);
+                case "boolean" -> "true".equalsIgnoreCase(trimmed) ? Boolean.TRUE
+                        : "false".equalsIgnoreCase(trimmed) ? Boolean.FALSE : value;
+                default -> value;
+            };
+        } catch (NumberFormatException | ArithmeticException e) {
+            logger.trace("SK tool {} argument {} is not a {}: {}", tool.name(), name, type, e.getMessage());
+            return value;
+        }
+    }
+
+    /**
+     * Install, on the per-request {@code kernel}, the hook that stops Semantic
+     * Kernel's auto-invoke loop once a tool round ended the turn (an approval
+     * that ran out with the turn's time limit, a cancel): it runs before every
+     * model call of the loop and throws {@link TurnEndedException} instead of
+     * letting the call go out. A tool cannot stop the loop itself: SK folds a
+     * tool's exception into a tool message and asks the model again.
+     *
+     * <p>SK's loop retries a failed round once more before giving up, so the
+     * hook throws twice (SK logs each as a failed tool invocation attempt);
+     * neither reaches the model.</p>
+     */
+    static void stopLoopOnceTurnEnded(Kernel kernel, StreamingSession session) {
+        kernel.getGlobalKernelHooks().addPreChatCompletionHook(event -> {
+            if (session.isClosed() || session.isTurnCancelled()) {
+                throw new TurnEndedException();
+            }
+            return event;
+        });
+    }
+
+    /**
+     * Thrown before a model call of Semantic Kernel's auto-invoke loop once a
+     * tool round ended the turn, so the loop issues no follow-up model call;
+     * the runtime takes it as the end of the turn, not as an error.
+     */
+    static final class TurnEndedException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        TurnEndedException() {
+            super("The turn ended in a tool round", null, false, false);
+        }
+
+        /** Whether {@code error} or one of its causes is a {@link TurnEndedException}. */
+        static boolean endedTheTurn(Throwable error) {
+            for (var t = error; t != null; t = t.getCause()) {
+                if (t instanceof TurnEndedException) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

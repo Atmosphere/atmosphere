@@ -63,7 +63,9 @@ Walk these questions in order; stop at the first match.
    → **Semantic Kernel (`atmosphere-semantic-kernel`)**. SK 1.5 surface
    with `KernelFunction` tool bridge through Atmosphere's
    `ToolExecutionHelper`, sidecar bridge for per-request
-   `InvocationContext` / `KernelHooks` / `withMaxAutoInvokeAttempts`.
+   `InvocationContext` / `KernelHooks` / `withMaxAutoInvokeAttempts`. A turn
+   with tools answers in one piece: SK 1.5 runs its auto-invoke loop only on
+   the non-streaming call.
 
 8. **Do you need Alibaba's AgentScope reasoning loop (Qwen-native
    ReAct, Alibaba Cloud AI Studio)?**
@@ -110,7 +112,7 @@ ordered from "most-general / most-portable" at the top to
 | Google ADK | Gemini-native + sub-agent orchestration | You're not using Gemini | Token-by-token | ✅ + `AGENT_ORCHESTRATION` | — |
 | Embabel | Goal-graph planner workflows | You want imperative dispatch | Token-by-token | ✅ + `AGENT_ORCHESTRATION` | ✅ |
 | Koog | Kotlin coroutine + native cancellation mechanism | You're not on Kotlin | Token-by-token | ✅ + `AGENT_ORCHESTRATION` | ✅ |
-| Semantic Kernel | Microsoft / .NET ecosystem parity on JVM | You don't need SK plugins/planners | Token-by-token | ✅ | ✅ |
+| Semantic Kernel | Microsoft / .NET ecosystem parity on JVM | You don't need SK plugins/planners | Token-by-token; **buffered** on a turn with tools (SK 1.5 runs its tool loop only on the non-streaming call) | ✅ | ✅ |
 | AgentScope | Qwen-native ReAct, Alibaba Cloud AI Studio | You want anything other than Qwen | Token-by-token | ✅ | — |
 | Spring AI Alibaba | DashScope / `ReactAgent` graph on Spring Boot 3 | You're on Spring Boot 4 | **Buffered** (one chunk + complete) | ✅ | ✅ |
 | Anthropic | Native Anthropic Messages API without a third-party SDK | You need audio input | Token-by-token | ✅ | — |

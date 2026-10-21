@@ -49,8 +49,13 @@ import java.util.Set;
  * synthesis — earlier Javadoc on this class claimed such a bridge was
  * impossible; that claim was wrong.</p>
  *
- * <p>The adapter uses the upstream 1.4.0 API surface (latest stable on Maven
- * Central as of April 2026). When Microsoft ships the "Microsoft Agent
+ * <p>SK 1.5.0 runs its auto-invoke tool loop only on the non-streaming
+ * {@code getChatMessageContentsAsync}: the streaming call refuses auto-invoke
+ * and drops the model's tool calls. A turn that carries tools therefore goes
+ * through the non-streaming call and answers in one piece once the loop ends;
+ * a turn without tools streams.</p>
+ *
+ * <p>The adapter uses the upstream 1.5.0 API surface. When Microsoft ships the "Microsoft Agent
  * Framework" Java SDK as the successor, this runtime can coexist with a new
  * {@code AgentFrameworkRuntime} or be updated in-place depending on wire
  * compatibility.</p>
@@ -163,65 +168,100 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // credential resolution across all contract-tested runtimes
         // (Correctness Invariant #3).
         admitThroughGateway(context);
-        var chatHistory = buildChatHistory(context);
 
-        // Tool-calling path: when the context carries any @AiTool-derived
-        // ToolDefinitions, build a KernelPlugin of one AtmosphereSkFunction per
-        // tool and attach it to a fresh Kernel. ToolCallBehavior.allowAllKernelFunctions(true)
-        // enables SK's auto-invoke loop, which will dispatch to our
-        // KernelFunction.invokeAsync override and route through
-        // ToolExecutionHelper.executeWithApproval for @RequiresApproval gating.
-        var toolPlugin = SemanticKernelToolBridge.buildPlugin(context, session);
-        var kernelBuilder = Kernel.builder();
-        if (toolPlugin != null) {
-            kernelBuilder = kernelBuilder.withPlugin(toolPlugin);
+        var completion = new java.util.concurrent.CompletableFuture<Void>();
+        org.atmosphere.ai.ModelCallScope modelScope = null;
+        reactor.core.Disposable disposable;
+        try {
+            var chatHistory = buildChatHistory(context);
+
+            // Tool-calling path: when the context carries any @AiTool-derived
+            // ToolDefinitions, build a KernelPlugin of one AtmosphereSkFunction per
+            // tool and attach it to a fresh Kernel. ToolCallBehavior.allowAllKernelFunctions(true)
+            // enables SK's auto-invoke loop, which will dispatch to our
+            // KernelFunction.invokeAsync override and route through
+            // ToolExecutionHelper.executeWithApproval for @RequiresApproval gating.
+            var toolPlugin = SemanticKernelToolBridge.buildPlugin(context, session);
+            var kernelBuilder = Kernel.builder();
+            if (toolPlugin != null) {
+                kernelBuilder = kernelBuilder.withPlugin(toolPlugin);
+            }
+            var kernel = kernelBuilder.build();
+
+            // Per-request InvocationContext override: when the caller attached
+            // one via SemanticKernelInvocation.attach(...), use it verbatim.
+            // Otherwise build the runtime's default (allowAllKernelFunctions
+            // gated on tool presence, no other overrides).
+            var perRequestInvocation = SemanticKernelInvocation.from(context);
+            // Provider-native structured output (default path only — a per-request
+            // InvocationContext override takes full control). The pipeline stamps the
+            // apply flag + schema when a response type is declared.
+            var nativeSchema = context.responseType() != null
+                    && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
+                    ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
+            var invocationContext = perRequestInvocation != null
+                    ? perRequestInvocation
+                    : buildInvocationContext(toolPlugin != null, nativeSchema, currentGeneration(environment()));
+            if (perRequestInvocation != null) {
+                logger.debug("Applied per-request SK InvocationContext override");
+            }
+
+            // Model-lifecycle hooks: fire onModelStart synchronously before the
+            // call; onModelEnd / onModelError fire from the adapter on the
+            // matching terminal signal. Same posture as Spring AI / LC4j / ADK /
+            // Koog / Embabel.
+            var messageCount = chatHistory.getMessages().size();
+            var toolCount = toolPlugin != null ? context.tools().size() : 0;
+            modelScope = org.atmosphere.ai.ModelCallScope.open(
+                    context.listeners(),
+                    context.model() != null ? context.model() : name(),
+                    messageCount, toolCount);
+
+            if (invokesToolsItself(invocationContext)) {
+                // SK 1.5.0 runs its auto-invoke tool loop only on the
+                // non-streaming call: getStreamingChatMessageContentsAsync throws
+                // "ToolCallBehavior auto-invoke is not supported for streaming
+                // chat message contents", and its frames drop the model's tool
+                // calls. A turn whose tools SK invokes therefore answers in one
+                // piece once the loop ends. The hook stops the loop before its
+                // next model call once a tool round ended the turn.
+                logger.debug("SK chat (tool loop): model={}, history messages={}, tools={}",
+                        context.model(), messageCount, toolCount);
+                SemanticKernelToolBridge.stopLoopOnceTurnEnded(kernel, session);
+                var call = service.getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
+                disposable = SemanticKernelStreamingAdapter.drainToolTurn(
+                        call, session, modelScope, completion);
+            } else {
+                logger.debug("SK streaming: model={}, history messages={}, tools={}",
+                        context.model(), messageCount, toolCount);
+                var flux = service.getStreamingChatMessageContentsAsync(
+                        chatHistory, kernel, invocationContext);
+                disposable = SemanticKernelStreamingAdapter.drainCancellable(
+                        flux, session, modelScope, completion);
+            }
+        } catch (RuntimeException e) {
+            // A failure before the call is under way (SK refusing the invocation
+            // context, a malformed history, a service that throws instead of
+            // returning a failed publisher) ends the session with the error: no
+            // terminal signal will come from SK (Correctness Invariant #2).
+            if (modelScope != null) {
+                modelScope.fail(e);
+            }
+            logger.error("Semantic Kernel dispatch failed before the model call: {}", e.getMessage());
+            if (!session.isClosed()) {
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
+            }
+            completion.complete(null);
+            disposable = reactor.core.Disposables.disposed();
         }
-        var kernel = kernelBuilder.build();
-
-        // Per-request InvocationContext override: when the caller attached
-        // one via SemanticKernelInvocation.attach(...), use it verbatim.
-        // Otherwise build the runtime's default (allowAllKernelFunctions
-        // gated on tool presence, no other overrides).
-        var perRequestInvocation = SemanticKernelInvocation.from(context);
-        // Provider-native structured output (default path only — a per-request
-        // InvocationContext override takes full control). The pipeline stamps the
-        // apply flag + schema when a response type is declared.
-        var nativeSchema = context.responseType() != null
-                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
-                ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
-        var invocationContext = perRequestInvocation != null
-                ? perRequestInvocation
-                : buildInvocationContext(toolPlugin != null, nativeSchema, currentGeneration(environment()));
-        if (perRequestInvocation != null) {
-            logger.debug("Applied per-request SK InvocationContext override");
-        }
-
-        logger.debug("SK streaming: model={}, history messages={}, tools={}",
-                context.model(), chatHistory.getMessages().size(),
-                toolPlugin != null ? context.tools().size() : 0);
-
-        var flux = service.getStreamingChatMessageContentsAsync(
-                chatHistory, kernel, invocationContext);
-
-        // Model-lifecycle hooks: fire onModelStart synchronously before subscribe;
-        // onModelEnd / onModelError fire from drainCancellable on the matching
-        // terminal signal. Same posture as Spring AI / LC4j / ADK / Koog / Embabel.
-        var messageCount = chatHistory.getMessages().size();
-        var toolCount = toolPlugin != null ? context.tools().size() : 0;
-        var modelScope = org.atmosphere.ai.ModelCallScope.open(
-                context.listeners(),
-                context.model() != null ? context.model() : name(),
-                messageCount, toolCount);
 
         // Wrap the Reactor Disposable in an ExecutionHandle so a client
         // disconnect can dispose the in-flight SK subscription — disposing
-        // propagates an upstream cancel to the Azure / OpenAI streaming call
+        // propagates an upstream cancel to the Azure / OpenAI call
         // (Correctness Invariant #2 — Terminal Path Completeness). The handle
         // settles whenDone() on any terminal signal; cancel() is CAS-guarded
         // so dispose + session.complete fire at most once.
-        var completion = new java.util.concurrent.CompletableFuture<Void>();
-        var disposable = SemanticKernelStreamingAdapter.drainCancellable(
-                flux, session, modelScope, completion);
+        var subscription = disposable;
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =
                     new java.util.concurrent.atomic.AtomicBoolean();
@@ -229,7 +269,7 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
             @Override
             public void cancel() {
                 if (cancelled.compareAndSet(false, true)) {
-                    disposable.dispose();
+                    subscription.dispose();
                     if (!session.isClosed()) {
                         session.complete();
                     }
@@ -247,6 +287,27 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 return completion;
             }
         };
+    }
+
+    /**
+     * Whether {@code invocationContext} asks Semantic Kernel to invoke the
+     * model's tool calls itself (a {@link ToolCallBehavior} or an
+     * {@code Auto}/{@code Required} {@code FunctionChoiceBehavior} with
+     * auto-invoke on, {@code Required} being an {@code Auto}): SK 1.5.0 runs
+     * that loop only on its non-streaming call.
+     */
+    static boolean invokesToolsItself(InvocationContext invocationContext) {
+        if (invocationContext == null) {
+            return false;
+        }
+        var toolCallBehavior = invocationContext.getToolCallBehavior();
+        if (toolCallBehavior != null && toolCallBehavior.isAutoInvokeAllowed()) {
+            return true;
+        }
+        // RequiredFunctionChoiceBehavior extends AutoFunctionChoiceBehavior.
+        return invocationContext.getFunctionChoiceBehavior()
+                instanceof com.microsoft.semantickernel.functionchoice.AutoFunctionChoiceBehavior auto
+                && auto.isAutoInvoke();
     }
 
     /**
@@ -451,9 +512,15 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // TOOL_CALLING is honest: SemanticKernelToolBridge builds one
         // AtmosphereSkFunction per Atmosphere ToolDefinition on the context
         // and attaches them to a fresh Kernel's KernelPlugin. The SK auto-
-        // invoke loop dispatches to AtmosphereSkFunction.invokeAsync, which
+        // invoke loop (on the non-streaming call — SK 1.5.0 refuses it on the
+        // streaming one) dispatches to AtmosphereSkFunction.invokeAsync, which
         // translates KernelFunctionArguments into a Map<String,Object> and
         // routes every call through ToolExecutionHelper.executeWithApproval.
+        // Pinned against the real OpenAIChatCompletion by
+        // SemanticKernelToolCallingTest.
+        //
+        // TEXT_STREAMING holds for a turn without tools; a turn with tools
+        // answers in one piece once SK's loop ends.
         //
         // TOOL_APPROVAL is honest because the same routing path runs through
         // the shared approval helper — @RequiresApproval gates fire

@@ -15,6 +15,10 @@
  */
 package org.atmosphere.ai.sk;
 
+import com.microsoft.semantickernel.contents.FunctionCallContent;
+import com.microsoft.semantickernel.orchestration.FunctionResultMetadata;
+import com.microsoft.semantickernel.services.chatcompletion.AuthorRole;
+import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
 import com.microsoft.semantickernel.services.chatcompletion.StreamingChatContent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
@@ -88,6 +92,110 @@ final class SemanticKernelStreamingAdapter {
                 .subscribe();
     }
 
+    /**
+     * Subscribe to the non-streaming chat call of a turn whose tools Semantic
+     * Kernel invokes itself, and return the Reactor {@link reactor.core.Disposable}
+     * so the caller can abort it. SK 1.5.0 runs its auto-invoke loop only on the
+     * non-streaming call ({@code getStreamingChatMessageContentsAsync} refuses
+     * auto-invoke, and its frames carry no tool calls), so the answer reaches
+     * the session as one {@code send} once the loop ends.
+     *
+     * <p>The answer is the last assistant message; its token usage (the last
+     * round's) goes to {@link StreamingSession#usage}. A last assistant message
+     * that still asks for tools means SK's loop ran out of auto-invoke attempts:
+     * the session ends with an error rather than an empty answer. A
+     * {@link SemanticKernelToolBridge.TurnEndedException} ends the dispatch
+     * without an error: the tool round already ended the turn. Every terminal
+     * signal resolves {@code completion} (Correctness Invariant #2).</p>
+     */
+    static reactor.core.Disposable drainToolTurn(
+            reactor.core.publisher.Mono<java.util.List<ChatMessageContent<?>>> call,
+            StreamingSession session,
+            org.atmosphere.ai.ModelCallScope modelScope,
+            java.util.concurrent.CompletableFuture<Void> completion) {
+        var lastUsage = new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
+        return call
+                .doOnCancel(() -> completion.complete(null))
+                .subscribe(
+                        messages -> {
+                            var answer = lastAssistantMessage(messages);
+                            if (answer != null) {
+                                extractTokenUsage(answer.getMetadata(), session, lastUsage);
+                            }
+                            if (answer != null && (answer.getContent() == null || answer.getContent().isBlank())
+                                    && asksForTools(answer)) {
+                                var exhausted = new IllegalStateException(
+                                        "Semantic Kernel's tool loop ran out of auto-invoke attempts"
+                                                + " with tool calls still pending");
+                                modelScope.fail(exhausted);
+                                if (!session.isClosed()) {
+                                    session.error(exhausted);
+                                }
+                                completion.complete(null);
+                                return;
+                            }
+                            var text = answer != null ? answer.getContent() : null;
+                            if (text != null && !text.isEmpty() && !session.isClosed()) {
+                                session.send(text);
+                            }
+                            modelScope.complete(lastUsage.get());
+                            if (!session.isClosed()) {
+                                session.complete();
+                            }
+                            completion.complete(null);
+                        },
+                        error -> {
+                            if (SemanticKernelToolBridge.TurnEndedException.endedTheTurn(error)) {
+                                // A tool round ended the turn and the hook stopped
+                                // SK's loop before its follow-up model call: the
+                                // turn already carries its own end.
+                                logger.debug("Semantic Kernel tool loop stopped: {}", error.getMessage());
+                                modelScope.complete(lastUsage.get());
+                                if (!session.isClosed()) {
+                                    session.complete();
+                                }
+                                completion.complete(null);
+                                return;
+                            }
+                            modelScope.fail(error);
+                            logger.error("Semantic Kernel chat error: {}", error.getMessage());
+                            if (!session.isClosed()) {
+                                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(error));
+                            }
+                            completion.complete(null);
+                        },
+                        // An empty result (no message at all) still ends the turn.
+                        () -> {
+                            if (!completion.isDone()) {
+                                modelScope.complete(lastUsage.get());
+                                if (!session.isClosed()) {
+                                    session.complete();
+                                }
+                                completion.complete(null);
+                            }
+                        });
+    }
+
+    /** Whether {@code message} carries tool calls. */
+    private static boolean asksForTools(ChatMessageContent<?> message) {
+        var calls = FunctionCallContent.getFunctionCalls(message);
+        return calls != null && !calls.isEmpty();
+    }
+
+    /** The last {@link AuthorRole#ASSISTANT} message of {@code messages}, or {@code null}. */
+    private static ChatMessageContent<?> lastAssistantMessage(java.util.List<ChatMessageContent<?>> messages) {
+        if (messages == null) {
+            return null;
+        }
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            var message = messages.get(i);
+            if (message != null && message.getAuthorRole() == AuthorRole.ASSISTANT) {
+                return message;
+            }
+        }
+        return null;
+    }
+
     private static void forwardFrame(
             StreamingChatContent<?> frame,
             StreamingSession session,
@@ -107,15 +215,14 @@ final class SemanticKernelStreamingAdapter {
         // read it reflectively so this adapter does not hard-depend on Azure SDK
         // types — any provider whose usage object exposes
         // promptTokens/completionTokens/totalTokens is picked up.
-        extractTokenUsage(frame, session, lastUsage);
+        extractTokenUsage(frame.getMetadata(), session, lastUsage);
     }
 
     private static void extractTokenUsage(
-            StreamingChatContent<?> frame,
+            FunctionResultMetadata<?> metadata,
             StreamingSession session,
             java.util.concurrent.atomic.AtomicReference<TokenUsage> lastUsage) {
         try {
-            var metadata = frame.getMetadata();
             if (metadata == null) {
                 return;
             }
