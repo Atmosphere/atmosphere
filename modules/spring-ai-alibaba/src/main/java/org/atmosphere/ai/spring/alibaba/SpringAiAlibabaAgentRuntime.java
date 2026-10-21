@@ -271,6 +271,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 agentBuilder.tools(SpringAiAlibabaToolBridge.toToolCallbacks(
                         context.tools(), session, context.approvalStrategy(),
                         context.listeners(), context.approvalPolicy()));
+                // A tool round that ended the turn calls the model no more:
+                // the hook ends the ReAct run before its next model call.
+                agentBuilder.hooks(new TurnEndedModelHook(session));
             }
             if (planning != null) {
                 // ReactAgent.Builder.build() registers the interceptor's
