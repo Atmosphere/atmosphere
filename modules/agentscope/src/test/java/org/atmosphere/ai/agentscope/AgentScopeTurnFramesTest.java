@@ -46,8 +46,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * What one AgentScope turn puts on the wire: each answer once, however the
- * agent reports it. The real per-request {@link ReActAgent} runs over a
- * scripted model.
+ * agent reports it, and every tool call — one AgentScope rejected before the
+ * tool ran included — as one {@code tool-start} and one terminal frame. The
+ * real per-request {@link ReActAgent} runs over a scripted model.
  */
 class AgentScopeTurnFramesTest {
 
@@ -91,7 +92,57 @@ class AgentScopeTurnFramesTest {
     }
 
     @Test
-    void aStructuredAnswerReachesTheSessionOnce() {
+    void aCallAgentScopeRejectsForItsArgumentsEndsWithOneToolError() {
+        var ran = new AtomicInteger();
+        var model = new ScriptedModel(List.of(
+                List.of(toolUse("call-1", "convert", "{\"celsius\":\"very hot\"}", Map.of("celsius", "very hot"))),
+                List.of(text("The tool failed."))));
+
+        var session = run(model, List.of(convert(ran)));
+
+        assertEquals(0, ran.get(), "AgentScope rejected the call before the tool");
+        assertEquals(List.of("ToolStart:convert", "ToolError:convert"), session.toolFrames());
+        var start = (AiEvent.ToolStart) session.toolEvents().get(0);
+        assertEquals(Map.of("celsius", "very hot"), start.arguments());
+        var error = ((AiEvent.ToolError) session.toolEvents().get(1)).error();
+        assertTrue(error.startsWith("Parameter validation failed for tool 'convert'"), error);
+        // What the model reads is AgentScope's own answer, unchanged.
+        assertTrue(model.toolResultText.startsWith("Error: Parameter validation failed for tool 'convert'"),
+                model.toolResultText);
+        assertEquals(List.of("The tool failed."), session.sends);
+    }
+
+    @Test
+    void aCallToAnUnknownToolEndsWithOneToolError() {
+        var model = new ScriptedModel(List.of(
+                List.of(toolUse("call-1", "nosuch", "{}", Map.of())),
+                List.of(text("No such tool."))));
+
+        var session = run(model, List.of(convert(new AtomicInteger())));
+
+        assertEquals(List.of("ToolStart:nosuch", "ToolError:nosuch"), session.toolFrames());
+        assertEquals("Tool not found: nosuch", ((AiEvent.ToolError) session.toolEvents().get(1)).error());
+    }
+
+    @Test
+    void aRejectedAndAValidCallInOneRoundEachEndOnce() {
+        var ran = new AtomicInteger();
+        var model = new ScriptedModel(List.of(
+                List.of(toolUse("call-1", "convert", "{\"celsius\":\"hot\"}", Map.of("celsius", "hot")),
+                        toolUse("call-2", "convert", "{\"celsius\":5}", Map.of("celsius", 5))),
+                List.of(text("Done."))));
+
+        var session = run(model, List.of(convert(ran)));
+
+        assertEquals(1, ran.get());
+        var frames = session.toolFrames();
+        assertEquals(2, frames.stream().filter("ToolStart:convert"::equals).count(), frames.toString());
+        assertEquals(1, frames.stream().filter("ToolResult:convert"::equals).count(), frames.toString());
+        assertEquals(1, frames.stream().filter("ToolError:convert"::equals).count(), frames.toString());
+    }
+
+    @Test
+    void aStructuredAnswerReachesTheSessionOnceAndAgentScopesOwnToolIsNotReported() {
         var model = new ScriptedModel(List.of(List.of(toolUse("call-1", "generate_response",
                 "{\"response\":{\"answer\":true,\"confidence\":0.9}}",
                 Map.of("response", Map.of("answer", true, "confidence", 0.9))))));
@@ -109,6 +160,7 @@ class AgentScopeTurnFramesTest {
         assertTrue(text.contains("\"confidence\""), "the structured answer reached the session: " + session.sends);
         assertEquals(text.indexOf("\"confidence\""), text.lastIndexOf("\"confidence\""),
                 "the structured answer reached the session once: " + session.sends);
+        assertEquals(List.of(), session.toolFrames(), "generate_response is AgentScope's tool, not a call to report");
     }
 
     private static RecordingSession run(ScriptedModel model, List<ToolDefinition> tools) {

@@ -16,6 +16,7 @@
 package org.atmosphere.ai.agentscope;
 
 import io.agentscope.core.message.ToolResultBlock;
+import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.model.ToolSchema;
 import io.agentscope.core.tool.AgentTool;
 import io.agentscope.core.tool.ToolCallParam;
@@ -31,6 +32,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Bridges Atmosphere {@link ToolDefinition}s into AgentScope's
@@ -48,12 +51,49 @@ public final class AgentScopeToolBridge {
             StreamingSession session,
             ApprovalStrategy strategy,
             ToolApprovalPolicy policy) {
+        return toToolkit(tools, session, strategy, policy, false);
+    }
+
+    /**
+     * As {@link #toToolkit(List, StreamingSession, ApprovalStrategy, ToolApprovalPolicy)};
+     * with {@code trackDispatch}, each tool remembers the calls that reached
+     * it until {@link #reachedTool} is asked about them, so a
+     * {@link RejectedToolCallHook} on the same agent can report the calls
+     * AgentScope answered without running the tool. Only a toolkit whose agent
+     * carries that hook tracks: nothing else would forget the calls.
+     */
+    static Toolkit toToolkit(
+            List<ToolDefinition> tools,
+            StreamingSession session,
+            ApprovalStrategy strategy,
+            ToolApprovalPolicy policy,
+            boolean trackDispatch) {
         var toolkit = new Toolkit();
         for (var tool : tools) {
-            var agentTool = new AtmosphereAgentScopeTool(tool, session, strategy, policy);
+            var agentTool = new AtmosphereAgentScopeTool(tool, session, strategy, policy, trackDispatch);
             toolkit.registerAgentTool(agentTool);
         }
         return toolkit;
+    }
+
+    /**
+     * Whether {@code agentTool} is one of this bridge's tools that tracks its
+     * calls; when it is, whether the call {@code use} reached it (the tool
+     * forgets the call either way).
+     *
+     * @return {@code null} when {@code agentTool} is not a tracking bridge tool
+     */
+    static Boolean reachedTool(AgentTool agentTool, ToolUseBlock use) {
+        if (agentTool instanceof AtmosphereAgentScopeTool bridged && bridged.dispatched != null) {
+            return bridged.dispatched.remove(callKey(use));
+        }
+        return null;
+    }
+
+    /** A call's id, or the call itself when the model gave it none. */
+    private static Object callKey(ToolUseBlock use) {
+        var id = use.getId();
+        return id != null && !id.isBlank() ? id : use;
     }
 
     static ToolSchema toSchema(ToolDefinition tool) {
@@ -88,16 +128,25 @@ public final class AgentScopeToolBridge {
         private final StreamingSession session;
         private final ApprovalStrategy strategy;
         private final ToolApprovalPolicy policy;
+        /**
+         * The calls that reached this tool and that the agent's
+         * {@link RejectedToolCallHook} has not asked about yet; {@code null}
+         * when not tracking. Bounded by the calls of one round: the hook
+         * removes each call once it is acted on.
+         */
+        private final Set<Object> dispatched;
 
         private AtmosphereAgentScopeTool(
                 ToolDefinition tool,
                 StreamingSession session,
                 ApprovalStrategy strategy,
-                ToolApprovalPolicy policy) {
+                ToolApprovalPolicy policy,
+                boolean trackDispatch) {
             this.tool = tool;
             this.session = session;
             this.strategy = strategy;
             this.policy = policy;
+            this.dispatched = trackDispatch ? ConcurrentHashMap.newKeySet() : null;
         }
 
         @Override
@@ -118,6 +167,9 @@ public final class AgentScopeToolBridge {
         @Override
         public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
             var input = param == null || param.getInput() == null ? Map.<String, Object>of() : param.getInput();
+            if (dispatched != null && param != null && param.getToolUseBlock() != null) {
+                dispatched.add(callKey(param.getToolUseBlock()));
+            }
             var result = ToolExecutionHelper.executeWithApproval(
                     tool.name(), tool, input, session, strategy, policy);
             if (param != null && param.getToolUseBlock() != null) {
