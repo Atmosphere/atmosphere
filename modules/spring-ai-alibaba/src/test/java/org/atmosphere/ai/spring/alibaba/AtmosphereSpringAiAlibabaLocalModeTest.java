@@ -82,6 +82,50 @@ class AtmosphereSpringAiAlibabaLocalModeTest {
         assertEquals("http://127.0.0.1:8000", env.getProperty("spring.ai.openai.base-url"));
     }
 
+    /**
+     * {@code LLM_BASE_URL} is documented with {@code /v1} for every runtime;
+     * passed through, Spring AI 1.x called {@code /v1/v1/chat/completions}, a 404.
+     */
+    @Test
+    void anLlmBaseUrlWithV1IsMappedWithoutIt() {
+        var env = environment(Map.of("LLM_MODE", "local", "LLM_BASE_URL", "http://localhost:11434/v1"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals("http://localhost:11434", env.getProperty("spring.ai.openai.base-url"));
+    }
+
+    @Test
+    void anLlmBaseUrlWithV1AndATrailingSlashIsMappedWithoutBoth() {
+        var env = environment(Map.of("llm.base-url", "https://dashscope.aliyuncs.com/compatible-mode/v1/"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals("https://dashscope.aliyuncs.com/compatible-mode", env.getProperty("spring.ai.openai.base-url"),
+                "Spring AI 1.x appends /v1/chat/completions to the base URL");
+    }
+
+    @Test
+    void anExplicitSpringAiBaseUrlWithV1IsNeverRewritten() {
+        var env = environment(Map.of("LLM_BASE_URL", "http://localhost:11434/v1",
+                "spring.ai.openai.base-url", "https://gateway.example/v1"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals("https://gateway.example/v1", env.getProperty("spring.ai.openai.base-url"),
+                "the user's own spring.ai.openai.base-url is theirs to get right");
+    }
+
+    @Test
+    void springAi1BaseUrlStripsOnlyOneTrailingV1() {
+        assertEquals("http://localhost:11434",
+                AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl(" http://localhost:11434/ "));
+        assertEquals("http://h/v1",
+                AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl("http://h/v1/v1"));
+        assertEquals("http://h/api/v10",
+                AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl("http://h/api/v10"));
+    }
+
     @Test
     void remoteModeWithoutSettingsAddsNothing() {
         var env = environment(Map.of());

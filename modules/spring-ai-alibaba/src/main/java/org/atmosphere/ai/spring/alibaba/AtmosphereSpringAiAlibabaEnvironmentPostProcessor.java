@@ -47,9 +47,11 @@ import java.util.Map;
  * is not already configured by the user):</p>
  * <ul>
  *   <li>{@code llm.api-key} → {@code spring.ai.openai.api-key}</li>
- *   <li>{@code llm.base-url} → {@code spring.ai.openai.base-url}; with none,
- *       {@code llm.mode=local} ({@code LLM_MODE=local}) maps the local Ollama
- *       endpoint and, when no key is set, a placeholder key</li>
+ *   <li>{@code llm.base-url} → {@code spring.ai.openai.base-url}, without the
+ *       trailing {@code /v1} the other runtimes are given (Spring AI 1.x
+ *       appends it); with none, {@code llm.mode=local} ({@code LLM_MODE=local})
+ *       maps the local Ollama endpoint and, when no key is set, a placeholder
+ *       key</li>
  *   <li>{@code llm.model}    → {@code spring.ai.openai.chat.options.model}</li>
  * </ul>
  *
@@ -72,9 +74,7 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
      * {@code OpenAiApi} appends {@code /v1/chat/completions} to the base URL,
      * so the {@code /v1} the OpenAI SDK expects would be doubled.
      */
-    static final String LOCAL_BASE_URL = AiConfig.OLLAMA_ENDPOINT.endsWith("/v1")
-            ? AiConfig.OLLAMA_ENDPOINT.substring(0, AiConfig.OLLAMA_ENDPOINT.length() - "/v1".length())
-            : AiConfig.OLLAMA_ENDPOINT;
+    static final String LOCAL_BASE_URL = springAi1BaseUrl(AiConfig.OLLAMA_ENDPOINT);
 
     /** The key a local backend is sent: it ignores it, Spring AI requires one. */
     static final String LOCAL_PLACEHOLDER_API_KEY = "not-needed-for-local";
@@ -121,7 +121,11 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
             baseUrl = LOCAL_BASE_URL;
         }
         if (baseUrl != null && isBlank(env.getProperty("spring.ai.openai.base-url"))) {
-            mapped.put("spring.ai.openai.base-url", baseUrl);
+            // LLM_BASE_URL is documented with /v1 for every runtime
+            // (http://localhost:11434/v1); Spring AI 1.x would call
+            // .../v1/v1/chat/completions, a 404. An explicit
+            // spring.ai.openai.base-url is the user's and is never rewritten.
+            mapped.put("spring.ai.openai.base-url", springAi1BaseUrl(baseUrl));
         }
 
         var model = firstNonBlank(
@@ -136,6 +140,25 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
             logger.info("Bridged llm.* → spring.ai.openai.* defaults ({} keys) for spring-ai-alibaba",
                     mapped.size());
         }
+    }
+
+    /**
+     * {@code baseUrl} as Spring AI 1.x takes it: trimmed, without one trailing
+     * slash and one trailing {@code /v1}, since its {@code OpenAiApi} appends
+     * {@code /v1/chat/completions} to the base URL.
+     *
+     * @param baseUrl an OpenAI-compatible base URL, with or without {@code /v1}
+     * @return the base URL without the trailing {@code /v1}
+     */
+    static String springAi1BaseUrl(String baseUrl) {
+        var url = baseUrl.trim();
+        if (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        if (url.endsWith("/v1")) {
+            url = url.substring(0, url.length() - "/v1".length());
+        }
+        return url;
     }
 
     private static String firstNonBlank(String... values) {
