@@ -15,12 +15,17 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
+import org.apache.commons.logging.LogFactory;
 import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.core.io.support.SpringFactoriesLoader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -29,6 +34,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -91,6 +97,43 @@ class LlmEndpointDefaultsTest {
         }
         assertTrue(registered.stream().anyMatch(v -> v.contains(LlmEndpointDefaults.class.getName())),
                 "LlmEndpointDefaults is not registered in META-INF/spring.factories: " + registered);
+    }
+
+    @Test
+    void atmosphereAiSettingsReachTheEndpointBeforeItIsDerived() throws Exception {
+        // LLM_MODE= and LLM_MODEL= exported blank, atmosphere.ai.mode=local: the
+        // starter's AtmosphereAiLlmPropertyBridge maps atmosphere.ai.* onto the
+        // blank llm.*, and the endpoint must be derived from that, not from the
+        // blank llm.* (which resolves to Gemini: a local run sent to Google).
+        // The post-processors are loaded and ordered the way Spring Boot does,
+        // under the key both Boot 3 and Boot 4 read; the type is looked up by
+        // name, as it is deprecated in Boot 4.
+        var type = Class.forName("org.springframework.boot.env.EnvironmentPostProcessor");
+        var wanted = Set.of("org.atmosphere.spring.boot.AtmosphereAiLlmPropertyBridge",
+                LlmEndpointDefaults.class.getName());
+        var processors = new ArrayList<Object>(SpringFactoriesLoader
+                .forDefaultResourceLocation(getClass().getClassLoader())
+                .load(type, null, SpringFactoriesLoader.FailureHandler.logging(
+                        LogFactory.getLog(getClass())))
+                .stream()
+                .filter(p -> wanted.contains(p.getClass().getName()))
+                .toList());
+        assertEquals(wanted.size(), processors.size(), "registered: " + processors);
+        AnnotationAwareOrderComparator.sort(processors);
+
+        var env = new StandardEnvironment();
+        env.getPropertySources().addLast(new MapPropertySource("application.yml", new HashMap<>(Map.of(
+                "llm.mode", "", "llm.model", "", "llm.base-url", "",
+                "atmosphere.ai.mode", "local", "atmosphere.ai.model", "qwen2.5:7b"))));
+        var postProcess = type.getMethod("postProcessEnvironment",
+                ConfigurableEnvironment.class, SpringApplication.class);
+        for (var processor : processors) {
+            postProcess.invoke(processor, env, null);
+        }
+
+        var baseUrl = env.getProperty("llm.base-url");
+        assertEquals(AiConfig.resolveBaseUrl("local", null, "qwen2.5:7b"), baseUrl);
+        assertTrue(baseUrl.contains("11434"), baseUrl);
     }
 
     @Test

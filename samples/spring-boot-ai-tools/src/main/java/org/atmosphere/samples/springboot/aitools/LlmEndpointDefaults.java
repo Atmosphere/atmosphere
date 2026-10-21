@@ -17,7 +17,6 @@ package org.atmosphere.samples.springboot.aitools;
 
 import org.atmosphere.ai.AiConfig;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -42,7 +41,13 @@ import java.util.Map;
  * auto-configuration runs, keeps the sample free of framework types and gives
  * every adapter the endpoint {@link AiConfig} resolves.</p>
  *
- * <p>Runs right after {@code application.yml} is loaded and only when the
+ * <p>Runs after {@code application.yml} is loaded and after the starter's
+ * {@code AtmosphereAiLlmPropertyBridge}, which maps {@code atmosphere.ai.mode},
+ * {@code model}, {@code api-key} and {@code base-url} onto a blank
+ * {@code llm.*}: run before it, a blank {@code LLM_MODE}/{@code LLM_MODEL} with
+ * {@code atmosphere.ai.mode=local} derived the Gemini endpoint and a local run
+ * was sent to Google. It still runs before the adapters' own post-processors,
+ * which declare no order and read {@code llm.*}. It acts only when the
  * property is blank, so an explicit {@code LLM_BASE_URL} always wins.
  * Registered in {@code META-INF/spring.factories}.</p>
  */
@@ -71,8 +76,15 @@ public class LlmEndpointDefaults implements EnvironmentPostProcessor, Ordered {
                 new MapPropertySource(SOURCE_NAME, Map.of("llm.base-url", resolved)));
     }
 
+    /**
+     * After {@code AtmosphereAiLlmPropertyBridge} ({@code LOWEST_PRECEDENCE - 10}),
+     * before a post-processor with no order ({@code LOWEST_PRECEDENCE}). A literal:
+     * the bridge's constant is package-private in {@code org.atmosphere.spring.boot}.
+     */
+    static final int ORDER = Ordered.LOWEST_PRECEDENCE - 5;
+
     @Override
     public int getOrder() {
-        return ConfigDataEnvironmentPostProcessor.ORDER + 1;
+        return ORDER;
     }
 }
