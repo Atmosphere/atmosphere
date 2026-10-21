@@ -137,6 +137,7 @@ export function texToText(tex: string): string {
   };
 
   const command = (): string => {
+    const before = i > 0 ? tex[i - 1] : '';
     i++; // the backslash
     if (i >= tex.length) return '';
     if (!/[A-Za-z]/.test(tex[i])) {
@@ -157,10 +158,12 @@ export function texToText(tex: string): string {
     if (FUNCTIONS.has(name)) {
       // TeX swallows the space after a command; keep the words apart, but an
       // argument in sized parentheses (\sin\left( … \right)) reads sin(…).
+      // A factor written against it (2ab\cos C) is kept apart too: 2ab cos C.
+      const lead = /[\p{L}\p{N})}]/u.test(before) ? ' ' : '';
       const rest = tex.slice(i);
-      if (OPENING_DELIMITER.test(rest)) return name;
+      if (OPENING_DELIMITER.test(rest)) return lead + name;
       const next = rest.match(/^\s*([\p{L}\p{N}\\])/u);
-      return next ? `${name} ` : name;
+      return next ? `${lead}${name} ` : lead + name;
     }
     if (IGNORED.has(name)) {
       skipSpaces();
@@ -245,6 +248,13 @@ export function texToText(tex: string): string {
     .filter((line) => line.length > 0)
     .join('\n');
 }
+
+/**
+ * Options for the markdown parser the bubble renders with. react-native-markdown-display
+ * turns markdown-it's typographer on by default, and its replacements read `cos(C)` as
+ * `cos©`, `(r)` as `®` and `(tm)` as `™`; a math answer needs the text as written.
+ */
+export const MARKDOWN_OPTIONS = { typographer: false } as const;
 
 /** Escapes what markdown would otherwise read as emphasis, links, code or HTML. */
 function escapeMarkdown(text: string): string {

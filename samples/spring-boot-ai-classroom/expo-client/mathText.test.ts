@@ -2,9 +2,10 @@ import { describe, expect, test } from 'bun:test';
 // The parser react-native-markdown-display renders from: what its text
 // tokens hold is what the bubble shows.
 import MarkdownIt from 'markdown-it';
-import { renderMath, texToText } from './mathText';
+import { MARKDOWN_OPTIONS, renderMath, texToText } from './mathText';
 
-const markdown = new MarkdownIt();
+// The options App.tsx builds its parser with.
+const markdown = new MarkdownIt(MARKDOWN_OPTIONS);
 
 /** The text a reply shows once markdown has parsed it, one entry per block. */
 function shown(reply: string): string[] {
@@ -80,6 +81,14 @@ describe('math in a reply, as the bubble shows it', () => {
     expect(renderMath('\\( \\sin(30^\\circ) = \\frac{a}{c} \\) and \\(90^{\\circ}\\)')).toBe(
       'sin(30°) = a/c and 90°',
     );
+  });
+
+  test('(C), (r) and (tm) stay as written, not ©, ® and ™', () => {
+    // Verbatim shape from qwen2.5:3b in the math room (sweep 2026-10-21).
+    expect(shown(renderMath('Here, \\(c^2 = a^2 + b^2 - 2ab\\cos(C)\\) holds'))).toEqual([
+      'Here, c² = a² + b² - 2ab cos(C) holds',
+    ]);
+    expect(shown('Angle (C), mark (r), brand (tm)')).toEqual(['Angle (C), mark (r), brand (tm)']);
   });
 
   test('characters markdown would read as emphasis are escaped', () => {

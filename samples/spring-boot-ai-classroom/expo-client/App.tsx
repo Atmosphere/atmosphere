@@ -15,7 +15,7 @@ import { registerRootComponent } from 'expo';
 // React Native's own SafeAreaView is deprecated (and iOS-only); the
 // safe-area-context one reads the insets on both platforms.
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 import NetInfo from '@react-native-community/netinfo';
 import {
   setupReactNative,
@@ -24,8 +24,11 @@ import {
   useOfflineQueue,
   ConnectionStatusBadgeRN,
 } from 'atmosphere.js/react-native';
-import { renderMath } from './mathText';
+import { MARKDOWN_OPTIONS, renderMath } from './mathText';
 import { withMemberPrompt, type Message } from './transcript';
+
+// One parser for every bubble, with the typographer off (see MARKDOWN_OPTIONS).
+const markdownParser = MarkdownIt(MARKDOWN_OPTIONS);
 
 // --- Initialize atmosphere.js for React Native ---
 const caps = setupReactNative({ netInfo: NetInfo });
@@ -281,7 +284,9 @@ function Classroom({
         <View style={styles.assistantBubble}>
           <View style={styles.markdownWrap}>
             {/* The markdown renderer has no math support: LaTeX becomes Unicode text first. */}
-            <Markdown style={markdownStyles}>{renderMath(item.text)}</Markdown>
+            <Markdown style={markdownStyles} markdownit={markdownParser}>
+              {renderMath(item.text)}
+            </Markdown>
           </View>
           {!item.complete && <Text style={styles.cursor}>|</Text>}
         </View>
