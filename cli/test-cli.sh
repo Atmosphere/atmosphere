@@ -1126,6 +1126,79 @@ if [ -f "$ai_tools_pom" ]; then
     fi
 fi
 
+# ── --force: a template's own sources must not need a dep --force strips ──
+# `--force` edits only the pom. A template whose src/main imports a package
+# from an adapter artifact it pins no longer compiles once --force removes
+# that artifact: ai-tools' LlmConfig imported dev.langchain4j.* and
+# `new --template ai-tools --runtime <X> --force` failed with "package
+# dev.langchain4j.model.chat does not exist". For every template in cmd_new's
+# map, strip with --force (builtin: strip only) and check that no main source
+# imports a package owned by an artifact the strip removed. The prefixes are
+# the packages each overlay artifact provides; spring-ai-starter-model-openai
+# maps only to the OpenAI packages, since spring-ai-vector-store (kept) owns
+# org.springframework.ai.vectorstore/document/embedding.
+overlay_artifact_packages() {
+    case "$1" in
+        atmosphere-langchain4j)            echo "org.atmosphere.ai.langchain4j" ;;
+        langchain4j-open-ai)               echo "dev.langchain4j" ;;
+        atmosphere-spring-ai)              echo "org.atmosphere.ai.spring" ;;
+        spring-ai-starter-model-openai)    echo "org.springframework.ai.openai org.springframework.ai.model.openai" ;;
+        atmosphere-adk)                    echo "org.atmosphere.ai.adk" ;;
+        google-adk)                        echo "com.google.adk" ;;
+        atmosphere-koog)                   echo "org.atmosphere.ai.koog" ;;
+        koog-agents-jvm)                   echo "ai.koog" ;;
+        atmosphere-agentscope)             echo "org.atmosphere.ai.agentscope" ;;
+        agentscope-core)                   echo "io.agentscope" ;;
+        atmosphere-spring-ai-alibaba)      echo "org.atmosphere.ai.spring.alibaba" ;;
+        spring-ai-alibaba-agent-framework) echo "com.alibaba.cloud.ai" ;;
+        atmosphere-embabel)                echo "org.atmosphere.ai.embabel" ;;
+        embabel-agent-api|embabel-agent-starter-gemini) echo "com.embabel" ;;
+        atmosphere-semantic-kernel)        echo "org.atmosphere.ai.sk" ;;
+        semantickernel-api|semantickernel-aiservices-openai) echo "com.microsoft.semantickernel" ;;
+        atmosphere-anthropic)              echo "org.atmosphere.ai.anthropic" ;;
+        atmosphere-cohere)                 echo "org.atmosphere.ai.cohere" ;;
+        atmosphere-crewai)                 echo "org.atmosphere.ai.crewai" ;;
+        *) echo "" ;;
+    esac
+}
+# Every overlay artifact must have a package mapping, or a new overlay would
+# silently escape this check.
+unmapped=""
+for a in $(jq -r '.overlays[].deps[]?.artifactId' "$OVERLAYS_JSON" | sort -u); do
+    [ -z "$(overlay_artifact_packages "$a")" ] && unmapped="$unmapped $a"
+done
+if [ -z "$unmapped" ]; then
+    pass "every overlay artifact has a package mapping for the --force source check"
+else
+    fail "every overlay artifact has a package mapping for the --force source check" "unmapped:$unmapped"
+fi
+force_templates=$(sed -n '/^cmd_new() {$/,/^}$/p' "$CLI" | grep -o 'source_sample="[^"]*"' | cut -d'"' -f2)
+if [ -z "$force_templates" ]; then
+    fail "--force source check found the template map in cmd_new"
+fi
+for sample in $force_templates; do
+    sample_dir="$SCRIPT_DIR/../samples/$sample"
+    [ -f "$sample_dir/pom.xml" ] || { fail "--force source check: $sample has a pom.xml"; continue; }
+    stripped_pom="$overlay_tmp/pom.srccheck.$sample.xml"
+    cp "$sample_dir/pom.xml" "$stripped_pom"
+    drive_overlay builtin "$stripped_pom" true >/dev/null 2>&1
+    offenders=""
+    for a in $(jq -r '.overlays[].deps[]?.artifactId' "$OVERLAYS_JSON" | sort -u); do
+        grep -q "<artifactId>$a</artifactId>" "$sample_dir/pom.xml" || continue
+        grep -q "<artifactId>$a</artifactId>" "$stripped_pom" && continue
+        for pkg in $(overlay_artifact_packages "$a"); do
+            hits=$(grep -rlE "^import (static )?$(printf '%s' "$pkg" | sed 's/\./\\./g')\." \
+                "$sample_dir/src/main" 2>/dev/null || true)
+            [ -n "$hits" ] && offenders="$offenders $a->$(printf '%s' "$hits" | sed "s|$sample_dir/||" | tr '\n' ' ')"
+        done
+    done
+    if [ -z "$offenders" ]; then
+        pass "--force keeps template sources compilable: $sample"
+    else
+        fail "--force keeps template sources compilable: $sample" "imports from stripped deps:$offenders"
+    fi
+done
+
 rm -rf "$overlay_tmp"
 printf "\n"
 

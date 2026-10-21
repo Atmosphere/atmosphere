@@ -152,3 +152,14 @@ To use Spring AI instead of LangChain4j, just change the Maven dependency:
 ```
 
 No tool code changes needed — `AssistantTools.java` works unchanged.
+
+The sample's own code references no AI framework: `LlmConfig` only bridges the
+`llm.*` properties into `AiConfig`, and the adapter on the classpath builds its
+client from the same properties. That is what lets
+`atmosphere new my-app --template ai-tools --runtime spring-ai --force` strip
+the LangChain4j dependencies and still compile. When `llm.base-url` is blank,
+`LlmEndpointDefaults` (an `EnvironmentPostProcessor` registered in
+`META-INF/spring.factories`) fills it with the endpoint `AiConfig` derives from
+`llm.mode` and `llm.model` — Ollama for `LLM_MODE=local`, OpenAI for a `gpt-*`
+model, Gemini otherwise — so a `GEMINI_API_KEY` reaches Gemini whichever adapter
+is present. An explicit `LLM_BASE_URL` always wins.

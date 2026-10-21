@@ -15,21 +15,22 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
-import dev.langchain4j.model.chat.StreamingChatModel;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.atmosphere.ai.AiConfig;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * LLM configuration for the AI tools sample.
  *
- * <p>Configures the LangChain4j streaming model and Atmosphere's {@link AiConfig}.
- * The LLM backend can be swapped by changing the Maven dependency
- * (e.g., replace {@code atmosphere-langchain4j} with {@code atmosphere-spring-ai})
- * without changing any tool code.</p>
+ * <p>Bridges the {@code llm.*} properties into Atmosphere's {@link AiConfig}.
+ * It declares no client of any AI framework: the adapter on the classpath
+ * ({@code atmosphere-langchain4j} in this pom) builds its own from the same
+ * {@code llm.*} properties, so the backend can be swapped by changing the
+ * Maven dependency (for example {@code atmosphere new --template ai-tools
+ * --runtime spring-ai --force}) without changing any code. The endpoint for a
+ * blank {@code llm.base-url} is resolved once, by {@link LlmEndpointDefaults},
+ * so every adapter sees the same one.</p>
  */
 @Configuration
 public class LlmConfig {
@@ -41,22 +42,5 @@ public class LlmConfig {
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl) {
         return AiConfig.configure(mode, model, apiKey, baseUrl);
-    }
-
-    /**
-     * Gated on a non-blank key, mirroring
-     * {@code AtmosphereLangChain4jAutoConfiguration}: an unconditional
-     * {@link StreamingChatModel} bean would mark an explicit client binding,
-     * hiding the demo runtime and sending keyless dispatch into LangChain4j
-     * with a blank key. Keyless boots resolve {@code DemoAgentRuntime} instead.
-     */
-    @Bean
-    @ConditionalOnExpression("'${llm.api-key:}' != ''")
-    public StreamingChatModel streamingChatModel(AiConfig.LlmSettings settings) {
-        return OpenAiStreamingChatModel.builder()
-                .baseUrl(settings.baseUrl())
-                .apiKey(settings.apiKey())
-                .modelName(settings.model())
-                .build();
     }
 }
