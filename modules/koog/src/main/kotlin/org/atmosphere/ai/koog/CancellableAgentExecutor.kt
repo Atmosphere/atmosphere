@@ -34,6 +34,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.takeWhile
+import org.atmosphere.ai.StreamingSession
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
@@ -51,10 +52,16 @@ import kotlin.coroutines.cancellation.CancellationException
  * agent's strategy sees a reply with no tool call and finishes normally. A tool
  * running when the cancel lands runs to its end; the model call after it is
  * answered empty, so nothing more is dispatched.
+ *
+ * A tool round that ended the turn (an approval that ran out with the turn's
+ * time limit closes [session], a cancel of the turn) is answered the same way:
+ * the model call after it is answered empty, so the agent asks the model no
+ * more and its answer does not hold the turn past its end.
  */
 internal class CancellableAgentExecutor(
     private val delegate: PromptExecutor,
-    private val cancelled: AtomicBoolean
+    private val cancelled: AtomicBoolean,
+    private val session: StreamingSession? = null
 ) : PromptExecutor() {
 
     private val calls: MutableSet<Deferred<*>> = ConcurrentHashMap.newKeySet()
@@ -67,25 +74,29 @@ internal class CancellableAgentExecutor(
     private fun ended(): Message.Assistant =
         Message.Assistant(content = "", metaInfo = ResponseMetaInfo.Empty)
 
+    /** Whether the caller cancelled, or the turn the run serves has ended. */
+    private fun turnEnded(): Boolean =
+        cancelled.get() || session?.let { it.isClosed || it.isTurnCancelled } == true
+
     /**
      * Run [block] in a job of its own on the caller's dispatcher (same thread,
      * same thread-bound state), so cancelling it is not a cancellation of the
      * agent's run. A cancellation of the caller itself still propagates.
      */
     private suspend fun <T> call(onCancelled: () -> T, block: suspend () -> T): T {
-        if (cancelled.get()) return onCancelled()
+        if (turnEnded()) return onCancelled()
         val context = currentCoroutineContext()
         val call = CoroutineScope(context.minusKey(Job) + Job()).async { block() }
         calls.add(call)
         try {
-            if (cancelled.get()) call.cancel()
+            if (turnEnded()) call.cancel()
             return call.await()
         } catch (ce: CancellationException) {
             if (!context.isActive()) {
                 call.cancel()
                 context.ensureActive()
             }
-            if (cancelled.get()) return onCancelled()
+            if (turnEnded()) return onCancelled()
             throw ce
         } finally {
             calls.remove(call)
@@ -113,8 +124,8 @@ internal class CancellableAgentExecutor(
         model: LLModel,
         tools: List<ToolDescriptor>
     ): Flow<StreamFrame> =
-        if (cancelled.get()) emptyFlow()
-        else delegate.executeStreaming(prompt, model, tools).takeWhile { !cancelled.get() }
+        if (turnEnded()) emptyFlow()
+        else delegate.executeStreaming(prompt, model, tools).takeWhile { !turnEnded() }
 
     override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
         delegate.moderate(prompt, model)

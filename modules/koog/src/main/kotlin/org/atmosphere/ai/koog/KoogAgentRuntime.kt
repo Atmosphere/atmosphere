@@ -524,7 +524,7 @@ class KoogAgentRuntime : AgentRuntime {
         agentCalls: java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?> =
             java.util.concurrent.atomic.AtomicReference()
     ) {
-        val runExecutor = CancellableAgentExecutor(executor, cancelled).also { agentCalls.set(it) }
+        val runExecutor = CancellableAgentExecutor(executor, cancelled, session).also { agentCalls.set(it) }
         val toolRegistry = AtmosphereToolBridge.buildRegistry(
             context.tools(), session, context.approvalStrategy(), context.listeners(),
             context.approvalPolicy()
@@ -686,7 +686,7 @@ class KoogAgentRuntime : AgentRuntime {
         agentCalls: java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?> =
             java.util.concurrent.atomic.AtomicReference()
     ) {
-        val runExecutor = CancellableAgentExecutor(executor, cancelled).also { agentCalls.set(it) }
+        val runExecutor = CancellableAgentExecutor(executor, cancelled, session).also { agentCalls.set(it) }
         // Same boundary honesty as the tool-loop path: the planner runs on
         // the user's plain text message, so multi-modal parts cannot reach
         // it — log the drop instead of silently truncating (Invariant #7).
