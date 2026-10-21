@@ -215,4 +215,41 @@ class ToolExecutionHelperApprovalTest {
         assertEquals(1, asked.get(), "the second tool asked for an approval after the turn ended");
         assertEquals(0, ran.get());
     }
+
+    /**
+     * An approval whose expiry the turn's deadline set ends the turn when it
+     * times out, even if the wait woke a moment before that instant (the
+     * registry waits whole milliseconds on the monotonic clock). Before, a
+     * wall-clock re-check took the generic "timed out" branch about once in
+     * three, called the model again and left the turn ~0.8 s from its limit.
+     */
+    @Test
+    void anApprovalBoundByItsTurnEndsTheTurnEvenWhenItWakesEarly() {
+        var deadline = Instant.now().plusMillis(2_500);
+        var error = new AtomicReference<Throwable>();
+        var session = new StreamingSession() {
+            @Override public String sessionId() { return "turn-bound-approval"; }
+            @Override public void send(String text) { }
+            @Override public void sendMetadata(String key, Object value) { }
+            @Override public void progress(String message) { }
+            @Override public void complete() { }
+            @Override public void complete(String summary) { }
+            @Override public void error(Throwable t) { error.compareAndSet(null, t); }
+            @Override public boolean isClosed() { return error.get() != null; }
+            @Override public Optional<Instant> turnDeadline() { return Optional.of(deadline); }
+        };
+        var expiry = new AtomicReference<Instant>();
+        // Wakes at once, well before the turn-bounded expiry: the early wake.
+        ApprovalStrategy wakesEarly = (approval, s) -> {
+            expiry.set(approval.expiresAt());
+            return ApprovalStrategy.ApprovalOutcome.TIMED_OUT;
+        };
+
+        var result = ToolExecutionHelper.executeWithApproval(
+                "delete_account", sensitiveTool(new AtomicInteger()), Map.of("userId", "u1"), session, wakesEarly);
+
+        assertEquals(deadline.minus(ToolExecutionHelper.APPROVAL_TURN_MARGIN), expiry.get());
+        assertTrue(result.contains("before the turn's time limit"), result);
+        assertInstanceOf(org.atmosphere.ai.ApprovalTimedOutException.class, error.get());
+    }
 }
