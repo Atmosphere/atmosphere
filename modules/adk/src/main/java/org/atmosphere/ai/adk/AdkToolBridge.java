@@ -143,6 +143,14 @@ public final class AdkToolBridge {
                         approvalPolicy);
                 org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, name(), resultStr);
                 logger.debug("Tool {} executed: {}", name(), resultStr);
+                if (toolContext != null && session != null
+                        && (session.isClosed() || session.isTurnCancelled())) {
+                    // A tool round that ended the turn (an approval that ran out
+                    // with the turn's time limit, a cancel) calls the model no
+                    // more: ADK checks its invocation's end before each model
+                    // call, so the flow stops instead of asking the model again.
+                    toolContext.invocationContext().setEndInvocation(true);
+                }
 
                 var response = new HashMap<String, Object>();
                 response.put("status", "success");
