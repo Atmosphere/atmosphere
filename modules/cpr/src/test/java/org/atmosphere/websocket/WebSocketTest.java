@@ -17,17 +17,27 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AsyncIOInterceptor;
+import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -109,6 +119,92 @@ public class WebSocketTest {
 
         assertFalse(worker1.isCorrupted(), "corrupted");
         assertFalse(worker2.isCorrupted(), "corrupted");
+    }
+
+    /**
+     * Two threads writing to one connection's response at once each reach the
+     * socket once, alone: a write swaps the response's writer for a buffer of
+     * its own while the interceptors run, and two writes interleaved there
+     * swapped each other's buffer, one frame then lost and an empty one sent.
+     */
+    @Test
+    public void concurrentWritesToOneResponseReachTheSocketOnceEach() throws Exception {
+        List<String> socket = Collections.synchronizedList(new ArrayList<>());
+        WebSocket ws = new WebSocket(framework.getAtmosphereConfig()) {
+            @Override
+            public boolean isOpen() {
+                return true;
+            }
+
+            @Override
+            public WebSocket write(String s) {
+                socket.add(s);
+                return this;
+            }
+
+            @Override
+            public WebSocket write(byte[] b, int offset, int length) {
+                socket.add(new String(b, offset, length));
+                return this;
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
+        response.asyncIOWriter(ws);
+        var resource = mock(AtmosphereResource.class);
+        when(resource.getResponse()).thenReturn(response);
+        ws.resource(resource);
+
+        var firstIn = new CountDownLatch(1);
+        var firstGo = new CountDownLatch(1);
+        var secondIn = new CountDownLatch(1);
+        var secondGo = new CountDownLatch(1);
+        var paused = ConcurrentHashMap.<Thread>newKeySet();
+        // Holds each writer, once, while it runs the interceptors.
+        ws.interceptor(new AsyncIOInterceptorAdapter() {
+            @Override
+            public byte[] transformPayload(AtmosphereResponse r, byte[] draft, byte[] data) {
+                var name = Thread.currentThread().getName();
+                if (name.startsWith("writer-") && paused.add(Thread.currentThread())) {
+                    var first = name.equals("writer-first");
+                    (first ? firstIn : secondIn).countDown();
+                    try {
+                        (first ? firstGo : secondGo).await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return draft;
+            }
+        });
+
+        var failure = new AtomicReference<Throwable>();
+        var firstWriter = Thread.ofPlatform().name("writer-first").start(() -> write(ws, response, "first", failure));
+        assertTrue(firstIn.await(5, TimeUnit.SECONDS));
+        var secondWriter = Thread.ofPlatform().name("writer-second")
+                .start(() -> write(ws, response, "second", failure));
+        // Unserialized, the second write swaps in its buffer while the first waits.
+        secondIn.await(300, TimeUnit.MILLISECONDS);
+        firstGo.countDown();
+        firstWriter.join(5000);
+        secondGo.countDown();
+        secondWriter.join(5000);
+        ws.write(response, "next");
+
+        assertNull(failure.get());
+        assertEquals(List.of("first", "second", "next"), socket);
+    }
+
+    private static void write(WebSocket ws, AtmosphereResponse response, String frame,
+                              AtomicReference<Throwable> failure) {
+        try {
+            ws.write(response, frame);
+        } catch (Throwable t) {
+            failure.compareAndSet(null, t);
+        }
     }
 
     private static class Worker implements Runnable {

@@ -66,6 +66,12 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     protected volatile CharBuffer cb;
     protected String uuid = "NUll";
     private final ReentrantLock shiftAttributesLock = new ReentrantLock();
+    /**
+     * Held by a write while it runs the interceptors and sends: a broadcast's
+     * frames and the frames the server writes the connection itself come from
+     * different threads.
+     */
+    private final ReentrantLock writeLock = new ReentrantLock();
     private Map<String, Object> attributesAtWebSocketOpen;
     private Object attachment;
 
@@ -202,23 +208,30 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
         logger.trace("WebSocket.write() {}", data);
 
-        boolean transform = !filters.isEmpty() && r.getStatus() < 400;
-        if (binaryWrite) {
-            byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
-            if (transform) {
-                b = transform(r, b, 0, b.length);
-            }
-
-            if (b != null) {
-                write(b, 0, b.length);
-            }
-        } else {
-            if (transform) {
+        // One write at a time: transform swaps the response's writer while the
+        // interceptors run, so two at once swapped each other's buffer.
+        writeLock.lock();
+        try {
+            boolean transform = !filters.isEmpty() && r.getStatus() < 400;
+            if (binaryWrite) {
                 byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
-                data = new String(transform(r, b, 0, b.length), r.getCharacterEncoding());
-            }
+                if (transform) {
+                    b = transform(r, b, 0, b.length);
+                }
 
-            write(data);
+                if (b != null) {
+                    write(b, 0, b.length);
+                }
+            } else {
+                if (transform) {
+                    byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
+                    data = new String(transform(r, b, 0, b.length), r.getCharacterEncoding());
+                }
+
+                write(data);
+            }
+        } finally {
+            writeLock.unlock();
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -246,25 +259,30 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             logger.trace("WebSocket.write() {}", new String(b, offset, length, StandardCharsets.UTF_8));
         }
 
-        boolean transform = !filters.isEmpty() && r.getStatus() < 400;
-        if (binaryWrite || resource().forceBinaryWrite()) {
-            if (transform) {
-                b = transform(r, b, offset, length);
-            }
+        writeLock.lock();
+        try {
+            boolean transform = !filters.isEmpty() && r.getStatus() < 400;
+            if (binaryWrite || resource().forceBinaryWrite()) {
+                if (transform) {
+                    b = transform(r, b, offset, length);
+                }
 
-            if (b != null) {
-                write(b, 0, b.length);
-            }
-        } else {
-            String data;
-            String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
-            if (transform) {
-                data = new String(transform(r, b, offset, length), charset);
+                if (b != null) {
+                    write(b, 0, b.length);
+                }
             } else {
-                data = new String(b, offset, length, charset);
-            }
+                String data;
+                String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
+                if (transform) {
+                    data = new String(transform(r, b, offset, length), charset);
+                } else {
+                    data = new String(b, offset, length, charset);
+                }
 
-            write(data);
+                write(data);
+            }
+        } finally {
+            writeLock.unlock();
         }
         lastWrite = System.currentTimeMillis();
         return this;
