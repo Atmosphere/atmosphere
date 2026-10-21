@@ -453,6 +453,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // expected end of the turn, one line and no stack.
                 logger.warn("Streaming session {} ended: approval {} for tool {} was not given before"
                         + " the turn's time limit", sessionId, expired.approvalId(), expired.toolName());
+            } else if (t instanceof AiProviderException.RateLimited limited) {
+                // A rate limit (the gateway's or the provider's 429) is an
+                // expected refusal: one line and no stack.
+                logger.warn("Streaming session {} rate limited: {}", sessionId, limited.getMessage());
             } else {
                 logger.error("Streaming session {} error", sessionId, t);
             }

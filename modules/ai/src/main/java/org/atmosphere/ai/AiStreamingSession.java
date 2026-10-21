@@ -2061,7 +2061,12 @@ public class AiStreamingSession implements StreamingSession {
             turnEvent.status = "error";
             turnEvent.errorType = e.getClass().getSimpleName();
             metrics.recordError(model != null ? model : "unknown", "stream_error");
-            logger.error("Streaming error", e);
+            if (e instanceof AiProviderException.RateLimited limited) {
+                // An expected refusal: the session's own line says so, no stack here.
+                logger.debug("Streaming turn rate limited: {}", limited.getMessage());
+            } else {
+                logger.error("Streaming error", e);
+            }
             // A runtime that threw has usually ended the session already
             // (AbstractAgentRuntime does): end it here only if it has not.
             if (!streamingTarget.isClosed()) {

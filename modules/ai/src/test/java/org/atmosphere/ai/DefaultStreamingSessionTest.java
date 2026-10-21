@@ -197,6 +197,31 @@ public class DefaultStreamingSessionTest {
                 && e.getThrowableProxy() != null), "a plain AiException must stay an ERROR with stack");
     }
 
+    /**
+     * A rate limit (a gateway refusal or a provider's 429) is an expected
+     * refusal: the client gets the error frame, the log one warning and no stack.
+     */
+    @Test
+    public void aRateLimitSendsTheErrorFrameWithOneWarningAndNoStack() {
+        var message = "Rate limit exceeded for user alice on provider built-in";
+
+        var limited = captureTerminal(new AiProviderException.RateLimited(message, null));
+
+        assertEquals(1, limited.frames().size(), "one terminal frame: " + limited.frames());
+        var frame = org.atmosphere.ai.filter.AiStreamMessage.parse(limited.frames().get(0));
+        assertTrue(frame.isError(), limited.frames().get(0));
+        assertEquals(message, frame.data());
+        for (var event : limited.events()) {
+            assertNotEquals(ch.qos.logback.classic.Level.ERROR, event.getLevel(),
+                    "a rate limit was logged as ERROR: " + event.getFormattedMessage());
+            assertNull(event.getThrowableProxy(),
+                    "a rate limit was logged with a stack trace: " + event.getFormattedMessage());
+        }
+        assertTrue(limited.events().stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                        && e.getFormattedMessage().contains(message)),
+                "one warning naming the refusal: " + limited.events());
+    }
+
     private record Terminal(List<String> frames, List<ch.qos.logback.classic.spi.ILoggingEvent> events) {
     }
 
