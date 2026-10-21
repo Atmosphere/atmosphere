@@ -60,7 +60,7 @@ class AtmosphereEmbabelAutoConfigurationEnvironmentTest {
             val beanFactory = DefaultListableBeanFactory()
             beanFactory.registerSingleton("aiEnvironment", environment)
             AtmosphereEmbabelAutoConfiguration().embabelAgentRuntime(
-                platform, "atmosphere-agent", beanFactory.getBeanProvider(AiEnvironment::class.java))
+                platform, "atmosphere-agent", "", "", beanFactory.getBeanProvider(AiEnvironment::class.java))
 
             assertSame(platform,
                 environment.client(EmbabelAgentRuntime::class.java, AgentPlatform::class.java, null),

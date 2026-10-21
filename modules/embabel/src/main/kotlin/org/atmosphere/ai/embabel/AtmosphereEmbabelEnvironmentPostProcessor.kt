@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.embabel
 
+import org.atmosphere.ai.AiConfig
 import org.slf4j.LoggerFactory
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.env.EnvironmentPostProcessor
@@ -34,6 +35,16 @@ import org.springframework.core.env.MapPropertySource
  * <ul>
  *   <li>{@code llm.api-key} → {@code embabel.agent.platform.models.{gemini,openai}.api-key}</li>
  *   <li>{@code llm.model} → {@code embabel.models.default-llm}</li>
+ *   <li>{@code llm.base-url} → {@code embabel.agent.platform.models.openai.custom.base-url};
+ *       with none, {@code llm.mode=local} ({@code LLM_MODE=local}) maps the local
+ *       Ollama endpoint ({@link AiConfig#OLLAMA_ENDPOINT}, {@code /v1} included:
+ *       Embabel 1.5 hands it to the OpenAI SDK verbatim). With an endpoint, the key
+ *       goes to {@code ...openai.custom.api-key} and {@code llm.model} to
+ *       {@code ...openai.custom.models}, the model list Embabel's
+ *       {@code embabel-agent-starter-openai-custom} registers. Only that starter
+ *       reads these properties: with the Gemini or OpenAI starter alone, Embabel
+ *       does not use the local endpoint, and [AtmosphereEmbabelAutoConfiguration]
+ *       says so at startup.</li>
  * </ul>
  *
  * <p>The property source registered here has the lowest precedence among
@@ -78,12 +89,33 @@ class AtmosphereEmbabelEnvironmentPostProcessor : EnvironmentPostProcessor {
             mapped["embabel.models.default-llm"] = model
         }
 
+        val local = "local".equals(
+            firstNonBlank(env.getProperty("llm.mode"), env.getProperty("LLM_MODE"))?.trim(),
+            ignoreCase = true
+        )
+        // An explicit base URL wins over the mode, as for every other runtime.
+        val endpoint = firstNonBlank(env.getProperty("llm.base-url"), env.getProperty("LLM_BASE_URL"))?.trim()
+            ?: if (local) AiConfig.OLLAMA_ENDPOINT else null
+        if (endpoint != null) {
+            if (env.getProperty("$CUSTOM_PREFIX.base-url").isNullOrBlank()) {
+                mapped["$CUSTOM_PREFIX.base-url"] = endpoint
+            }
+            // The custom starter refuses to build without a key; a local backend ignores it.
+            if (env.getProperty("$CUSTOM_PREFIX.api-key").isNullOrBlank()) {
+                mapped["$CUSTOM_PREFIX.api-key"] = resolvedKey
+            }
+            if (model != null && env.getProperty("$CUSTOM_PREFIX.models").isNullOrBlank()) {
+                mapped["$CUSTOM_PREFIX.models"] = model
+            }
+        }
+
         if (mapped.isNotEmpty()) {
             env.propertySources.addLast(MapPropertySource(SOURCE_NAME, mapped))
             logger.info(
-                "Bridged llm.* → embabel.* defaults: keys={}, model={}",
+                "Bridged llm.* → embabel.* defaults: keys={}, model={}, openai-custom endpoint={}",
                 if (apiKey != null) "real" else "placeholder",
-                model ?: "(embabel default)"
+                model ?: "(embabel default)",
+                endpoint ?: "(none)"
             )
         }
     }
@@ -93,5 +125,8 @@ class AtmosphereEmbabelEnvironmentPostProcessor : EnvironmentPostProcessor {
 
     companion object {
         const val SOURCE_NAME = "atmosphere-embabel-llm-bridge"
+
+        /** The properties of Embabel's `embabel-agent-starter-openai-custom` (1.5.0). */
+        const val CUSTOM_PREFIX = "embabel.agent.platform.models.openai.custom"
     }
 }

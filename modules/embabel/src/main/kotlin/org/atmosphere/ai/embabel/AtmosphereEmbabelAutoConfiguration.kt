@@ -19,6 +19,8 @@ import com.embabel.agent.api.dsl.agent
 import com.embabel.agent.core.Agent
 import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.domain.library.HasContent
+import com.embabel.common.ai.model.DefaultModelSelectionCriteria
+import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AiEnvironment
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -47,6 +49,56 @@ open class AtmosphereEmbabelAutoConfiguration {
 
     companion object {
         private val logger = LoggerFactory.getLogger(AtmosphereEmbabelAutoConfiguration::class.java)
+
+        /** The provider name `embabel-agent-starter-openai-custom` 1.5.0 registers its models under. */
+        const val OPENAI_CUSTOM_PROVIDER = "OpenAI-Custom"
+
+        /** The provider name `embabel-agent-starter-ollama` 1.5.0 registers its models under. */
+        const val OLLAMA_PROVIDER = "Ollama"
+
+        /**
+         * Log, once at startup, the LLM Embabel's platform resolved as its
+         * default, and WARN when `llm.mode=local` is set but that LLM is not
+         * served by a local endpoint (Runtime Truth). Embabel's own starters
+         * build its LLM clients, not Atmosphere: only the `openai-custom`
+         * starter reads the endpoint the bridge maps, and only the `ollama`
+         * starter talks to Ollama, so with the Gemini or OpenAI starter alone
+         * a "local" run's prompts go to that cloud provider.
+         *
+         * @param platform      the Embabel platform
+         * @param mode          `llm.mode` / `LLM_MODE`
+         * @param customBaseUrl the endpoint the `openai-custom` starter uses
+         *                      (`OPENAI_CUSTOM_BASE_URL`, else its `base-url` property)
+         */
+        @JvmStatic
+        fun reportDefaultLlm(platform: AgentPlatform, mode: String?, customBaseUrl: String?) {
+            val local = "local".equals(mode?.trim(), ignoreCase = true)
+            val llm = try {
+                platform.platformServices.modelProvider().getLlm(DefaultModelSelectionCriteria)
+            } catch (e: Exception) {
+                if (local) {
+                    logger.warn("LLM_MODE=local is set, but Embabel resolved no default LLM ({}); "
+                        + "set LLM_MODEL and add embabel-agent-starter-openai-custom to use the local "
+                        + "endpoint", e.toString(), e)
+                } else {
+                    logger.warn("Embabel resolved no default LLM: {}", e.toString(), e)
+                }
+                return
+            }
+            logger.info("Embabel default LLM in use: model={}, provider={}, local={}",
+                llm.name, llm.provider, local)
+            if (!local) {
+                return
+            }
+            when (llm.provider) {
+                OPENAI_CUSTOM_PROVIDER -> AiConfig.warnIfLocalModeOverridden(mode, customBaseUrl)
+                OLLAMA_PROVIDER -> {}
+                else -> logger.warn("LLM_MODE=local is set, but Embabel's default LLM {} is served by "
+                    + "provider {}, not the local endpoint: Embabel builds its clients from its own "
+                    + "starters. Add embabel-agent-starter-openai-custom and set LLM_MODEL to a local "
+                    + "model to use the local endpoint.", llm.name, llm.provider)
+            }
+        }
     }
 
     @Bean
@@ -54,6 +106,9 @@ open class AtmosphereEmbabelAutoConfiguration {
     open fun embabelAgentRuntime(
         platform: AgentPlatform,
         @Value("\${atmosphere.embabel.agent-name:atmosphere-agent}") agentName: String,
+        @Value("\${llm.mode:\${LLM_MODE:}}") mode: String,
+        @Value("\${OPENAI_CUSTOM_BASE_URL:\${embabel.agent.platform.models.openai.custom.base-url:}}")
+        customBaseUrl: String,
         environmentProvider: ObjectProvider<AiEnvironment>? = null
     ): EmbabelAgentRuntime {
         // Bound to this context's AiEnvironment when there is one (the
@@ -69,6 +124,7 @@ open class AtmosphereEmbabelAutoConfiguration {
         }
         EmbabelAgentRuntime.setAgentName(agentName)
         logger.info("Embabel runtime configured: default agent name '{}'", agentName)
+        reportDefaultLlm(platform, mode, customBaseUrl)
         return EmbabelAgentRuntime()
     }
 
