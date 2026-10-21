@@ -25,6 +25,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.core.env.MapPropertySource;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -126,6 +129,23 @@ class SemanticKernelLocalModeAutoConfigurationTest {
         } finally {
             logger.detachAppender(appender);
         }
+    }
+
+
+    /**
+     * The gate reads the mode as the bean body and {@code AiConfig} do: trimmed
+     * and case-insensitive. A case-sensitive {@code == 'local'} built no model
+     * for {@code LLM_MODE=Local}, though the body would have called the local
+     * endpoint.
+     */
+    @Test
+    void theGateReadsTheModeTrimmedAndCaseInsensitive() {
+        runner.withInitializer(context -> context.getEnvironment().getPropertySources().addFirst(
+                        new MapPropertySource("mode", Map.of("LLM_MODE", " Local "))))
+                .run(context -> assertEquals(1, clients(context),
+                        "LLM_MODE=' Local ' is local mode"));
+        runner.withPropertyValues("llm.mode=LOCAL")
+                .run(context -> assertEquals(1, clients(context), "llm.mode=LOCAL is local mode"));
     }
 
     @Test

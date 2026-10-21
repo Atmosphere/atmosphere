@@ -93,7 +93,8 @@ public class AtmosphereAgentScopeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(Model.class)
     @ConditionalOnExpression(
-            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
+            "'${llm.api-key:}' != '' or '${llm.mode:}'.trim().equalsIgnoreCase('local') "
+            + "or '${LLM_MODE:}'.trim().equalsIgnoreCase('local')")
     public Model atmosphereAgentScopeOpenAiModel(
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,

@@ -84,7 +84,8 @@ public class AtmosphereLangChain4jAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(StreamingChatModel.class)
     @ConditionalOnExpression(
-            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
+            "'${llm.api-key:}' != '' or '${llm.mode:}'.trim().equalsIgnoreCase('local') "
+            + "or '${LLM_MODE:}'.trim().equalsIgnoreCase('local')")
     public StreamingChatModel atmosphereLangChain4jStreamingChatModel(
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,
@@ -92,8 +93,9 @@ public class AtmosphereLangChain4jAutoConfiguration {
             @Value("${LLM_MODE:}") String environmentMode,
             @Value("${llm.model:gpt-4o-mini}") String model) {
 
-        var local = "local".equalsIgnoreCase(mode)
-                || "local".equalsIgnoreCase(environmentMode);
+        // Trimmed and case-insensitive, as the gate above and AiConfig read it.
+        var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim())
+                || "local".equalsIgnoreCase(environmentMode == null ? null : environmentMode.trim());
 
         // Spring's @Value default only kicks in when the property is absent;
         // an empty value still binds, which would NPE OpenAiStreamingChatModel

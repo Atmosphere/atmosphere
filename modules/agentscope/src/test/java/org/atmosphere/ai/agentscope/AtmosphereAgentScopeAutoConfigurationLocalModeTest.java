@@ -128,6 +128,23 @@ class AtmosphereAgentScopeAutoConfigurationLocalModeTest {
         }
     }
 
+    /**
+     * The gate reads the mode as the bean body and {@code AiConfig} do: trimmed
+     * and case-insensitive. A case-sensitive {@code == 'local'} built no model
+     * for {@code LLM_MODE=Local}, though the body would have called the local
+     * endpoint.
+     */
+    @Test
+    void theGateReadsTheModeTrimmedAndCaseInsensitive() {
+        try (var context = context(Map.of("LLM_MODE", " Local "))) {
+            assertNotNull(context.getBeanProvider(Model.class).getIfAvailable(), "LLM_MODE=' Local ' is local mode");
+            assertEquals("http://localhost:11434/v1", builtEndpoint());
+        }
+        try (var context = context(Map.of("llm.mode", "LOCAL"))) {
+            assertNotNull(context.getBeanProvider(Model.class).getIfAvailable(), "llm.mode=LOCAL is local mode");
+        }
+    }
+
     private String builtEndpoint() {
         return appender.list.stream()
                 .map(ILoggingEvent::getFormattedMessage)

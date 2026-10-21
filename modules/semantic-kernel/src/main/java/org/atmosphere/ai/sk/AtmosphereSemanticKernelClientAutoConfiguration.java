@@ -78,7 +78,8 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnExpression(
-            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
+            "'${llm.api-key:}' != '' or '${llm.mode:}'.trim().equalsIgnoreCase('local') "
+            + "or '${LLM_MODE:}'.trim().equalsIgnoreCase('local')")
     public OpenAIAsyncClient atmosphereSemanticKernelOpenAIAsyncClient(
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,
@@ -88,7 +89,9 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
             @Value("${" + SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + ":}")
             String allowCleartextApiKey) {
 
-        var local = "local".equalsIgnoreCase(mode) || "local".equalsIgnoreCase(environmentMode);
+        // Trimmed and case-insensitive, as the gate above and AiConfig read it.
+        var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim())
+                || "local".equalsIgnoreCase(environmentMode == null ? null : environmentMode.trim());
 
         // Spring's @Value default only applies when the property is absent; an
         // empty value still binds. Resolve the fallback here so a blank
@@ -123,7 +126,8 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnExpression(
-            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
+            "'${llm.api-key:}' != '' or '${llm.mode:}'.trim().equalsIgnoreCase('local') "
+            + "or '${LLM_MODE:}'.trim().equalsIgnoreCase('local')")
     public ChatCompletionService atmosphereSemanticKernelChatCompletionService(
             OpenAIAsyncClient client,
             @Value("${llm.model:gpt-4o-mini}") String model) {
