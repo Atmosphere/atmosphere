@@ -18,6 +18,7 @@ package org.atmosphere.ai.agentscope;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OpenAIChatModel;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,9 @@ import org.springframework.context.annotation.Bean;
  *
  * <ol>
  *   <li>Builds a default {@link OpenAIChatModel} from {@code llm.*}
- *       properties when no AgentScope {@link Model} bean exists. AgentScope
+ *       properties when no AgentScope {@link Model} bean exists, for a
+ *       configured API key or {@code llm.mode=local} (the local Ollama
+ *       endpoint, as for the built-in runtime). AgentScope
  *       ships OpenAI-compatible, DashScope, Anthropic, Ollama, and Gemini
  *       chat-model classes; the OpenAI-compatible variant is the right
  *       transparent default for {@code spring-boot-ai-chat} drop-in
@@ -63,23 +66,64 @@ public class AtmosphereAgentScopeAutoConfiguration {
     private static final Logger logger =
             LoggerFactory.getLogger(AtmosphereAgentScopeAutoConfiguration.class);
 
+    /**
+     * The key a locally served backend (Ollama, vLLM, LM Studio) is sent: it
+     * ignores the credential, the OpenAI-compatible client requires one.
+     */
+    static final String LOCAL_PLACEHOLDER_API_KEY = "not-needed-for-local";
+
+    /**
+     * The OpenAI-compatible {@link Model} Atmosphere builds when the
+     * application declares none: for a credentialed remote endpoint, or a
+     * locally served one.
+     *
+     * <p>{@code llm.mode=local} ({@code LLM_MODE=local}) is the documented
+     * keyless mode: the built-in runtime and the LangChain4j, Koog and
+     * Semantic Kernel adapters resolve it to the local Ollama endpoint. This
+     * bean read only {@code llm.base-url}, so with the mode alone it sent the
+     * user's prompt, and the placeholder key, to api.openai.com. An explicit
+     * {@code llm.base-url} ({@code LLM_BASE_URL}) still wins over the mode.</p>
+     *
+     * @param apiKey  the API key; blank outside local mode builds no model
+     * @param baseUrl the explicit endpoint, blank to resolve it from the mode
+     * @param model   the model
+     * @param mode    {@code llm.mode}; {@code local} selects the local endpoint
+     * @return the model
+     */
     @Bean
     @ConditionalOnMissingBean(Model.class)
-    @ConditionalOnExpression("'${llm.api-key:}' != ''")
+    @ConditionalOnExpression(
+            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
     public Model atmosphereAgentScopeOpenAiModel(
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,
-            @Value("${llm.model:gpt-4o-mini}") String model) {
-        var resolvedBaseUrl = (baseUrl == null || baseUrl.isBlank())
-                ? "https://api.openai.com/v1"
-                : baseUrl;
-        logger.info("Auto-building AgentScope OpenAIChatModel model={} endpoint={}", model, resolvedBaseUrl);
+            @Value("${llm.model:gpt-4o-mini}") String model,
+            @Value("${llm.mode:${LLM_MODE:}}") String mode) {
+        var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim());
+        var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode);
+        var resolvedApiKey = (apiKey == null || apiKey.isBlank()) && local ? LOCAL_PLACEHOLDER_API_KEY : apiKey;
+        logger.info("Auto-building AgentScope OpenAIChatModel model={} endpoint={} local={}",
+                model, resolvedBaseUrl, local);
         return OpenAIChatModel.builder()
-                .apiKey(apiKey)
+                .apiKey(resolvedApiKey)
                 .baseUrl(resolvedBaseUrl)
                 .modelName(model)
                 .stream(true)
                 .build();
+    }
+
+    /**
+     * The endpoint for {@code explicitBaseUrl} and {@code mode}: an explicit
+     * URL wins, else the local Ollama endpoint in local mode, else OpenAI.
+     */
+    static String resolveBaseUrl(String explicitBaseUrl, String mode) {
+        if (explicitBaseUrl != null && !explicitBaseUrl.isBlank()) {
+            AiConfig.warnIfLocalModeOverridden(mode, explicitBaseUrl);
+            return explicitBaseUrl.trim();
+        }
+        return "local".equalsIgnoreCase(mode == null ? null : mode.trim())
+                ? AiConfig.OLLAMA_ENDPOINT
+                : AiConfig.OPENAI_ENDPOINT;
     }
 
     @Bean
