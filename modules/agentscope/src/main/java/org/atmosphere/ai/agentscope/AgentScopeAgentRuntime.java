@@ -411,6 +411,11 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
             builder.toolkit(AgentScopeToolBridge.toToolkit(
                     context.tools(), session, context.approvalStrategy(),
                     context.approvalPolicy()));
+            if (session != null) {
+                // A tool round that ended the turn calls the model no more:
+                // the hook stops the agent after that round's tools.
+                builder.hook(new TurnEndedHook(session));
+            }
         }
         var notebook = planNotebook != null ? planNotebook : baseAgent.getPlanNotebook();
         if (notebook != null) {
