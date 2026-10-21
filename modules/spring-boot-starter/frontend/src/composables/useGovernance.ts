@@ -95,6 +95,11 @@ export function usePollingResource<T>(
       // for the metadata resources this composable also polls.
       const res = await fetch(url, { headers: authHeaders({ Accept: 'application/json' }) })
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          // The credentials will not change between two polls: stop until the
+          // tab is opened again or refreshed, instead of asking every few seconds.
+          stop()
+        }
         throw new Error(`HTTP ${res.status} ${res.statusText}`)
       }
       data.value = (await res.json()) as T
@@ -128,5 +133,15 @@ export function usePollingResource<T>(
     else stop()
   })
 
-  return { data, error, loading, refresh: load }
+  // A manual refresh restarts the polling a refused request stopped.
+  function refresh() {
+    if (enabled.value) {
+      stop()
+      start()
+    } else {
+      load()
+    }
+  }
+
+  return { data, error, loading, refresh }
 }
