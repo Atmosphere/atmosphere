@@ -1905,42 +1905,69 @@ value; the wire protocol surfaces this as a normal error frame
 
 ### Per-runtime adoption
 
-Every runtime honors `ToolLoopPolicy.strict(N)` through the cross-runtime
-`ToolLoopGuard` — a per-execute `AgentLifecycleListener` that counts
-`onModelStart` events and calls `session.error(ToolLoopExhaustedException)`
-once the cap is exceeded. The guard is installed by `AbstractAgentRuntime.execute`
-(automatic for Java runtimes) and by `KoogAgentRuntime` / `EmbabelAgentRuntime`
-explicitly (they implement `AgentRuntime` directly to keep their Kotlin shape).
-Beyond that wire-level hard cap, runtimes layer on native upstream
-enforcement when the upstream library exposes a mappable knob.
+`ToolLoopPolicy.strict(N)` caps the tool loop only where something counts the
+loop's rounds, and that differs by runtime. Two mechanisms exist:
+
+- **The runtime's own loop reads the policy.** Built-in
+  (`OpenAiCompatibleClient`), LangChain4j (`ToolAwareStreamingResponseHandler`),
+  Anthropic (`AnthropicMessagesClient`) and Cohere (`CohereChatClient`) drive
+  the model→tool→model loop themselves and call `ToolLoopGuard.checkRoundCap`
+  every round. Koog translates the cap to `AIAgent.maxIterations × 2` and
+  Embabel installs `EmbabelToolLoopBridge` on its Atmosphere-native path.
+- **The cross-runtime `ToolLoopGuard`.** A per-execute
+  `AgentLifecycleListener` that counts `onModelStart` events and calls
+  `session.error(ToolLoopExhaustedException)` once the cap is exceeded. It is
+  installed by `AbstractAgentRuntime.execute` (automatic for Java runtimes)
+  and by `KoogAgentRuntime` / `EmbabelAgentRuntime` explicitly (they implement
+  `AgentRuntime` directly to keep their Kotlin shape). It can only cap a
+  runtime that fires `onModelStart` once per round: Built-in does, Koog fires
+  it once per LLM call. Spring AI, Spring AI Alibaba, ADK, Semantic Kernel,
+  AgentScope, LangChain4j and Embabel open one model-call scope per execute,
+  so the guard counts one and cannot cap them; CrewAI, Anthropic and Cohere do
+  not fire it from the runtime at all.
+
+**`strict(N)` ends the turn with an error on:** Built-in, LangChain4j,
+Anthropic, Cohere and Embabel's Atmosphere-native path
+(`ToolLoopExhaustedException`), and Koog (Koog's own iteration limit or the
+guard's `ToolLoopExhaustedException`, whichever trips first).
+**It bounds the loop with the framework's own overflow behavior (no
+`ToolLoopExhaustedException`) on:** AgentScope (`ReActAgent` `maxIters`, set
+per request) and CrewAI (`max_iter`, applied by the sidecar to every agent on
+the crew). **It does not cap:** Spring AI, Spring AI Alibaba, Semantic Kernel,
+ADK (only the startup-wide `AdkAgentRuntime.setMaxSteps(int)` bounds it), and
+Embabel's deployed-agent path (`AgentPlatform.runAgentFrom` exposes no
+per-request seam). On those, the upstream library's own default bounds the
+loop.
 
 | Runtime | `strict(N)` (FAIL) | `maxIterations(N)` (COMPLETE_WITHOUT_TOOLS) | Native upstream knob |
 |---------|---------------------|---------------------------------------------|----------------------|
-| Built-in (`BuiltInAgentRuntime`) | ✓ native | ✓ native | `OpenAiCompatibleClient.doStreamWithToolLoop` reads `ChatCompletionRequest.toolLoopPolicy()` every iteration |
+| Built-in (`BuiltInAgentRuntime`) | ✓ native + guard | ✓ native | `OpenAiCompatibleClient.doStreamWithToolLoop` reads `ChatCompletionRequest.toolLoopPolicy()` every iteration |
+| Anthropic (`AnthropicAgentRuntime`) | ✓ native | ✓ native | `AnthropicMessagesClient` reads `ToolLoopPolicies.fromOrDefault(ctx)` and calls `ToolLoopGuard.checkRoundCap` every round |
+| Cohere (`CohereAgentRuntime`) | ✓ native | ✓ native | `CohereChatClient` reads `ToolLoopPolicies.fromOrDefault(ctx)` and calls `ToolLoopGuard.checkRoundCap` every round |
 | Koog (`KoogAgentRuntime`) | ✓ native + guard | ✓ native | `executeWithAgent` reads `ToolLoopPolicies.fromOrDefault(ctx)` and translates to `AIAgent.maxIterations × 2` (Koog counts LLM rounds + tool steps) |
-| LangChain4j (`LangChain4jAgentRuntime`) | ✓ via guard | hint via sidecar (caller-controlled) | When the caller routes through the `LangChain4jAiServices` sidecar, the cap lives on `AiServices.builder().maxSequentialToolsInvocations(int).build()` (set once at construction) |
-| Spring AI (`SpringAiAgentRuntime`) | ✓ via guard | hint only — falls through to Spring AI default | Spring AI 2.0.0 exposes `OpenAiChatModel.Builder.toolExecutionEligibilityPredicate(...)` at ChatModel construction time (not per-request); per-request wiring would require Atmosphere to wrap user-supplied ChatModels |
-| Spring AI Alibaba | ✓ via guard | hint only | Inherits Spring AI's lack of per-request knob. `ReactAgent` and Alibaba's `RunnableConfig` do not expose an iteration cap |
-| ADK (`AdkAgentRuntime`) | ✓ via guard | hint only — native wiring planned | ADK 1.11.0 ships `LlmAgent.Builder.maxSteps(int)` at agent construction. Native per-request wiring (rebuild leaf `LlmAgent` per request, or counting `BeforeModelCallback` reading session state) is tractable but not yet implemented |
-| Semantic Kernel (`SemanticKernelAgentRuntime`) | not enforced — SK's loop runs inside one model-call scope, so the guard counts one round per turn; SK's own auto-invoke cap bounds the loop, and a loop that ends with tool calls pending ends the turn with an error | hint only | SK 1.5.0 `ToolCallBehavior.getMaximumAutoInvokeAttempts()` is a getter only; the constructor and `allowAllKernelFunctions(...)` factory chain do not accept a max-attempts integer. Subclassing requires reflection on package-private fields |
-| AgentScope (`AgentScopeAgentRuntime`) | ✓ via guard | hint only — native wiring planned | AgentScope 1.0.12 ships `ReActAgent.Builder.maxIters(int)` at agent construction. Native per-request wiring (rebuild via builder when policy attached) is tractable but not yet implemented |
-| Embabel (`EmbabelAgentRuntime`) | ✓ via guard | hint only | Embabel 1.5.0 exposes `withToolLoopInspectors` + `ToolLoopInspector.afterIteration(AfterIterationContext)`, which could translate a policy directly to `MaxIterationsExceededException`; native wiring is not implemented yet |
+| LangChain4j (`LangChain4jAgentRuntime`) | ✓ native | ✓ native | `ToolAwareStreamingResponseHandler` calls `ToolLoopGuard.checkRoundCap` every round. When the caller routes through the `LangChain4jAiServices` sidecar instead, the cap lives on `AiServices.builder().maxSequentialToolsInvocations(int).build()` (set once at construction) |
+| Embabel (`EmbabelAgentRuntime`) | ✓ native on the Atmosphere-native path; not capped on the deployed-agent path | ✓ native on the Atmosphere-native path | `EmbabelToolLoopBridge` (a `ToolLoopInspector` + transformer) is attached per request on the Atmosphere-native path; `AgentPlatform.runAgentFrom` exposes no per-request seam |
+| AgentScope (`AgentScopeAgentRuntime`) | bounded by AgentScope's own overflow behavior | bounded the same way | `rebuildAgent` sets `ReActAgent.Builder.maxIters(int)` from the attached policy on every dispatch |
+| CrewAI (`CrewAiAgentRuntime`) | bounded by CrewAI's own overflow behavior | bounded the same way | the policy's cap rides the session `options` as `max_iter`; the sidecar applies it to every agent on the crew |
+| ADK (`AdkAgentRuntime`) | not capped per request | not capped per request | `AdkAgentRuntime.setMaxSteps(int)` sets ADK's `LlmAgent.maxSteps` once at startup, for every request (the `LlmAgent` is assembled once and reused) |
+| Spring AI (`SpringAiAgentRuntime`) | not capped | hint only — falls through to Spring AI default | Spring AI 2.0.0 exposes `OpenAiChatModel.Builder.toolExecutionEligibilityPredicate(...)` at ChatModel construction time (not per-request); per-request wiring would require Atmosphere to wrap user-supplied ChatModels |
+| Spring AI Alibaba | not capped | hint only | `ReactAgent` and Alibaba's `RunnableConfig` do not expose an iteration cap; `maxParallelTools` bounds width, not depth |
+| Semantic Kernel (`SemanticKernelAgentRuntime`) | not capped — SK's own auto-invoke cap bounds the loop, and a loop that ends with tool calls pending ends the turn with an error | hint only | SK 1.5.0 `ToolCallBehavior.getMaximumAutoInvokeAttempts()` is a getter only; the constructor and `allowAllKernelFunctions(...)` factory chain do not accept a max-attempts integer. Subclassing requires reflection on package-private fields |
 
-**Honest distinction.** `strict(N)` is honored on every runtime via a hard
-wire-level abort: when `onModelStart` count exceeds `N`, the guard calls
-`session.error(...)` and the session enters its closed state — subsequent
-output from the runtime is dropped at the wire. The runtime may continue
-spinning upstream (the guard cannot reach into Spring AI's `ChatModel` or
-Embabel's planner to abort their internal flow), but the user-observable
-result is a hard cap.
+**What the abort does.** Where `strict(N)` ends the turn, the session gets
+`session.error(ToolLoopExhaustedException)` and enters its closed state —
+subsequent output from the runtime is dropped at the wire. When the guard is
+what trips, the runtime may keep spinning upstream (the guard cannot reach
+into a framework's loop), but the user-observable result is a hard cap.
 
 `COMPLETE_WITHOUT_TOOLS` ("stop tool calling but keep running, complete
 with whatever text you have") can only be synthesized from inside the
-tool loop. Built-in and Koog do this natively; on the other runtimes
-the upstream's own default cap takes over and the policy serves as a
-hint. Use `ToolLoopPolicy.strict(N)` for safety-critical hard caps (works
-everywhere); reserve `ToolLoopPolicy.maxIterations(N)` for runtimes that
-honor it natively.
+tool loop. Built-in, Anthropic, Cohere, LangChain4j, Koog and Embabel's
+Atmosphere-native path do this natively; on the other runtimes the
+upstream's own default cap takes over and the policy serves as a hint. Use
+`ToolLoopPolicy.strict(N)` for safety-critical hard caps on the runtimes
+listed above as ending the turn with an error; on Spring AI, Spring AI
+Alibaba, Semantic Kernel and ADK it caps nothing.
 
 `ToolLoopPolicies.from(context)` is the contract: runtimes that gain a
 per-request knob in a future framework release upgrade from "via guard"
