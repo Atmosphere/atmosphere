@@ -22,6 +22,27 @@ Its handshake asks every client for a heartbeat every 30 seconds
 but live tab is never closed. A client closed by that idle timeout gets the messages broadcast
 while it was away when it reconnects (the `UUIDBroadcasterCache` keeps them for its tracking id).
 
+## Messages missed during an outage
+
+When a client loses its connection, the chat's `UUIDBroadcasterCache` keeps what is broadcast
+for that client's tracking id and replays it when the client reconnects. The cache drops a
+client it has not seen for `clientIdleTime` (60 s by default), and the bundled Console keeps
+retrying for longer than that: 10 attempts, waiting 3 s and doubling up to 25 s between them,
+up to about 195 s in all. With the default, an outage of ~100 s lost every message broadcast
+during it even though the Console reconnected. This sample therefore sets, in
+`application.properties` (values in seconds):
+
+```properties
+atmosphere.init-params[org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime]=300
+atmosphere.init-params[org.atmosphere.cache.UUIDBroadcasterCache.messageTTL]=300
+```
+
+A client the Console is still trying to reconnect keeps its missed messages; the cache reaper
+(every 30 s) only drops a client already idle longer than 300 s, so it never cuts that short.
+`MissedMessageRetentionTest` pins both limits against the Console's retry schedule. This cache
+is in memory: a server restart restores the session (rooms, subscriptions) but not the
+messages broadcast before it.
+
 ## Running
 
 ```bash
