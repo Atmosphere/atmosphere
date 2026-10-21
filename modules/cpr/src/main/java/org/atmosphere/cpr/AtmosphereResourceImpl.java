@@ -96,6 +96,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     // each fires once and neither mutes the other. Shared with every event
     // built for this resource (see AtmosphereResourceEventImpl).
     private final DisconnectDispatch disconnectDispatch = new DisconnectDispatch();
+    // The thread completing the lifecycle while the resource is CLOSING, and
+    // the monitor a cancel from another thread waits on meanwhile (cancel()).
+    private volatile Thread closingThread;
+    private final Object closingMonitor = new Object();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<>();
@@ -559,6 +563,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     public void reset() {
         state.set(LifecycleState.CREATED);
+        closingPhaseLeft();
         isPendingClose.set(false);
         isSuspendEvent.set(false);
         disconnected.set(false);
@@ -583,6 +588,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     return;
                 }
                 if (state.compareAndSet(current, LifecycleState.DISCONNECTED)) {
+                    if (current == LifecycleState.CLOSING) {
+                        closingPhaseLeft();
+                    }
                     return;
                 }
             }
@@ -862,7 +870,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public void cancel() throws IOException {
         try {
-            var prev = state.getAndSet(LifecycleState.CANCELLED);
+            var prev = enterCancelled();
             if (prev != LifecycleState.CANCELLED) {
                 logger.trace("Cancelling {}", uuid());
                 // A broadcast thread that won the @Disconnect claim may still be
@@ -901,6 +909,77 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } finally {
             listeners.clear();
             unregister();
+        }
+    }
+
+    /**
+     * Move to {@link LifecycleState#CANCELLED}, after the thread completing the
+     * lifecycle, if another one is ({@link LifecycleState#CLOSING}), is done
+     * with it, at most {@link DisconnectDispatch#MAX_WAIT_MS}. That thread has
+     * yet to hand the handler the cancelled event ({@code @Disconnect}): a
+     * resource cancelled under it is out of scope, its event destroyed, and the
+     * handler is never told. A WebSocket reset mid-stream is closed by the
+     * container and, at the same time, by the broadcast whose write failed on
+     * it ({@link DefaultBroadcaster#onException}): the member was never
+     * counted out when the failed write's close cancelled the resource the
+     * container's close was completing.
+     *
+     * @return the state the resource was in
+     */
+    private LifecycleState enterCancelled() {
+        var deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DisconnectDispatch.MAX_WAIT_MS);
+        while (true) {
+            var current = state.get();
+            if (current == LifecycleState.CLOSING && completedByAnotherThread()) {
+                var left = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+                if (left <= 0) {
+                    logger.warn("Lifecycle of {} still completing on another thread after {} ms; cancelling it",
+                            uuid(), DisconnectDispatch.MAX_WAIT_MS);
+                    return closingPhaseLeftWith(state.getAndSet(LifecycleState.CANCELLED));
+                }
+                synchronized (closingMonitor) {
+                    if (state.get() == LifecycleState.CLOSING) {
+                        try {
+                            // Bounded slices: woken by closingPhaseLeft, re-checked regardless.
+                            closingMonitor.wait(Math.min(left, 10));
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            logger.debug("Interrupted waiting for the lifecycle of {} to complete", uuid(), e);
+                            return closingPhaseLeftWith(state.getAndSet(LifecycleState.CANCELLED));
+                        }
+                    }
+                }
+                continue;
+            }
+            if (state.compareAndSet(current, LifecycleState.CANCELLED)) {
+                return closingPhaseLeftWith(current);
+            }
+        }
+    }
+
+    /**
+     * @return true when the resource is in its closing phase on a thread other
+     * than the caller: the caller is neither completing the lifecycle nor
+     * running the handler's disconnect callback (which may close its own
+     * resource at once)
+     */
+    private boolean completedByAnotherThread() {
+        var current = Thread.currentThread();
+        return closingThread != current && !disconnectDispatch.runningOnCurrentThread();
+    }
+
+    private LifecycleState closingPhaseLeftWith(LifecycleState previous) {
+        if (previous == LifecycleState.CLOSING) {
+            closingPhaseLeft();
+        }
+        return previous;
+    }
+
+    /** The resource left its closing phase: wake a cancel waiting for it. */
+    private void closingPhaseLeft() {
+        closingThread = null;
+        synchronized (closingMonitor) {
+            closingMonitor.notifyAll();
         }
     }
 
@@ -1128,6 +1207,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 return true;
             }
             if (state.compareAndSet(current, LifecycleState.CLOSING)) {
+                // A cancel from another thread waits for this one (see cancel()).
+                closingThread = Thread.currentThread();
                 return false;
             }
         }

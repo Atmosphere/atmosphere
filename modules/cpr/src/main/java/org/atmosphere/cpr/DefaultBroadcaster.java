@@ -1365,7 +1365,8 @@ public class DefaultBroadcaster implements Broadcaster {
      * dead connection then finds it closed and dispatches nothing: a member
      * dropped mid-stream was never counted out. Whichever of this and the
      * container's close comes first dispatches; the other finds the
-     * lifecycle complete.</p>
+     * lifecycle complete. When the container's close came first and is still
+     * completing it, the forced close waits for it ({@link AtmosphereResourceImpl#cancel()}).</p>
      */
     private void completeLostWebSocket(AtmosphereResourceImpl r) {
         if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET || config == null) {
