@@ -749,16 +749,17 @@ public final class ToolExecutionHelper {
                     + "ApprovalStrategy is configured on this execution path\"}");
         }
 
-        var resolution = resolveApprovalDurably(toolName, tool, args, session, strategy);
+        var approvalId = ApprovalRegistry.generateId();
+        var resolution = resolveApprovalDurably(approvalId, toolName, tool, args, session, strategy);
         if (resolution.outcome() == ApprovalStrategy.ApprovalOutcome.TIMED_OUT && turnRanOut(session)) {
             // The approval waited until the turn's own limit: say so, and end
             // the turn with it rather than with a generic prompt timeout.
             var message = "Approval for tool '" + toolName + "' was not given before the turn's time limit;"
                     + " the turn ended.";
-            logger.info("Tool {} approval ran out with its turn", toolName);
+            logger.info("Tool {} approval {} ran out with its turn", toolName, approvalId);
             var result = finishAndEmit(toolName, session, scope,
                     "{\"status\":\"timeout\",\"message\":\"" + message + "\"}");
-            session.error(new org.atmosphere.ai.AiException(message));
+            session.error(new org.atmosphere.ai.ApprovalTimedOutException(message, approvalId, toolName));
             return result;
         }
         return finishAndEmit(toolName, session, scope, switch (resolution.outcome()) {
@@ -850,13 +851,14 @@ public final class ToolExecutionHelper {
      * byte-identical live path. Journal bookkeeping failures degrade to the
      * live decision with a WARN — losing durability, never the decision.</p>
      */
-    private static ApprovalResolution resolveApprovalDurably(String toolName, ToolDefinition tool,
+    private static ApprovalResolution resolveApprovalDurably(String approvalId, String toolName,
+                                                             ToolDefinition tool,
                                                              Map<String, Object> args,
                                                              StreamingSession session,
                                                              ApprovalStrategy strategy) {
         var ctx = DurableRunScopeHolder.current(session);
         if (ctx == null || ctx.journal() == EffectJournal.NOOP) {
-            return awaitLiveApproval(toolName, tool, args, session, strategy);
+            return awaitLiveApproval(approvalId, toolName, tool, args, session, strategy);
         }
         var journal = ctx.journal();
         var canonicalArgs = EffectKeys.canonicalJson(args);
@@ -886,7 +888,7 @@ public final class ToolExecutionHelper {
             // failing the run happens at the TOOL_CALL seam, not here).
             logger.warn("Tool {} approval effect could not be recorded ({}); "
                     + "the decision will not survive a crash", toolName, e.toString());
-            return awaitLiveApproval(toolName, tool, args, session, strategy);
+            return awaitLiveApproval(approvalId, toolName, tool, args, session, strategy);
         }
         // Arm the wall-clock backstop BEFORE parking: if the process dies
         // while awaiting, the durable timer marks the stale PENDING effect
@@ -904,7 +906,7 @@ public final class ToolExecutionHelper {
                         toolName, e.toString());
             }
         }
-        var resolution = awaitLiveApproval(toolName, tool, args, session, strategy);
+        var resolution = awaitLiveApproval(approvalId, toolName, tool, args, session, strategy);
         try {
             if (resolution.outcome() == ApprovalStrategy.ApprovalOutcome.TIMED_OUT) {
                 journal.markFailed(ctx.runId(), key, "approval timed out before a decision");
@@ -960,12 +962,12 @@ public final class ToolExecutionHelper {
     }
 
     /** The pre-durability live await, unchanged: park until approved / denied / expired. */
-    private static ApprovalResolution awaitLiveApproval(String toolName, ToolDefinition tool,
+    private static ApprovalResolution awaitLiveApproval(String approvalId, String toolName, ToolDefinition tool,
                                                         Map<String, Object> args,
                                                         StreamingSession session,
                                                         ApprovalStrategy strategy) {
         var approval = new PendingApproval(
-                ApprovalRegistry.generateId(),
+                approvalId,
                 toolName,
                 args,
                 tool.approvalMessage(),

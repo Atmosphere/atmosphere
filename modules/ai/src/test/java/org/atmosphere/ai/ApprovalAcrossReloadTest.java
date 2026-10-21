@@ -48,6 +48,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
@@ -208,6 +210,81 @@ class ApprovalAcrossReloadTest {
         assertInstanceOf(AiException.class, failure.get());
         assertTrue(failure.get().getMessage().contains("Approval for tool 'reset_city_data'"),
                 failure.get().getMessage());
+    }
+
+    /**
+     * 2026-10-20 re-test (spring-boot-ai-tools): the approval the turn's limit
+     * cut short was logged as {@code ERROR Streaming session ... error} with an
+     * AiException stack. Nobody answering is an expected end of the turn: one
+     * warning naming the approval and its tool, and the client still gets its
+     * error frame.
+     */
+    @Test
+    void anApprovalTheTurnsLimitCutsShortIsAWarningNamingItNotAnError() {
+        var tool = ToolDefinition.builder("reset_city_data", "Reset a city's data")
+                .parameter("city", "the city", "string")
+                .executor(args -> "reset")
+                .requiresApproval("Reset?", 300)
+                .build();
+        var resource = mock(AtmosphereResource.class);
+        var broadcaster = mock(Broadcaster.class);
+        when(resource.uuid()).thenReturn("client-1");
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        var frames = new ArrayList<String>();
+        when(broadcaster.broadcast(any(RawMessage.class), anySet())).thenAnswer(i -> {
+            frames.add(String.valueOf(((RawMessage) i.getArgument(0)).message()));
+            return null;
+        });
+        var leaf = new DefaultStreamingSession("session-timeout", resource, false);
+        var deadline = Instant.now().plusMillis(500);
+        var turn = new DelegatingStreamingSession(leaf) {
+            @Override
+            public Optional<Instant> turnDeadline() {
+                return Optional.of(deadline);
+            }
+        };
+        var asked = new AtomicReference<PendingApproval>();
+        ApprovalStrategy strategy = new ApprovalStrategy() {
+            @Override
+            public ApprovalOutcome awaitApproval(PendingApproval approval, StreamingSession s) {
+                asked.set(approval);
+                return ApprovalOutcome.TIMED_OUT;
+            }
+
+            @Override
+            public ApprovalResolution awaitApprovalDetailed(PendingApproval approval, StreamingSession s) {
+                asked.set(approval);
+                return ApprovalResolution.timedOut();
+            }
+        };
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(DefaultStreamingSession.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            ToolExecutionHelper.executeWithApproval("reset_city_data", tool, Map.of("city", "Tokyo"), turn, strategy);
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        var approvalId = asked.get().approvalId();
+        var logged = List.copyOf(appender.list);
+        for (var event : logged) {
+            assertNotEquals(ch.qos.logback.classic.Level.ERROR, event.getLevel(),
+                    "a timed-out approval was logged as ERROR: " + event.getFormattedMessage());
+            assertNull(event.getThrowableProxy(),
+                    "a timed-out approval was logged with a stack trace: " + event.getFormattedMessage());
+        }
+        assertTrue(logged.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                        && e.getFormattedMessage().contains(approvalId)
+                        && e.getFormattedMessage().contains("reset_city_data")),
+                "one warning naming approval " + approvalId + " and its tool: " + logged);
+        assertTrue(leaf.hasErrored(), "the turn still ends in error");
+        var errorFrames = frames.stream().map(org.atmosphere.ai.filter.AiStreamMessage::parse)
+                .filter(m -> m != null && m.isError()).toList();
+        assertEquals(1, errorFrames.size(), "one error frame: " + frames);
+        assertTrue(errorFrames.get(0).data().contains("Approval for tool 'reset_city_data'"), frames.toString());
     }
 
     private static List<String> events(List<String> frames) {

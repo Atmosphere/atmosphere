@@ -163,6 +163,40 @@ public class DefaultStreamingSessionTest {
                 && e.getThrowableProxy() != null), "a plain SecurityException must stay an ERROR with stack");
     }
 
+    /**
+     * An approval nobody gave before the turn's limit ends the turn as expected:
+     * the 2026-10-20 re-test (spring-boot-ai-tools) found it logged as
+     * {@code ERROR Streaming session ... error} with an AiException stack.
+     */
+    @Test
+    public void anApprovalThatTimedOutSendsTheSameErrorFrameWithAWarningNamingItAndNoStack() {
+        var message = "Approval for tool 'reset_city_data' was not given before the turn's time limit; the turn ended.";
+
+        var expired = captureTerminal(new ApprovalTimedOutException(message, "apr_6a9b86df51ed", "reset_city_data"));
+        var failed = captureTerminal(new AiException(message));
+
+        assertEquals(1, expired.frames().size(), "one terminal frame: " + expired.frames());
+        var expiredFrame = org.atmosphere.ai.filter.AiStreamMessage.parse(expired.frames().get(0));
+        var failedFrame = org.atmosphere.ai.filter.AiStreamMessage.parse(failed.frames().get(0));
+        assertTrue(expiredFrame.isError(), expired.frames().get(0));
+        assertEquals(failedFrame.type(), expiredFrame.type());
+        assertEquals(message, expiredFrame.data());
+
+        for (var event : expired.events()) {
+            assertNotEquals(ch.qos.logback.classic.Level.ERROR, event.getLevel(),
+                    "a timed-out approval was logged as ERROR: " + event.getFormattedMessage());
+            assertNull(event.getThrowableProxy(),
+                    "a timed-out approval was logged with a stack trace: " + event.getFormattedMessage());
+        }
+        assertTrue(expired.events().stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                        && e.getFormattedMessage().contains("apr_6a9b86df51ed")
+                        && e.getFormattedMessage().contains("reset_city_data")),
+                "one warning naming the approval and its tool: " + expired.events());
+        // Any other AiException is still an ERROR with its stack.
+        assertTrue(failed.events().stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.ERROR
+                && e.getThrowableProxy() != null), "a plain AiException must stay an ERROR with stack");
+    }
+
     private record Terminal(List<String> frames, List<ch.qos.logback.classic.spi.ILoggingEvent> events) {
     }
 

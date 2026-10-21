@@ -448,6 +448,11 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // denying code already logged, so one line here and no stack. The
                 // client still gets the same error frame as any other failure.
                 logger.info("Streaming session {} denied: {}", sessionId, denied.getMessage());
+            } else if (t instanceof ApprovalTimedOutException expired) {
+                // Nobody answered the approval before the turn's limit: an
+                // expected end of the turn, one line and no stack.
+                logger.warn("Streaming session {} ended: approval {} for tool {} was not given before"
+                        + " the turn's time limit", sessionId, expired.approvalId(), expired.toolName());
             } else {
                 logger.error("Streaming session {} error", sessionId, t);
             }
