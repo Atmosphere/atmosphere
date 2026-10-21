@@ -607,7 +607,6 @@ public class LangChain4jStreamingAdapterTest {
         assertEquals(5, calls.get(), "default cap (5) must hold when no policy is attached");
     }
 
-    /** A LangChain4j response whose AiMessage always carries one tool request. */
     /**
      * A tool round that ended the turn (an approval that ran out with the
      * turn's time limit ends the session with an error) calls the model no
@@ -638,6 +637,7 @@ public class LangChain4jStreamingAdapterTest {
         assertFalse(handler.followUpDispatched(), "no follow-up round once the turn ended");
     }
 
+    /** A LangChain4j response whose AiMessage always carries one tool request. */
     private static ChatResponse toolRequestResponse() {
         var request = dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
                 .id("call-1")
