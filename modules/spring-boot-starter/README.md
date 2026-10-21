@@ -187,6 +187,9 @@ All properties are under the `atmosphere.ai.*` prefix:
 
 `atmosphere.ai.mode`, `model` and `base-url` fall back to the `LLM_MODE`, `LLM_MODEL` and
 `LLM_BASE_URL` environment variables when unset (the Spring Boot 3 starter does the same).
+The runtime adapters (LangChain4j, Spring AI, Koog, ...) read `atmosphere.ai.mode`, `model`,
+`api-key` and `base-url` as well, when `llm.*` / `LLM_*` leave them unset; the order is in
+[LLM settings with the Spring Boot starters](../ai/README.md#llm-settings-with-the-spring-boot-starters).
 
 The knobs `AiConfig` reads are honoured here too: `atmosphere.ai.temperature`, `max-tokens`,
 `top-p`, `stop` (a comma-separated string or a YAML list), `embedding-model`, `prompt-cache-key`,

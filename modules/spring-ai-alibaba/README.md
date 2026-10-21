@@ -86,6 +86,7 @@ public ReactAgent reactAgent(ChatModel chatModel) throws Exception {
 ## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
 
 The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+With an Atmosphere Spring Boot starter, `atmosphere.ai.mode` / `model` / `api-key` / `base-url` are read too, after `llm.*` and `LLM_*`: see [LLM settings with the Spring Boot starters](../ai/README.md#llm-settings-with-the-spring-boot-starters).
 
 Spring AI's OpenAI auto-configuration (the 1.x line the Alibaba agent framework pins)
 builds the `ChatModel` from `spring.ai.openai.*`. `AtmosphereSpringAiAlibabaEnvironmentPostProcessor`

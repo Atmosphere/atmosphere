@@ -1,0 +1,5 @@
+# Read by AtmosphereAiLlmPropertyBridgeTest through spring.config.name=llm-bridge.
+atmosphere:
+  ai:
+    base-url: http://gpu-box:8000/v1
+    model: qwen2.5:7b

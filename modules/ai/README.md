@@ -696,6 +696,38 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
+### LLM settings with the Spring Boot starters
+
+In a Spring Boot application the mode, model, API key and base URL have three spellings:
+`atmosphere.ai.mode` / `model` / `api-key` / `base-url` (the starters' properties), `llm.mode` /
+`model` / `api-key` / `base-url`, and the `LLM_MODE` / `LLM_MODEL` / `LLM_API_KEY` / `LLM_BASE_URL`
+environment variables, which Spring's relaxed binding also reads as `llm.*`. Which one wins depends
+on the runtime; within each list, the first non-blank value wins.
+
+- **Runtime adapters** — LangChain4j, Spring AI, Spring AI Alibaba, AgentScope, Semantic Kernel,
+  Koog, Embabel:
+  1. the adapter's own property, where it has one (`spring.ai.openai.base-url`,
+     `atmosphere.koog.base-url`, ...);
+  2. `llm.*` from any source, the `LLM_*` environment variable included;
+  3. `atmosphere.ai.*`: both starters (Spring Boot 3 and 4) register
+     `AtmosphereAiLlmPropertyBridge`, an `EnvironmentPostProcessor` that copies each of
+     `atmosphere.ai.mode` / `model` / `api-key` / `base-url` onto the matching `llm.*` when that is
+     unset or blank. It runs after `application.yml` / `application.properties` are loaded and
+     before the adapters' own post-processors, and writes only to the application's `Environment`.
+     `OPENAI_API_KEY` / `GEMINI_API_KEY`, where an adapter reads them, come after it, as for the
+     built-in runtime;
+  4. the adapter's default: local mode selects the local Ollama endpoint, otherwise the model
+     selects the provider (each adapter's README has its row).
+- **Built-in, Anthropic, Cohere, ADK** — the application's `AiEnvironment` settings, which the
+  starters build from `atmosphere.ai.*` first and the `LLM_*` environment variables second; the
+  `llm.*` properties are not read.
+
+So `atmosphere.ai.base-url=http://gpu-box:8000/v1` reaches every runtime (Embabel's through
+`embabel-agent-starter-openai-custom`, see its README), and
+`atmosphere.ai.mode=local` with no key builds an adapter's keyless local model. The two orders
+differ only when `atmosphere.ai.X` and `llm.X` / `LLM_X` are both set: the built-in runtime takes
+`atmosphere.ai.X`, an adapter takes `llm.X` / `LLM_X`. Set one of them.
+
 ### Knob precedence
 
 The `atmosphere.ai.*` knobs `AiConfig` reads — `temperature`, `max-tokens`, `top-p`, `stop`,
@@ -868,7 +900,8 @@ that has settings of its own.
 
 The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read
 `atmosphere.ai.mode` / `model` / `api-key` / `base-url` first and fall back to `LLM_MODE` /
-`LLM_MODEL` / `LLM_API_KEY` / `LLM_BASE_URL`; elsewhere `AiConfig.fromEnvironment()` reads the
+`LLM_MODEL` / `LLM_API_KEY` / `LLM_BASE_URL` (the runtime adapters' order is in
+[LLM settings with the Spring Boot starters](#llm-settings-with-the-spring-boot-starters)); elsewhere `AiConfig.fromEnvironment()` reads the
 environment variables. When neither the application nor the process default has settings, the
 `@AiEndpoint`, `@Agent` and `@Coordinator` processors and the Kotlin `registerAgent` DSL build them
 once from these variables — on a plain servlet, then from the `org.atmosphere.ai.llmMode` /
