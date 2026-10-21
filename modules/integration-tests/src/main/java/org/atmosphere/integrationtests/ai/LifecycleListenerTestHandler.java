@@ -124,8 +124,22 @@ public class LifecycleListenerTestHandler implements AtmosphereHandler {
         var runtime = new FakeAgentRuntime(shouldThrow);
         runtime.configure(new AiConfig.LlmSettings(null, "fake-model", "fake", null));
         RuntimeException caught = null;
+        // A runtime that fails ends its session with the error before it
+        // rethrows: hold that end back until the counts below are sent.
+        var held = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+        var runtimeSession = new org.atmosphere.ai.DelegatingStreamingSession(session) {
+            @Override
+            public void error(Throwable t) {
+                held.compareAndSet(null, t);
+            }
+
+            @Override
+            public boolean isClosed() {
+                return held.get() != null || super.isClosed();
+            }
+        };
         try {
-            runtime.execute(context, session);
+            runtime.execute(context, runtimeSession);
         } catch (RuntimeException e) {
             caught = e;
         }
@@ -138,7 +152,9 @@ public class LifecycleListenerTestHandler implements AtmosphereHandler {
                         && recorder.firstStartNanos < recorder.firstCompletionNanos);
         session.sendMetadata("listener.startBeforeCompletion", startBeforeCompletion);
         session.sendMetadata("listener.caught", caught != null);
-        if (!session.isClosed()) {
+        if (held.get() != null) {
+            session.error(held.get());
+        } else if (!session.isClosed()) {
             session.emit(new AiEvent.Complete(null, Map.of()));
         }
     }
