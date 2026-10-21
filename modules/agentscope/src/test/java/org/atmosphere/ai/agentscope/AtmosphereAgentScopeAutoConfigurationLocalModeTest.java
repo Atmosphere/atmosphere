@@ -19,6 +19,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.agentscope.core.model.Model;
+import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,30 @@ class AtmosphereAgentScopeAutoConfigurationLocalModeTest {
             context.getBean(Model.class);
 
             assertEquals("https://api.openai.com/v1", builtEndpoint());
+        }
+    }
+
+    /**
+     * A blank base URL follows the model, as for the built-in runtime: it used
+     * to mean OpenAI whatever the model, so a Gemini model and key went to
+     * api.openai.com.
+     */
+    @Test
+    void aGeminiModelWithoutABaseUrlCallsGemini() {
+        try (var context = context(Map.of("llm.api-key", "AIza-test", "llm.model", "gemini-2.5-flash"))) {
+            context.getBean(Model.class);
+
+            assertEquals(AiConfig.GEMINI_ENDPOINT, builtEndpoint());
+        }
+    }
+
+    @Test
+    void anExplicitBaseUrlWinsOverAGeminiModel() {
+        try (var context = context(Map.of("llm.api-key", "k", "llm.model", "gemini-2.5-flash",
+                "llm.base-url", "https://proxy.example/v1"))) {
+            context.getBean(Model.class);
+
+            assertEquals("https://proxy.example/v1", builtEndpoint());
         }
     }
 

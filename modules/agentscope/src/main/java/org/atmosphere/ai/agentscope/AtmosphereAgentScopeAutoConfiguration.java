@@ -100,7 +100,7 @@ public class AtmosphereAgentScopeAutoConfiguration {
             @Value("${llm.model:gpt-4o-mini}") String model,
             @Value("${llm.mode:${LLM_MODE:}}") String mode) {
         var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim());
-        var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode);
+        var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode, model);
         var resolvedApiKey = (apiKey == null || apiKey.isBlank()) && local ? LOCAL_PLACEHOLDER_API_KEY : apiKey;
         logger.info("Auto-building AgentScope OpenAIChatModel model={} endpoint={} local={}",
                 model, resolvedBaseUrl, local);
@@ -113,17 +113,18 @@ public class AtmosphereAgentScopeAutoConfiguration {
     }
 
     /**
-     * The endpoint for {@code explicitBaseUrl} and {@code mode}: an explicit
-     * URL wins, else the local Ollama endpoint in local mode, else OpenAI.
+     * The endpoint for {@code explicitBaseUrl}, {@code mode} and {@code model},
+     * resolved as the built-in runtime resolves it
+     * ({@link AiConfig#resolveBaseUrl(String, String, String)}): an explicit URL
+     * wins, else the local Ollama endpoint in local mode, else the provider the
+     * model names ({@code gpt-*}, {@code o1*}, {@code o3*}: OpenAI; any other
+     * model: Gemini's OpenAI-compatible endpoint). A blank URL used to mean
+     * OpenAI whatever the model, so a Gemini model and key went to
+     * api.openai.com.
      */
-    static String resolveBaseUrl(String explicitBaseUrl, String mode) {
-        if (explicitBaseUrl != null && !explicitBaseUrl.isBlank()) {
-            AiConfig.warnIfLocalModeOverridden(mode, explicitBaseUrl);
-            return explicitBaseUrl.trim();
-        }
-        return "local".equalsIgnoreCase(mode == null ? null : mode.trim())
-                ? AiConfig.OLLAMA_ENDPOINT
-                : AiConfig.OPENAI_ENDPOINT;
+    static String resolveBaseUrl(String explicitBaseUrl, String mode, String model) {
+        var explicit = explicitBaseUrl == null || explicitBaseUrl.isBlank() ? null : explicitBaseUrl.trim();
+        return AiConfig.resolveBaseUrl(mode == null ? null : mode.trim(), explicit, model);
     }
 
     @Bean

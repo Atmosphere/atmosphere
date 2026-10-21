@@ -17,6 +17,7 @@ package org.atmosphere.ai.langchain4j;
 
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,12 +76,10 @@ public class AtmosphereLangChain4jAutoConfiguration {
      * {@code System.getenv}, so the condition and the body cannot disagree about
      * what {@code local} means. The environment also sees system properties, so
      * with {@code System.getenv} in the body a {@code -DLLM_MODE=local} run
-     * opened the gate and then resolved the <em>remote</em> endpoint. No test
-     * pins that difference: the resolved base URL is not readable from a built
+     * opened the gate and then resolved the <em>remote</em> endpoint. The
+     * resolved base URL is not readable from a built
      * {@link OpenAiStreamingChatModel} without reflecting through its {@code
-     * internal} client, which would break on every LangChain4j bump. Treat this
-     * as one source of truth rather than as a fixed defect — the misconfiguration
-     * surfaces as a 401 at request time, not at startup.</p>
+     * internal} client, so the tests read it from the startup line below.</p>
      */
     @Bean
     @ConditionalOnMissingBean(StreamingChatModel.class)
@@ -98,11 +97,8 @@ public class AtmosphereLangChain4jAutoConfiguration {
 
         // Spring's @Value default only kicks in when the property is absent;
         // an empty value still binds, which would NPE OpenAiStreamingChatModel
-        // (baseUrl cannot be null or blank). Apply the fallback here — Ollama's
-        // OpenAI-compatible endpoint for local mode, OpenAI otherwise.
-        var resolvedBaseUrl = (baseUrl == null || baseUrl.isBlank())
-                ? (local ? "http://localhost:11434/v1" : "https://api.openai.com/v1")
-                : baseUrl;
+        // (baseUrl cannot be null or blank).
+        var resolvedBaseUrl = resolveBaseUrl(baseUrl, local, model);
 
         // A local server ignores the credential but the builder still rejects a
         // blank one, so send a placeholder rather than failing to construct.
@@ -117,6 +113,21 @@ public class AtmosphereLangChain4jAutoConfiguration {
                 .baseUrl(resolvedBaseUrl)
                 .modelName(model)
                 .build();
+    }
+
+    /**
+     * The endpoint for {@code baseUrl}, the mode and {@code model}, resolved as
+     * the built-in runtime resolves it
+     * ({@link AiConfig#resolveBaseUrl(String, String, String)}): an explicit URL
+     * wins (with a WARN when it overrides local mode with a remote host), else
+     * the local Ollama endpoint in local mode, else the provider the model names
+     * ({@code gpt-*}, {@code o1*}, {@code o3*}: OpenAI; any other model:
+     * Gemini's OpenAI-compatible endpoint). A blank URL used to mean OpenAI
+     * whatever the model, so a Gemini model and key went to api.openai.com.
+     */
+    static String resolveBaseUrl(String baseUrl, boolean local, String model) {
+        var explicit = baseUrl == null || baseUrl.isBlank() ? null : baseUrl.trim();
+        return AiConfig.resolveBaseUrl(local ? "local" : "remote", explicit, model);
     }
 
     @Bean

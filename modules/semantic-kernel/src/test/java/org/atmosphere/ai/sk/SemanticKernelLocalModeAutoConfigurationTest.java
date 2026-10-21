@@ -15,14 +15,20 @@
  */
 package org.atmosphere.ai.sk;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.azure.ai.openai.OpenAIAsyncClient;
+import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the gate that decides whether Semantic Kernel builds a client at all.
@@ -80,6 +86,46 @@ class SemanticKernelLocalModeAutoConfigurationTest {
         // through the environment.
         runner.withPropertyValues("LLM_MODE=local")
                 .run(context -> assertEquals(1, clients(context)));
+    }
+
+
+    // A blank base URL follows the model, as for the built-in runtime
+    // (AiConfig.resolveBaseUrl): it used to mean OpenAI whatever the model, so
+    // a sample run with a Gemini model and GEMINI_API_KEY sent that key to
+    // api.openai.com.
+
+    @Test
+    void aBlankBaseUrlFollowsTheModel() {
+        assertEquals(AiConfig.GEMINI_ENDPOINT,
+                AtmosphereSemanticKernelClientAutoConfiguration.resolveBaseUrl("", false, "gemini-2.5-flash"));
+        assertEquals(AiConfig.OPENAI_ENDPOINT,
+                AtmosphereSemanticKernelClientAutoConfiguration.resolveBaseUrl(null, false, "gpt-4o-mini"));
+        assertEquals(AiConfig.OLLAMA_ENDPOINT,
+                AtmosphereSemanticKernelClientAutoConfiguration.resolveBaseUrl(" ", true, "gemini-2.5-flash"),
+                "local mode wins over the model");
+        assertEquals("https://proxy.example/v1",
+                AtmosphereSemanticKernelClientAutoConfiguration.resolveBaseUrl("https://proxy.example/v1", true, "gemini-2.5-flash"),
+                "an explicit base URL wins over mode and model");
+    }
+
+    @Test
+    void theBuiltClientForAGeminiModelCallsGemini() {
+        var appender = new ListAppender<ILoggingEvent>();
+        var logger = (Logger) LoggerFactory.getLogger(AtmosphereSemanticKernelClientAutoConfiguration.class);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            runner.withPropertyValues("llm.api-key=AIza-test-not-a-real-key", "llm.model=gemini-2.5-flash",
+                            "llm.base-url=")
+                    .run(context -> {
+                        assertEquals(1, clients(context));
+                        assertTrue(appender.list.stream().map(ILoggingEvent::getFormattedMessage)
+                                        .anyMatch(m -> m.contains("endpoint=" + AiConfig.GEMINI_ENDPOINT + " local=")),
+                                "a Gemini model and key must not go to api.openai.com: " + appender.list);
+                    });
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test

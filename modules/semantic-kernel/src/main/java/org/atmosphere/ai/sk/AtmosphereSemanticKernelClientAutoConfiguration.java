@@ -18,6 +18,7 @@ package org.atmosphere.ai.sk;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
+import org.atmosphere.ai.AiConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -83,6 +84,7 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
             @Value("${llm.base-url:}") String baseUrl,
             @Value("${llm.mode:}") String mode,
             @Value("${LLM_MODE:}") String environmentMode,
+            @Value("${llm.model:gpt-4o-mini}") String model,
             @Value("${" + SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + ":}")
             String allowCleartextApiKey) {
 
@@ -90,19 +92,32 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
 
         // Spring's @Value default only applies when the property is absent; an
         // empty value still binds. Resolve the fallback here so a blank
-        // llm.base-url cannot send a local run to OpenAI.
-        var resolvedBaseUrl = (baseUrl == null || baseUrl.isBlank())
-                ? (local ? "http://localhost:11434/v1" : "https://api.openai.com/v1")
-                : baseUrl;
+        // llm.base-url cannot send a local run, or a Gemini model, to OpenAI.
+        var resolvedBaseUrl = resolveBaseUrl(baseUrl, local, model);
 
         // A blank key reaches the factory as keyless: it sends a placeholder the
         // local server ignores, and lets that call go over plain http to any
         // host, since it carries no secret. A real key goes over plain http
         // only to a loopback host, unless the application opts in.
-        logger.info("Auto-building SK OpenAIAsyncClient endpoint={} local={}", resolvedBaseUrl, local);
+        logger.info("Auto-building SK OpenAIAsyncClient endpoint={} local={} model={}", resolvedBaseUrl, local, model);
         return SemanticKernelOpenAiClientFactory.forEndpoint(resolvedBaseUrl, apiKey,
                 // Only "true" opts in: blank, "false" or anything else keeps the refusal.
                 Boolean.parseBoolean(allowCleartextApiKey.strip()));
+    }
+
+    /**
+     * The endpoint for {@code baseUrl}, the mode and {@code model}, resolved as
+     * the built-in runtime resolves it
+     * ({@link AiConfig#resolveBaseUrl(String, String, String)}): an explicit URL
+     * wins (with a WARN when it overrides local mode with a remote host), else
+     * the local Ollama endpoint in local mode, else the provider the model names
+     * ({@code gpt-*}, {@code o1*}, {@code o3*}: OpenAI; any other model:
+     * Gemini's OpenAI-compatible endpoint). A blank URL used to mean OpenAI
+     * whatever the model, so a Gemini model and key went to api.openai.com.
+     */
+    static String resolveBaseUrl(String baseUrl, boolean local, String model) {
+        var explicit = baseUrl == null || baseUrl.isBlank() ? null : baseUrl.trim();
+        return AiConfig.resolveBaseUrl(local ? "local" : "remote", explicit, model);
     }
 
     @Bean

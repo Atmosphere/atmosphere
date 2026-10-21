@@ -23,6 +23,7 @@ import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -52,6 +53,10 @@ import java.util.Map;
  *       appends it); with none, {@code llm.mode=local} ({@code LLM_MODE=local})
  *       maps the local Ollama endpoint and, when no key is set, a placeholder
  *       key</li>
+ *   <li>with neither, a model that is not OpenAI's ({@code gemini-*}, ...) maps
+ *       the endpoint the built-in runtime derives from it
+ *       ({@code AiConfig.resolveBaseUrl}), Gemini's OpenAI-compatible one, with
+ *       the chat and embedding paths that endpoint takes</li>
  *   <li>{@code llm.model}    → {@code spring.ai.openai.chat.options.model}</li>
  * </ul>
  *
@@ -120,12 +125,39 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
             // api.openai.com with the user's prompt.
             baseUrl = LOCAL_BASE_URL;
         }
+        if (baseUrl == null && !local) {
+            // A blank base URL follows the model, as for the built-in runtime
+            // (AiConfig.resolveBaseUrl): Spring AI's own default is OpenAI, so
+            // a Gemini model and key went to api.openai.com. OpenAI keeps
+            // Spring AI's default; with no model named nothing is mapped.
+            var namedModel = firstNonBlank(
+                    env.getProperty("llm.model"),
+                    env.getProperty("LLM_MODEL"),
+                    env.getProperty("spring.ai.openai.chat.options.model"));
+            if (namedModel != null) {
+                var derived = AiConfig.resolveBaseUrl(null, null, namedModel);
+                if (!AiConfig.OPENAI_ENDPOINT.equals(derived)) {
+                    baseUrl = derived;
+                }
+            }
+        }
         if (baseUrl != null && isBlank(env.getProperty("spring.ai.openai.base-url"))) {
             // LLM_BASE_URL is documented with /v1 for every runtime
             // (http://localhost:11434/v1); Spring AI 1.x would call
             // .../v1/v1/chat/completions, a 404. An explicit
             // spring.ai.openai.base-url is the user's and is never rewritten.
             mapped.put("spring.ai.openai.base-url", springAi1BaseUrl(baseUrl));
+            if (isApiRootWithoutV1(baseUrl)) {
+                // An API root with a version of its own (Gemini's
+                // .../v1beta/openai): Spring AI 1.x's default paths would add
+                // /v1 to it, so the paths drop it.
+                if (isBlank(env.getProperty("spring.ai.openai.chat.completions-path"))) {
+                    mapped.put("spring.ai.openai.chat.completions-path", "/chat/completions");
+                }
+                if (isBlank(env.getProperty("spring.ai.openai.embedding.embeddings-path"))) {
+                    mapped.put("spring.ai.openai.embedding.embeddings-path", "/embeddings");
+                }
+            }
         }
 
         var model = firstNonBlank(
@@ -159,6 +191,33 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
             url = url.substring(0, url.length() - "/v1".length());
         }
         return url;
+    }
+
+    /**
+     * Whether {@code baseUrl} is an API root that carries its own path but not
+     * a trailing {@code /v1}, such as Gemini's
+     * {@code https://generativelanguage.googleapis.com/v1beta/openai}: Spring AI
+     * 1.x's default {@code /v1/...} paths do not apply to it. A bare host
+     * ({@code http://127.0.0.1:8000}) is not one: Spring AI adds {@code /v1}.
+     *
+     * @param baseUrl an OpenAI-compatible base URL
+     * @return {@code true} when the default {@code /v1} paths must not be appended
+     */
+    static boolean isApiRootWithoutV1(String baseUrl) {
+        var url = baseUrl.trim();
+        if (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        if (url.endsWith("/v1")) {
+            return false;
+        }
+        try {
+            var path = URI.create(url).getPath();
+            return path != null && !path.isEmpty() && !path.equals("/");
+        } catch (IllegalArgumentException e) {
+            logger.debug("Base URL '{}' is not a URI; Spring AI's default paths kept", baseUrl, e);
+            return false;
+        }
     }
 
     private static String firstNonBlank(String... values) {

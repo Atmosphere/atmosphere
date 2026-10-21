@@ -15,15 +15,21 @@
  */
 package org.atmosphere.ai.langchain4j;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
@@ -90,12 +96,69 @@ class LangChain4jLocalModeAutoConfigurationTest {
                                 + "through LLM_MODE"));
     }
 
-    // Deliberately not tested here: that LLM_MODE also selects the *local
-    // endpoint* in the bean body, not merely opens the condition. The resolved
-    // base URL is not readable from a built OpenAiStreamingChatModel without
-    // reflecting through its `internal` client, and a test that asserted only
-    // bean presence would pass against the asymmetric version too — a gate that
-    // cannot fail is worse than an acknowledged gap.
+    // That LLM_MODE also selects the *local endpoint* in the bean body, not
+    // merely opens the condition: the resolved base URL is not readable from a
+    // built OpenAiStreamingChatModel without reflecting through its `internal`
+    // client, so it is read from the startup line the bean logs.
+
+    @Test
+    void theEnvironmentVariableSelectsTheLocalEndpoint() {
+        var appender = new ListAppender<ILoggingEvent>();
+        var logger = (Logger) LoggerFactory.getLogger(AtmosphereLangChain4jAutoConfiguration.class);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            runner.withPropertyValues("LLM_MODE=local", "llm.model=gemini-2.5-flash")
+                    .run(context -> {
+                        assertEquals(1, models(context));
+                        assertTrue(appender.list.stream().map(ILoggingEvent::getFormattedMessage)
+                                        .anyMatch(m -> m.contains("endpoint=" + AiConfig.OLLAMA_ENDPOINT + " ")),
+                                "LLM_MODE=local must select the local endpoint: " + appender.list);
+                    });
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+
+    // A blank base URL follows the model, as for the built-in runtime
+    // (AiConfig.resolveBaseUrl): it used to mean OpenAI whatever the model, so
+    // a sample run with a Gemini model and GEMINI_API_KEY sent that key to
+    // api.openai.com.
+
+    @Test
+    void aBlankBaseUrlFollowsTheModel() {
+        assertEquals(AiConfig.GEMINI_ENDPOINT,
+                AtmosphereLangChain4jAutoConfiguration.resolveBaseUrl("", false, "gemini-2.5-flash"));
+        assertEquals(AiConfig.OPENAI_ENDPOINT,
+                AtmosphereLangChain4jAutoConfiguration.resolveBaseUrl(null, false, "gpt-4o-mini"));
+        assertEquals(AiConfig.OLLAMA_ENDPOINT,
+                AtmosphereLangChain4jAutoConfiguration.resolveBaseUrl(" ", true, "gemini-2.5-flash"),
+                "local mode wins over the model");
+        assertEquals("https://proxy.example/v1",
+                AtmosphereLangChain4jAutoConfiguration.resolveBaseUrl("https://proxy.example/v1", true, "gemini-2.5-flash"),
+                "an explicit base URL wins over mode and model");
+    }
+
+    @Test
+    void theBuiltModelForAGeminiModelCallsGemini() {
+        var appender = new ListAppender<ILoggingEvent>();
+        var logger = (Logger) LoggerFactory.getLogger(AtmosphereLangChain4jAutoConfiguration.class);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            runner.withPropertyValues("llm.api-key=AIza-test-not-a-real-key", "llm.model=gemini-2.5-flash",
+                            "llm.base-url=")
+                    .run(context -> {
+                        assertEquals(1, models(context));
+                        assertTrue(appender.list.stream().map(ILoggingEvent::getFormattedMessage)
+                                        .anyMatch(m -> m.contains("endpoint=" + AiConfig.GEMINI_ENDPOINT + " ")),
+                                "a Gemini model and key must not go to api.openai.com: " + appender.list);
+                    });
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
 
     @Test
     void anApiKeyStillBuildsAModel() {

@@ -122,8 +122,10 @@ public class AtmosphereSpringAiAutoConfiguration {
      * it sent the user's prompt, and the placeholder key, to api.openai.com.
      * An explicit {@code spring.ai.openai.base-url} or {@code LLM_BASE_URL}
      * still wins over the mode (with a WARN when it is not on this machine).
-     * Without a base URL in remote mode the endpoint is OpenAI's
-     * {@code /v1} root, which the OpenAI SDK expects verbatim.</p>
+     * Without a base URL in remote mode the endpoint follows the model, as for
+     * the built-in runtime: OpenAI's {@code /v1} root (which the OpenAI SDK
+     * expects verbatim) for an OpenAI model, Gemini's OpenAI-compatible
+     * endpoint for any other.</p>
      *
      * @param apiKey  the API key; blank builds no client unless the mode is local
      * @param baseUrl the explicit endpoint, blank to resolve it from the mode
@@ -144,7 +146,7 @@ public class AtmosphereSpringAiAutoConfiguration {
             logger.info("No API key configured — Spring AI ChatClient not created");
             return null;
         }
-        var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode);
+        var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode, model);
         // OpenAi SDK Kotlin builders reject null Duration/int for timeout/maxRetries;
         // use the SDK's published defaults rather than guessing values.
         // Spring AI 2.0.0 GA added three trailing params to OpenAiSetup
@@ -178,15 +180,18 @@ public class AtmosphereSpringAiAutoConfiguration {
     }
 
     /**
-     * The endpoint for {@code explicitBaseUrl} and {@code mode}: an explicit
-     * URL wins, else the local Ollama endpoint in local mode, else OpenAI.
+     * The endpoint for {@code explicitBaseUrl}, {@code mode} and {@code model},
+     * resolved as the built-in runtime resolves it
+     * ({@link AiConfig#resolveBaseUrl(String, String, String)}): an explicit URL
+     * wins (with a WARN when it overrides local mode with a remote host), else
+     * the local Ollama endpoint in local mode, else the provider the model names
+     * ({@code gpt-*}, {@code o1*}, {@code o3*}: OpenAI; any other model:
+     * Gemini's OpenAI-compatible endpoint). A blank URL used to mean OpenAI
+     * whatever the model, so a Gemini model and key went to api.openai.com.
      */
-    static String resolveBaseUrl(String explicitBaseUrl, String mode) {
-        if (explicitBaseUrl != null && !explicitBaseUrl.isBlank()) {
-            AiConfig.warnIfLocalModeOverridden(mode, explicitBaseUrl);
-            return explicitBaseUrl.trim();
-        }
-        return isLocal(mode) ? AiConfig.OLLAMA_ENDPOINT : AiConfig.OPENAI_ENDPOINT;
+    static String resolveBaseUrl(String explicitBaseUrl, String mode, String model) {
+        var explicit = explicitBaseUrl == null || explicitBaseUrl.isBlank() ? null : explicitBaseUrl.trim();
+        return AiConfig.resolveBaseUrl(mode == null ? null : mode.trim(), explicit, model);
     }
 
     /** The key to send: the configured one, a placeholder in local mode, else {@code null}. */

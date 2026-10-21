@@ -52,6 +52,9 @@ import java.util.Map;
  *   <li>{@code llm.base-url} → {@code spring.ai.openai.base-url}; with none,
  *       {@code llm.mode=local} ({@code LLM_MODE=local}) maps the local Ollama
  *       endpoint and, when no key is set, a placeholder key</li>
+ *   <li>with neither, a model that is not OpenAI's ({@code gemini-*}, ...) maps
+ *       the endpoint the built-in runtime derives from it
+ *       ({@code AiConfig.resolveBaseUrl}), Gemini's OpenAI-compatible one</li>
  *   <li>{@code llm.model}    → {@code spring.ai.openai.chat.options.model}</li>
  * </ul>
  *
@@ -103,6 +106,22 @@ public class AtmosphereSpringAiEnvironmentPostProcessor implements EnvironmentPo
             // EmbeddingModel Atmosphere binds included) call api.openai.com.
             // Spring AI 2.0 hands the URL to the OpenAI SDK verbatim, /v1 included.
             baseUrl = AiConfig.OLLAMA_ENDPOINT;
+        }
+        if (baseUrl == null && !local) {
+            // A blank base URL follows the model, as for the built-in runtime
+            // (AiConfig.resolveBaseUrl): Spring AI's own default is OpenAI, so
+            // a Gemini model and key went to api.openai.com. OpenAI keeps
+            // Spring AI's default; with no model named nothing is mapped.
+            var namedModel = firstNonBlank(
+                    env.getProperty("llm.model"),
+                    env.getProperty("LLM_MODEL"),
+                    env.getProperty("spring.ai.openai.chat.options.model"));
+            if (namedModel != null) {
+                var derived = AiConfig.resolveBaseUrl(null, null, namedModel);
+                if (!AiConfig.OPENAI_ENDPOINT.equals(derived)) {
+                    baseUrl = derived;
+                }
+            }
         }
         if (baseUrl != null && isBlank(env.getProperty("spring.ai.openai.base-url"))) {
             mapped.put("spring.ai.openai.base-url", baseUrl);

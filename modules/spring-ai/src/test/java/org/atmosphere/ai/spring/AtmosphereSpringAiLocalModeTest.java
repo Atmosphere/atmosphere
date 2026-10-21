@@ -19,6 +19,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.sun.net.httpserver.HttpServer;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -124,12 +125,57 @@ class AtmosphereSpringAiLocalModeTest {
     }
 
     @Test
-    void remoteModeWithoutABaseUrlUsesOpenAisV1Root() {
+    void remoteModeWithoutABaseUrlUsesOpenAisV1RootForAnOpenAiModel() {
         assertEquals("https://api.openai.com/v1",
-                AtmosphereSpringAiAutoConfiguration.resolveBaseUrl("", "remote"),
+                AtmosphereSpringAiAutoConfiguration.resolveBaseUrl("", "remote", "gpt-4o-mini"),
                 "the OpenAI SDK takes the base URL verbatim: without /v1 every call is a 404");
         assertEquals("http://localhost:11434/v1",
-                AtmosphereSpringAiAutoConfiguration.resolveBaseUrl(null, "LOCAL"));
+                AtmosphereSpringAiAutoConfiguration.resolveBaseUrl(null, "LOCAL", "gemini-2.5-flash"));
+    }
+
+    /**
+     * A blank base URL follows the model, as for the built-in runtime: a
+     * Gemini model (and the Gemini key that goes with it) went to
+     * api.openai.com.
+     */
+    @Test
+    void remoteModeWithoutABaseUrlUsesGeminiForAGeminiModel() {
+        assertEquals(AiConfig.GEMINI_ENDPOINT,
+                AtmosphereSpringAiAutoConfiguration.resolveBaseUrl(" ", "remote", "gemini-2.5-flash"));
+        assertEquals("https://proxy.example/v1",
+                AtmosphereSpringAiAutoConfiguration.resolveBaseUrl("https://proxy.example/v1", "", "gemini-2.5-flash"),
+                "an explicit base URL wins over the model");
+    }
+
+    @Test
+    void theAutoConfiguredClientForAGeminiModelCallsGemini() {
+        try (var context = context(Map.of("LLM_API_KEY", "AIza-test", "LLM_MODEL", "gemini-2.5-flash"))) {
+            assertTrue(context.getBeanProvider(ChatClient.class).getIfAvailable() != null);
+            assertTrue(messages().stream().anyMatch(m -> m.startsWith("Spring AI ChatClient built: model=gemini-2.5-flash, endpoint="
+                    + AiConfig.GEMINI_ENDPOINT + ",")), messages().toString());
+        }
+    }
+
+    @Test
+    void theBridgeMapsTheGeminiEndpointForAGeminiModel() {
+        var env = environment(Map.of("GEMINI_API_KEY", "AIza-test", "LLM_MODEL", "gemini-2.5-flash"));
+
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals(AiConfig.GEMINI_ENDPOINT, env.getProperty("spring.ai.openai.base-url"),
+                "Spring AI's own OpenAI beans must not send a Gemini key to api.openai.com");
+    }
+
+    @Test
+    void theBridgeLeavesSpringAisOwnDefaultForAnOpenAiModelOrNoModel() {
+        var openAi = environment(Map.of("LLM_API_KEY", "sk-test", "LLM_MODEL", "gpt-4o-mini"));
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(openAi, null);
+        assertNull(openAi.getProperty("spring.ai.openai.base-url"));
+
+        var noModel = environment(Map.of("LLM_API_KEY", "sk-test"));
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(noModel, null);
+        assertNull(noModel.getProperty("spring.ai.openai.base-url"),
+                "with no model named there is nothing to steer the endpoint by");
     }
 
     @Test

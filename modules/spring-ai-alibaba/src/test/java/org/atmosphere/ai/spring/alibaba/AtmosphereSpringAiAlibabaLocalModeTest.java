@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.spring.alibaba;
 
+import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
@@ -24,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * {@code LLM_MODE=local}, the documented keyless mode, reaches the local
@@ -124,6 +126,52 @@ class AtmosphereSpringAiAlibabaLocalModeTest {
                 AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl("http://h/v1/v1"));
         assertEquals("http://h/api/v10",
                 AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl("http://h/api/v10"));
+    }
+
+    /**
+     * A blank base URL follows the model, as for the built-in runtime: a
+     * Gemini model and key went to Spring AI's default, api.openai.com.
+     * Gemini's endpoint carries its own version, so Spring AI 1.x's
+     * {@code /v1/...} paths are replaced.
+     */
+    @Test
+    void aGeminiModelWithoutABaseUrlMapsGeminiAndItsPaths() {
+        var env = environment(Map.of("GEMINI_API_KEY", "AIza-test", "LLM_MODEL", "gemini-2.5-flash"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals(AiConfig.GEMINI_ENDPOINT, env.getProperty("spring.ai.openai.base-url"));
+        assertEquals("/chat/completions", env.getProperty("spring.ai.openai.chat.completions-path"));
+        assertEquals("/embeddings", env.getProperty("spring.ai.openai.embedding.embeddings-path"));
+    }
+
+    @Test
+    void anOpenAiModelWithoutABaseUrlKeepsSpringAisDefaults() {
+        var env = environment(Map.of("LLM_API_KEY", "sk-test", "llm.model", "gpt-4o-mini"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertNull(env.getProperty("spring.ai.openai.base-url"));
+        assertNull(env.getProperty("spring.ai.openai.chat.completions-path"));
+    }
+
+    @Test
+    void anExplicitBaseUrlWinsOverTheModel() {
+        var env = environment(Map.of("LLM_MODEL", "gemini-2.5-flash", "LLM_BASE_URL", "http://127.0.0.1:8000/v1"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals("http://127.0.0.1:8000", env.getProperty("spring.ai.openai.base-url"));
+        assertNull(env.getProperty("spring.ai.openai.chat.completions-path"));
+    }
+
+    @Test
+    void localModeWinsOverAGeminiModel() {
+        var env = environment(Map.of("LLM_MODE", "local", "LLM_MODEL", "gemini-2.5-flash"));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals("http://localhost:11434", env.getProperty("spring.ai.openai.base-url"));
     }
 
     @Test
