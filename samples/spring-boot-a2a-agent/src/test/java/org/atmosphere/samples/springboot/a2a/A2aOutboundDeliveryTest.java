@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -204,6 +205,44 @@ class A2aOutboundDeliveryTest {
                     "the hint's shape must complete the skill; sent " + params + ", got: " + response.body());
             assertTrue(response.body().contains(expectedArtifact),
                     "the skill must answer from the hint's arguments; got: " + response.body());
+        }
+    }
+
+    /**
+     * The protocol handler records the incoming user message on the task
+     * before it runs the skill; a skill that adds it again lists the user's
+     * turn twice in the task history. The 2026-10-20 sweep saw a finished
+     * {@code ask} task's history carry the question twice.
+     */
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void aFinishedTaskListsTheUserMessageOnce() throws Exception {
+        var question = "how are you today?";
+        var params = "{\"message\":{\"role\":\"ROLE_USER\",\"parts\":[{\"text\":\"" + question + "\"}],"
+                + "\"messageId\":\"m-once\",\"metadata\":{\"skillId\":\"ask\"}},"
+                + "\"arguments\":{\"message\":\"" + question + "\"}}";
+        var body = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"SendMessage\",\"params\":" + params + "}";
+        try (var client = HttpClient.newHttpClient()) {
+            var response = client.send(HttpRequest.newBuilder(URI.create(a2aEndpoint()))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(body))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, response.statusCode(), "SendMessage must be accepted; body: " + response.body());
+            var task = JsonMapper.builder().build().readTree(response.body()).path("result").path("task");
+            assertEquals("TASK_STATE_COMPLETED", task.path("status").path("state").asString(),
+                    "the ask skill must complete; got: " + response.body());
+            var userTurns = 0;
+            var agentTurns = 0;
+            for (var message : task.path("history")) {
+                switch (message.path("role").asString()) {
+                    case "ROLE_USER" -> userTurns++;
+                    case "ROLE_AGENT" -> agentTurns++;
+                    default -> { }
+                }
+            }
+            assertEquals(1, userTurns, "the user's message must appear once in the history; got: " + response.body());
+            assertEquals(1, agentTurns, "the agent's reply must appear once in the history; got: " + response.body());
         }
     }
 }

@@ -63,7 +63,8 @@ public class WeatherTimeAgent {
     public void ask(TaskContext task,
                     @AgentSkillParam(name = "message", description = "The question or request") String message) {
         task.updateStatus(TaskState.WORKING, "Processing your request...");
-        task.addMessage(Message.user(message));
+        // The protocol handler already recorded the user's message on the task
+        // before calling this skill; adding it here listed it twice in the history.
 
         try {
             var settings = AiEnvironment.current().settings();
