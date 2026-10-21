@@ -96,6 +96,10 @@ internal object EmbabelToolBridge {
                     tool.name(), tool, args, session, approvalStrategy, effectivePolicy
                 ) ?: "")
             } catch (t: Throwable) {
+                // ToolExecutionHelper threw before it reported the call's
+                // end: the call ends here, as a failure.
+                session.emit(org.atmosphere.ai.AiEvent.ToolError(
+                    tool.name(), t.message ?: t.javaClass.simpleName))
                 Tool.Result.error(
                     "Tool '${tool.name()}' failed: ${t.message ?: t.javaClass.simpleName}",
                     t

@@ -135,22 +135,40 @@ final class AnthropicMemoryTool {
      * @return the tool result text — success detail or {@code Error: ...}
      */
     static String execute(AgentFileSystem fs, Map<String, Object> args) {
+        return run(fs, args).text();
+    }
+
+    /**
+     * What one memory command produced: the tool result text, and whether the
+     * command failed (its text is then the {@code Error: ...} the model reads).
+     *
+     * @param text   the tool result text
+     * @param failed whether the command was rejected or failed
+     */
+    record Result(String text, boolean failed) {
+    }
+
+    /**
+     * {@link #execute} that also says whether the command failed, so the
+     * caller reports the call as a {@code tool-error} rather than a result.
+     */
+    static Result run(AgentFileSystem fs, Map<String, Object> args) {
         var input = args != null ? args : Map.<String, Object>of();
         try {
             var command = str(input.get("command"));
             return switch (command) {
-                case "view" -> view(fs, input);
-                case "create" -> create(fs, input);
-                case "str_replace" -> strReplace(fs, input);
-                case "insert" -> insert(fs, input);
-                case "delete" -> delete(fs, input);
-                case "rename" -> rename(fs, input);
-                default -> "Error: unsupported memory command '" + command + "'";
+                case "view" -> new Result(view(fs, input), false);
+                case "create" -> new Result(create(fs, input), false);
+                case "str_replace" -> new Result(strReplace(fs, input), false);
+                case "insert" -> new Result(insert(fs, input), false);
+                case "delete" -> new Result(delete(fs, input), false);
+                case "rename" -> new Result(rename(fs, input), false);
+                default -> new Result("Error: unsupported memory command '" + command + "'", true);
             };
         } catch (IllegalArgumentException | UncheckedIOException e) {
             // Traversal / bounds / not-found rejections surface as clear
             // tool-result strings so the model can correct course.
-            return "Error: " + e.getMessage();
+            return new Result("Error: " + e.getMessage(), true);
         }
     }
 

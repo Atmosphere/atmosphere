@@ -333,9 +333,9 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             var acc = entry.getValue();
             toolCalls.add(acc);
             var args = acc.argumentsAsMap(MAPPER);
-            session.emit(new AiEvent.ToolStart(acc.functionName(), args));
+            // The tool's frames (tool-start, then tool-result or tool-error)
+            // are emitted by dispatchTool's path, once per call.
             var resultText = dispatchTool(context, session, acc, args);
-            session.emit(new AiEvent.ToolResult(acc.functionName(), resultText));
             toolResults.put(acc.id(), resultText);
         }
 
@@ -485,8 +485,13 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                                 Map<String, Object> args) {
         var definition = findToolDefinition(context.tools(), acc.functionName());
         if (definition == null) {
+            // No ToolExecutionHelper call to report it: the call fails here.
+            session.emit(new AiEvent.ToolStart(acc.functionName(), args));
+            session.emit(new AiEvent.ToolError(acc.functionName(), "Unknown tool: " + acc.functionName()));
             return "{\"error\":\"Unknown tool: " + acc.functionName() + "\"}";
         }
+        // ToolExecutionHelper emits the call's tool-start and the frame that
+        // ends it (tool-result, or tool-error for a failed call).
         // Forward the session's framework injectables (AgentFleet, AgentIdentity,
         // CodeSandbox, ...) to the tool, plus the live session — mirroring the
         // built-in runtime's OpenAiCompatibleClient. Without this, @AiTool methods

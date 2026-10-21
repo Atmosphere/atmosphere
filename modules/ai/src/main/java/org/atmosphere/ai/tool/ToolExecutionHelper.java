@@ -64,6 +64,43 @@ public final class ToolExecutionHelper {
     public static final String TURN_ENDED_RESULT =
             "{\"error\":\"The turn already ended; the tool was not executed.\"}";
 
+    /** The {@code tool-error} text of a tool call whose turn was cancelled before it was dispatched. */
+    static final String TURN_CANCELLED_ERROR = "The run was cancelled; the tool was not executed.";
+
+    /**
+     * The key of the effect-journal envelope that records a failed tool call
+     * (see {@link #recordedPayload}). A successful call is recorded as the bare
+     * string the model received, as it always was.
+     */
+    static final String RECORDED_ERROR_KEY = "atmosphere.toolError";
+
+    /**
+     * What one tool call produced: the string the model receives, and, when the
+     * tool did not produce a result of its own (it threw, overran its deadline,
+     * was interrupted, got invalid arguments, or its turn was cancelled before it
+     * was dispatched), the error the {@code tool-error} frame reports. A refusal
+     * (an approval denied or expired, a policy, permission or authorization
+     * denial) is not an error: its {@code {"status":…,"message":…}} answer is
+     * the call's result, reported as a {@code tool-result} that clients render
+     * as denied or timed out.
+     *
+     * @param text  the string returned to the model
+     * @param error why the tool failed, or {@code null} when it did not
+     */
+    record Outcome(String text, String error) {
+        static Outcome result(String text) {
+            return new Outcome(text, null);
+        }
+
+        static Outcome failure(String text, String error) {
+            return new Outcome(text, error != null && !error.isBlank() ? error : "The tool failed.");
+        }
+
+        boolean failed() {
+            return error != null;
+        }
+    }
+
     /** Serializes reviewer-supplied structured approval responses to JSON. */
     private static final ObjectMapper RESPONSE_JSON = JsonMapper.builder().build();
 
@@ -178,6 +215,17 @@ public final class ToolExecutionHelper {
                                    Map<String, Object> args,
                                    Map<Class<?>, Object> injectables,
                                    long toolExecutionTimeout) {
+        return execute(toolName, executor, args, injectables, toolExecutionTimeout).text();
+    }
+
+    /**
+     * Run the executor and say how it went: its result, or the JSON error the
+     * model receives together with the error a {@code tool-error} frame reports.
+     */
+    private static Outcome execute(String toolName, ToolExecutor executor,
+                                   Map<String, Object> args,
+                                   Map<Class<?>, Object> injectables,
+                                   long toolExecutionTimeout) {
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
         var timeoutSeconds = resolveExecutionTimeout(toolExecutionTimeout);
         try {
@@ -187,7 +235,7 @@ public final class ToolExecutionHelper {
                     // thread, exactly as before the bound existed.
                     : executor.execute(args, scope);
             logger.debug("Tool {} executed: {}", toolName, result);
-            return result != null ? result.toString() : "null";
+            return Outcome.result(result != null ? result.toString() : "null");
         } catch (ToolTimeoutException e) {
             // Terminal path: the tool was interrupted, the turn continues. The
             // model sees a structured error it can react to (retry, pick a
@@ -196,22 +244,25 @@ public final class ToolExecutionHelper {
                     + "Raise it per tool via ToolDefinition.executionTimeout, globally "
                     + "via {}, or set a value <= 0 to disable the bound.",
                     toolName, timeoutSeconds, TOOL_EXECUTION_TIMEOUT_PROPERTY);
-            return "{\"error\":\"tool_timeout\",\"tool\":\""
+            var message = "Tool execution exceeded the " + timeoutSeconds
+                    + "s deadline and was cancelled";
+            return Outcome.failure("{\"error\":\"tool_timeout\",\"tool\":\""
                     + ToolBridgeUtils.escapeJson(toolName)
                     + "\",\"timeoutSeconds\":" + timeoutSeconds
-                    + ",\"message\":\"Tool execution exceeded the " + timeoutSeconds
-                    + "s deadline and was cancelled\"}";
+                    + ",\"message\":\"" + message + "\"}", message);
         } catch (InterruptedException e) {
             // Not our deadline — the turn itself was cancelled from outside and
             // the throw cleared the flag. Re-assert it so the cancellation is
             // not stranded at this seam, and name it distinctly for the model.
             Thread.currentThread().interrupt();
             logger.debug("Tool {} was interrupted before completing", toolName);
-            return "{\"error\":\"tool_interrupted\",\"tool\":\""
-                    + ToolBridgeUtils.escapeJson(toolName) + "\"}";
+            return Outcome.failure("{\"error\":\"tool_interrupted\",\"tool\":\""
+                    + ToolBridgeUtils.escapeJson(toolName) + "\"}",
+                    "The tool was interrupted before completing");
         } catch (Exception e) {
             logger.error("Tool {} execution failed", toolName, e);
-            return "{\"error\":\"" + ToolBridgeUtils.escapeJson(errorMessage(e)) + "\"}";
+            var message = errorMessage(e);
+            return Outcome.failure("{\"error\":\"" + ToolBridgeUtils.escapeJson(message) + "\"}", message);
         }
     }
 
@@ -487,8 +538,9 @@ public final class ToolExecutionHelper {
      * the run's {@link EffectJournal} keyed by a content-addressed idempotency key
      * ({@link EffectKeys#toolCall}). A replay that re-walks the same tool sequence
      * gets a {@code COMMITTED} hit, skips the executor and every gate, re-emits
-     * both the {@code ToolStart} and {@code ToolResult} frames, and returns the
-     * recorded outcome — so the side effect runs at most once across a crash and
+     * the {@code ToolStart} frame and the frame that ended the live call
+     * ({@code ToolResult}, or {@code ToolError} for a call that failed), and
+     * returns the recorded outcome — so the side effect runs at most once across a crash and
      * the wire sees an identical round. When durable runs are off (no scope, or
      * the {@link EffectJournal#NOOP} journal) this takes the byte-identical live
      * path with no memoization overhead.</p>
@@ -505,6 +557,7 @@ public final class ToolExecutionHelper {
             // not dispatched, and no approval is requested for it.
             logger.debug("Tool {} not dispatched: the turn of session {} was cancelled",
                     toolName, session.sessionId());
+            emitNotRun(toolName, args, session, TURN_CANCELLED_ERROR);
             return TURN_CANCELLED_RESULT;
         }
         if (session != null && session.isClosed()) {
@@ -513,12 +566,15 @@ public final class ToolExecutionHelper {
             // round is not dispatched, and asks for no approval no one sees.
             logger.debug("Tool {} not dispatched: session {} already ended",
                     toolName, session.sessionId());
+            // No frame either: the session's terminal frame was written, and
+            // nothing may follow it on the wire or in the run's replay.
             return TURN_ENDED_RESULT;
         }
         var ctx = DurableRunScopeHolder.current(session);
         if (ctx == null || ctx.journal() == EffectJournal.NOOP) {
             // Durable runs off: byte-identical live path, no memoization.
-            return executeWithApprovalLive(toolName, tool, args, session, strategy, policy, injectables);
+            return executeWithApprovalLive(toolName, tool, args, session, strategy, policy, injectables)
+                    .text();
         }
         var journal = ctx.journal();
         // Advance the per-(tool,args) occurrence cursor exactly once per call, on
@@ -536,14 +592,15 @@ public final class ToolExecutionHelper {
 
         var hit = journal.lookupCommitted(ctx.runId(), key);
         if (hit.isPresent() && digest.equals(hit.get().requestDigest())) {
-            // Replay hit: re-emit both frames and return the recorded outcome
-            // without touching the executor or any gate.
-            var recorded = hit.get().resultPayload();
+            // Replay hit: re-emit the frames the live call emitted (a failed
+            // call ends with its tool-error again) and return the recorded
+            // outcome without touching the executor or any gate.
+            var recorded = recordedOutcome(hit.get().resultPayload());
             if (session != null) {
                 session.emit(new AiEvent.ToolStart(toolName, args));
-                session.emit(new AiEvent.ToolResult(toolName, recorded));
+                session.emit(terminalFrame(toolName, recorded));
             }
-            return recorded;
+            return recorded.text();
         }
         if (hit.isPresent()) {
             // Same key, different inputs: a divergence tripwire. Never replay a
@@ -557,7 +614,7 @@ public final class ToolExecutionHelper {
         // resume re-runs it (at-least-once). A RejectedExecutionException from the
         // per-run effect cap propagates and fails the run (Invariant #3).
         journal.appendPending(ctx.runId(), EffectKind.TOOL_CALL, key, digest);
-        String result;
+        Outcome result;
         try {
             result = executeWithApprovalLive(toolName, tool, args, session, strategy, policy, injectables);
         } catch (RuntimeException e) {
@@ -567,20 +624,82 @@ public final class ToolExecutionHelper {
             journal.markFailed(ctx.runId(), key, errorMessage(e));
             throw e;
         }
-        journal.commit(ctx.runId(), key, result);
-        return result;
+        journal.commit(ctx.runId(), key, recordedPayload(result));
+        return result.text();
+    }
+
+    /**
+     * The effect-journal payload of a tool call: the string the model received
+     * for a call that produced a result (or a refusal), byte-identical to what
+     * was always recorded; for a failed call, an envelope
+     * {@code {"atmosphere.toolError":<error>,"result":<string>}} so a replay can
+     * end the call with the same {@code tool-error} frame and return the same
+     * string.
+     */
+    static String recordedPayload(Outcome outcome) {
+        if (!outcome.failed()) {
+            return outcome.text();
+        }
+        var envelope = new java.util.LinkedHashMap<String, Object>();
+        envelope.put(RECORDED_ERROR_KEY, outcome.error());
+        envelope.put("result", outcome.text());
+        return RESPONSE_JSON.writeValueAsString(envelope);
+    }
+
+    /**
+     * Read back what {@link #recordedPayload} recorded. A payload that is not
+     * the failure envelope (any result, and every call recorded before the
+     * envelope existed) is a result.
+     */
+    static Outcome recordedOutcome(String payload) {
+        if (payload != null && payload.startsWith("{\"" + RECORDED_ERROR_KEY + "\":")) {
+            try {
+                var node = RESPONSE_JSON.readTree(payload);
+                var error = node.get(RECORDED_ERROR_KEY);
+                var text = node.get("result");
+                if (node.size() == 2 && error != null && error.isString()
+                        && text != null && text.isString()) {
+                    return Outcome.failure(text.stringValue(), error.stringValue());
+                }
+            } catch (RuntimeException e) {
+                logger.debug("Recorded tool payload is not a failure envelope ({}); replaying it as a result",
+                        e.toString());
+            }
+        }
+        return Outcome.result(payload);
+    }
+
+    /** The frame that ends a tool call: its result, or its error. */
+    private static AiEvent terminalFrame(String toolName, Outcome outcome) {
+        return outcome.failed()
+                ? new AiEvent.ToolError(toolName, outcome.error())
+                : new AiEvent.ToolResult(toolName, outcome.text());
+    }
+
+    /**
+     * Report a tool call that is answered without being dispatched because it
+     * cannot run (its turn was cancelled, its arguments are invalid): a
+     * {@code tool-start} for the call the model made and the {@code tool-error}
+     * that ends it, as for a tool that failed while running.
+     */
+    private static void emitNotRun(String toolName, Map<String, Object> args,
+                                   StreamingSession session, String error) {
+        if (session != null) {
+            session.emit(new AiEvent.ToolStart(toolName, args));
+            session.emit(new AiEvent.ToolError(toolName, error));
+        }
     }
 
     /**
      * The live (non-memoized) tool-execution path: argument validation,
      * governance admission, {@code @Authorize}, the {@code ToolStart} frame, the
-     * permission/approval gates, and the {@code ToolResult} frame on every
-     * terminal path. Wrapped by
+     * permission/approval gates, and the terminal frame ({@code ToolResult}
+     * or, for a failed call, {@code ToolError}) on every terminal path. Wrapped by
      * {@link #executeWithApproval(String, ToolDefinition, Map, StreamingSession, ApprovalStrategy, ToolApprovalPolicy, Map)}
      * for durable-run memoization; that wrapper is the only caller on the durable
      * path, but every non-durable call also routes here unchanged.
      */
-    static String executeWithApprovalLive(String toolName, ToolDefinition tool,
+    static Outcome executeWithApprovalLive(String toolName, ToolDefinition tool,
                                           Map<String, Object> args,
                                           StreamingSession session,
                                           ApprovalStrategy strategy,
@@ -589,7 +708,9 @@ public final class ToolExecutionHelper {
         var errors = ToolArgumentValidator.validate(tool, args);
         if (!errors.isEmpty()) {
             logger.info("Tool {} argument validation failed: {}", toolName, errors);
-            return buildValidationErrorJson(toolName, errors);
+            var message = "Invalid arguments: " + String.join("; ", errors);
+            emitNotRun(toolName, args, session, message);
+            return Outcome.failure(buildValidationErrorJson(toolName, errors), message);
         }
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
@@ -622,8 +743,8 @@ public final class ToolExecutionHelper {
         if (gateResult instanceof org.atmosphere.ai.governance.PolicyAdmissionGate.Result.Denied denied) {
             logger.info("Tool {} denied by governance policy {}: {}",
                     toolName, denied.policyName(), denied.reason());
-            return buildGovernanceDenyJson(toolName,
-                    denied.policyName(), denied.reason());
+            return Outcome.result(buildGovernanceDenyJson(toolName,
+                    denied.policyName(), denied.reason()));
         }
 
         // Tool-level @Authorize check (Correctness Invariant #6: default-deny
@@ -651,8 +772,8 @@ public final class ToolExecutionHelper {
         // the client uniformly. OpenAiCompatibleClient used to emit its own
         // ToolStart before delegating here — that duplicate was removed in
         // favor of this centralized frame (Correctness Invariant #7, Mode
-        // Parity). ToolResult is emitted by {@link #finishAndEmit} on every
-        // terminal path. Emitted only after governance admission so denied
+        // Parity). The terminal frame (ToolResult, or ToolError for a failed
+        // call) is emitted by {@link #finishAndEmit} on every terminal path. Emitted only after governance admission so denied
         // tool calls do not show up as started-but-never-finished in the UI.
         if (session != null) {
             session.emit(new AiEvent.ToolStart(toolName, args));
@@ -677,7 +798,7 @@ public final class ToolExecutionHelper {
             case BYPASS -> {
                 // Auto-approve every tool. Explicit opt-in only.
                 return finishAndEmit(toolName, session, scope,
-                        executeAndFormat(toolName, tool.executor(), args, scope, tool.executionTimeout()));
+                        execute(toolName, tool.executor(), args, scope, tool.executionTimeout()));
             }
             case PLAN -> {
                 // Force approval on every tool regardless of tool-local
@@ -735,7 +856,7 @@ public final class ToolExecutionHelper {
                 logger.info("Tool {} auto-approved under PermissionMode.ACCEPT_EDITS (kind=EDIT)", toolName);
             }
             return finishAndEmit(toolName, session, scope,
-                    executeAndFormat(toolName, tool.executor(), args, scope, tool.executionTimeout()));
+                    execute(toolName, tool.executor(), args, scope, tool.executionTimeout()));
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
         // a null strategy cannot bypass a deny-by-policy decision. Previously
@@ -786,7 +907,7 @@ public final class ToolExecutionHelper {
                     // model as the tool result.
                     logger.info("Tool {} approved with a reviewer-supplied response (tool not run)",
                             toolName);
-                    yield formatResponsePayload(resolution.responsePayload());
+                    yield Outcome.result(formatResponsePayload(resolution.responsePayload()));
                 }
                 // Approve-with-edited-args: the reviewer's arguments replace the
                 // model's proposal when supplied.
@@ -794,15 +915,15 @@ public final class ToolExecutionHelper {
                         ? resolution.modifiedArguments() : args;
                 logger.info("Tool {} approved, executing{}", toolName,
                         resolution.hasModifiedArguments() ? " with reviewer-edited arguments" : "");
-                yield executeAndFormat(toolName, tool.executor(), effectiveArgs, scope, tool.executionTimeout());
+                yield execute(toolName, tool.executor(), effectiveArgs, scope, tool.executionTimeout());
             }
             case DENIED -> {
                 logger.info("Tool {} denied by user", toolName);
-                yield "{\"status\":\"cancelled\",\"message\":\"Action cancelled by user\"}";
+                yield Outcome.result("{\"status\":\"cancelled\",\"message\":\"Action cancelled by user\"}");
             }
             case TIMED_OUT -> {
                 logger.info("Tool {} approval timed out", toolName);
-                yield "{\"status\":\"timeout\",\"message\":\"Approval timed out\"}";
+                yield Outcome.result("{\"status\":\"timeout\",\"message\":\"Approval timed out\"}");
             }
         });
     }
@@ -1012,23 +1133,37 @@ public final class ToolExecutionHelper {
         }
     }
 
+    /** {@link #finishAndEmit(String, StreamingSession, Map, Outcome)} for a refusal's answer. */
+    private static Outcome finishAndEmit(String toolName, StreamingSession session,
+                                         Map<Class<?>, Object> scope, String result) {
+        return finishAndEmit(toolName, session, scope, Outcome.result(result));
+    }
+
     /**
-     * Emit the terminal {@link AiEvent.ToolResult} frame and return the tool
-     * result. Large results are first disk-offloaded (see
-     * {@link #maybeOffload}); the emitted frame carries the SAME value that is
-     * returned to the model (the preview when offloaded), so the console shows
-     * exactly what the model saw — the emit and the return never diverge.
+     * Emit the frame that ends the tool call and return what the model
+     * receives. Large results are first disk-offloaded (see
+     * {@link #maybeOffload}).
+     *
+     * <p>A call that produced a result — or a refusal's
+     * {@code {"status":…,"message":…}} answer — ends with an
+     * {@link AiEvent.ToolResult} carrying the SAME value that is returned to
+     * the model (the preview when offloaded), so the console shows exactly what
+     * the model saw: the emit and the return never diverge. A call that failed
+     * (see {@link Outcome}) ends with an {@link AiEvent.ToolError} carrying the
+     * failure's message instead; the model still receives the same JSON error
+     * string it always did, so only the frame's kind tells a client the tool
+     * did not run to a result. Exactly one terminal frame is emitted either way.</p>
      */
-    private static String finishAndEmit(String toolName, StreamingSession session,
-                                        Map<Class<?>, Object> scope, String result) {
+    private static Outcome finishAndEmit(String toolName, StreamingSession session,
+                                         Map<Class<?>, Object> scope, Outcome outcome) {
         // Screen the tool output for indirect prompt injection BEFORE offload so
         // the screened value is what both reaches disk and re-enters the model
         // (the emit==return invariant). Opt-in and off by default — see
         // ToolOutputSafetyScreen for the posture rationale.
-        var screened = ToolOutputSafetyScreen.screen(toolName, result);
-        var effective = maybeOffload(toolName, screened, scope);
+        var screened = ToolOutputSafetyScreen.screen(toolName, outcome.text());
+        var effective = new Outcome(maybeOffload(toolName, screened, scope), outcome.error());
         if (session != null) {
-            session.emit(new AiEvent.ToolResult(toolName, effective));
+            session.emit(terminalFrame(toolName, effective));
         }
         return effective;
     }

@@ -121,6 +121,35 @@ public class LangChain4jToolBridgeTest {
     }
 
     @Test
+    public void testUnknownToolEndsWithAToolError() {
+        // The model asked for a tool there is none of: the call is reported
+        // and fails, as on the built-in runtime, instead of leaving no trace.
+        var request = ToolExecutionRequest.builder()
+                .id("call-1")
+                .name("missing_tool")
+                .arguments("{}")
+                .build();
+        var frames = new java.util.ArrayList<org.atmosphere.ai.AiEvent>();
+        var session = new org.atmosphere.ai.StreamingSession() {
+            @Override public String sessionId() { return "s"; }
+            @Override public void send(String text) { }
+            @Override public void sendMetadata(String key, Object value) { }
+            @Override public void progress(String message) { }
+            @Override public void complete() { }
+            @Override public void complete(String summary) { }
+            @Override public void error(Throwable t) { }
+            @Override public boolean isClosed() { return false; }
+            @Override public void emit(org.atmosphere.ai.AiEvent event) { frames.add(event); }
+        };
+
+        LangChain4jToolBridge.executeToolCalls(AiMessage.from(List.of(request)), Map.of(), session, null,
+                List.of(), null);
+
+        assertEquals(List.of(new org.atmosphere.ai.AiEvent.ToolStart("missing_tool", Map.of()),
+                new org.atmosphere.ai.AiEvent.ToolError("missing_tool", "Tool not found")), frames);
+    }
+
+    @Test
     public void testParseJsonArgsStringValues() {
         var result = ToolBridgeUtils.parseJsonArgs("{\"name\":\"Alice\"}");
         assertEquals("Alice", result.get("name"));

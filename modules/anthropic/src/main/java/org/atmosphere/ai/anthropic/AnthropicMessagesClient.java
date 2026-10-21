@@ -360,17 +360,23 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
             var args = acc.argumentsAsMap(MAPPER);
-            session.emit(new AiEvent.ToolStart(acc.functionName(), args));
             String resultText;
             if (memoryFs != null && AnthropicMemoryTool.TOOL_NAME.equals(acc.functionName())) {
                 // The native memory_20250818 surface owns this call —
                 // resolveMemoryFileSystem() already yielded to any
-                // caller-registered tool named "memory".
-                resultText = AnthropicMemoryTool.execute(memoryFs, args);
+                // caller-registered tool named "memory". It bypasses
+                // ToolExecutionHelper, so its frames are emitted here.
+                session.emit(new AiEvent.ToolStart(acc.functionName(), args));
+                var memory = AnthropicMemoryTool.run(memoryFs, args);
+                resultText = memory.text();
+                session.emit(memory.failed()
+                        ? new AiEvent.ToolError(acc.functionName(), resultText)
+                        : new AiEvent.ToolResult(acc.functionName(), resultText));
             } else {
+                // The tool's frames (tool-start, then tool-result or
+                // tool-error) are emitted by dispatchTool's path, once per call.
                 resultText = dispatchTool(context, session, acc);
             }
-            session.emit(new AiEvent.ToolResult(acc.functionName(), resultText));
             toolResults.add(toolResultBlock(acc.id(), resultText));
         }
 
@@ -526,10 +532,15 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
     private String dispatchTool(AgentExecutionContext context, StreamingSession session,
                                 ToolCallAccumulator acc) {
         var definition = findToolDefinition(context.tools(), acc.functionName());
+        var args = acc.argumentsAsMap(MAPPER);
         if (definition == null) {
+            // No ToolExecutionHelper call to report it: the call fails here.
+            session.emit(new AiEvent.ToolStart(acc.functionName(), args));
+            session.emit(new AiEvent.ToolError(acc.functionName(), "Unknown tool: " + acc.functionName()));
             return "{\"error\":\"Unknown tool: " + acc.functionName() + "\"}";
         }
-        var args = acc.argumentsAsMap(MAPPER);
+        // ToolExecutionHelper emits the call's tool-start and the frame that
+        // ends it (tool-result, or tool-error for a failed call).
         var injectables = Map.<Class<?>, Object>of(StreamingSession.class, session);
         var approvalPolicy = context.approvalPolicy() != null
                 ? context.approvalPolicy() : ToolApprovalPolicy.annotated();

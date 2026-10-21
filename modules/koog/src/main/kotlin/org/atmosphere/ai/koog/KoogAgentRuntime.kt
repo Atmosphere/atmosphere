@@ -1273,12 +1273,12 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
             else -> {}
         }
     }
-    onToolCallStarting { ctx ->
-        session.emit(AiEvent.ToolStart(ctx.toolName, unwrapJsonObject(ctx.toolArgs)))
-    }
-    onToolCallCompleted { ctx ->
-        session.emit(AiEvent.ToolResult(ctx.toolName, ctx.toolResult?.toString()))
-    }
+    // Every Koog tool is an AtmosphereToolBridge wrapper whose body runs
+    // ToolExecutionHelper.executeWithApproval, which emits the call's
+    // tool-start and the frame that ends it (tool-result, or tool-error for a
+    // failed call). Emitting them here as well gave every call two cards and
+    // reported a failed call as a result. Only a call Koog fails itself,
+    // before or around the bridge's body, is reported here.
     onToolCallFailed { ctx ->
         session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
     }
@@ -1330,32 +1330,4 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
             )
         }
     }
-}
-
-/**
- * Unwrap Koog's [ai.koog.serialization.JSONObject] tool-args payload into a
- * plain `Map<String, Any?>` for [AiEvent.ToolStart]. Without this, the bridge
- * was emitting hardcoded `emptyMap()` for every tool start — downstream
- * listeners that read `arguments` saw fake-empty args (Correctness Invariant
- * #5 — Runtime Truth, applied at the event payload boundary). Numbers stay as
- * `Long`/`Double` where the literal parses cleanly; everything else falls
- * through to `String`.
- */
-private fun unwrapJsonObject(json: ai.koog.serialization.JSONObject?): Map<String, Any?> {
-    if (json == null) return emptyMap()
-    return json.entries.mapValues { unwrapJsonElement(it.value) }
-}
-
-private fun unwrapJsonElement(elem: ai.koog.serialization.JSONElement?): Any? = when (elem) {
-    null, is ai.koog.serialization.JSONNull -> null
-    is ai.koog.serialization.JSONLiteral -> if (elem.isString) {
-        elem.content
-    } else {
-        elem.content.toLongOrNull()
-            ?: elem.content.toDoubleOrNull()
-            ?: elem.content.toBooleanStrictOrNull()
-            ?: elem.content
-    }
-    is ai.koog.serialization.JSONArray -> elem.elements.map { unwrapJsonElement(it) }
-    is ai.koog.serialization.JSONObject -> unwrapJsonObject(elem)
 }

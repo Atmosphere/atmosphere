@@ -414,6 +414,40 @@ class CohereChatClientTest {
                 "the plan preamble must land before the tool-start frame "
                         + "(wire order): " + session.frames);
         assertEquals("4", session.text(), "session must carry the final text");
+        assertEquals(List.of("event.tool-start", "event.tool-result"), toolFrames(session),
+                "one tool-start and one tool-result per call: the dispatch reports the call, "
+                        + "the client loop does not report it again");
+    }
+
+    @Test
+    void aToolThatFailsEndsWithOneToolErrorAndNoResult() throws Exception {
+        // A failed call reported as a tool-result read "Done" in the Console;
+        // the loop's own tool-result after the dispatch's frames also gave
+        // each call a second card.
+        var httpClient = mockTwoRoundResponse(TOOL_PLAN_ROUND, FINAL_TEXT_ROUND);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> {
+                    throw new IllegalStateException("calculator offline");
+                })
+                .build();
+        var context = toolContext(calculator);
+        var session = new ProgressRecordingSession();
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        assertEquals(List.of("event.tool-start", "event.tool-error"), toolFrames(session));
+    }
+
+    private static List<String> toolFrames(ProgressRecordingSession session) {
+        synchronized (session.frames) {
+            return session.frames.stream().filter(f -> f.startsWith("event.tool-")).toList();
+        }
     }
 
     @Test

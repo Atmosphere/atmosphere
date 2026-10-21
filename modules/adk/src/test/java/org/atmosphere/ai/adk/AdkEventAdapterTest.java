@@ -274,7 +274,74 @@ class AdkEventAdapterTest {
         verify(mockSession, never()).sendMetadata(eq("ai.tokens.total"), any());
     }
 
+    @Test
+    void aBridgedToolCallIsReportedOnceAndAFailedToolEndsWithAToolError() throws Exception {
+        // "add" runs through AdkToolBridge -> ToolExecutionHelper, which emits
+        // its frames: the adapter emitting them again gave each call two
+        // cards. "save_artifact" is an ADK-native tool: the adapter is its only
+        // reporter, and its {status: error} answer is a failure, not "Done".
+        var frames = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        doAnswer(inv -> {
+            switch ((AiEvent) inv.getArgument(0)) {
+                case AiEvent.ToolStart start -> frames.add("ToolStart:" + start.toolName());
+                case AiEvent.ToolResult result -> frames.add("ToolResult:" + result.toolName());
+                case AiEvent.ToolError error -> frames.add("ToolError:" + error.toolName() + ":" + error.error());
+                default -> {
+                    // Not a tool frame.
+                }
+            }
+            return null;
+        }).when(mockSession).emit(any(AiEvent.class));
+
+        var events = Flowable.just(
+                toolEvent(Part.fromFunctionCall("add", java.util.Map.of("a", 1))),
+                toolEvent(Part.fromFunctionResponse("add",
+                        java.util.Map.of("status", "success", "result", "{\"error\":\"boom\"}"))),
+                toolEvent(Part.fromFunctionCall("save_artifact", java.util.Map.of("filename", "big.txt"))),
+                toolEvent(Part.fromFunctionResponse("save_artifact",
+                        java.util.Map.of("status", "error", "error", "Write rejected"))),
+                createTurnCompleteEvent("done"));
+        var adapter = AdkEventAdapter.bridge(events, mockSession, java.util.List.of(), "adk", 1, 1,
+                java.util.Set.of("add"));
+        adapter.whenDone().get(2, TimeUnit.SECONDS);
+
+        assertEquals(java.util.List.of("ToolStart:save_artifact", "ToolError:save_artifact:Write rejected"),
+                frames);
+    }
+
+    @Test
+    void aBridgedToolWhoseDispatchThrewEndsWithAToolError() throws Exception {
+        // AdkToolBridge answers {status: error} only when ToolExecutionHelper
+        // itself threw, before it reported the call's end.
+        var frames = new java.util.concurrent.CopyOnWriteArrayList<AiEvent>();
+        doAnswer(inv -> {
+            frames.add(inv.getArgument(0));
+            return null;
+        }).when(mockSession).emit(any(AiEvent.class));
+
+        var events = Flowable.just(
+                toolEvent(Part.fromFunctionResponse("add",
+                        java.util.Map.of("status", "error", "error", "effect cap reached"))),
+                createTurnCompleteEvent("done"));
+        AdkEventAdapter.bridge(events, mockSession, java.util.List.of(), "adk", 1, 1,
+                java.util.Set.of("add")).whenDone().get(2, TimeUnit.SECONDS);
+
+        assertEquals(java.util.List.of(new AiEvent.ToolError("add", "effect cap reached")),
+                frames.stream().filter(e -> e instanceof AiEvent.ToolError
+                        || e instanceof AiEvent.ToolResult || e instanceof AiEvent.ToolStart).toList());
+    }
+
     // --- Helpers ---
+
+    private Event toolEvent(Part part) {
+        return Event.builder()
+                .id(Event.generateEventId())
+                .invocationId("inv-1")
+                .author("model")
+                .actions(EventActions.builder().build())
+                .content(Content.builder().role("model").parts(java.util.List.of(part)).build())
+                .build();
+    }
 
     private Event createPartialEvent(String text) {
         return Event.builder()

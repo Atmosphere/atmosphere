@@ -272,9 +272,35 @@ class AnthropicPromptCacheAndDeltaTest {
                 session.toolDeltas,
                 "each input_json_delta fragment must reach session.toolCallDelta");
         // And the accumulated arguments still parse into the executed tool call.
-        assertTrue(session.toolStarts.contains("calculator"),
-                "the consolidated ToolStart frame must still fire: " + session.toolStarts);
+        assertEquals(List.of("calculator"), session.toolStarts,
+                "the consolidated ToolStart frame fires once per call");
+        assertEquals(List.of("ToolStart:calculator", "ToolResult:calculator"), session.toolFrames,
+                "one tool-start and one tool-result per call: the dispatch reports the call, "
+                        + "the client loop does not report it again");
         assertEquals("4", session.text.toString(), "final round text must reach the session");
+    }
+
+    @Test
+    void aToolThatFailsEndsWithOneToolErrorAndNoResult() throws Exception {
+        // A failed call reported as a tool-result read "Done" in the Console;
+        // the loop's own tool-result after the dispatch's frames also gave
+        // each call a second card.
+        var httpClient = mockTwoRoundResponse(TOOL_USE_SPLIT_DELTAS, FINAL_TEXT_ROUND);
+        var client = AnthropicMessagesClient.builder()
+                .apiKey("test-key").httpClient(httpClient).build();
+        var session = new CapturingSession();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> {
+                    throw new IllegalStateException("calculator offline");
+                })
+                .build();
+
+        client.stream("claude-sonnet-4-6", List.of(), "You are helpful", "What is 2+2?",
+                contextWith(null, List.of(calculator)), session, null);
+        session.await();
+
+        assertEquals(List.of("ToolStart:calculator", "ToolError:calculator offline"), session.toolFrames);
     }
 
     @Test
@@ -403,6 +429,7 @@ class AnthropicPromptCacheAndDeltaTest {
         private final StringBuilder text = new StringBuilder();
         private final List<String> toolDeltas = new ArrayList<>();
         private final List<String> toolStarts = new ArrayList<>();
+        private final List<String> toolFrames = new ArrayList<>();
         private final AtomicReference<TokenUsage> usage = new AtomicReference<>();
         private final CountDownLatch done = new CountDownLatch(1);
         private volatile boolean closed;
@@ -430,6 +457,11 @@ class AnthropicPromptCacheAndDeltaTest {
         @Override public void emit(AiEvent event) {
             if (event instanceof AiEvent.ToolStart start) {
                 toolStarts.add(start.toolName());
+                toolFrames.add("ToolStart:" + start.toolName());
+            } else if (event instanceof AiEvent.ToolResult result) {
+                toolFrames.add("ToolResult:" + result.toolName());
+            } else if (event instanceof AiEvent.ToolError error) {
+                toolFrames.add("ToolError:" + error.error());
             }
         }
 

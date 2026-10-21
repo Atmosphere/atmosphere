@@ -177,6 +177,30 @@ class ToolMemoReplayTest {
 
         assertEquals(firstResult, replayResult, "the same error outcome replays deterministically");
         assertEquals(0, replay.executor.calls.get(), "the failing tool is not re-run on replay");
+        assertEquals(List.of("ToolStart", "ToolError"), first.frames(),
+                "the live call that failed ends with a tool-error");
+        assertEquals(first.frames(), replay.frames(),
+                "the replayed call ends with the frame the live call ended with");
+        assertEquals("boom", ((AiEvent.ToolError) replay.events.get(1)).error(),
+                "the replayed tool-error carries the live call's error");
+    }
+
+    @Test
+    void aFailureRecordedBeforeTheEnvelopeReplaysAsTheResultItWasRecordedAs() {
+        // A journal written before failed calls were recorded in an envelope
+        // holds the bare error JSON: it replays as the result it was recorded as.
+        var journal = new InMemoryEffectJournal();
+        var key = EffectKeys.toolCall(RUN_ID, "echo", ARGS, 0);
+        journal.appendPending(RUN_ID, EffectKind.TOOL_CALL, key,
+                EffectKeys.sha256Hex("echo", EffectKeys.canonicalJson(ARGS), "owner"));
+        journal.commit(RUN_ID, key, "{\"error\":\"boom\"}");
+
+        install(journal, true);
+        var replay = new CapturingSession(new CountingExecutor("SHOULD-NOT-RUN"));
+
+        assertEquals("{\"error\":\"boom\"}", call(replay));
+        assertEquals(0, replay.executor.calls.get());
+        assertEquals(List.of("ToolStart", "ToolResult"), replay.frames());
     }
 
     @Test
@@ -288,6 +312,8 @@ class ToolMemoReplayTest {
                     out.add("ToolStart");
                 } else if (e instanceof AiEvent.ToolResult) {
                     out.add("ToolResult");
+                } else if (e instanceof AiEvent.ToolError) {
+                    out.add("ToolError");
                 }
             }
             return out;

@@ -651,9 +651,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (tool == null) {
                     logger.warn("Tool not found: {}", toolName);
                     var errorResult = "{\"error\":\"Tool not found: " + toolName + "\"}";
+                    // One terminal frame: the tool-error. The model still
+                    // receives errorResult as the tool message below.
                     session.emit(new AiEvent.ToolStart(toolName, args));
                     session.emit(new AiEvent.ToolError(toolName, "Tool not found"));
-                    session.emit(new AiEvent.ToolResult(toolName, errorResult));
                     org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                             request.listeners(), toolName, errorResult);
                     updatedMessages.add(ChatMessage.tool(errorResult, acc.id(), toolName));

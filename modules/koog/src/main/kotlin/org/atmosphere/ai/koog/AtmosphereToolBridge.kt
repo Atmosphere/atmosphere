@@ -91,6 +91,9 @@ object AtmosphereToolBridge {
                     result
                 } catch (e: Exception) {
                     logger.warn("Tool {} execution failed: {}", tool.name(), e.message)
+                    // ToolExecutionHelper threw before it reported the call's
+                    // end: the call ends here, as a failure.
+                    session.emit(org.atmosphere.ai.AiEvent.ToolError(tool.name(), e.message ?: "Tool execution failed"))
                     val errorResult = """{"error":"${e.message ?: "Tool execution failed"}"}"""
                     org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, tool.name(), errorResult)
                     errorResult

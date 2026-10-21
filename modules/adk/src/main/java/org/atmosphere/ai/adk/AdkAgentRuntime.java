@@ -646,9 +646,14 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         var lifecycleMessageCount = context.history().size()
                 + (context.systemPrompt() != null && !context.systemPrompt().isEmpty() ? 1 : 0)
                 + 1; // user prompt
+        // The AdkToolBridge tools run through ToolExecutionHelper, which emits
+        // their tool frames; a custom root's tools are not bridged.
+        var reportedTools = customRootPresent ? java.util.Set.<String>of()
+                : tools.stream().map(ToolDefinition::name)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var adapter = AdkEventAdapter.bridge(
                 events, session, lifecycleListeners, lifecycleModelName,
-                lifecycleMessageCount, tools.size());
+                lifecycleMessageCount, tools.size(), reportedTools);
         var closeOnCancel = needsPerRequestRunner ? requestRunner : null;
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =

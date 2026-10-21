@@ -68,18 +68,28 @@ public final class AdkEventAdapter {
     private final java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.TokenUsage>
             lastUsage = new java.util.concurrent.atomic.AtomicReference<>();
 
+    /**
+     * Names of the tools whose calls {@code ToolExecutionHelper} already
+     * reports on the session (the {@link AdkToolBridge} tools): their
+     * function-call / function-response events emit no frame of their own.
+     */
+    private final java.util.Set<String> reportedTools;
+
     private AdkEventAdapter(StreamingSession session) {
         // No-listener bridge factories: the scope fires nothing (empty
         // listeners) but still gives onComplete/onError a terminal target.
         this(session,
-                org.atmosphere.ai.ModelCallScope.open(java.util.List.of(), "adk", 0, 0));
+                org.atmosphere.ai.ModelCallScope.open(java.util.List.of(), "adk", 0, 0),
+                java.util.Set.of());
     }
 
     private AdkEventAdapter(
             StreamingSession session,
-            org.atmosphere.ai.ModelCallScope modelScope) {
+            org.atmosphere.ai.ModelCallScope modelScope,
+            java.util.Set<String> reportedTools) {
         this.session = session;
         this.modelScope = modelScope;
+        this.reportedTools = reportedTools != null ? java.util.Set.copyOf(reportedTools) : java.util.Set.of();
     }
 
     /**
@@ -137,6 +147,27 @@ public final class AdkEventAdapter {
             String modelName,
             int messageCount,
             int toolCount) {
+        return bridge(events, session, listeners, modelName, messageCount, toolCount, java.util.Set.of());
+    }
+
+    /**
+     * {@link #bridge(Flowable, StreamingSession, java.util.List, String, int, int)}
+     * for a dispatch whose {@code reportedTools} run through
+     * {@code ToolExecutionHelper}, which emits their tool frames itself: the
+     * adapter emits none for them, so each call shows once. Function calls of
+     * any other tool (ADK-native tools, a custom root's tools) are still
+     * reported from the event stream.
+     *
+     * @param reportedTools names of the tools the helper reports
+     */
+    public static AdkEventAdapter bridge(
+            Flowable<Event> events,
+            StreamingSession session,
+            java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            String modelName,
+            int messageCount,
+            int toolCount,
+            java.util.Set<String> reportedTools) {
         var safeListeners = listeners != null ? listeners : java.util.List.<org.atmosphere.ai.AgentLifecycleListener>of();
         var safeModel = modelName != null ? modelName : "adk";
         // Open the scope at the dispatch moment: ModelCallScope.open captures
@@ -147,7 +178,7 @@ public final class AdkEventAdapter {
         // reported duration value, never event count or ordering.
         var scope = org.atmosphere.ai.ModelCallScope.open(
                 safeListeners, safeModel, messageCount, toolCount);
-        var adapter = new AdkEventAdapter(session, scope);
+        var adapter = new AdkEventAdapter(session, scope, reportedTools);
         adapter.subscribe(events);
         return adapter;
     }
@@ -231,6 +262,10 @@ public final class AdkEventAdapter {
         if (functionCalls != null && !functionCalls.isEmpty()) {
             for (var fc : functionCalls) {
                 var toolName = fc.name().orElse("unknown");
+                if (reportedTools.contains(toolName)) {
+                    // ToolExecutionHelper emits this call's tool-start.
+                    continue;
+                }
                 var args = fc.args().orElse(java.util.Map.of());
                 session.emit(new AiEvent.ToolStart(toolName, args));
             }
@@ -239,8 +274,19 @@ public final class AdkEventAdapter {
         if (functionResponses != null && !functionResponses.isEmpty()) {
             for (var fr : functionResponses) {
                 var toolName = fr.name().orElse("unknown");
-                var result = fr.response().orElse(java.util.Map.of());
-                session.emit(new AiEvent.ToolResult(toolName, result));
+                var result = fr.response().orElse(java.util.Map.<String, Object>of());
+                // ADK tools answer {status: success|error, result|error}. An
+                // error answer ends the call as a tool-error. For a tool the
+                // helper reports, a success was reported already and an error
+                // answer means the helper itself threw before reporting the
+                // call's end (AdkToolBridge's catch), so it is reported here.
+                if ("error".equals(result.get("status"))) {
+                    var error = result.get("error");
+                    session.emit(new AiEvent.ToolError(toolName,
+                            error != null ? error.toString() : "The tool failed."));
+                } else if (!reportedTools.contains(toolName)) {
+                    session.emit(new AiEvent.ToolResult(toolName, result));
+                }
             }
         }
 

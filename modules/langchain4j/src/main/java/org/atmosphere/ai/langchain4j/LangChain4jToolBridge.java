@@ -183,6 +183,13 @@ public final class LangChain4jToolBridge {
         if (tool == null) {
             logger.warn("Tool not found: {}", request.name());
             var errorResult = "{\"error\":\"Tool not found: " + request.name() + "\"}";
+            if (session != null) {
+                // No ToolExecutionHelper call to report it: the call fails
+                // here, as on the built-in runtime.
+                session.emit(new org.atmosphere.ai.AiEvent.ToolStart(request.name(),
+                        ToolBridgeUtils.parseJsonArgs(request.arguments())));
+                session.emit(new org.atmosphere.ai.AiEvent.ToolError(request.name(), "Tool not found"));
+            }
             org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                     listeners, request.name(), errorResult);
             return ToolExecutionResultMessage.from(request, errorResult);
