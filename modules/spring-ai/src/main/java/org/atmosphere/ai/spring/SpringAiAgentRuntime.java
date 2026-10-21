@@ -400,6 +400,18 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 .subscribe(
                         ignored -> { },
                         error -> {
+                            if (SpringAiToolBridge.TurnEndedException.endedTheTurn(error)) {
+                                // A tool round ended the turn and stopped Spring
+                                // AI's loop before its follow-up model call: the
+                                // turn already carries its own end.
+                                logger.debug("Spring AI tool loop stopped: {}", error.getMessage());
+                                modelScope.complete(lastUsage.get());
+                                if (!session.isClosed()) {
+                                    session.complete();
+                                }
+                                completion.complete(null);
+                                return;
+                            }
                             // Terminal error path (Correctness Invariant #2). The
                             // error handling lives in the subscriber's onError
                             // consumer — not a doOnError side-effect — so that an

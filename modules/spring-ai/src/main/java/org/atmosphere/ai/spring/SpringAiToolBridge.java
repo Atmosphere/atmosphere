@@ -143,7 +143,36 @@ public final class SpringAiToolBridge {
                     approvalPolicy);
             org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                     listeners, atmosphereTool.name(), result);
+            if (session != null && (session.isClosed() || session.isTurnCancelled())) {
+                // A tool round that ended the turn (an approval that ran out with
+                // the turn's time limit, a cancel) calls the model no more. Spring
+                // AI folds only a ToolExecutionException into a tool result, so
+                // this one stops its loop before the follow-up model call.
+                throw new TurnEndedException(atmosphereTool.name());
+            }
             return result;
+        }
+    }
+
+    /**
+     * Thrown out of a tool callback whose call ended the turn, so Spring AI's
+     * tool loop issues no follow-up model call; the runtime takes it as the
+     * end of the turn, not as an error.
+     */
+    static final class TurnEndedException extends RuntimeException {
+
+        TurnEndedException(String toolName) {
+            super("The turn ended in tool '" + toolName + "'", null, false, false);
+        }
+
+        /** Whether {@code error} or one of its causes is a {@link TurnEndedException}. */
+        static boolean endedTheTurn(Throwable error) {
+            for (var t = error; t != null; t = t.getCause()) {
+                if (t instanceof TurnEndedException) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
