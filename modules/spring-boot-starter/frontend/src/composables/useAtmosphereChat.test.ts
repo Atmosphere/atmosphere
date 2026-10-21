@@ -372,9 +372,32 @@ describe('a tool that failed, or never reported back', () => {
     expect(card(chat.toolCalls.value[0]).status).toBe('Working...')
   })
 
+  it('shows an AG-UI tool call that failed as failed, with its error', async () => {
+    // The server's AgUiEventMapper reports a failed call as CUSTOM tool-error,
+    // then TOOL_CALL_RESULT carrying the same error text, then TOOL_CALL_END.
+    const { chat } = await mountChat()
+    chat.send('go')
+    const t = new AgUiEventTranslator()
+    for (const ev of [
+      { type: 'TOOL_CALL_START', data: { toolCallId: 'tc1', toolCallName: 'get_weather' } },
+      { type: 'CUSTOM', data: { name: 'tool-error', value: { toolCallId: 'tc1', toolName: 'get_weather', error: 'weather service down' } } },
+      { type: 'TOOL_CALL_RESULT', data: { messageId: 'msg-2', toolCallId: 'tc1', content: 'weather service down' } },
+      { type: 'TOOL_CALL_END', data: { toolCallId: 'tc1' } },
+      { type: 'RUN_FINISHED', data: {} },
+    ]) {
+      for (const frame of t.translate(ev)) handlers.onEvent(frame)
+    }
+    await nextTick()
+    expect(chat.toolCalls.value).toHaveLength(1)
+    const failed = card(chat.toolCalls.value[0])
+    expect(failed.status).toBe('Failed')
+    expect(failed.icon).not.toBe('✓')
+    expect(failed.text).toContain('weather service down')
+  })
+
   it('ends an AG-UI tool call whose run finished without a result', async () => {
-    // AG-UI carries a failed tool as a bare TOOL_CALL_END: only the run's end
-    // closes its card.
+    // A call that only gets TOOL_CALL_END (no result, no tool-error): only the
+    // run's end closes its card.
     const { chat } = await mountChat()
     chat.send('go')
     const t = new AgUiEventTranslator()

@@ -23,6 +23,10 @@ When you send a message, the agent:
    (`TEXT_MESSAGE_START` → `TEXT_MESSAGE_CONTENT` → `TEXT_MESSAGE_END`) and may
    dispatch the real `@AiTool` methods `get_weather` / `get_time`, surfaced as
    `TOOL_CALL_START` → `TOOL_CALL_ARGS` → `TOOL_CALL_RESULT` → `TOOL_CALL_END`.
+   A tool call that fails (it throws, overruns its deadline, gets invalid
+   arguments) is preceded at its end by `CUSTOM` named `tool-error`
+   (`{toolCallId, toolName, error}`), and its `TOOL_CALL_RESULT` content is the
+   error text: AG-UI defines no tool-error event of its own.
 3. **Without a key (demo mode):** runs the same `AiPipeline`, but the runtime
    resolver picks the framework's `DemoAgentRuntime`, which streams a
    deterministic reply word-by-word as `TEXT_MESSAGE_CONTENT` frames. The demo

@@ -101,6 +101,20 @@ describe('AgUiEventTranslator', () => {
     })).toEqual([{ event: 'tool-result', data: { toolName: 'search', result: 'first second' } }])
   })
 
+  it('maps the CUSTOM tool-error of a failed call to a tool-error for its tool', () => {
+    const t = new AgUiEventTranslator()
+    t.translate({ type: 'TOOL_CALL_START', data: { toolCallId: 'tc1', toolCallName: 'getWeather' } })
+    expect(t.translate({
+      type: 'CUSTOM',
+      data: { name: 'tool-error', value: { toolCallId: 'tc1', toolName: 'getWeather', error: 'service down' } },
+    })).toEqual([{ event: 'tool-error', data: { toolName: 'getWeather', error: 'service down' } }])
+  })
+
+  it('drops a CUSTOM event that is not a tool-error', () => {
+    const t = new AgUiEventTranslator()
+    expect(t.translate({ type: 'CUSTOM', data: { name: 'citation', value: { text: 'x' } } })).toEqual([])
+  })
+
   it('maps RUN_FINISHED to complete and RUN_ERROR to error', () => {
     const t = new AgUiEventTranslator()
     expect(t.translate({ type: 'RUN_FINISHED', data: {} })).toEqual([{ type: 'complete' }])

@@ -120,9 +120,16 @@ class AgUiEventMapperCompleteTest {
 
     @Test
     void testToolErrorWithoutPriorStart() {
-        // ToolError when no ToolStart was active should return empty
+        // A ToolError no ToolStart announced is not dropped: the mapper opens
+        // the call so the failure and its error text reach the client.
         var events = mapper.toAgUi(new AiEvent.ToolError("orphan", "timeout"));
-        assertTrue(events.isEmpty(), "ToolError without prior ToolStart should produce empty list");
+        assertEquals(4, events.size(), events.toString());
+        var start = assertInstanceOf(AgUiEvent.ToolCallStart.class, events.get(0));
+        assertEquals("orphan", start.toolCallName());
+        assertInstanceOf(AgUiEvent.Custom.class, events.get(1));
+        assertEquals("timeout", assertInstanceOf(AgUiEvent.ToolCallResult.class, events.get(2)).content());
+        assertEquals(start.toolCallId(), assertInstanceOf(AgUiEvent.ToolCallEnd.class, events.get(3)).toolCallId());
+        assertTrue(mapper.closeOpenToolCall().isEmpty(), "the failed call is closed");
     }
 
     @Test

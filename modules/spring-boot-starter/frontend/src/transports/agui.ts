@@ -91,6 +91,17 @@ export class AgUiEventTranslator {
         const result = toolResultText(d.content)
         return [{ event: 'tool-result', data: { toolName: name, result } }]
       }
+      case 'CUSTOM': {
+        // AG-UI has no tool-error event: the server reports a failed tool
+        // call with CUSTOM "tool-error" {toolCallId, toolName, error} before
+        // its TOOL_CALL_RESULT, whose content is the same error text.
+        if (d.name !== 'tool-error') return []
+        const value = (d.value ?? {}) as Record<string, unknown>
+        const id = String(value.toolCallId ?? '')
+        const name = this.toolNames.get(id) ?? (typeof value.toolName === 'string' ? value.toolName : '')
+        const error = typeof value.error === 'string' ? value.error : ''
+        return [{ event: 'tool-error', data: { toolName: name, error } }]
+      }
       case 'RUN_FINISHED':
         this.toolNames.clear()
         return [{ type: 'complete' }]

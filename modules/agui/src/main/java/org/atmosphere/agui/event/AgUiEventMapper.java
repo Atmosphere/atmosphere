@@ -47,6 +47,13 @@ public final class AgUiEventMapper {
     /** {@code activityType} of the activity message progress reports patch. */
     static final String PROGRESS_ACTIVITY = "progress";
 
+    /**
+     * Name of the CUSTOM event that reports a failed tool call, with value
+     * {@code {toolCallId, toolName, error}}; the call's TOOL_CALL_RESULT and
+     * TOOL_CALL_END follow it.
+     */
+    public static final String TOOL_ERROR_EVENT = "tool-error";
+
     private volatile String currentMessageId;
     private volatile String currentToolCallId;
     private volatile String currentReasoningId;
@@ -103,12 +110,32 @@ public final class AgUiEventMapper {
                 }
                 yield events;
             }
-            case AiEvent.ToolError ignored -> {
+            case AiEvent.ToolError error -> {
+                // AG-UI has no tool-error event: a tool call ends with
+                // TOOL_CALL_RESULT, whose content is the tool message the
+                // model reads. A failed call's result is its error text, so
+                // any AG-UI client shows why the tool failed; the CUSTOM
+                // "tool-error" event before it says the call failed, which
+                // TOOL_CALL_RESULT alone cannot.
                 var events = new ArrayList<AgUiEvent>();
-                if (currentToolCallId != null) {
-                    events.add(new AgUiEvent.ToolCallEnd(currentToolCallId));
-                    currentToolCallId = null;
+                var message = error.error() != null && !error.error().isBlank()
+                        ? error.error() : "The tool failed.";
+                if (currentToolCallId == null) {
+                    // No tool-start announced the call: open it, so the
+                    // failure ends a call the client knows.
+                    currentToolCallId = "tc-" + toolCallCounter.incrementAndGet();
+                    events.add(new AgUiEvent.ToolCallStart(currentToolCallId,
+                            error.toolName() != null ? error.toolName() : "tool", currentMessageId));
                 }
+                var value = new LinkedHashMap<String, Object>();
+                value.put("toolCallId", currentToolCallId);
+                value.put("toolName", error.toolName());
+                value.put("error", message);
+                events.add(new AgUiEvent.Custom(TOOL_ERROR_EVENT, value));
+                events.add(new AgUiEvent.ToolCallResult(
+                        "msg-" + messageCounter.incrementAndGet(), currentToolCallId, message));
+                events.add(new AgUiEvent.ToolCallEnd(currentToolCallId));
+                currentToolCallId = null;
                 yield events;
             }
             case AiEvent.AgentStep step -> List.<AgUiEvent>of(

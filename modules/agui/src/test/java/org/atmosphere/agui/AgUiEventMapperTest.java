@@ -87,11 +87,22 @@ class AgUiEventMapperTest {
     }
 
     @Test
-    void toolErrorEndsToolCall() {
-        mapper.toAgUi(new AiEvent.ToolStart("weather", Map.of()));
+    void toolErrorEndsToolCallWithItsErrorText() {
+        // AG-UI has no tool-error event. A bare TOOL_CALL_END lost the error:
+        // the call now ends with CUSTOM tool-error (it failed), then the
+        // TOOL_CALL_RESULT whose content is the error text, then TOOL_CALL_END.
+        var start = (AgUiEvent.ToolCallStart) mapper.toAgUi(new AiEvent.ToolStart("weather", Map.of())).get(0);
         var events = mapper.toAgUi(new AiEvent.ToolError("weather", "timeout"));
-        assertEquals(1, events.size());
-        assertInstanceOf(AgUiEvent.ToolCallEnd.class, events.get(0));
+        assertEquals(3, events.size(), events.toString());
+        var custom = assertInstanceOf(AgUiEvent.Custom.class, events.get(0));
+        assertEquals("tool-error", custom.name());
+        assertEquals(Map.of("toolCallId", start.toolCallId(), "toolName", "weather", "error", "timeout"),
+                custom.value());
+        var result = assertInstanceOf(AgUiEvent.ToolCallResult.class, events.get(1));
+        assertEquals(start.toolCallId(), result.toolCallId());
+        assertEquals("timeout", result.content());
+        assertEquals(start.toolCallId(),
+                assertInstanceOf(AgUiEvent.ToolCallEnd.class, events.get(2)).toolCallId());
     }
 
     @Test

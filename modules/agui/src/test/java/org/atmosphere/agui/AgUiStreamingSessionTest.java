@@ -341,6 +341,10 @@ class AgUiStreamingSessionTest {
 
         var sse = output.toString();
         assertTrue(sse.contains("event: TOOL_CALL_END"), "ToolError should emit ToolCallEnd");
+        assertTrue(sse.contains("event: CUSTOM") && sse.contains("\"name\":\"tool-error\""),
+                "ToolError should say the call failed: " + sse);
+        assertTrue(sse.contains("event: TOOL_CALL_RESULT") && sse.contains("\"content\":\"division by zero\""),
+                "ToolError should carry its error text to the client: " + sse);
     }
 
     @Test
