@@ -249,6 +249,27 @@ describe('a prompt sent under a run id the client minted', () => {
         expect(reloaded.sent.filter((m) => m.includes(runId))).toEqual([]);
         expect(loadPendingPrompt(URL_)).toBeNull();
       });
+
+      it('a reloaded page whose run handed its turn off keeps nothing once the turn ends', async () => {
+        // The server follows the handoff to the target's run without naming
+        // it: the turn ends with that run's terminal frame, under its session.
+        BaseTransport.pendingPromptWaitMs = 1_000;
+        install(transport, 'uuid-1');
+        const page = await load(transport, { clientRunId: true });
+        const runId = page.pushPrompt('refund my order')!;
+
+        const reloaded = install(transport, 'uuid-2');
+        await load(transport, { clientRunId: true });
+        await reloaded.deliver(JSON.stringify(
+          { type: 'metadata', key: 'X-Atmosphere-Run-Id', value: runId, sessionId: runId, seq: 1 }));
+        await reloaded.deliver(JSON.stringify({ event: 'handoff', data: { toAgent: 'billing' }, sessionId: 's-support', seq: 2 }));
+        await reloaded.deliver(JSON.stringify({ type: 'streaming-text', data: 'Refund issued', sessionId: 's-billing', seq: 1 }));
+        await reloaded.deliver(JSON.stringify({ type: 'complete', sessionId: 's-billing', seq: 2 }));
+
+        expect(loadRunId(URL_)).toBeNull();
+        expect(loadPendingPrompt(URL_)).toBeNull();
+        expect(Object.keys(sessionStorage).filter((k) => k.startsWith('atmosphere.js:'))).toEqual([]);
+      });
     });
   }
 });

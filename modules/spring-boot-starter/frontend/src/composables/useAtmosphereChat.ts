@@ -235,7 +235,16 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // Another member's turn (a broadcastReply room) opens with its prompt echo.
     if (otherMemberSessions.has(msg.sessionId)) return
     const prompt = inFlightPrompt()
-    if (!prompt || (prompt.sessionId !== '' && prompt.sessionId !== prompt.runId)) return
+    if (!prompt) return
+    if (handedOffInFlight && msg.sessionId !== prompt.sessionId && msg.sessionId !== prompt.runId) {
+      // The turn was handed off and a reattach follows it to the target's run,
+      // which the server names to no client that did not mint its id: its
+      // first frame names its session, under which the turn ends.
+      keepInFlightPrompt({ ...prompt, sessionId: msg.sessionId, turn: turnOf(prompt) })
+      handedOffInFlight = false
+      return
+    }
+    if (prompt.sessionId !== '' && prompt.sessionId !== prompt.runId) return
     if (msg.sessionId === prompt.runId) return
     keepInFlightPrompt({ ...prompt, sessionId: msg.sessionId })
   }

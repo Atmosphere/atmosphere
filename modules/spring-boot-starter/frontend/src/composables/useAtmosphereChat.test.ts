@@ -949,6 +949,36 @@ describe('the prompt of a turn reattached after a reload', () => {
       expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
     })
 
+    it('ends the prompt with the turn when a reattach followed a handoff the server named no run for', async () => {
+      // 2026-10-20 re-test (orchestration-demo): a page reloaded before the
+      // handoff reached it reattached the support run, which the server
+      // followed to billing's run without an id frame for it. Billing's
+      // terminal frame left the prompt kept, and the next page load showed it
+      // again with no reply.
+      const before = await mountPage()
+      before.chat.send('refund my order')
+      before.wrapper.unmount()
+
+      transportUuid = 'tab-after-reload'
+      const reloaded = await mountPage()
+      handlers.onEvent({ type: 'metadata', key: 'X-Atmosphere-Run-Id', value: RUN, sessionId: RUN, seq: 1 })
+      handlers.onEvent({ event: 'handoff', data: { fromAgent: 'support', toAgent: 'billing', reason: 'refund' }, sessionId: 's-support', seq: 2 })
+      handlers.onEvent({ type: 'streaming-text', data: 'Refund issued', sessionId: 's-billing', seq: 1 })
+      handlers.onEvent({ type: 'complete', sessionId: 's-billing', seq: 2 })
+      await nextTick()
+      expect(bubbles(reloaded.wrapper)).toEqual([
+        { user: true, text: 'refund my order' },
+        { user: false, text: 'Refund issued' },
+      ])
+      expect(sessionStorage.getItem('atmosphere.console.inFlightPrompt')).toBeNull()
+      reloaded.wrapper.unmount()
+
+      // The turn is over: a later load shows no prompt of it.
+      transportUuid = 'tab-after-second-reload'
+      const again = await mountPage()
+      expect(bubbles(again.wrapper)).toEqual([])
+    })
+
     it('withdraws the prompt when the server lost its run and the transport is not sending it again', async () => {
       const before = await mountPage()
       before.chat.send('list ten primes')
