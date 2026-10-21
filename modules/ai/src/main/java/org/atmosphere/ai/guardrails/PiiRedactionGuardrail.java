@@ -43,7 +43,17 @@ import java.util.List;
  *       {@code *.example}, {@code *.test}, {@code *.invalid},
  *       {@code *.localhost}): it belongs to no one, so a code answer using
  *       {@code alice@example.com} is neither redacted nor blocked</li>
- *   <li>Phone (NA / international E.164) → {@code [redacted-phone]}</li>
+ *   <li>Phone (NA / international E.164) → {@code [redacted-phone]}: a
+ *       number written as a phone — after a {@code +} ({@code +15145551234},
+ *       {@code +44 20 7946 0958}, {@code +33 1 23 45 67 89}), or with
+ *       separators or parentheses between its groups ({@code (514) 555-1234},
+ *       {@code 514-555-1234}, {@code 514.555.1234}). A bare run of digits is
+ *       not a phone, so a math result ({@code 2^31 = 2147483648}), a quantity,
+ *       a year, an order number or the digits of a decimal
+ *       ({@code 3.14159265358}) in an answer is neither redacted nor blocked.
+ *       The trade-off: an unformatted phone number with no {@code +}
+ *       ({@code 5145551234}) is not detected either. See
+ *       {@code PiiPatterns.PHONE}.</li>
  *   <li>Credit card (13–19 digits with Luhn-shaped grouping) → {@code [redacted-cc]}</li>
  *   <li>US SSN-shaped → {@code [redacted-ssn]}</li>
  *   <li>IPv4 → {@code [redacted-ip]}</li>
@@ -79,8 +89,8 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
             // The shared definition, so every PII surface agrees on what an email is.
             new Pattern(org.atmosphere.ai.filter.PiiPatterns.EMAIL,
                     "[redacted-email]", "email"),
-            new Pattern(java.util.regex.Pattern.compile(
-                    "\\+?\\d{1,3}[\\s.-]?\\(?\\d{2,4}\\)?[\\s.-]?\\d{3}[\\s.-]?\\d{3,4}"),
+            // The shared definition: a number written as a phone, never a bare digit run.
+            new Pattern(org.atmosphere.ai.filter.PiiPatterns.PHONE,
                     "[redacted-phone]", "phone"),
             new Pattern(java.util.regex.Pattern.compile(
                     "\\b(?:\\d{4}[\\s-]?){3}\\d{1,4}\\b"),

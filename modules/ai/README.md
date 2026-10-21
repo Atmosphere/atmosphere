@@ -2564,8 +2564,16 @@ Four zero-dep implementations ship in-tree:
   reserved for documentation and testing (RFC 2606 / RFC 6761:
   `example.com`, `example.net`, `example.org` and their subdomains, and
   `*.example`, `*.test`, `*.invalid`, `*.localhost`, any case) is not PII:
-  `alice@example.com` in a code answer passes. `PiiRedactionFilter` and the
-  session tape's `PiiTapeRedactor` share the same definition.
+  `alice@example.com` in a code answer passes. A phone number is a number
+  written as one: after a `+` (`+15145551234`, `+44 20 7946 0958`), or with
+  separators or parentheses between its groups (`(514) 555-1234`,
+  `514-555-1234`, `514.555.1234`). A bare run of digits is not, so a math
+  result (`2^31 = 2147483648`), a quantity, a year, an order number or the
+  digits of a decimal passes; the trade-off is that an unformatted number with
+  no `+` (`5145551234`) is not detected either. `PiiRedactionFilter` and the
+  session tape's `PiiTapeRedactor` share the same definitions; they match the
+  North American forms only (`PiiPatterns.US_PHONE`), the guardrail the
+  international ones too (`PiiPatterns.PHONE`).
 - `OutputLengthZScoreGuardrail` — rolling-window z-score on response
   length. Blocks outliers beyond N standard deviations. Catches
   runaway prompts and injection payloads that balloon responses
