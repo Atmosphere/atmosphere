@@ -50,10 +50,16 @@ open class AtmosphereEmbabelAutoConfiguration {
     companion object {
         private val logger = LoggerFactory.getLogger(AtmosphereEmbabelAutoConfiguration::class.java)
 
-        /** The provider name `embabel-agent-starter-openai-custom` 1.5.0 registers its models under. */
+        /**
+         * The provider name `embabel-agent-starter-openai-custom` 1.5.0 registers its models
+         * under: `OpenAiCustomModelsConfig.createCustomLlm` passes it to `SpringAiLlmService`.
+         */
         const val OPENAI_CUSTOM_PROVIDER = "OpenAI-Custom"
 
-        /** The provider name `embabel-agent-starter-ollama` 1.5.0 registers its models under. */
+        /**
+         * The provider name `embabel-agent-starter-ollama` 1.5.0 registers its models under:
+         * `OllamaModelsConfig.ollamaLlmOf` passes it to `SpringAiLlmService`.
+         */
         const val OLLAMA_PROVIDER = "Ollama"
 
         /**

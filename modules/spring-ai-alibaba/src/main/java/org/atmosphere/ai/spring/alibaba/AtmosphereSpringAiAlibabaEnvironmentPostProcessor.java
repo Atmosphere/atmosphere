@@ -98,9 +98,9 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
         }
 
         Map<String, Object> mapped = new HashMap<>();
-        var local = "local".equalsIgnoreCase(firstNonBlank(
-                env.getProperty("llm.mode"),
-                env.getProperty("LLM_MODE")));
+        // Trimmed and case-insensitive, as AiConfig and the auto-configured clients read it.
+        var mode = firstNonBlank(env.getProperty("llm.mode"), env.getProperty("LLM_MODE"));
+        var local = mode != null && "local".equalsIgnoreCase(mode.trim());
 
         var apiKey = firstNonBlank(
                 env.getProperty("llm.api-key"),

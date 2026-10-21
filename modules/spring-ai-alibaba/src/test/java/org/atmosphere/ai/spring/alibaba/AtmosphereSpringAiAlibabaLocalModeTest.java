@@ -166,6 +166,15 @@ class AtmosphereSpringAiAlibabaLocalModeTest {
     }
 
     @Test
+    void theModeIsReadTrimmedAndCaseInsensitive() {
+        var env = environment(Map.of("LLM_MODE", " Local "));
+
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals("http://localhost:11434", env.getProperty("spring.ai.openai.base-url"));
+    }
+
+    @Test
     void localModeWinsOverAGeminiModel() {
         var env = environment(Map.of("LLM_MODE", "local", "LLM_MODEL", "gemini-2.5-flash"));
 

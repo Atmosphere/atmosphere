@@ -62,7 +62,7 @@ class LangChain4jLocalModeAutoConfigurationTest {
      * failed locally, which is the shape of a test nobody trusts.</p>
      */
     private static final String[] NO_BACKEND = {
-            "llm.api-key=", "llm.mode=", "LLM_MODE=", "LLM_API_KEY="
+            "llm.api-key=", "llm.mode=", "LLM_MODE=", "LLM_API_KEY=", "llm.base-url="
     };
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()

@@ -157,6 +157,15 @@ class AtmosphereSpringAiLocalModeTest {
     }
 
     @Test
+    void theBridgeReadsTheModeTrimmedAndCaseInsensitive() {
+        var env = environment(Map.of("LLM_MODE", " Local "));
+
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(env, null);
+
+        assertEquals(AiConfig.OLLAMA_ENDPOINT, env.getProperty("spring.ai.openai.base-url"));
+    }
+
+    @Test
     void theBridgeMapsTheGeminiEndpointForAGeminiModel() {
         var env = environment(Map.of("GEMINI_API_KEY", "AIza-test", "LLM_MODEL", "gemini-2.5-flash"));
 
