@@ -771,6 +771,14 @@ patch_pom_for_standalone() {
     mv "$tmp_pom" "$pom"
 }
 
+# The runnable jar a sample build left in the target directory $1. The shade
+# plugin keeps its thin jar as original-<artifact>.jar: picking it depends on
+# directory order and boots "no main manifest attribute".
+pick_built_jar() {
+    find "$1" -maxdepth 1 -name "*.jar" ! -name "original-*" ! -name "*-original*" \
+        ! -name "*-sources*" ! -name "*-javadoc*" | head -1
+}
+
 # Build a sample from source and cache the resulting JAR
 build_sample() {
     sample="$1"
@@ -829,9 +837,7 @@ build_sample() {
             die "No quarkus-app directory found after build"
         fi
     else
-        built_jar=$(find "$build_dir/samples/$sample/target" -maxdepth 1 \
-            -name "*.jar" ! -name "*-original*" ! -name "*-sources*" ! -name "*-javadoc*" \
-            | head -1)
+        built_jar=$(pick_built_jar "$build_dir/samples/$sample/target")
 
         if [ -z "$built_jar" ] || [ ! -f "$built_jar" ]; then
             die "No JAR found after build in $build_dir/samples/$sample/target/"

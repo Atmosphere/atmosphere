@@ -468,6 +468,21 @@ out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cac
       ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
 assert_contains "$out" "Using cached spring-boot-chat v$run_cli_version (verified)" "run: checksum and source ref match -> verified"
 rm -f "$run_release_dir/spring-boot-chat.jar.ref"
+# build_sample copies the runnable jar of a shaded sample, never the shade
+# plugin's thin original-<artifact>.jar (it boots "no main manifest
+# attribute"). With only the thin jar left nothing qualifies, so the pick no
+# longer depends on the order the directory lists them in.
+pick_fn_file="$run_cache_tmp/pick_built_jar.sh"
+sed -n '/^pick_built_jar() {$/,/^}$/p' "$CLI" > "$pick_fn_file"
+pick_target="$run_cache_tmp/target"
+mkdir -p "$pick_target"
+: > "$pick_target/original-embedded-jetty-websocket-chat-9.9.9.jar"
+: > "$pick_target/embedded-jetty-websocket-chat-9.9.9-sources.jar"
+picked=$(sh -c '. "$1"; pick_built_jar "$2"' sh "$pick_fn_file" "$pick_target")
+assert_not_contains "$picked" "original-" "run: build_sample never picks the shade plugin's thin jar"
+: > "$pick_target/embedded-jetty-websocket-chat-9.9.9.jar"
+picked=$(sh -c '. "$1"; pick_built_jar "$2"' sh "$pick_fn_file" "$pick_target")
+assert_contains "$picked" "/embedded-jetty-websocket-chat-9.9.9.jar" "run: build_sample picks the shaded jar"
 out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
       ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
 assert_not_contains "$out" "(verified)" "run: a jar with no recorded source ref is not called verified"
