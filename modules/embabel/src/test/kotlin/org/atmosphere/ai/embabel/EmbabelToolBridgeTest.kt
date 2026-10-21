@@ -144,12 +144,14 @@ class EmbabelToolBridgeTest {
             override fun isTurnCancelled() = true
         }
 
-        val result = EmbabelToolBridge.toEmbabelTool(tool, cancelledTurn, null, null)
-            .call("""{"amount":"50000"}""")
+        // The cancelled turn also stops Embabel's tool loop: the bridged tool
+        // ends the loop rather than handing a result back for another model call.
+        kotlin.test.assertFailsWith<EmbabelToolBridge.TurnEndedSignal> {
+            EmbabelToolBridge.toEmbabelTool(tool, cancelledTurn, null, null)
+                .call("""{"amount":"50000"}""")
+        }
 
         assertTrue(!invoked.get(), "a tool ran in a cancelled turn")
-        assertEquals(org.atmosphere.ai.tool.ToolExecutionHelper.TURN_CANCELLED_RESULT,
-            (result as Tool.Result.Text).content)
     }
 
     @Test

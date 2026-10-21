@@ -17,6 +17,7 @@ package org.atmosphere.ai.embabel
 
 import com.embabel.agent.api.common.AgentImage
 import com.embabel.agent.api.tool.Tool
+import com.embabel.agent.api.tool.ToolControlFlowSignal
 import org.atmosphere.ai.Content
 import org.atmosphere.ai.StreamingSession
 import org.atmosphere.ai.approval.ApprovalStrategy
@@ -90,20 +91,42 @@ internal object EmbabelToolBridge {
 
         val handler = Tool.Handler { json ->
             val args: Map<String, Any?> = parseArgs(json)
-            try {
-                val result = ToolExecutionHelper.executeWithApproval(
+            val result = try {
+                Tool.Result.text(ToolExecutionHelper.executeWithApproval(
                     tool.name(), tool, args, session, approvalStrategy, effectivePolicy
-                )
-                Tool.Result.text(result ?: "")
+                ) ?: "")
             } catch (t: Throwable) {
                 Tool.Result.error(
                     "Tool '${tool.name()}' failed: ${t.message ?: t.javaClass.simpleName}",
                     t
                 )
             }
+            if (session.isClosed || session.isTurnCancelled) {
+                // A tool round that ended the turn (an approval that ran out
+                // with the turn's time limit, a cancel) calls the model no more.
+                throw TurnEndedSignal(tool.name())
+            }
+            result
         }
 
         return Tool.create(tool.name(), tool.description(), schema, handler)
+    }
+
+    /**
+     * Thrown out of a bridged tool whose call ended the turn (an approval that
+     * ran out with the turn's time limit, a cancel), so Embabel's tool loop
+     * issues no follow-up model call. A [ToolControlFlowSignal] is the one
+     * exception Embabel's tool decorators and retry layer let through
+     * untouched; the runtime takes it as the end of the turn, not an error.
+     */
+    internal class TurnEndedSignal(toolName: String) :
+        RuntimeException("The turn ended in tool '$toolName'", null, false, false), ToolControlFlowSignal {
+
+        companion object {
+            /** Whether [error] or one of its causes is a [TurnEndedSignal]. */
+            fun endedTheTurn(error: Throwable?): Boolean =
+                generateSequence(error) { it.cause }.any { it is TurnEndedSignal }
+        }
     }
 
     /**

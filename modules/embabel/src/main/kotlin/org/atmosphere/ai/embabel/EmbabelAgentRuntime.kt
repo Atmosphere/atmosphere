@@ -749,9 +749,13 @@ class EmbabelAgentRuntime : AgentRuntime {
                         }
                     }
                     .doOnError { t ->
-                        logger.error("Embabel streaming dispatch failed", t)
-                        if (!session.isClosed) {
-                            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
+                        if (EmbabelToolBridge.TurnEndedSignal.endedTheTurn(t)) {
+                            endTurnFromTool(t, session)
+                        } else {
+                            logger.error("Embabel streaming dispatch failed", t)
+                            if (!session.isClosed) {
+                                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
+                            }
                         }
                     }
                     .doOnComplete {
@@ -769,7 +773,9 @@ class EmbabelAgentRuntime : AgentRuntime {
                 // fresh blocking call would duplicate output. The doOnError
                 // above already wrote session.error; this catch covers
                 // pre-subscribe construction errors.
-                if (!session.hasErrored() && !session.isClosed) {
+                if (EmbabelToolBridge.TurnEndedSignal.endedTheTurn(t)) {
+                    endTurnFromTool(t, session)
+                } else if (!session.hasErrored() && !session.isClosed) {
                     session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
                 }
                 return
@@ -782,6 +788,10 @@ class EmbabelAgentRuntime : AgentRuntime {
         val result: String = try {
             runner.generateText(currentMessage)
         } catch (t: Throwable) {
+            if (EmbabelToolBridge.TurnEndedSignal.endedTheTurn(t)) {
+                endTurnFromTool(t, session)
+                return
+            }
             logger.error("Embabel Ai dispatch failed", t)
             session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
             return
@@ -792,6 +802,18 @@ class EmbabelAgentRuntime : AgentRuntime {
                 session.send(result)
             }
             emitFileChangeAudit(nativeFileTools, session)
+            session.complete()
+        }
+    }
+
+    /**
+     * A tool round ended the turn and stopped Embabel's tool loop before its
+     * follow-up model call ([EmbabelToolBridge.TurnEndedSignal]): the turn
+     * already carries its own end, so this is not a dispatch failure.
+     */
+    private fun endTurnFromTool(signal: Throwable, session: StreamingSession) {
+        logger.debug("Embabel tool loop stopped: {}", signal.message)
+        if (!session.isClosed) {
             session.complete()
         }
     }
