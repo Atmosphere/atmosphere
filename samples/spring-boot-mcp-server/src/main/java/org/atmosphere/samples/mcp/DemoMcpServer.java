@@ -31,6 +31,7 @@ import org.atmosphere.util.Version;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,13 +57,18 @@ public class DemoMcpServer {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    // A tool that cannot do what it was asked throws: the MCP layer turns the
+    // exception into a CallToolResult with isError: true and the message as its
+    // text. Returning {"error": ...} instead was reported as a success
+    // (isError: false) carrying an error-shaped payload.
+
     // ── Chat Administration Tools ─────────────────────────────────────────
 
     @McpTool(name = "list_users", description = "List all users currently connected to the chat")
     public List<Map<String, String>> listUsers() {
         var broadcaster = chatBroadcaster();
         if (broadcaster == null) {
-            return List.of(Map.of("error", "No chat broadcaster active"));
+            throw new IllegalStateException("No chat broadcaster active");
         }
         return broadcaster.getAtmosphereResources().stream()
                 .map(r -> Map.of(
@@ -77,13 +83,13 @@ public class DemoMcpServer {
     ) {
         var resource = config.resourcesFactory().findResource(uuid);
         if (resource.isEmpty()) {
-            return Map.of("error", "User not found: " + uuid);
+            throw new IllegalArgumentException("User not found: " + uuid);
         }
         try {
             resource.get().close();
             return Map.of("status", "banned", "uuid", uuid);
         } catch (IOException e) {
-            return Map.of("error", "Failed to ban user: " + e.getMessage());
+            throw new UncheckedIOException("Failed to ban user: " + e.getMessage(), e);
         }
     }
 
@@ -94,7 +100,7 @@ public class DemoMcpServer {
     ) {
         var broadcaster = chatBroadcaster();
         if (broadcaster == null) {
-            return Map.of("error", "No chat broadcaster active");
+            throw new IllegalStateException("No chat broadcaster active");
         }
         var msg = new Message(author != null ? author : "MCP Admin", message);
         // Already the chat's JSON: a RawMessage is written as is. A plain String would
@@ -111,11 +117,11 @@ public class DemoMcpServer {
     ) {
         var resource = config.resourcesFactory().findResource(uuid);
         if (resource.isEmpty()) {
-            return Map.of("error", "User not found: " + uuid);
+            throw new IllegalArgumentException("User not found: " + uuid);
         }
         var broadcaster = chatBroadcaster();
         if (broadcaster == null) {
-            return Map.of("error", "No chat broadcaster active");
+            throw new IllegalStateException("No chat broadcaster active");
         }
         var msg = new Message(author != null ? author : "MCP Admin", message);
         broadcaster.broadcast(new RawMessage(mapper.writeValueAsString(msg)), resource.get());
