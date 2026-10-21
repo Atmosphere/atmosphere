@@ -353,6 +353,48 @@ class AiInterceptorBeforeCompletionTest {
                         + "wire before the outer terminal frame; frames: " + w.frames());
     }
 
+    /**
+     * A hook that hangs (an LLM judge, a memory summariser) is often why the turn
+     * outlives its time limit. The {@code @Prompt} watchdog ends such a turn from
+     * its own thread while the hook still runs: only a terminal call from the
+     * hook itself is ignored, so the timeout's error frame is written then, and
+     * the complete that follows once the hook returns writes nothing.
+     */
+    @Test
+    void anErrorFromAnotherThreadWhileAHookHangsEndsTheTurn() throws Exception {
+        var w = wire("hanging-hook-session", "hanging-hook-uuid");
+        var inHook = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        var interceptor = new AiInterceptor() {
+            @Override
+            public void beforeCompletion(AiRequest request, StreamingSession session,
+                                         AtmosphereResource resource) {
+                inHook.countDown();
+                try {
+                    release.await(10, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        var session = new AiStreamingSession(w.delegate(), completingRuntime(),
+                "", null, List.of(interceptor), w.resource());
+        var turn = Thread.startVirtualThread(() -> session.stream("hi"));
+        try {
+            assertTrue(inHook.await(10, java.util.concurrent.TimeUnit.SECONDS), "the hook must be running");
+
+            session.error(new java.util.concurrent.TimeoutException("Prompt processing timed out after 300ms"));
+
+            assertTrue(indexOfFrame(w.frames(), "\"type\":\"error\"") >= 0,
+                    "the timeout's error frame is written while the hook still runs; frames: " + w.frames());
+        } finally {
+            release.countDown();
+            turn.join(Duration.ofSeconds(10));
+        }
+        assertEquals(-1, indexOfFrame(w.frames(), "\"type\":\"complete\""),
+                "the turn ended in error: the complete after the hook writes nothing; frames: " + w.frames());
+    }
+
     @Test
     void errorTerminalPathDoesNotFireBeforeCompletion() {
         var w = wire("error-session", "error-uuid");

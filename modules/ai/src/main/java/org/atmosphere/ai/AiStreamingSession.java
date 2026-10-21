@@ -207,9 +207,11 @@ public class AiStreamingSession implements StreamingSession {
      * re-enter terminal processing — the re-entrant call logs WARN and
      * returns, and the OUTER invocation forwards the terminal frame once the
      * hooks finish. Hooks must not invoke terminal methods; see
-     * {@link AiInterceptor#beforeCompletion}.
+     * {@link AiInterceptor#beforeCompletion}. Holds the thread running the
+     * hooks: a terminal call from another thread (the {@code @Prompt}
+     * watchdog ending a turn whose hook hangs) is not the hook's and ends the turn.
      */
-    private final AtomicBoolean firingBeforeCompletion = new AtomicBoolean();
+    private volatile Thread firingBeforeCompletion;
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
     /**
      * Session-scoped resources registered via {@link #onTerminate(AutoCloseable)},
@@ -2321,7 +2323,7 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void complete() {
-        if (firingBeforeCompletion.get()) {
+        if (firingBeforeCompletion == Thread.currentThread()) {
             logger.warn("AiInterceptor.beforeCompletion invoked complete() on its session; "
                     + "ignoring — hooks must not invoke terminal methods");
             return;
@@ -2340,7 +2342,7 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void complete(String summary) {
-        if (firingBeforeCompletion.get()) {
+        if (firingBeforeCompletion == Thread.currentThread()) {
             logger.warn("AiInterceptor.beforeCompletion invoked complete(summary) on its session; "
                     + "ignoring — hooks must not invoke terminal methods");
             return;
@@ -2359,7 +2361,7 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void error(Throwable t) {
-        if (firingBeforeCompletion.get()) {
+        if (firingBeforeCompletion == Thread.currentThread()) {
             logger.warn("AiInterceptor.beforeCompletion invoked error() on its session; "
                     + "ignoring — hooks must not invoke terminal methods");
             return;
@@ -2422,7 +2424,7 @@ public class AiStreamingSession implements StreamingSession {
         if (ctx == null) {
             return;
         }
-        firingBeforeCompletion.set(true);
+        firingBeforeCompletion = Thread.currentThread();
         try {
             for (int i = interceptors.size() - 1; i >= 0; i--) {
                 try {
@@ -2435,7 +2437,7 @@ public class AiStreamingSession implements StreamingSession {
                 }
             }
         } finally {
-            firingBeforeCompletion.set(false);
+            firingBeforeCompletion = null;
         }
     }
 

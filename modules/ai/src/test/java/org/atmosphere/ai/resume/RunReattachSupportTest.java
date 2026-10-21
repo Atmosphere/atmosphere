@@ -21,6 +21,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -766,5 +768,61 @@ class RunReattachSupportTest {
             throw new AssertionError("mock cannot throw", e);
         }
         return resource;
+    }
+
+    /**
+     * A page that reattaches by the id it minted is first named the run under
+     * the run id as its session, {@code seq} 1. The events of the run its
+     * session numbered none of (an end the run recorded on its own, as its
+     * registry does) are replayed under that session too: numbered from 1, the
+     * first of them was the frame the page already held, and the Console, which
+     * drops a frame not above the last {@code seq} of its session, lost it.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void theRunsUnnumberedFramesFollowTheFrameNamingTheRun(boolean runEnded) throws Exception {
+        var execution = new ExecutionHandle.Settable(() -> { });
+        var buffer = new RunEventReplayBuffer();
+        buffer.clientMintedId();
+        var run = registry.register("agent-a", "alice", "sess-minted", execution, buffer,
+                java.util.UUID.randomUUID().toString());
+        buffer.capture("streaming-text", "partial ");
+        buffer.terminate("error", "boom");
+        if (runEnded) {
+            execution.complete();
+        }
+
+        var out = new java.io.StringWriter();
+        var resource = Mockito.mock(AtmosphereResource.class);
+        var request = Mockito.mock(AtmosphereRequest.class);
+        var response = Mockito.mock(AtmosphereResponse.class);
+        when(resource.addEventListener(org.mockito.ArgumentMatchers.any())).thenReturn(resource);
+        when(resource.getRequest()).thenReturn(request);
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(run.runId());
+        when(request.getAttribute("ai.userId")).thenReturn("alice");
+        when(resource.uuid()).thenReturn("reloaded");
+        when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        when(resource.getResponse()).thenReturn(response);
+        when(response.getWriter()).thenReturn(new MessageFramingWriter(out));
+
+        assertTrue(RunReattachSupport.reattachPrompt(resource, registry, run));
+
+        var json = new tools.jackson.databind.ObjectMapper();
+        var frames = java.util.Arrays.stream(out.toString().strip().split("\n"))
+                .map(json::readTree).toList();
+        assertEquals(3, frames.size(), "the run's name, its text, its error: " + out);
+        assertEquals(RunReattachSupport.RUN_ID_HEADER, frames.get(0).path("key").asString(), out.toString());
+        assertEquals("partial ", frames.get(1).path("data").asString(), out.toString());
+        assertEquals("error", frames.get(2).path("type").asString(), out.toString());
+        // The Console's dedupe (useAtmosphereChat.ts alreadyReceived).
+        var lastSeqOfSession = new java.util.HashMap<String, Long>();
+        for (var frame : frames) {
+            var session = frame.path("sessionId").asString();
+            var seq = frame.path("seq").asLong();
+            var last = lastSeqOfSession.get(session);
+            assertTrue(last == null || seq > last,
+                    "each frame's seq is above the last of its session, the page keeps it: " + out);
+            lastSeqOfSession.put(session, seq);
+        }
     }
 }

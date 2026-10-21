@@ -130,6 +130,33 @@ public class TracingCapturingSessionTest {
         verify(delegate).error(error);
     }
 
+    /**
+     * A timed-out turn is ended twice: the watchdog's error, then the error the
+     * interrupted {@code @Prompt} throws (or the complete of one that swallows
+     * the interrupt). The session's end is recorded once, so the active-session
+     * gauge stays balanced and the error is counted once; each call still
+     * reaches the delegate, which keeps the first.
+     */
+    @Test
+    public void testASecondEndRecordsNoSecondSessionEndOrError() {
+        var session = new TracingCapturingSession(delegate, metrics, "gpt-4");
+        var timeout = new java.util.concurrent.TimeoutException("Prompt processing timed out after 300ms");
+        var interrupted = new RuntimeException("interrupted");
+
+        session.error(timeout);
+        session.error(interrupted);
+        session.complete();
+        session.complete("summary");
+
+        verify(metrics, times(1)).sessionEnded("gpt-4");
+        verify(metrics, times(1)).recordError(eq("gpt-4"), anyString());
+        verify(metrics, never()).recordLatency(anyString(), any(), any());
+        verify(delegate).error(timeout);
+        verify(delegate).error(interrupted);
+        verify(delegate).complete();
+        verify(delegate).complete("summary");
+    }
+
     @Test
     public void testErrorClassifiesRateLimit() {
         var session = new TracingCapturingSession(delegate, metrics, "gpt-4");

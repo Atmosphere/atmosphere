@@ -17,6 +17,7 @@ package org.atmosphere.ai;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A {@link StreamingSession} decorator that captures timing information and
@@ -44,6 +45,13 @@ public class TracingCapturingSession extends DelegatingStreamingSession {
     private int streamingTextCount;
     /** Set when the turn ended without a model call (an intent-routed handler or human route). */
     private volatile boolean withoutModel;
+    /**
+     * Set by the first terminal call: a turn can be ended twice (the
+     * {@code @Prompt} watchdog's timeout, then the error the interrupted
+     * {@code @Prompt} throws), and its end is recorded once, so
+     * {@link AiMetrics#sessionStarted} stays balanced and the error is counted once.
+     */
+    private final AtomicBoolean ended = new AtomicBoolean();
 
     public TracingCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
         super(delegate);
@@ -64,22 +72,28 @@ public class TracingCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void complete() {
-        reportMetrics();
+        if (ended.compareAndSet(false, true)) {
+            reportMetrics();
+        }
         delegate.complete();
     }
 
     @Override
     public void complete(String summary) {
-        reportMetrics();
+        if (ended.compareAndSet(false, true)) {
+            reportMetrics();
+        }
         delegate.complete(summary);
     }
 
     @Override
     public void error(Throwable t) {
-        if (!withoutModel) {
-            metrics.recordError(model, classifyError(t));
+        if (ended.compareAndSet(false, true)) {
+            if (!withoutModel) {
+                metrics.recordError(model, classifyError(t));
+            }
+            metrics.sessionEnded(model);
         }
-        metrics.sessionEnded(model);
         delegate.error(t);
     }
 

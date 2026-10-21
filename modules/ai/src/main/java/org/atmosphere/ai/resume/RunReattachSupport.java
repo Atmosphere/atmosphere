@@ -200,6 +200,15 @@ public final class RunReattachSupport {
     }
 
     /**
+     * The {@code seq} of the frame naming a run to the client that reattaches
+     * to it ({@link #acknowledgeRun}), under the run id as its session. A replay
+     * numbers the frames of the events the run's session numbered none of (an
+     * end the run recorded on its own) under that session too, after it: the
+     * first such frame is not taken for the acknowledgment the client holds.
+     */
+    private static final long RUN_ID_FRAME_SEQ = 1;
+
+    /**
      * Name {@code run} to the client {@code resource} reattaches to it by its
      * id ({@code X-Atmosphere-Run-Id}, under the run id as its session): a
      * client that minted the id for its prompt learns the server has it, which
@@ -218,7 +227,7 @@ public final class RunReattachSupport {
             return;
         }
         var frame = new org.atmosphere.ai.filter.AiStreamMessage(
-                "metadata", null, run.runId(), 1, RUN_ID_HEADER, run.runId()).toJson();
+                "metadata", null, run.runId(), RUN_ID_FRAME_SEQ, RUN_ID_HEADER, run.runId()).toJson();
         try {
             var writer = resource.getResponse().getWriter();
             writer.write(frame);
@@ -859,7 +868,7 @@ public final class RunReattachSupport {
             // drop the frame but preserve ordering for the rest.
             var filters = filtersFor(resource);
             var broadcasterId = broadcasterIdFor(resource);
-            long seq = 0;
+            long seq = RUN_ID_FRAME_SEQ;
             // A transport that frames each write (WebSocket, WebTransport, SSE,
             // streaming) is written each frame alone, as the live path writes
             // it: TrackMessageSizeInterceptor measures each write, and a
@@ -1265,7 +1274,8 @@ public final class RunReattachSupport {
         /** Whether it forwards to the run's own client, whose departure decides for the run. */
         private final boolean own;
         private final org.atmosphere.cpr.AtmosphereResourceEventListener disconnectListener;
-        private long seq;
+        /** After the acknowledgment's: the frames of events the run's session numbered none of. */
+        private long seq = RUN_ID_FRAME_SEQ;
         private boolean cancelled;
         /** Set once the resource went away (a disconnect or a close), so its departure decides once. */
         private boolean departed;

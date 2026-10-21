@@ -1567,15 +1567,29 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                                 suspendTimeout, resource.uuid());
                         var timeout = new TimeoutException(
                                 "Prompt processing timed out after " + suspendTimeout + "ms");
-                        // The timeout is the run's terminal frame for a client
-                        // that reattached, also when the client this session
-                        // wrote to is gone (its session is closed). Recorded
-                        // before the interrupt, so a @Prompt that swallows it
-                        // and returns cannot end the run as complete first.
-                        handle.replayBuffer().terminate("error", timeout.getMessage());
-                        promptThread.interrupt();
-                        if (!session.isClosed()) {
-                            session.error(timeout);
+                        // The timeout is the run's terminal frame, for its client
+                        // and for one that reattached, also when the client this
+                        // session wrote to is gone. Ended through the session
+                        // while the run is open (isClosed() is the run's end):
+                        // the run records the error numbered as the session's
+                        // next frame, so it is written live and replayed under a
+                        // seq above the frames the client holds. Ending the
+                        // replay first would close the session to it: no live
+                        // frame, and an unnumbered event its client drops.
+                        // Recorded before the interrupt, so a @Prompt that
+                        // swallows it and returns cannot end the run as complete
+                        // first; the terminate below ends a run whose session
+                        // dropped the call, or failed writing it, all the same.
+                        try {
+                            if (!session.isClosed()) {
+                                session.error(timeout);
+                            }
+                        } catch (RuntimeException writeFailure) {
+                            logger.warn("Could not send the timeout of run {} to {}: {}",
+                                    handle.runId(), resource.uuid(), writeFailure.toString(), writeFailure);
+                        } finally {
+                            handle.replayBuffer().terminate("error", timeout.getMessage());
+                            promptThread.interrupt();
                         }
                     }
                 } catch (InterruptedException e) {

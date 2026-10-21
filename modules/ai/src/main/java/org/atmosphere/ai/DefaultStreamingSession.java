@@ -453,6 +453,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // expected end of the turn, one line and no stack.
                 logger.warn("Streaming session {} ended: approval {} for tool {} was not given before"
                         + " the turn's time limit", sessionId, expired.approvalId(), expired.toolName());
+            } else if (t instanceof java.util.concurrent.TimeoutException timedOut) {
+                // The turn outlived its time limit: the @Prompt watchdog that
+                // ended it already logged the timeout, so one line and no stack.
+                logger.warn("Streaming session {} timed out: {}", sessionId, timedOut.getMessage());
             } else if (t instanceof AiProviderException.RateLimited limited) {
                 // A rate limit (the gateway's or the provider's 429) is an
                 // expected refusal: one line and no stack.
@@ -476,6 +480,12 @@ public final class DefaultStreamingSession implements StreamingSession {
     private void failedAfterEnd(Throwable t) {
         if (t instanceof RunCancelledException) {
             logger.debug("Streaming session {} had already ended when its run was cancelled", sessionId);
+            return;
+        }
+        if (t instanceof java.util.concurrent.TimeoutException) {
+            // The @Prompt watchdog already warned that the turn timed out.
+            logger.debug("Streaming session {} had already ended when its run timed out: {}",
+                    sessionId, t.getMessage());
             return;
         }
         logger.warn("Streaming session {} had already ended when its run failed: {}", sessionId, String.valueOf(t));

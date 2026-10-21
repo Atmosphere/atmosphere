@@ -222,6 +222,67 @@ public class DefaultStreamingSessionTest {
                 "one warning naming the refusal: " + limited.events());
     }
 
+    /**
+     * A turn that outlived its time limit is ended by the {@code @Prompt}
+     * watchdog, which already logged the timeout: the client gets the error
+     * frame, the log one warning and no stack, not an ERROR with the stack of
+     * an exception the watchdog just created.
+     */
+    @Test
+    public void aTimeoutSendsTheErrorFrameWithOneWarningAndNoStack() {
+        var message = "Prompt processing timed out after 300ms";
+
+        var timedOut = captureTerminal(new java.util.concurrent.TimeoutException(message));
+
+        assertEquals(1, timedOut.frames().size(), "one terminal frame: " + timedOut.frames());
+        var frame = org.atmosphere.ai.filter.AiStreamMessage.parse(timedOut.frames().get(0));
+        assertTrue(frame.isError(), timedOut.frames().get(0));
+        assertEquals(message, frame.data());
+        for (var event : timedOut.events()) {
+            assertNotEquals(ch.qos.logback.classic.Level.ERROR, event.getLevel(),
+                    "a timeout was logged as ERROR: " + event.getFormattedMessage());
+            assertNull(event.getThrowableProxy(),
+                    "a timeout was logged with a stack trace: " + event.getFormattedMessage());
+        }
+        assertEquals(1, timedOut.events().stream()
+                        .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN
+                                && e.getFormattedMessage().contains(message)).count(),
+                "one warning naming the timeout: " + timedOut.events());
+    }
+
+    /**
+     * A turn that timed out after its page went away has no frame to be
+     * written: the watchdog's warning already named the timeout, so the
+     * session adds no second warning.
+     */
+    @Test
+    public void aTimeoutAfterTheConnectionWentAwayAddsNoWarning() {
+        var sessionId = "gone-timeout-" + System.nanoTime();
+        var session = createSession(sessionId);
+        DefaultStreamingSession.cleanupResource("uuid-" + sessionId);
+        assertTrue(session.isClosed(), "the disconnect closed the session");
+
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(DefaultStreamingSession.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var previous = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            session.error(new java.util.concurrent.TimeoutException("Prompt processing timed out after 300ms"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+            logger.setLevel(previous);
+        }
+        var events = List.copyOf(appender.list);
+        assertTrue(events.stream().noneMatch(e -> e.getLevel().isGreaterOrEqual(ch.qos.logback.classic.Level.WARN)),
+                "no warning for a timeout the watchdog already logged: " + events);
+        assertTrue(events.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.DEBUG
+                        && e.getFormattedMessage().contains(sessionId)),
+                "the timeout after the end is still logged at DEBUG: " + events);
+    }
+
     private record Terminal(List<String> frames, List<ch.qos.logback.classic.spi.ILoggingEvent> events) {
     }
 

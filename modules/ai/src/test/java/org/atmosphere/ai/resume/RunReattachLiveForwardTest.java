@@ -79,7 +79,8 @@ class RunReattachLiveForwardTest {
         assertEquals(7, frames.size(), "event-0..event-5 and complete: " + frames);
         for (int i = 0; i < 6; i++) {
             assertTrue(frames.get(i).contains("\"data\":\"event-" + i + "\""), frames.get(i));
-            assertTrue(frames.get(i).contains("\"seq\":" + (i + 1)), frames.get(i));
+            // Under the run id, after seq 1: the frame naming the run to a client that minted its id.
+            assertTrue(frames.get(i).contains("\"seq\":" + (i + 2)), frames.get(i));
         }
         assertTrue(frames.get(6).contains("\"type\":\"complete\""), frames.get(6));
         assertEquals(0, buffer.subscriberCount(), "the terminal frame ends the subscription");
