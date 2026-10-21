@@ -155,6 +155,37 @@ class SemanticKernelToolCallingTest {
     }
 
     @Test
+    void turnCancelledInAToolRoundEndsWithoutAnErrorAndNoFollowUpCall() throws Exception {
+        responses.add(TOOL_CALL_RESPONSE);
+        responses.add(ANSWER_RESPONSE);
+        var session = new RecordingSession();
+        var tool = addTool(args -> {
+            // The cancel lands while the tool runs; the tool returns normally.
+            session.turnCancelled = true;
+            return "5";
+        });
+
+        runtime().execute(context(tool), session);
+
+        assertTrue(session.collecting.await(Duration.ofSeconds(10)), "the cancelled turn ends");
+        assertNull(session.collecting.failure(), "a cancelled turn is not an error");
+        Thread.sleep(500);
+        assertEquals(1, requests.size(), "no follow-up model call once the turn was cancelled");
+    }
+
+    @Test
+    void turnCancelledBeforeItStartsCallsNoModelAndEndsWithoutAnError() {
+        var session = new RecordingSession();
+        session.turnCancelled = true;
+
+        runtime().execute(context(addTool(args -> "5")), session);
+
+        assertTrue(session.collecting.await(Duration.ofSeconds(10)), "the cancelled turn ends");
+        assertNull(session.collecting.failure(), "a cancelled turn is not an error");
+        assertEquals(0, requests.size(), "no model call for a turn cancelled before it started");
+    }
+
+    @Test
     void toolLoopOutOfAutoInvokeAttemptsEndsTheTurnWithAnError() {
         // A model that asks for the tool on every round: SK's loop stops
         // invoking at its cap and returns the last round, still asking.
@@ -247,6 +278,12 @@ class SemanticKernelToolCallingTest {
         private final CollectingSession collecting = new CollectingSession();
         private final List<AiEvent> events = new CopyOnWriteArrayList<>();
         private final List<TokenUsage> usage = new CopyOnWriteArrayList<>();
+        private volatile boolean turnCancelled;
+
+        @Override
+        public boolean isTurnCancelled() {
+            return turnCancelled;
+        }
 
         @Override
         public String sessionId() {

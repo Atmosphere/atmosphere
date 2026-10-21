@@ -240,16 +240,19 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                         flux, session, modelScope, completion);
             }
         } catch (RuntimeException e) {
-            // A failure before the call is under way (SK refusing the invocation
-            // context, a malformed history, a service that throws instead of
-            // returning a failed publisher) ends the session with the error: no
-            // terminal signal will come from SK (Correctness Invariant #2).
-            if (modelScope != null) {
-                modelScope.fail(e);
-            }
-            logger.error("Semantic Kernel dispatch failed before the model call: {}", e.getMessage());
-            if (!session.isClosed()) {
-                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
+            if (SemanticKernelToolBridge.TurnEndedException.endedTheTurn(e)) {
+                // The turn was already cancelled when it started: the hook ran
+                // before SK's first model call, inside getChatMessageContentsAsync,
+                // and stopped it. Same end as a tool round that ended the turn.
+                logger.debug("Semantic Kernel tool loop not started: {}", e.getMessage());
+                if (modelScope != null) {
+                    modelScope.complete(null);
+                }
+                if (!session.isClosed()) {
+                    session.complete();
+                }
+            } else {
+                failBeforeTheModelCall(e, session, modelScope);
             }
             completion.complete(null);
             disposable = reactor.core.Disposables.disposed();
@@ -287,6 +290,23 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 return completion;
             }
         };
+    }
+
+    /**
+     * End the session with {@code failure}, raised before the model call was
+     * under way (SK refusing the invocation context, a malformed history, a
+     * service that throws instead of returning a failed publisher): no terminal
+     * signal will come from SK (Correctness Invariant #2).
+     */
+    private static void failBeforeTheModelCall(RuntimeException failure, StreamingSession session,
+                                               org.atmosphere.ai.ModelCallScope modelScope) {
+        if (modelScope != null) {
+            modelScope.fail(failure);
+        }
+        logger.error("Semantic Kernel dispatch failed before the model call: {}", failure.getMessage());
+        if (!session.isClosed()) {
+            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(failure));
+        }
     }
 
     /**
