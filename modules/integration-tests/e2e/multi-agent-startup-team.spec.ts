@@ -187,15 +187,20 @@ test.describe('Multi-Agent Startup Team', () => {
         { query: 'AI developer tools', num_results: '2' }));
     const task = taskOf(body);
     expect(task).toBeDefined();
-    const status = task.status as { state: string };
-    expect(status.state).toBe('TASK_STATE_COMPLETED');
-    const artifacts = task.artifacts as { parts: { text: string }[] }[];
-    expect(artifacts.length).toBeGreaterThan(0);
-    // The artifact is the web_search tool's own output: ranked results when an
-    // engine is configured, the fail-closed "Web search is not configured"
-    // brief in keyless CI, or a "No web results" line. All three prove the
-    // web_search path executed; unrelated output matches none of them.
-    expect(artifacts[0].parts[0].text).toMatch(/Web search|No web results/);
+    const status = task.status as { state: string; message?: { parts: { text: string }[] } };
+    const artifacts = (task.artifacts ?? []) as { parts: { text: string }[] }[];
+    if (status.state === 'TASK_STATE_FAILED') {
+      // Keyless CI configures no engine: the search did not run, so the task
+      // fails with the fail-closed brief as its status message and no artifact.
+      expect(status.message?.parts[0].text).toMatch(/Web search is not configured/);
+      expect(artifacts.length).toBe(0);
+    } else {
+      // An engine is configured: the search ran and its output is the artifact,
+      // ranked results or a "No web results" line.
+      expect(status.state).toBe('TASK_STATE_COMPLETED');
+      expect(artifacts.length).toBeGreaterThan(0);
+      expect(artifacts[0].parts[0].text).toMatch(/Web search|No web results/);
+    }
   });
 
   test('strategy agent executes analyze_strategy skill via A2A', async () => {

@@ -184,6 +184,10 @@ public class ResearchAgent {
         // Atmosphere's built-in web_search tool: pluggable engine, fail-closed offline.
         var results = WebSearchSupport.shared()
                 .search(WebSearchQuery.of(query, Integer.parseInt(numResults)));
+        if (!results.available()) {
+            task.fail(results.toModelText());   // the search did not run
+            return;
+        }
         task.addArtifact(Artifact.text(results.toModelText()));
         task.complete("Found " + results.results().size() + " result(s)");
     }
@@ -191,9 +195,14 @@ public class ResearchAgent {
 ```
 
 The `web_search` engine is **fail-closed**: with no
-`org.atmosphere.ai.websearch.endpoint` configured it returns a clear "not
-configured" brief without touching the network, so the sample runs offline out
-of the box. Point that property at a JSON search endpoint (a self-hosted
+`org.atmosphere.ai.websearch.endpoint` configured it answers with a clear "not
+configured" message without touching the network, so the sample runs offline out
+of the box. A search that did not run (not configured, or the engine failed)
+fails the research task with that message: the coordinator's `AgentResult` comes
+back with `success() == false`, the Console's `web_search` card ends as
+**Failed** (`AiEvent.ToolError`) instead of **Done**, the journal shows a
+`FAILED` row for `research-agent`, and the strategy, finance and writer agents
+still receive the message as their research text. Point that property at a JSON search endpoint (a self-hosted
 metasearch instance or a hosted JSON search API), and set
 `org.atmosphere.ai.websearch.apiKey` if the endpoint needs a credential, to get
 live results. Swap in an alternative backend by putting a `WebSearchEngine`
@@ -244,7 +253,9 @@ The console will show `Runtime: embabel` (or whichever runtime is active).
 ## Coordination Journal + Result Evaluation
 
 The `CoordinationJournal` records every dispatch, completion, evaluation, and
-routing decision. It renders as a markdown table in the browser via `remark-gfm`:
+routing decision. It renders as a markdown table in the browser via `remark-gfm`
+(this run had a web search engine configured; without one the `research-agent`
+row reads `FAILED` with the "not configured" message):
 
 | Event | Agent | Detail | Duration |
 |-------|-------|--------|----------|

@@ -62,8 +62,9 @@ import java.util.Map;
  *   <li>{@code AgentFleet} — injected into {@code @Prompt}, provides
  *       {@code agent().call()} for sequential and {@code parallel()} for concurrent dispatch</li>
  *   <li>{@code CoordinationJournal} — records every dispatch/completion event for observability</li>
- *   <li>{@code session.emit(AiEvent.ToolStart/ToolResult)} — renders agent results as
- *       expandable tool cards in the Atmosphere AI Console</li>
+ *   <li>{@code session.emit(AiEvent.ToolStart/ToolResult/ToolError)} — renders agent
+ *       results as expandable tool cards in the Atmosphere AI Console (a search that
+ *       did not run ends its card as failed)</li>
  *   <li>{@code session.stream()} — delegates to the active {@code AgentRuntime}
  *       (ADK, Embabel, Spring AI, or LangChain4j) for the final LLM synthesis</li>
  * </ul>
@@ -262,10 +263,15 @@ public class CeoCoordinator {
 
         // --- Step 1: Research (sequential — other agents need these results) ---
         // ToolStart/ToolResult events render as expandable cards in the console.
+        // A search that did not run (no engine configured, the engine failed, the
+        // dispatch was denied) comes back as a failed AgentResult: its card ends
+        // with ToolError, while the text the next steps read stays the same.
         var researchArgs = Map.<String, Object>of("query", message, "num_results", "3");
         session.emit(new AiEvent.ToolStart("web_search", Map.<String, Object>of("query", message)));
         var research = fleet.agent("research-agent").call("web_search", researchArgs);
-        session.emit(new AiEvent.ToolResult("web_search", research.text()));
+        session.emit(research.success()
+                ? new AiEvent.ToolResult("web_search", research.text())
+                : new AiEvent.ToolError("web_search", research.text()));
 
         // --- Step 2: Strategy + Finance in parallel ---
         // fleet.parallel() dispatches both agents concurrently and blocks until

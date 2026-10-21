@@ -33,9 +33,11 @@ import org.slf4j.LoggerFactory;
  * {@code /atmosphere/a2a/research/agent.json}.
  *
  * <p>The search engine is fail-closed by default: with no
- * {@code org.atmosphere.ai.websearch.endpoint} configured it returns a clear
- * "not configured" brief without ever touching the network, so the sample runs
- * offline out of the box. Point that property at a JSON search endpoint (a
+ * {@code org.atmosphere.ai.websearch.endpoint} configured it answers with a clear
+ * "not configured" message without ever touching the network, so the sample runs
+ * offline out of the box. A search that did not run (not configured, or the
+ * engine failed) fails the task with that message; one that ran completes it
+ * with the results. Point that property at a JSON search endpoint (a
  * self-hosted metasearch instance or a hosted JSON search API) for live
  * results.</p>
  */
@@ -69,9 +71,14 @@ public class ResearchAgent {
 
         // The built-in web_search tool: pluggable engine, fail-closed offline.
         var results = WebSearchSupport.shared().search(WebSearchQuery.of(query, count));
+        if (!results.available()) {
+            // The search did not run (not configured, or the engine failed): the
+            // task fails with the fail-closed text, so the coordinator's call ends
+            // with a failed AgentResult whose text is that same message.
+            task.fail(results.toModelText());
+            return;
+        }
         task.addArtifact(Artifact.text(results.toModelText()));
-        task.complete(results.available()
-                ? "Found " + results.results().size() + " result(s)"
-                : "Web search is not configured");
+        task.complete("Found " + results.results().size() + " result(s)");
     }
 }
