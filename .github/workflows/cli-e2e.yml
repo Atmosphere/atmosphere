@@ -5,6 +5,10 @@ on:
     paths:
       - 'cli/**'
       - 'samples/**'
+      - 'pom.xml'
+      - 'scripts/validate-runtime-overlay-coverage.sh'
+      - '.harness/capabilities.snapshot.json'
+      - 'bom/pom.xml'
       - 'generator/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/ai/**'
@@ -25,6 +29,10 @@ on:
     paths:
       - 'cli/**'
       - 'samples/**'
+      - 'pom.xml'
+      - 'scripts/validate-runtime-overlay-coverage.sh'
+      - '.harness/capabilities.snapshot.json'
+      - 'bom/pom.xml'
       - 'generator/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/ai/**'

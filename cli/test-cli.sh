@@ -935,6 +935,17 @@ fi
 emb_repo=$(jq -r '.overlays.embabel.repository.url // empty' "$OVERLAYS_JSON")
 assert_contains "$emb_repo" "repo.embabel.com" "embabel overlay declares repo.embabel.com"
 
+# Every third-party library an overlay adds must come at the version its
+# adapter module is built on: the Semantic Kernel overlay pinned 1.4.0 against
+# an adapter compiled on 1.5.0, and every tool turn of a scaffolded project
+# died with an AbstractMethodError. The validator also checks overlay/BOM
+# coverage against the capability snapshot.
+if overlay_check=$("$SCRIPT_DIR/../scripts/validate-runtime-overlay-coverage.sh" 2>&1); then
+    pass "overlay deps are versioned on the properties their adapter modules build on"
+else
+    fail "overlay deps are versioned on the properties their adapter modules build on" "$overlay_check"
+fi
+
 # Validation: --runtime with no value
 out=$("$CLI" new foo --runtime 2>&1) && ec=0 || ec=$?
 if [ "$ec" -ne 0 ]; then

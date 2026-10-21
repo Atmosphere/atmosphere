@@ -67,8 +67,8 @@
       "description": "Microsoft Semantic Kernel (Java)",
       "deps": [
         { "groupId": "org.atmosphere", "artifactId": "atmosphere-semantic-kernel" },
-        { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-api", "version": "1.4.0" },
-        { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-aiservices-openai", "version": "1.4.0" }
+        { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-api", "version": "${semantickernel.version}" },
+        { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-aiservices-openai", "version": "${semantickernel.version}" }
       ]
     },
     "anthropic": {

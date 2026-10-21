@@ -16,7 +16,6 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.semantic.kernel</atmosphere.module.name>
-        <semantickernel.version>1.5.0</semantickernel.version>
     </properties>
 
     <dependencyManagement>
