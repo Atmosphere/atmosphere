@@ -90,6 +90,24 @@ class LineageCapturingSessionTest {
     }
 
     @Test
+    void aToolCallThatFailedStaysInTheLineage() {
+        // A failed call ends with a ToolError frame, not a ToolResult: the audit
+        // record must still list it, with its error.
+        var recorder = new InMemoryLineageRecorder();
+        var session = new LineageCapturingSession(new CollectingSession(),
+                recorder, "u", "a", "c", "prompt");
+
+        session.emit(new AiEvent.ToolStart("get_weather", Map.of("city", "Montreal")));
+        session.emit(new AiEvent.ToolError("get_weather", "weather service unreachable"));
+        session.complete();
+
+        var calls = recorder.recent(1).get(0).toolCalls();
+        assertEquals(1, calls.size());
+        assertEquals("get_weather", calls.get(0).name());
+        assertEquals("weather service unreachable", calls.get(0).resultSummary());
+    }
+
+    @Test
     void toolStartAndResultPairsCapturedInOrder() {
         var recorder = new InMemoryLineageRecorder();
         var session = new LineageCapturingSession(new CollectingSession(),

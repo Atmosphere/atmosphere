@@ -149,6 +149,15 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
                         startedToolAt != null ? startedToolAt : Instant.now(),
                         result.result() == null ? "" : result.result().toString()));
             }
+            case AiEvent.ToolError failure -> {
+                // A call that failed ends with ToolError: it is still a call the
+                // turn made, recorded with its error.
+                var startedToolAt = pendingToolStarts.remove(failure.toolName());
+                toolCalls.add(new LineageEntry.ToolCall(
+                        failure.toolName(),
+                        startedToolAt != null ? startedToolAt : Instant.now(),
+                        failure.error() == null ? "" : failure.error()));
+            }
             default -> {
                 // Other event types (Handoff, EntityStart, etc.) don't contribute
                 // to the lineage shape today. Future fields can grow here without
