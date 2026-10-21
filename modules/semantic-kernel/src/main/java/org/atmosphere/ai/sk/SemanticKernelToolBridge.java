@@ -15,6 +15,15 @@
  */
 package org.atmosphere.ai.sk;
 
+import com.azure.ai.openai.models.ChatChoice;
+import com.azure.ai.openai.models.ChatCompletionsFunctionToolCall;
+import com.azure.ai.openai.models.ChatCompletionsFunctionToolDefinition;
+import com.azure.ai.openai.models.ChatCompletionsFunctionToolDefinitionFunction;
+import com.azure.ai.openai.models.ChatCompletionsToolCall;
+import com.azure.ai.openai.models.ChatCompletionsToolDefinition;
+import com.azure.ai.openai.models.ChatRequestAssistantMessage;
+import com.azure.ai.openai.models.FunctionCall;
+import com.azure.core.util.BinaryData;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.contextvariables.ContextVariable;
 import com.microsoft.semantickernel.contextvariables.ContextVariableType;
@@ -31,6 +40,7 @@ import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
+import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.atmosphere.ai.tool.ToolParameter;
@@ -42,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Bridges Atmosphere's framework-agnostic {@link ToolDefinition} registry into
@@ -97,9 +108,9 @@ final class SemanticKernelToolBridge {
     /**
      * Translate Atmosphere's {@link ToolParameter} list into SK
      * {@link InputVariable}s so SK's function metadata advertises the same
-     * JSON-Schema shape the LLM sees across every runtime. Type mapping
-     * preserves the Atmosphere JSON-Schema type string verbatim (SK accepts
-     * "string", "integer", "number", "boolean", "object", "array").
+     * JSON-Schema shape the LLM sees across every runtime. The type goes
+     * through {@link #skType(String)}: SK takes it for a Java type name, not a
+     * JSON-Schema type.
      */
     private static List<InputVariable> toInputVariables(ToolDefinition tool) {
         var inputs = new ArrayList<InputVariable>(tool.parameters().size());
@@ -109,13 +120,49 @@ final class SemanticKernelToolBridge {
             // empty list is what tells the planner which values are legal.
             inputs.add(new InputVariable(
                     p.name(),
-                    p.type(),
+                    skType(p.type()),
                     p.description(),
                     null,
                     p.required(),
                     p.enumValues().isEmpty() ? Collections.emptyList() : p.enumValues()));
         }
         return inputs;
+    }
+
+    /**
+     * The {@link InputVariable} type Semantic Kernel 1.5.0 turns into the
+     * JSON-Schema type {@code jsonType}. SK reads the type as a Java type name
+     * ({@code OpenAIFunction.getJavaTypeToOpenAiFunctionType}): {@code string},
+     * {@code integer}, {@code boolean} and {@code array} it maps as they are,
+     * but anything else it takes for a class whose schema it generates, through
+     * {@code KernelPluginFactory.getTypeForName}, which knows no {@code number}
+     * and no {@code object} and throws. SK builds the schema of every function
+     * on each model call, so one such parameter failed every tool turn of the
+     * endpoint before the model call. {@code double} gives {@code number}. An
+     * {@code object} would need SK's optional schema generator
+     * ({@code com.github.victools:jsonschema-generator}), so it is declared as
+     * {@code string} to SK; the schema the model sees is replaced on the wire
+     * by {@link #sendToolsUnderTheirOwnNames}. An unknown type is declared as
+     * {@code string}, SK's own default, rather than failing every tool.
+     */
+    static String skType(String jsonType) {
+        if (jsonType == null) {
+            return "string";
+        }
+        return switch (jsonType.toLowerCase(java.util.Locale.ROOT)) {
+            case "string" -> "string";
+            case "integer" -> "integer";
+            case "number" -> "double";
+            case "boolean" -> "boolean";
+            case "array" -> "array";
+            // SK builds an object's schema with an optional generator a project
+            // seldom has; the wire schema comes from sendToolsUnderTheirOwnNames.
+            case "object" -> "string";
+            default -> {
+                logger.debug("SK tool bridge: parameter type '{}' advertised as string", jsonType);
+                yield "string";
+            }
+        };
     }
 
     /**
@@ -218,6 +265,105 @@ final class SemanticKernelToolBridge {
             logger.trace("SK tool {} argument {} is not a {}: {}", tool.name(), name, type, e.getMessage());
             return value;
         }
+    }
+
+    /**
+     * Install, on the per-request {@code kernel}, the hooks that send the
+     * tools of {@code plugin} to the model under their own names
+     * ({@code assess_emergency}) instead of Semantic Kernel's
+     * {@code <plugin>-<function>} ({@code atmosphere_tools-assess_emergency}),
+     * and give the model's tool calls their qualified name back before Semantic
+     * Kernel reads them. SK 1.5.0 hard-codes the {@code -} separator
+     * ({@code OpenAIFunction.getNameSeparator()}) and needs the plugin part to
+     * find the function, so the renaming happens on the wire: on Ollama with
+     * qwen2.5 a hyphenated tool name makes the model's tool call unparseable,
+     * and the turn ended with no text and no tool call. The names are the
+     * tools' own, as the built-in runtime sends them, and the parameter schema
+     * is the one {@link ToolBridgeUtils#buildJsonSchemaString} builds (as the
+     * Spring AI bridge sends it: enum values, array items, object properties),
+     * in place of SK's, which
+     * knows no array items and needs an optional generator for an object.
+     *
+     * <p>The request hook renames the tool definitions and the tool calls of
+     * the assistant messages already in the history (a follow-up round of the
+     * loop carries them); the response hook renames the tool calls of the
+     * answer in place, before SK splits them into plugin and function. A name
+     * the model sends qualified, or that no tool of the plugin carries, is left
+     * as it is.</p>
+     */
+    static void sendToolsUnderTheirOwnNames(Kernel kernel, KernelPlugin plugin, List<ToolDefinition> tools) {
+        var qualifiedByName = new HashMap<String, String>();
+        var nameByQualified = new HashMap<String, String>();
+        var schemaByQualified = new HashMap<String, String>();
+        for (var tool : tools) {
+            if (!plugin.getFunctions().containsKey(tool.name())) {
+                continue;
+            }
+            var qualified = plugin.getName() + "-" + tool.name();
+            qualifiedByName.put(tool.name(), qualified);
+            nameByQualified.put(qualified, tool.name());
+            schemaByQualified.put(qualified, ToolBridgeUtils.buildJsonSchemaString(tool.parameters()));
+        }
+        kernel.getGlobalKernelHooks().addPreChatCompletionHook(event -> {
+            var options = event.getOptions();
+            var definitions = options.getTools();
+            if (definitions != null) {
+                var renamed = new ArrayList<ChatCompletionsToolDefinition>(definitions.size());
+                for (var sent : definitions) {
+                    renamed.add(sent instanceof ChatCompletionsFunctionToolDefinition definition
+                            && nameByQualified.containsKey(definition.getFunction().getName())
+                            ? withName(definition, nameByQualified.get(definition.getFunction().getName()),
+                                    schemaByQualified.get(definition.getFunction().getName()))
+                            : sent);
+                }
+                options.setTools(renamed);
+            }
+            for (var message : options.getMessages()) {
+                if (message instanceof ChatRequestAssistantMessage assistant && assistant.getToolCalls() != null) {
+                    var calls = new ArrayList<>(assistant.getToolCalls());
+                    calls.replaceAll(call -> renamed(call, nameByQualified));
+                    assistant.setToolCalls(calls);
+                }
+            }
+            return event;
+        });
+        kernel.getGlobalKernelHooks().addPostChatCompletionHook(event -> {
+            var choices = event.getChatCompletions().getChoices();
+            for (var choice : choices != null ? choices : List.<ChatChoice>of()) {
+                var message = choice.getMessage();
+                var calls = message != null ? message.getToolCalls() : null;
+                if (calls == null || calls.isEmpty()) {
+                    continue;
+                }
+                try {
+                    calls.replaceAll(call -> renamed(call, qualifiedByName));
+                } catch (UnsupportedOperationException e) {
+                    logger.warn("SK tool bridge: cannot give the model's tool calls their qualified name back;"
+                            + " Semantic Kernel will not find {}", calls, e);
+                }
+            }
+            return event;
+        });
+    }
+
+    private static ChatCompletionsFunctionToolDefinition withName(
+            ChatCompletionsFunctionToolDefinition definition, String name, String schema) {
+        var function = definition.getFunction();
+        return new ChatCompletionsFunctionToolDefinition(
+                new ChatCompletionsFunctionToolDefinitionFunction(name)
+                        .setDescription(function.getDescription())
+                        .setParameters(BinaryData.fromString(schema))
+                        .setStrict(function.isStrict()));
+    }
+
+    private static ChatCompletionsToolCall renamed(ChatCompletionsToolCall call, Map<String, String> names) {
+        if (call instanceof ChatCompletionsFunctionToolCall functionCall
+                && functionCall.getFunction() != null
+                && names.containsKey(functionCall.getFunction().getName())) {
+            return new ChatCompletionsFunctionToolCall(functionCall.getId(), new FunctionCall(
+                    names.get(functionCall.getFunction().getName()), functionCall.getFunction().getArguments()));
+        }
+        return call;
     }
 
     /**

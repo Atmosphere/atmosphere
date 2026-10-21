@@ -64,11 +64,18 @@ final class SemanticKernelStreamingAdapter {
             Flux<StreamingChatContent<?>> flux,
             StreamingSession session,
             org.atmosphere.ai.ModelCallScope modelScope,
-            java.util.concurrent.CompletableFuture<Void> completion) {
+            java.util.concurrent.CompletableFuture<Void> completion,
+            java.util.List<String> toolNames) {
         var lastUsage =
                 new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
+        var answered = new java.util.concurrent.atomic.AtomicBoolean();
         return flux.takeWhile(ignored -> !session.isClosed())
-                .doOnNext(frame -> forwardFrame(frame, session, lastUsage))
+                .doOnNext(frame -> {
+                    if (frame != null && frame.getContent() != null && !frame.getContent().isEmpty()) {
+                        answered.set(true);
+                    }
+                    forwardFrame(frame, session, lastUsage);
+                })
                 .doOnError(error -> {
                     modelScope.fail(error);
                     logger.error("Semantic Kernel streaming error: {}", error.getMessage());
@@ -82,6 +89,9 @@ final class SemanticKernelStreamingAdapter {
                     completion.complete(null);
                 })
                 .doOnComplete(() -> {
+                    if (!answered.get() && !session.isClosed()) {
+                        warnNoAnswer(lastUsage.get(), toolNames);
+                    }
                     modelScope.complete(lastUsage.get());
                     if (!session.isClosed()) {
                         session.complete();
@@ -103,7 +113,9 @@ final class SemanticKernelStreamingAdapter {
      * <p>The answer is the last assistant message; its token usage (the last
      * round's) goes to {@link StreamingSession#usage}. A last assistant message
      * that still asks for tools means SK's loop ran out of auto-invoke attempts:
-     * the session ends with an error rather than an empty answer. A
+     * the session ends with an error rather than an empty answer. A last
+     * assistant message with no text and no tool call completes the turn, as on
+     * the other runtimes, and is logged as a warning. A
      * {@link SemanticKernelToolBridge.TurnEndedException} ends the dispatch
      * without an error: the tool round already ended the turn. Every terminal
      * signal resolves {@code completion} (Correctness Invariant #2).</p>
@@ -112,7 +124,8 @@ final class SemanticKernelStreamingAdapter {
             reactor.core.publisher.Mono<java.util.List<ChatMessageContent<?>>> call,
             StreamingSession session,
             org.atmosphere.ai.ModelCallScope modelScope,
-            java.util.concurrent.CompletableFuture<Void> completion) {
+            java.util.concurrent.CompletableFuture<Void> completion,
+            java.util.List<String> toolNames) {
         var lastUsage = new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
         return call
                 .doOnCancel(() -> completion.complete(null))
@@ -137,6 +150,8 @@ final class SemanticKernelStreamingAdapter {
                             var text = answer != null ? answer.getContent() : null;
                             if (text != null && !text.isEmpty() && !session.isClosed()) {
                                 session.send(text);
+                            } else if (!session.isClosed()) {
+                                warnNoAnswer(lastUsage.get(), toolNames);
                             }
                             modelScope.complete(lastUsage.get());
                             if (!session.isClosed()) {
@@ -174,6 +189,21 @@ final class SemanticKernelStreamingAdapter {
                                 completion.complete(null);
                             }
                         });
+    }
+
+    /**
+     * Say in the log that the model ended the turn with no text and no tool
+     * call. The turn still completes, as it does on the other runtimes; the
+     * log line is what tells the operator why the answer is empty. Completion
+     * tokens spent with nothing to show for them mean the model produced
+     * something the backend dropped, most often a tool call it could not parse.
+     */
+    private static void warnNoAnswer(TokenUsage usage, java.util.List<String> toolNames) {
+        logger.warn("Semantic Kernel turn ended with no text and no tool call (completion tokens: {},"
+                        + " tools offered: {}); completion tokens with no answer usually mean the backend"
+                        + " dropped a tool call it could not parse",
+                usage != null ? usage.output() : "not reported",
+                toolNames == null || toolNames.isEmpty() ? "none" : toolNames);
     }
 
     /** Whether {@code message} carries tool calls. */

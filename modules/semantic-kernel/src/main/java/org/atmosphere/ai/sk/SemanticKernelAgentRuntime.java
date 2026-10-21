@@ -187,6 +187,9 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 kernelBuilder = kernelBuilder.withPlugin(toolPlugin);
             }
             var kernel = kernelBuilder.build();
+            if (toolPlugin != null) {
+                SemanticKernelToolBridge.sendToolsUnderTheirOwnNames(kernel, toolPlugin, context.tools());
+            }
 
             // Per-request InvocationContext override: when the caller attached
             // one via SemanticKernelInvocation.attach(...), use it verbatim.
@@ -212,6 +215,9 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
             // Koog / Embabel.
             var messageCount = chatHistory.getMessages().size();
             var toolCount = toolPlugin != null ? context.tools().size() : 0;
+            var toolNames = toolPlugin != null
+                    ? context.tools().stream().map(org.atmosphere.ai.tool.ToolDefinition::name).toList()
+                    : java.util.List.<String>of();
             modelScope = org.atmosphere.ai.ModelCallScope.open(
                     context.listeners(),
                     context.model() != null ? context.model() : name(),
@@ -230,14 +236,14 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 SemanticKernelToolBridge.stopLoopOnceTurnEnded(kernel, session);
                 var call = service.getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
                 disposable = SemanticKernelStreamingAdapter.drainToolTurn(
-                        call, session, modelScope, completion);
+                        call, session, modelScope, completion, toolNames);
             } else {
                 logger.debug("SK streaming: model={}, history messages={}, tools={}",
                         context.model(), messageCount, toolCount);
                 var flux = service.getStreamingChatMessageContentsAsync(
                         chatHistory, kernel, invocationContext);
                 disposable = SemanticKernelStreamingAdapter.drainCancellable(
-                        flux, session, modelScope, completion);
+                        flux, session, modelScope, completion, toolNames);
             }
         } catch (RuntimeException e) {
             if (SemanticKernelToolBridge.TurnEndedException.endedTheTurn(e)) {

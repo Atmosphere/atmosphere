@@ -48,9 +48,26 @@ auto-invoke on — through the non-streaming call:
   time limit, a cancel), a `PreChatCompletion` kernel hook stops the loop
   before its next model call;
 - a loop that runs out of SK's auto-invoke attempts with tool calls still
-  pending ends the turn with an error, not an empty answer.
+  pending ends the turn with an error, not an empty answer;
+- a model that ends the turn with no text and no tool call completes it, as on
+  the other runtimes, and the runtime logs a warning with the completion tokens
+  spent and the tools offered.
 
 A turn without tools streams as before.
+
+### Tool names and schemas on the wire
+
+SK names a function `<plugin>-<function>` (`atmosphere_tools-get_weather`) and
+hard-codes the `-`. On Ollama with qwen2.5 a hyphenated tool name made the
+model's tool call unparseable: the turn ended with no text and no tool call.
+Two kernel hooks therefore send each tool under its own name (`get_weather`,
+as the built-in runtime sends it) with the JSON schema
+`ToolBridgeUtils.buildJsonSchemaString` builds (the one the Spring AI bridge
+sends: enum values, array items, object properties), and give the model's tool calls their qualified name back before
+SK reads them. A parameter type SK cannot resolve on its own (`number` has no
+entry in SK's type table, `object` needs SK's optional schema generator) is
+declared to SK as `double` / `string`; the schema the model sees is the shared
+one.
 
 ## EmbeddingRuntime
 
