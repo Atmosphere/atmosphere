@@ -101,12 +101,15 @@ class RoomRunReplayTest {
 
     @Test
     void theRoomFramesOfEventsTheCapacityEvictedAreForgotten() {
+        // Tool events: text events are joined rather than evicted
+        // (RunEventReplayBufferBoundsTest); the second's frame stays as the
+        // notice of the dropped events, which stands under it.
         var bounded = new RunEventReplayBuffer("bounded", 2);
-        var first = bounded.capture("streaming-text", "a");
+        var first = bounded.capture("tool-start", "a");
         bounded.wroteFrame(first.sequence(), ROOM_SESSION, 1);
-        var second = bounded.capture("streaming-text", "b");
+        var second = bounded.capture("tool-start", "b");
         bounded.wroteFrame(second.sequence(), ROOM_SESSION, 2);
-        var third = bounded.capture("streaming-text", "c");
+        var third = bounded.capture("tool-start", "c");
         bounded.wroteFrame(third.sequence(), ROOM_SESSION, 3);
         // Written for an event no longer retained: ignored.
         bounded.wroteFrame(first.sequence(), ROOM_SESSION, 9);

@@ -102,10 +102,11 @@ class RunEventReplayBufferPositionsTest {
 
     @Test
     void eventsNoLongerRetainedLeaveNoGap() {
+        // Tool events: text events past the capacity are joined, not evicted.
         var buffer = new RunEventReplayBuffer(2);
-        buffer.capture("streaming-text", "evicted");
-        buffer.capture("streaming-text", "b");
-        buffer.capture("streaming-text", "c");
+        buffer.capture("tool-start", "evicted");
+        buffer.capture("tool-start", "b");
+        buffer.capture("tool-start", "c");
 
         buffer.handed("poll-1", 1, 2);
         assertTrue(buffer.claimNew("poll-1").isEmpty(), "no replay can hand the evicted event anyway");

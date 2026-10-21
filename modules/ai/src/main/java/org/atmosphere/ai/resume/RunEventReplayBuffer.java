@@ -36,12 +36,20 @@ import java.util.function.Consumer;
  *
  * <h2>Backpressure</h2>
  *
- * Capacity is bounded at construction; when the limit is exceeded the
- * oldest entries are evicted (Correctness Invariant #3 — every buffer
- * declares a size bound). Replay consumers MUST treat missing earlier
- * sequence numbers as "replay buffer too small; history unavailable" and
- * fall back to their own recovery story rather than assuming complete
- * replay.
+ * A run retains at most {@link #capacity()} events and
+ * {@link #DEFAULT_MAX_CHARS} characters of payload (Correctness Invariant
+ * #3 — every buffer declares a size bound). Past the events, its
+ * consecutive text events are joined into one, which keeps each one's
+ * sequence, frame, capture time and where its text ends, so a reply of
+ * thousands of text deltas stays whole in a few events; every read
+ * ({@link #snapshot}, {@link #subscribe}, {@link #claimNew}) hands them back
+ * one by one, as they were captured. Still past either, the oldest
+ * events but the run's prompt are dropped; a run whose frames are numbered
+ * keeps in their place a text event saying so ({@link #TRUNCATED_NOTICE}),
+ * which a client that missed them is replayed first. A buffer whose frames
+ * are not numbered (no frame session) drops its oldest events silently, and
+ * its consumers MUST treat missing earlier sequence numbers as "history
+ * unavailable".
  *
  * <h2>Durability</h2>
  *
@@ -125,6 +133,16 @@ import java.util.function.Consumer;
  * the two maps. The registry keeps the buffers of its live runs and of up to
  * {@link RunRegistry#MAX_RETAINED_COMPLETED} (256) finished ones.
  *
+ * <p>The events themselves: at most {@link #DEFAULT_MAX_CHARS} characters per
+ * run, payload and bookkeeping (28 bytes per event or joined text delta,
+ * counted as 14 characters) together, so at most 512 KB of {@code char}s per
+ * run (less with compact strings, as text in Latin-1 is), 128 MB if each of
+ * the 256 finished runs kept had replied that much; a chat reply of 2,000 text
+ * deltas, some 8,000 characters, takes about 72 KB. A read hands the joined
+ * deltas back one by one, at most some 17,000 of them (each at least one
+ * character and its bookkeeping). Before the character bound, 1,024 events of
+ * any size were retained.</p>
+ *
  * <ul>
  *   <li>A run whose reply reaches its own client only ({@link #forRun}) is
  *       handed its id by that client alone: its consumers are that tracking id
@@ -161,8 +179,35 @@ public final class RunEventReplayBuffer {
 
     private static final Logger logger = LoggerFactory.getLogger(RunEventReplayBuffer.class);
 
-    /** Default capacity — enough for a few minutes of streaming. */
+    /**
+     * Default capacity, in events. Consecutive text events are joined into one
+     * when the run holds more ({@link #capture}), so a reply of any number of
+     * text deltas takes a few events.
+     */
     public static final int DEFAULT_CAPACITY = 1_024;
+
+    /**
+     * Default upper bound on the characters of the payloads one run retains:
+     * 262,144 (512 KB of {@code char}s), some thirty times a long chat reply;
+     * each event, and each text event joined into another, counts fourteen
+     * more for its bookkeeping.
+     * Past it, or past the capacity once the text events are joined, the
+     * oldest events but the run's prompt are dropped, and a replay says so
+     * ({@link #TRUNCATED_NOTICE}).
+     */
+    public static final int DEFAULT_MAX_CHARS = 262_144;
+
+    /**
+     * The text a replay writes in place of the events a run dropped to stay
+     * within its bounds, under the {@code seq} of the last frame dropped: a
+     * client that missed them sees that the reply is not whole, and one that
+     * holds them drops it, as any frame it holds.
+     */
+    public static final String TRUNCATED_NOTICE =
+            "*[The earlier part of this reply is no longer available to replay.]*\n\n";
+
+    /** The event type of the text a client receives ({@code RunEventCapturingSession}). */
+    private static final String TEXT_TYPE = "streaming-text";
 
     /** Upper bound on live subscribers per run — one per reattached connection. */
     public static final int MAX_SUBSCRIBERS = 8;
@@ -315,6 +360,55 @@ public final class RunEventReplayBuffer {
      * capacity evicts leaves), so it holds at most {@link #capacity()} entries.
      */
     private final Map<Long, Long> frameSequences = new java.util.HashMap<>();
+    /**
+     * Guarded by {@code buffer}: event sequence -> the text events a retained
+     * text event stands for since they were joined ({@link #compact}), for the
+     * retained events only.
+     */
+    private final Map<Long, Joined> joined = new java.util.HashMap<>();
+    /** The most characters of payload the run retains ({@link #DEFAULT_MAX_CHARS}). */
+    private final int maxChars;
+    /** Guarded by {@code buffer}: the characters of the payloads retained. */
+    private long retainedChars;
+    /**
+     * Guarded by {@code buffer}: the retained event standing for the events
+     * dropped to stay within the bounds ({@link #TRUNCATED_NOTICE}), or
+     * {@code null} while none was.
+     */
+    private RunEvent dropped;
+
+    /**
+     * The text events one retained text event stands for: of each, in order,
+     * its sequence, the {@code seq} of its frame ({@code -1} when none was
+     * numbered), where its text ends in the joined payload and when it was
+     * captured (nanoseconds since the epoch).
+     */
+    private record Joined(long[] sequences, long[] frames, int[] ends, long[] times) {
+
+        int size() {
+            return sequences.length;
+        }
+
+        Instant time(int i) {
+            return Instant.ofEpochSecond(0, times[i]);
+        }
+
+        /** The parts from {@code from} on, their text starting at {@code cut} of the joined payload. */
+        Joined from(int from, int cut) {
+            var rest = java.util.Arrays.copyOfRange(ends, from, ends.length);
+            for (var i = 0; i < rest.length; i++) {
+                rest[i] -= cut;
+            }
+            return new Joined(java.util.Arrays.copyOfRange(sequences, from, sequences.length),
+                    java.util.Arrays.copyOfRange(frames, from, frames.length), rest,
+                    java.util.Arrays.copyOfRange(times, from, times.length));
+        }
+    }
+
+    /** {@code instant} in nanoseconds since the epoch. */
+    private static long nanos(Instant instant) {
+        return instant.getEpochSecond() * 1_000_000_000L + instant.getNano();
+    }
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -349,14 +443,26 @@ public final class RunEventReplayBuffer {
      * @throws IllegalArgumentException when a bound is not positive
      */
     public RunEventReplayBuffer(String runId, int capacity, int maxReplayPositions, int maxWaitingPolls) {
-        this(runId, capacity, maxReplayPositions, maxWaitingPolls, null);
+        this(runId, capacity, maxReplayPositions, maxWaitingPolls, null, DEFAULT_MAX_CHARS);
+    }
+
+    /**
+     * A buffer of the run {@code runId} retaining at most {@code capacity}
+     * events and {@code maxChars} characters of payload.
+     */
+    RunEventReplayBuffer(String runId, int capacity, int maxChars) {
+        this(runId, capacity, MAX_REPLAY_POSITIONS, MAX_WAITING_POLLS, null, maxChars);
     }
 
     private RunEventReplayBuffer(String runId, int capacity, int maxReplayPositions, int maxWaitingPolls,
-                                 String roomId) {
+                                 String roomId, int maxChars) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity must be > 0, got " + capacity);
         }
+        if (maxChars <= 0) {
+            throw new IllegalArgumentException("maxChars must be > 0, got " + maxChars);
+        }
+        this.maxChars = maxChars;
         if (maxReplayPositions <= 0) {
             throw new IllegalArgumentException("maxReplayPositions must be > 0, got " + maxReplayPositions);
         }
@@ -403,7 +509,7 @@ public final class RunEventReplayBuffer {
         return new RunEventReplayBuffer(runId, DEFAULT_CAPACITY,
                 positive(config, MAX_REPLAY_POSITIONS_PARAM,
                         org.atmosphere.ai.LongPollingRoomReplies.memberLimit(config)),
-                positive(config, MAX_WAITING_POLLS_PARAM, MAX_WAITING_POLLS), roomId);
+                positive(config, MAX_WAITING_POLLS_PARAM, MAX_WAITING_POLLS), roomId, DEFAULT_MAX_CHARS);
     }
 
     /**
@@ -645,8 +751,9 @@ public final class RunEventReplayBuffer {
             } else if (!frameSessionId.equals(sessionId)) {
                 return;
             }
-            if (!buffer.isEmpty() && eventSequence >= buffer.get(0).sequence()
-                    && eventSequence <= buffer.get(buffer.size() - 1).sequence()) {
+            // A retained event only: one joined into another, or dropped, is not.
+            var at = indexAtOrAfter(eventSequence);
+            if (at < buffer.size() && buffer.get(at).sequence() == eventSequence) {
                 frameSequences.putIfAbsent(eventSequence, frameSequence);
             }
         }
@@ -662,8 +769,8 @@ public final class RunEventReplayBuffer {
             if (sessionId == null || !sessionId.equals(frameSessionId)) {
                 return -1;
             }
-            var seq = frameSequences.get(eventSequence);
-            return seq == null ? -1 : seq;
+            // Also an event joined into another since ({@link #compact}).
+            return frameOf(new RunEvent(eventSequence, TEXT_TYPE, null, Instant.EPOCH));
         }
     }
 
@@ -684,8 +791,77 @@ public final class RunEventReplayBuffer {
     public long frameOf(RunEvent event) {
         synchronized (buffer) {
             var seq = frameSequences.get(event.sequence());
-            return seq == null ? -1 : seq;
+            if (seq != null) {
+                return seq;
+            }
+            // A text event joined into a retained one ({@link #compact}): its own frame.
+            var at = indexAtOrAfter(event.sequence());
+            var parts = at < buffer.size() ? joined.get(buffer.get(at).sequence()) : null;
+            if (parts != null) {
+                var i = java.util.Arrays.binarySearch(parts.sequences(), event.sequence());
+                if (i >= 0) {
+                    return parts.frames()[i];
+                }
+            }
+            return -1;
         }
+    }
+
+    /**
+     * {@code events}, retained events in order, with each text event joined
+     * into another ({@link #compact}) back in its place: its own sequence,
+     * text, frame ({@link #frameOf}) and capture time, so a replay writes the
+     * frames the run's clients received, each filtered by what its client
+     * holds as before the join. Caller holds the lock.
+     */
+    private List<RunEvent> expand(List<RunEvent> events) {
+        if (joined.isEmpty()) {
+            return List.copyOf(events);
+        }
+        var out = new ArrayList<RunEvent>(events.size() + 64);
+        for (var event : events) {
+            var parts = joined.get(event.sequence());
+            if (parts == null) {
+                out.add(event);
+                continue;
+            }
+            var start = 0;
+            for (var i = 0; i < parts.size(); i++) {
+                out.add(new RunEvent(parts.sequences()[i], event.type(),
+                        event.payload().substring(start, parts.ends()[i]), parts.time(i)));
+                start = parts.ends()[i];
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The sequence of the oldest retained event, or of the first text event
+     * joined into it ({@link #compact}). Caller holds the lock; the buffer is
+     * not empty.
+     */
+    private long firstSequence() {
+        var parts = joined.get(buffer.get(0).sequence());
+        return parts != null ? parts.sequences()[0] : buffer.get(0).sequence();
+    }
+
+    /**
+     * The index of the first retained event whose sequence is at least
+     * {@code sequence}, or the number of retained events when there is none.
+     * Caller holds the lock; the retained events are in ascending sequence.
+     */
+    private int indexAtOrAfter(long sequence) {
+        int low = 0;
+        int high = buffer.size();
+        while (low < high) {
+            var mid = (low + high) >>> 1;
+            if (buffer.get(mid).sequence() < sequence) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
     }
 
     /** Whether a terminal {@code complete} / {@code error} / {@code cancelled} event was captured. */
@@ -731,9 +907,7 @@ public final class RunEventReplayBuffer {
                     payload,
                     Instant.now());
             buffer.add(event);
-            while (buffer.size() > capacity) {
-                frameSequences.remove(buffer.remove(0).sequence());
-            }
+            retainedChars += cost(event);
             // Numbered before a listener sees it: a frame forwarded or handed to
             // a poll now is written in the session's numbering, as its replay is.
             if (numbering != null && numbering.sessionId() != null
@@ -741,6 +915,7 @@ public final class RunEventReplayBuffer {
                 frameSessionId = numbering.sessionId();
                 frameSequences.put(event.sequence(), numbering.next().getAsLong());
             }
+            bound();
             listeners = listeners();
             if (isTerminal(type)) {
                 terminated = true;
@@ -770,6 +945,228 @@ public final class RunEventReplayBuffer {
         return event;
     }
 
+    /** The characters of {@code event}'s payload. */
+    private static int length(RunEvent event) {
+        return event.payload() == null ? 0 : event.payload().length();
+    }
+
+    /**
+     * What one retained event, or one text event joined into another, costs
+     * on top of its payload, in characters: its bookkeeping (a joined part's
+     * sequence, frame, end and capture time, 28 bytes).
+     */
+    private static final int PART_COST = 14;
+
+    /** What {@code event}, a retained event, counts against the character bound. Caller holds the lock. */
+    private long cost(RunEvent event) {
+        var parts = joined.get(event.sequence());
+        return length(event) + (long) PART_COST * (parts != null ? parts.size() : 1);
+    }
+
+    /**
+     * Keep the run within its bounds (Correctness Invariant #3): past
+     * {@link #capacity()} events, join the consecutive text events
+     * ({@link #compact}); then, while still past it, or past
+     * {@code maxChars} characters, drop the oldest events but the run's
+     * prompt ({@link #dropOldest}), down to seven eighths of the characters
+     * once over them, so a run that keeps writing past the bound is not cut
+     * (and its joined text copied) on every event. Caller holds the lock.
+     */
+    private void bound() {
+        if (buffer.size() <= capacity && retainedChars <= maxChars) {
+            return;
+        }
+        if (buffer.size() > capacity) {
+            compact();
+        }
+        var target = retainedChars > maxChars ? maxChars - maxChars / 8 : maxChars;
+        while ((buffer.size() > capacity || retainedChars > target) && dropOldest(target)) {
+            // dropOldest dropped one event, or the oldest text of one.
+        }
+    }
+
+    /**
+     * Join every run of consecutive text events (frames of the reply's text)
+     * into one event: its payload their texts in order, its sequence, frame
+     * and timestamp those of the last of them, with where each one's text
+     * ends ({@link Joined}), which every read hands back one by one
+     * ({@link #expand}). Events of
+     * another type keep their place, and so do the run's prompt and the
+     * notice of dropped events. Text events are joined only with text events
+     * numbered the same way (all with a frame, or none). Caller holds the lock.
+     */
+    private void compact() {
+        var out = new ArrayList<RunEvent>(buffer.size());
+        var i = 0;
+        while (i < buffer.size()) {
+            var event = buffer.get(i);
+            var j = i + 1;
+            if (joinable(event)) {
+                var numbered = frameSequences.containsKey(event.sequence());
+                while (j < buffer.size() && joinable(buffer.get(j))
+                        && frameSequences.containsKey(buffer.get(j).sequence()) == numbered) {
+                    j++;
+                }
+            }
+            out.add(j - i > 1 ? join(buffer.subList(i, j)) : event);
+            i = j;
+        }
+        if (out.size() < buffer.size()) {
+            buffer.clear();
+            buffer.addAll(out);
+        }
+    }
+
+    /** Whether {@code event} may be joined with its neighbours: a text event, not the notice of dropped ones. */
+    private boolean joinable(RunEvent event) {
+        return TEXT_TYPE.equals(event.type()) && event != dropped;
+    }
+
+    /** One event standing for {@code events}, consecutive text events ({@link #compact}). Caller holds the lock. */
+    private RunEvent join(List<RunEvent> events) {
+        var count = 0;
+        for (var event : events) {
+            var parts = joined.get(event.sequence());
+            count += parts != null ? parts.size() : 1;
+        }
+        var sequences = new long[count];
+        var frames = new long[count];
+        var ends = new int[count];
+        var times = new long[count];
+        var text = new StringBuilder();
+        var k = 0;
+        for (var event : events) {
+            var parts = joined.remove(event.sequence());
+            var frame = frameSequences.remove(event.sequence());
+            if (parts != null) {
+                for (var p = 0; p < parts.size(); p++) {
+                    sequences[k] = parts.sequences()[p];
+                    frames[k] = parts.frames()[p];
+                    ends[k] = text.length() + parts.ends()[p];
+                    times[k] = parts.times()[p];
+                    k++;
+                }
+            } else {
+                sequences[k] = event.sequence();
+                frames[k] = frame == null ? -1 : frame;
+                ends[k] = text.length() + length(event);
+                times[k] = nanos(event.timestamp());
+                k++;
+            }
+            if (event.payload() != null) {
+                text.append(event.payload());
+            }
+        }
+        var last = events.get(events.size() - 1);
+        if (frames[count - 1] >= 0) {
+            frameSequences.put(last.sequence(), frames[count - 1]);
+        }
+        joined.put(last.sequence(), new Joined(sequences, frames, ends, times));
+        return new RunEvent(last.sequence(), TEXT_TYPE, text.toString(), last.timestamp());
+    }
+
+    /**
+     * Drop the oldest retained event but the run's prompt and the notice of
+     * dropped events, or, when only characters are over the bound, the
+     * oldest text of a joined text event, just enough of it. A run whose
+     * frames are numbered keeps, in their place, the notice of the events it
+     * dropped ({@link #TRUNCATED_NOTICE}), under the sequence and frame of
+     * the last of them. Caller holds the lock.
+     *
+     * @param target the characters to bring the run down to
+     * @return {@code false} when nothing is left to drop
+     */
+    private boolean dropOldest(long target) {
+        var at = -1;
+        for (var i = 0; i < buffer.size(); i++) {
+            var event = buffer.get(i);
+            if (event != dropped && !org.atmosphere.ai.filter.AiStreamMessage.PROMPT_TYPE.equals(event.type())) {
+                at = i;
+                break;
+            }
+        }
+        if (at < 0) {
+            return false;
+        }
+        var event = buffer.get(at);
+        var parts = joined.get(event.sequence());
+        long lastSequence;
+        long lastFrame;
+        Instant when;
+        if (buffer.size() <= capacity && parts != null && parts.size() > 1) {
+            // Over the characters only: drop the oldest parts of the text, as
+            // few as bring the run within the bound, keeping its newest part.
+            var excess = retainedChars - target;
+            var count = 1;
+            while (count < parts.size() - 1 && parts.ends()[count - 1] + (long) PART_COST * count < excess) {
+                count++;
+            }
+            var cut = parts.ends()[count - 1];
+            lastSequence = parts.sequences()[count - 1];
+            lastFrame = parts.frames()[count - 1];
+            when = parts.time(count - 1);
+            var rest = parts.from(count, cut);
+            if (rest.size() > 1) {
+                joined.put(event.sequence(), rest);
+            } else {
+                joined.remove(event.sequence());
+            }
+            buffer.set(at, new RunEvent(event.sequence(), event.type(), event.payload().substring(cut),
+                    event.timestamp()));
+            retainedChars -= cut + (long) PART_COST * count;
+        } else {
+            retainedChars -= cost(event);
+            buffer.remove(at);
+            joined.remove(event.sequence());
+            var frame = frameSequences.remove(event.sequence());
+            lastSequence = event.sequence();
+            lastFrame = frame == null ? -1 : frame;
+            when = event.timestamp();
+        }
+        noteDropped(at, lastSequence, lastFrame, when);
+        return true;
+    }
+
+    /**
+     * Put the notice of the dropped events at {@code at}, where the last one
+     * dropped was, in place of the notice of those dropped before, for a run
+     * whose frames are numbered: a replay writes it under the frame of the
+     * last event dropped. Caller holds the lock.
+     */
+    private void noteDropped(int at, long lastSequence, long lastFrame, Instant when) {
+        var first = dropped == null;
+        var previousFrame = -1L;
+        if (dropped != null) {
+            var kept = frameSequences.get(dropped.sequence());
+            previousFrame = kept == null ? -1 : kept;
+            var index = buffer.indexOf(dropped);
+            if (index >= 0) {
+                buffer.remove(index);
+                if (index < at) {
+                    at--;
+                }
+            }
+            frameSequences.remove(dropped.sequence());
+            retainedChars -= cost(dropped);
+            dropped = null;
+        }
+        // An event dropped with no frame of its own keeps the frame of the
+        // dropped events before it: the notice stands for them all.
+        var frame = lastFrame >= 0 ? lastFrame : previousFrame;
+        if (frameSessionId == null || frame < 0) {
+            return;
+        }
+        dropped = new RunEvent(lastSequence, TEXT_TYPE, TRUNCATED_NOTICE, when);
+        buffer.add(at, dropped);
+        frameSequences.put(lastSequence, frame);
+        retainedChars += cost(dropped);
+        if (first) {
+            logger.warn("{} outgrew its replay bounds ({} events, {} characters): a client that reattaches "
+                    + "is replayed the rest of it with a notice of what was dropped", describe(), capacity,
+                    maxChars);
+        }
+    }
+
     /**
      * Return the retained backlog and, unless the run already ended or
      * {@link #MAX_SUBSCRIBERS} listeners are registered, deliver every later
@@ -779,7 +1176,7 @@ public final class RunEventReplayBuffer {
     public Subscription subscribe(Consumer<RunEvent> listener) {
         Objects.requireNonNull(listener, "listener");
         synchronized (buffer) {
-            var backlog = List.copyOf(buffer);
+            var backlog = expand(buffer);
             if (terminated) {
                 return new Subscription(backlog, false, () -> { });
             }
@@ -805,7 +1202,7 @@ public final class RunEventReplayBuffer {
         Objects.requireNonNull(consumer, "consumer");
         Objects.requireNonNull(listener, "listener");
         synchronized (buffer) {
-            var backlog = List.copyOf(buffer);
+            var backlog = expand(buffer);
             if (terminated) {
                 return new Subscription(backlog, false, () -> { });
             }
@@ -874,6 +1271,7 @@ public final class RunEventReplayBuffer {
             var maxSeq = -1L;
             for (var event : events) {
                 buffer.add(event);
+                retainedChars += cost(event);
                 maxSeq = Math.max(maxSeq, event.sequence());
                 if (isTerminal(event.type())) {
                     terminated = true;
@@ -882,9 +1280,8 @@ public final class RunEventReplayBuffer {
                     }
                 }
             }
-            while (buffer.size() > capacity) {
-                buffer.remove(0);
-            }
+            // Joined and dropped as a run capturing them would have.
+            bound();
             nextSequence.set(maxSeq + 1);
         }
         terminal().ifPresent(ended::complete);
@@ -925,10 +1322,13 @@ public final class RunEventReplayBuffer {
         DEGRADED_WARNED.set(false);
     }
 
-    /** Snapshot of all currently retained events, oldest first. */
+    /**
+     * Snapshot of all currently retained events, oldest first, each text
+     * event joined into another ({@link #compact}) in its own place.
+     */
     public List<RunEvent> snapshot() {
         synchronized (buffer) {
-            return List.copyOf(buffer);
+            return expand(buffer);
         }
     }
 
@@ -940,7 +1340,7 @@ public final class RunEventReplayBuffer {
     public List<RunEvent> replayFrom(long fromSequence) {
         synchronized (buffer) {
             var out = new ArrayList<RunEvent>();
-            for (var event : buffer) {
+            for (var event : expand(buffer)) {
                 if (event.sequence() >= fromSequence) {
                     out.add(event);
                 }
@@ -959,7 +1359,7 @@ public final class RunEventReplayBuffer {
         synchronized (buffer) {
             var last = position(consumer);
             var out = new ArrayList<RunEvent>();
-            for (var event : buffer) {
+            for (var event : expand(buffer)) {
                 if (event.sequence() > last) {
                     out.add(event);
                 }
@@ -1010,7 +1410,7 @@ public final class RunEventReplayBuffer {
         }
         synchronized (buffer) {
             var current = position(consumer);
-            var from = buffer.isEmpty() ? current : Math.max(current, buffer.get(0).sequence() - 1);
+            var from = buffer.isEmpty() ? current : Math.max(current, firstSequence() - 1);
             if (first > from + 1 || last <= current) {
                 return;
             }
