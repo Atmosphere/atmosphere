@@ -19,6 +19,7 @@ import com.openai.client.OpenAIClient;
 import com.openai.client.OpenAIClientAsync;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,16 +91,60 @@ public class AtmosphereSpringAiAutoConfiguration {
         return new SpringAiStreamingAdapter();
     }
 
+    /**
+     * The key a locally served backend (Ollama, vLLM, LM Studio) is sent: it
+     * ignores the credential, but the OpenAI SDK will not build a client
+     * without one.
+     */
+    static final String LOCAL_PLACEHOLDER_API_KEY = "not-needed-for-local";
+
+    /**
+     * As {@link #atmosphereChatClient(String, String, String, String)} with no
+     * {@code llm.mode}: a blank base URL resolves to OpenAI.
+     *
+     * @param apiKey  the API key; blank builds no client
+     * @param baseUrl the endpoint, blank for OpenAI
+     * @param model   the model
+     * @return the client, or {@code null} when no API key is configured
+     */
+    public ChatClient atmosphereChatClient(String apiKey, String baseUrl, String model) {
+        return atmosphereChatClient(apiKey, baseUrl, model, null);
+    }
+
+    /**
+     * The {@link ChatClient} Atmosphere builds when the application declares
+     * none, from the endpoint the built-in runtime would use.
+     *
+     * <p>{@code llm.mode=local} ({@code LLM_MODE=local}) is the documented
+     * keyless mode: the built-in runtime and the LangChain4j, Koog and
+     * Semantic Kernel adapters resolve it to the local Ollama endpoint. This
+     * bean used to read only the base-URL properties, so with the mode alone
+     * it sent the user's prompt, and the placeholder key, to api.openai.com.
+     * An explicit {@code spring.ai.openai.base-url} or {@code LLM_BASE_URL}
+     * still wins over the mode (with a WARN when it is not on this machine).
+     * Without a base URL in remote mode the endpoint is OpenAI's
+     * {@code /v1} root, which the OpenAI SDK expects verbatim.</p>
+     *
+     * @param apiKey  the API key; blank builds no client unless the mode is local
+     * @param baseUrl the explicit endpoint, blank to resolve it from the mode
+     * @param model   the model
+     * @param mode    {@code llm.mode}; {@code local} selects the local endpoint
+     * @return the client, or {@code null} when no API key is configured outside local mode
+     */
     @Bean
     @ConditionalOnMissingBean(ChatClient.class)
     public ChatClient atmosphereChatClient(
-            @Value("${spring.ai.openai.api-key:${LLM_API_KEY:}}") String apiKey,
-            @Value("${spring.ai.openai.base-url:${LLM_BASE_URL:https://api.openai.com}}") String baseUrl,
-            @Value("${spring.ai.openai.chat.options.model:${LLM_MODEL:gpt-4o-mini}}") String model) {
-        if (apiKey == null || apiKey.isBlank()) {
+            @Value("${spring.ai.openai.api-key:${llm.api-key:${LLM_API_KEY:}}}") String apiKey,
+            @Value("${spring.ai.openai.base-url:${llm.base-url:${LLM_BASE_URL:}}}") String baseUrl,
+            @Value("${spring.ai.openai.chat.options.model:${llm.model:${LLM_MODEL:gpt-4o-mini}}}") String model,
+            @Value("${llm.mode:${LLM_MODE:}}") String mode) {
+        var local = isLocal(mode);
+        var resolvedKey = resolveApiKey(apiKey, local);
+        if (resolvedKey == null) {
             logger.info("No API key configured — Spring AI ChatClient not created");
             return null;
         }
+        var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode);
         // OpenAi SDK Kotlin builders reject null Duration/int for timeout/maxRetries;
         // use the SDK's published defaults rather than guessing values.
         // Spring AI 2.0.0 GA added three trailing params to OpenAiSetup
@@ -107,12 +152,12 @@ public class AtmosphereSpringAiAutoConfiguration {
         // Pass no-op values to preserve the M6 behaviour (no external
         // observability wiring); customizers list is empty.
         OpenAIClient syncClient = OpenAiSetup.setupSyncClient(
-                baseUrl, apiKey, null, null, null, null, false, false, model,
+                resolvedBaseUrl, resolvedKey, null, null, null, null, false, false, model,
                 AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
                 null, Map.<String, String>of(),
                 ObservationRegistry.NOOP, new SimpleMeterRegistry(), List.of());
         OpenAIClientAsync asyncClient = OpenAiSetup.setupAsyncClient(
-                baseUrl, apiKey, null, null, null, null, false, false, model,
+                resolvedBaseUrl, resolvedKey, null, null, null, null, false, false, model,
                 AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
                 null, Map.<String, String>of(),
                 ObservationRegistry.NOOP, new SimpleMeterRegistry(), List.of());
@@ -121,8 +166,35 @@ public class AtmosphereSpringAiAutoConfiguration {
                 .openAiClientAsync(asyncClient)
                 .options(OpenAiChatOptions.builder().model(model).build())
                 .build();
-        logger.info("Spring AI ChatClient auto-configured: model={}, endpoint={}", model, baseUrl);
+        // Built, not necessarily used: an application that binds its own
+        // ChatClient (setChatClient) keeps it, and springAiAgentRuntime says so.
+        logger.info("Spring AI ChatClient built: model={}, endpoint={}, local={}",
+                model, resolvedBaseUrl, local);
         return ChatClient.builder(chatModel).build();
+    }
+
+    static boolean isLocal(String mode) {
+        return "local".equalsIgnoreCase(mode == null ? null : mode.trim());
+    }
+
+    /**
+     * The endpoint for {@code explicitBaseUrl} and {@code mode}: an explicit
+     * URL wins, else the local Ollama endpoint in local mode, else OpenAI.
+     */
+    static String resolveBaseUrl(String explicitBaseUrl, String mode) {
+        if (explicitBaseUrl != null && !explicitBaseUrl.isBlank()) {
+            AiConfig.warnIfLocalModeOverridden(mode, explicitBaseUrl);
+            return explicitBaseUrl.trim();
+        }
+        return isLocal(mode) ? AiConfig.OLLAMA_ENDPOINT : AiConfig.OPENAI_ENDPOINT;
+    }
+
+    /** The key to send: the configured one, a placeholder in local mode, else {@code null}. */
+    static String resolveApiKey(String apiKey, boolean local) {
+        if (apiKey != null && !apiKey.isBlank()) {
+            return apiKey;
+        }
+        return local ? LOCAL_PLACEHOLDER_API_KEY : null;
     }
 
     @Bean
@@ -142,10 +214,20 @@ public class AtmosphereSpringAiAutoConfiguration {
         // AiEnvironment when there is one, so another context in the JVM
         // keeps its own ChatClient.
         var environment = aiEnvironment();
+        ChatClient inUse;
         if (environment != null) {
             SpringAiAgentRuntime.offerChatClient(environment, chatClient);
+            inUse = environment.client(SpringAiAgentRuntime.class, ChatClient.class,
+                    SpringAiAgentRuntime.boundClient());
         } else {
             SpringAiAgentRuntime.offerChatClient(chatClient);
+            inUse = SpringAiAgentRuntime.boundClient();
+        }
+        if (inUse != chatClient) {
+            // Runtime truth: the "ChatClient built" line names an endpoint
+            // this application does not call.
+            logger.info("The application bound its own Spring AI ChatClient; the auto-configured "
+                    + "ChatClient is not used");
         }
         return new SpringAiAgentRuntime();
     }
