@@ -18,7 +18,6 @@ package org.atmosphere.a2a.runtime;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.TaskArtifactUpdateEvent;
 import org.atmosphere.a2a.types.TaskState;
-import org.atmosphere.a2a.types.TaskStatus;
 import org.atmosphere.a2a.types.TaskStatusUpdateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,7 +138,7 @@ public final class TaskManager {
 
     void notifyStatusUpdate(TaskContext task) {
         var event = new TaskStatusUpdateEvent(task.taskId(), task.contextId(),
-                TaskStatus.of(task.state(), task.statusMessage()));
+                task.status());
         for (var listener : statusListeners) {
             try {
                 listener.accept(event);

@@ -172,4 +172,18 @@ class TaskContextTest {
         var ctx = new TaskContext("t1", "c1");
         assertTrue(ctx.metadata().isEmpty());
     }
+
+    @Test
+    void statusIsStampedWhenTheTaskEntersItsStateNotWhenRead() throws InterruptedException {
+        var ctx = new TaskContext("t1", "c1");
+        ctx.cancel("stopped");
+        var first = ctx.toTask().status();
+        Thread.sleep(5);
+        var later = ctx.toTask().status();
+        assertEquals(TaskState.CANCELED, later.state());
+        // A read 5 ms later reports the same moment and the same message.
+        assertEquals(first.timestamp(), later.timestamp());
+        assertEquals(first.message().messageId(), later.message().messageId());
+        assertEquals(first, ctx.status());
+    }
 }

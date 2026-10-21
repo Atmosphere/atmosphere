@@ -443,7 +443,7 @@ public final class A2aProtocolHandler {
 
     private static TaskStatusUpdateEvent statusEvent(TaskContext taskCtx) {
         return new TaskStatusUpdateEvent(taskCtx.taskId(), taskCtx.contextId(),
-                org.atmosphere.a2a.types.TaskStatus.of(taskCtx.state(), taskCtx.statusMessage()));
+                taskCtx.status());
     }
 
     /**

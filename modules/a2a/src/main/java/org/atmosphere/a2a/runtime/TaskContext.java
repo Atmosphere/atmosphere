@@ -53,6 +53,11 @@ public final class TaskContext {
     private final long createdAtMillis = System.currentTimeMillis();
     private volatile TaskState state = TaskState.SUBMITTED;
     private volatile String statusMessage;
+    /**
+     * The status as of the last transition: its timestamp is when the task
+     * entered its state, not when it was read.
+     */
+    private volatile TaskStatus status = TaskStatus.of(TaskState.SUBMITTED);
     private final List<Message> messages = new CopyOnWriteArrayList<>();
     private final List<Artifact> artifacts = new CopyOnWriteArrayList<>();
     private final Map<String, Object> metadata = new ConcurrentHashMap<>();
@@ -97,6 +102,11 @@ public final class TaskContext {
 
     public String statusMessage() {
         return statusMessage;
+    }
+
+    /** The status as of the last transition, stamped when the task entered its state. */
+    public TaskStatus status() {
+        return status;
     }
 
     public List<Message> messages() {
@@ -212,6 +222,7 @@ public final class TaskContext {
             }
             this.state = next;
             this.statusMessage = message;
+            this.status = TaskStatus.of(next, message);
             return true;
         } finally {
             statusLock.unlock();
@@ -273,7 +284,7 @@ public final class TaskContext {
 
     /** Snapshot the task as the v1.0.0 wire {@link Task} record. */
     public Task toTask() {
-        return new Task(taskId, contextId, TaskStatus.of(state, statusMessage),
+        return new Task(taskId, contextId, status,
                 artifacts, messages, metadata);
     }
 
@@ -283,13 +294,13 @@ public final class TaskContext {
             return toTask();
         }
         if (historyLength <= 0) {
-            return new Task(taskId, contextId, TaskStatus.of(state, statusMessage),
+            return new Task(taskId, contextId, status,
                     artifacts, List.of(), metadata);
         }
         var size = messages.size();
         var fromIndex = Math.max(0, size - historyLength);
         var trimmed = messages.subList(fromIndex, size);
-        return new Task(taskId, contextId, TaskStatus.of(state, statusMessage),
+        return new Task(taskId, contextId, status,
                 artifacts, List.copyOf(trimmed), metadata);
     }
 }
