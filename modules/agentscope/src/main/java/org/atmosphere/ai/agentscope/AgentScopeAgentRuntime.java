@@ -16,7 +16,6 @@
 package org.atmosphere.ai.agentscope;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
@@ -230,7 +229,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // Model-lifecycle hooks: same posture as Spring AI / LC4j / ADK / Koog
         // / Embabel / SK. fireModelStart synchronously before subscribe;
         // fireModelEnd on completion (with the last captured TokenUsage from
-        // handleEvent); fireModelError on the error callback.
+        // the event forwarder); fireModelError on the error callback.
         var messageCount = msgs.size();
         var toolCount = context.tools().size();
         var lastUsage = new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
@@ -259,9 +258,10 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 : stampedSchema != null
                         ? activeAgent.stream(msgs, StreamOptions.defaults(), stampedSchema)
                         : activeAgent.stream(msgs, StreamOptions.defaults(), context.responseType());
+        var forwarder = new AgentScopeEventForwarder(session, lastUsage);
         Disposable subscription = eventStream
                 .subscribe(
-                        event -> handleEvent(event, session, lastUsage),
+                        forwarder::accept,
                         error -> {
                             // Boundary safety (Invariant #4): every terminal
                             // path must close the session. error() is
@@ -310,34 +310,6 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 return done;
             }
         };
-    }
-
-    private static void handleEvent(
-            Event event,
-            StreamingSession session,
-            java.util.concurrent.atomic.AtomicReference<TokenUsage> lastUsage) {
-        if (event == null || event.getMessage() == null) {
-            return;
-        }
-        var msg = event.getMessage();
-        var text = msg.getTextContent();
-        if (text != null && !text.isEmpty()) {
-            session.send(text);
-        }
-        // Token usage rides on the terminal Msg. Forwarding TOKEN_USAGE on
-        // every chunk would double-count; AgentScope sets ChatUsage only on
-        // the message that completes the round. Stash to lastUsage so the
-        // caller's onModelEnd lifecycle hook reports it.
-        var usage = msg.getChatUsage();
-        if (usage != null && event.isLast()) {
-            var tokenUsage = TokenUsage.fromCounts(
-                    (long) usage.getInputTokens(),
-                    (long) usage.getOutputTokens(),
-                    null,
-                    (long) usage.getTotalTokens());
-            session.usage(tokenUsage);
-            lastUsage.set(tokenUsage);
-        }
     }
 
     /**
@@ -532,7 +504,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // assembleMessages threads context.history() into the Msg
                 // list the agent receives, so prior turns are honored.
                 AiCapability.CONVERSATION_MEMORY,
-                // handleEvent forwards Msg.getChatUsage() on isLast().
+                // AgentScopeEventForwarder forwards Msg.getChatUsage() on isLast().
                 AiCapability.TOKEN_USAGE,
                 // AgentScopeToolBridge registers Atmosphere ToolDefinition
                 // instances as AgentScope AgentTool objects on a per-request
@@ -555,7 +527,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 AiCapability.PER_REQUEST_RETRY,
                 // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
                 // AiPipeline BudgetCapturingSession decorator — honest because
-                // handleEvent forwards Msg.getChatUsage() through session.usage()
+                // AgentScopeEventForwarder forwards Msg.getChatUsage() through session.usage()
                 // which is the signal the decorator taps for token / step abort.
                 AiCapability.BUDGET_ENFORCEMENT,
                 // CONFIDENCE_SCORES: framework-level — AiPipeline's
