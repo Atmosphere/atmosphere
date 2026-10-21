@@ -526,11 +526,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         }
         if (streamStartedAt > 0) {
           const elapsedMs = Math.max(1, Date.now() - streamStartedAt)
-          stats.value = {
+          // A turn that showed nothing (no text, no tool card) has no bubble
+          // to sit under: its "0 chunks · Nms" line would dangle alone.
+          stats.value = turnShowedSomething(msg) ? {
             totalStreamingTexts: streamTokenCount,
             elapsedMs,
             streamingTextsPerSecond: (streamTokenCount / elapsedMs) * 1000,
-          }
+          } : null
         }
         finalizeAssistant()
         endUnresolvedTools(msg)
@@ -593,6 +595,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         if (turn) remember(renderedPromptTurns, turn)
         if (from && from === current) break
         flushAssistant()
+        dropBlankAssistant()
         currentAssistantMessage = null
         // A turn this connection did not send starts here.
         startTurnStats()
@@ -924,6 +927,27 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     messages.value = [...messages.value]
   }
 
+  /**
+   * Remove the reply bubble of a turn that ended without any text in it: a
+   * model turn that ends with no text and no tool call (whitespace at most)
+   * rendered an empty assistant bubble. Only an ended reply is removed; while
+   * the turn is in flight the streaming indicator shows it is pending. An
+   * error or a cancellation always writes its notice into the bubble, so it
+   * is never blank.
+   */
+  function dropBlankAssistant() {
+    const blank = currentAssistantMessage
+    if (!blank || blank.content.trim() !== '') return
+    messages.value = messages.value.filter(m => m.id !== blank.id)
+  }
+
+  /** Whether the turn `msg` ends showed its user anything: reply text or a tool card. */
+  function turnShowedSomething(msg: Record<string, unknown>): boolean {
+    if (currentAssistantMessage && currentAssistantMessage.content.trim() !== '') return true
+    const session = sessionOf(msg)
+    return toolCalls.value.some(tc => !session || !tc.sessionId || tc.sessionId === session)
+  }
+
   function sessionOf(msg: Record<string, unknown>): string | undefined {
     return typeof msg.sessionId === 'string' && msg.sessionId ? msg.sessionId : undefined
   }
@@ -971,6 +995,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         } catch { /* not valid JSON, keep as-is */ }
       }
     }
+    dropBlankAssistant()
     currentAssistantMessage = null
     isStreaming.value = false
     streamStartedAt = 0

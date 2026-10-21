@@ -1224,3 +1224,100 @@ describe('the prompt of a turn reattached after a reload', () => {
     expect(bubbles(wrapper).filter(b => b.user)).toEqual([])
   })
 })
+
+describe('a turn that ended with nothing to show', () => {
+  // 2026-10-20 sweep (round 9, lane Y): a model turn that ended with no text
+  // and no tool call (Ollama answering `content:"", finish_reason:"stop"`)
+  // left the Console showing an empty answer and a "0 chunks" stats line. A
+  // completed turn with no text, no tool card and no error renders nothing;
+  // a turn still in flight keeps its pending state.
+  beforeEach(() => { sent.length = 0 })
+
+  const assistantBubbles = (wrapper: { findAll: (s: string) => unknown[] }) =>
+    wrapper.findAll('p.assistant').length
+
+  it('shows no stats line for a turn that streamed no text', async () => {
+    const { chat, wrapper } = await mountChat()
+    chat.send('hello')
+    handlers.onEvent({ type: 'complete', sessionId: 's-none', seq: 1 })
+    await nextTick()
+
+    expect(assistantBubbles(wrapper)).toBe(0)
+    expect(chat.stats.value).toBeNull()
+    expect(chat.isStreaming.value).toBe(false)
+  })
+
+  it('removes the bubble of a turn whose text was only whitespace, once the turn ends', async () => {
+    const { chat, wrapper } = await mountChat()
+    chat.send('hello')
+    handlers.onEvent({ type: 'streaming-text', data: '\n', sessionId: 's-ws', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: '  ', sessionId: 's-ws', seq: 2 })
+    await nextTick()
+    // In flight: the turn is still pending (the streaming indicator shows).
+    expect(chat.isStreaming.value).toBe(true)
+
+    handlers.onEvent({ type: 'complete', sessionId: 's-ws', seq: 3 })
+    await nextTick()
+    expect(assistantBubbles(wrapper)).toBe(0)
+    expect(chat.messages.value.filter(m => m.role === 'assistant')).toEqual([])
+    expect(chat.stats.value).toBeNull()
+    expect(chat.isStreaming.value).toBe(false)
+  })
+
+  it('keeps the bubble of a turn that started blank and then wrote text', async () => {
+    const { chat, wrapper } = await mountChat()
+    chat.send('hello')
+    handlers.onEvent({ type: 'streaming-text', data: '\n', sessionId: 's-late', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'answer', sessionId: 's-late', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-late', seq: 3 })
+    await nextTick()
+    expect(rendered(wrapper)).toBe('answer')
+    expect(chat.stats.value?.totalStreamingTexts).toBe(2)
+  })
+
+  it('still shows the error of a turn that wrote no text', async () => {
+    const { chat, wrapper } = await mountChat()
+    chat.send('hello')
+    handlers.onEvent({ type: 'error', data: 'model unavailable', sessionId: 's-err', seq: 1 })
+    await nextTick()
+    expect(assistantBubbles(wrapper)).toBe(1)
+    expect(rendered(wrapper)).toContain('model unavailable')
+  })
+
+  it('keeps the stats of a turn that only called a tool', async () => {
+    const { chat, wrapper } = await mountChat()
+    chat.send('reset Tokyo')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'reset', arguments: {} }, sessionId: 's-tool-only', seq: 1 })
+    handlers.onEvent({ event: 'tool-result', data: { toolName: 'reset', result: 'done' }, sessionId: 's-tool-only', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-tool-only', seq: 3 })
+    await nextTick()
+    expect(assistantBubbles(wrapper)).toBe(0)
+    expect(chat.toolCalls.value).toHaveLength(1)
+    expect(chat.stats.value).toMatchObject({ totalStreamingTexts: 0 })
+  })
+
+  it('shows nothing for a reattached turn that replays no text', async () => {
+    // After a reload the run replays with no send() on this page.
+    const { chat, wrapper } = await mountChat()
+    handlers.onEvent({ type: 'streaming-text', data: '\n', sessionId: 's-re', seq: 1 })
+    await nextTick()
+    expect(chat.isStreaming.value).toBe(true)
+    handlers.onEvent({ type: 'complete', sessionId: 's-re', seq: 2 })
+    await nextTick()
+    expect(assistantBubbles(wrapper)).toBe(0)
+    expect(chat.stats.value).toBeNull()
+  })
+
+  it("removes a blank reply when another member's prompt starts the next turn", async () => {
+    const { chat, wrapper } = await mountChat()
+    handlers.onEvent({ type: 'prompt', text: 'first?', from: 'member-b', sessionId: 's-r1', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: ' ', sessionId: 's-r1', seq: 2 })
+    handlers.onEvent({ type: 'prompt', text: 'second?', from: 'member-c', sessionId: 's-r2', seq: 1 })
+    handlers.onEvent({ type: 'streaming-text', data: 'two', sessionId: 's-r2', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-r2', seq: 3 })
+    await nextTick()
+    expect(assistantBubbles(wrapper)).toBe(1)
+    expect(rendered(wrapper)).toBe('two')
+    expect(chat.messages.value.map(m => m.role)).toEqual(['user', 'user', 'assistant'])
+  })
+})
