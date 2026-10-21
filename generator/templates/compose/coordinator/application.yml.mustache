@@ -2,6 +2,9 @@ server:
   port: {{coordinator.port}}
 
 atmosphere:
+  # The Console talks to the coordinator. In one JVM every agent serves an
+  # endpoint too, and the Console would otherwise pick one of them.
+  console-endpoint: /atmosphere/agent/{{agent.name}}
 {{#isSingleJar}}
   packages: {{allPackages}}
 {{/isSingleJar}}

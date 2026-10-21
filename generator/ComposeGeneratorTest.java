@@ -644,6 +644,9 @@ public class ComposeGeneratorTest {
         var coordYml = Files.readString(outputDir.resolve("coordinator/src/main/resources/application.yml"));
         assertFalse(coordYml.contains("atmosphere.fleet.agents."), coordYml);
         assertEquals("com.example.coord,com.example.a,com.example.b", packagesValue(coordYml));
+        // Every agent of the JVM serves a chat endpoint too: the Console is pointed
+        // at the coordinator, not left to pick one of them.
+        assertTrue(coordYml.contains("console-endpoint: /atmosphere/agent/coord\n"), coordYml);
     }
 
     @Test
