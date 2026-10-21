@@ -195,7 +195,9 @@ public class PoliciesConfig {
         composed.add(TimedPolicy.of(requireTenantId));
         composed.add(TimedPolicy.of(rateLimit));
         composed.add(TimedPolicy.of(PhaseScopedPolicy.preAdmissionOnly(businessHours)));
-        yamlPolicies.forEach(p -> composed.add(TimedPolicy.of(p)));
+        // CardNumberFieldPolicy hands the YAML the Luhn-checked
+        // message_has_card_number field its credit-card rule tests.
+        yamlPolicies.forEach(p -> composed.add(TimedPolicy.of(new CardNumberFieldPolicy(p))));
         // Concurrency guard runs LAST on purpose: its pre-admission phase
         // ACQUIRES an in-flight slot that must be paired with a release
         // (post-response phase). Last place means a deny by any other policy

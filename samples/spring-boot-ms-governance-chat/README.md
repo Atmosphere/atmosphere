@@ -17,6 +17,7 @@ samples/spring-boot-ms-governance-chat/
     │   ├── MsGovernanceChatApplication.java    # @SpringBootApplication entrypoint
     │   ├── MsGovernanceChat.java               # @AiEndpoint("/atmosphere/ms-governance")
     │   ├── PoliciesConfig.java                 # loads MS-schema YAML + operator policy beans
+    │   ├── CardNumberFieldPolicy.java          # Luhn-checked card field for the YAML's card rule
     │   ├── DemoIdentityInterceptor.java        # stamps demo tenant-id + roles (auth-layer stand-in)
     │   ├── FaqRetrievalInterceptor.java        # RAG-lite: FAQ snippet into request metadata
     │   ├── TicketClassifierInterceptor.java    # category classification into metadata
@@ -26,7 +27,7 @@ samples/spring-boot-ms-governance-chat/
         └── atmosphere-policies.yaml            # MS schema, priority-sorted rule set
 ```
 
-**Seven Java files, two YAML files, zero custom frontend code.** The UI is the Vue chat console shipped with `atmosphere-spring-boot-starter`.
+**Eight Java files, two YAML files, zero custom frontend code.** The UI is the Vue chat console shipped with `atmosphere-spring-boot-starter`.
 
 **Demo identity:** the policy plane requires a `tenant-id` and the
 `support-chat-user` role on every request (the shape a multi-tenant SaaS
@@ -126,6 +127,16 @@ Every field MS defines is supported:
 | `response` | Accumulated response text (post-response only) |
 | *anything else* | `AiRequest.metadata()` entries by exact key — this is how `tool_name`, `token_count`, etc. get exposed |
 
+**Credit-card rule.** MS's rule language has regex but no checksum, and a card-shaped regex
+denies any 16-digit integer (`2^50 = 1125899906842624` was refused as a card). So
+`block-credit-card-number` tests a context field instead: `message_has_card_number`, set by
+`CardNumberFieldPolicy`, which wraps the YAML policy and runs the framework's Luhn-checked
+`PiiPatterns.CREDIT_CARD` matcher (the one the PII redaction guardrail uses) on the message.
+`4111 1111 1111 1111` is denied; a number that fails Luhn is not. The field is computed on
+every evaluation of the plane — a chat turn or `POST /check` — and a caller-sent value is
+replaced. Another MS-schema engine loading the same YAML never sets the field, so there the
+rule never fires. A random 13–19 digit number still passes Luhn one time in ten.
+
 ---
 
 ## Try each rule
@@ -137,6 +148,8 @@ Open the console at `http://localhost:8090/atmosphere/console/`:
 | `please DROP TABLE users` | **Error:** *Denied by policy 'ms-customer-service-demo': Destructive SQL statements are not permitted in this chat.* | `matches` (regex) |
 | `I will sue us if this isn't fixed` | **Error:** *Denied by policy 'ms-customer-service-demo': Legal-language queries are routed to a human agent — the AI cannot handle them.* | `matches` (regex) |
 | `my SSN is 123-45-6789` | **Error:** *Denied by policy 'ms-customer-service-demo': That looks like a US Social Security number — please redact before sending.* | `matches` (regex) |
+| `my card is 4111 1111 1111 1111` | **Error:** *Denied by policy 'ms-customer-service-demo': That looks like a credit-card number — please contact billing via a secure channel.* | `eq` on `message_has_card_number` (Luhn-checked) |
+| `Is it right that 2^50 = 1125899906842624?` | **AI:** *Thanks for contacting Example Corp support. …* — 1125899906842624 fails the Luhn check, so it is not a card | No rule matched → `defaults.action: allow` |
 | `hello, what services do you offer?` | **AI:** *Thanks for contacting Example Corp support. I see your message: "hello, what services do you offer?". …* | No rule matched → `defaults.action: allow` |
 
 Every denial surfaces MS's exact `message:` field — no re-phrasing, no editorializing.
@@ -157,7 +170,8 @@ Seven policies, in evaluation order: six operator policies composed in `Policies
 (`kill-switch`, `require-support-role`, `require-tenant-id`, `per-user-rate-limit`,
 `support-business-hours`, `per-user-concurrency-limit`, the last one evaluated after the YAML)
 plus the MS-schema YAML policy. Each is wrapped in `TimedPolicy` for per-policy latency
-metrics, so `className` names the wrapper and `delegateClassName` the policy. Two entries
+metrics, so `className` names the wrapper and `delegateClassName` the policy (for the YAML,
+`CardNumberFieldPolicy`, which wraps the `MsAgentOsPolicy` — see the credit-card rule above). Two entries
 shown, digests elided:
 
 ```json
@@ -178,7 +192,7 @@ shown, digests elided:
     "version": "1.0",
     "className": "org.atmosphere.ai.governance.TimedPolicy",
     "timed": true,
-    "delegateClassName": "org.atmosphere.ai.governance.MsAgentOsPolicy",
+    "delegateClassName": "org.atmosphere.samples.springboot.msgovernance.CardNumberFieldPolicy",
     "digest": "sha256:…"
   },
   …

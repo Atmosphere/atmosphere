@@ -89,11 +89,17 @@ rules:
     priority: 70
     message: "That looks like a US Social Security number — please redact before sending."
 
-  - name: block-credit-card-shape
+  # A regex cannot run a checksum, and the card-shaped one this rule used to
+  # be denied any 16-digit integer (`2^50 = 1125899906842624`). The field is
+  # set by CardNumberFieldPolicy, which wraps this policy and runs the
+  # framework's Luhn-checked PiiPatterns.CREDIT_CARD on the message: true for
+  # `4111 1111 1111 1111`, false for a number that fails Luhn. Another MS-schema
+  # engine loading this file never sets it, so there the rule never fires.
+  - name: block-credit-card-number
     condition:
-      field: message
-      operator: matches
-      value: '\b(?:\d{4}[\s-]?){3}\d{4}\b'
+      field: message_has_card_number
+      operator: eq
+      value: true
     action: deny
     priority: 68
     message: "That looks like a credit-card number — please contact billing via a secure channel."

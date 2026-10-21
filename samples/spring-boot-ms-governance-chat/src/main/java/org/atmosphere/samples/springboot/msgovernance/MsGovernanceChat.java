@@ -103,6 +103,9 @@ public class MsGovernanceChat {
         var total = 0;
         for (var policy : policies) {
             var unwrapped = policy instanceof TimedPolicy timed ? timed.delegate() : policy;
+            if (unwrapped instanceof CardNumberFieldPolicy card) {
+                unwrapped = card.delegate();
+            }
             if (unwrapped instanceof MsAgentOsPolicy ms) {
                 total += ms.rules().size();
             }
