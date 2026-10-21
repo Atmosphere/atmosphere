@@ -69,11 +69,39 @@ entry in SK's type table, `object` needs SK's optional schema generator) is
 declared to SK as `double` / `string`; the schema the model sees is the shared
 one.
 
+## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
+
+The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+
+| Setting | Read from (first non-blank wins) | Default |
+|---|---|---|
+| API key | `llm.api-key` (Spring maps `LLM_API_KEY` onto it) | none: no client outside local mode |
+| Base URL | `llm.base-url` (`LLM_BASE_URL`) | resolved as below |
+| Model | `llm.model` (`LLM_MODEL`) | `gpt-4o-mini` |
+| Mode | `llm.mode`, or `LLM_MODE` | remote |
+
+`OPENAI_API_KEY` and `GEMINI_API_KEY` are not read by this adapter; map one onto
+`llm.api-key` in the application's configuration.
+
+Endpoint resolution is the built-in runtime's (`AiConfig.resolveBaseUrl`):
+
+1. an explicit base URL wins — with a `WARN` at startup when `LLM_MODE=local` is set and
+   the URL's host is not this machine;
+2. else `LLM_MODE=local` selects the local Ollama endpoint, `http://localhost:11434/v1`;
+3. else the model picks the provider: `gpt-*`, `o1*`, `o3*` go to `https://api.openai.com/v1`,
+   any other model (`gemini-2.5-flash`, ...) to Gemini's OpenAI-compatible endpoint
+   `https://generativelanguage.googleapis.com/v1beta/openai`.
+
+`LLM_MODE` is read trimmed and case-insensitively (`Local`, ` local ` are local mode).
+
+The startup line `Auto-building SK OpenAIAsyncClient endpoint=… local=… model=…`
+names the endpoint in use.
+
 ## API keys over plain http
 
 When `llm.api-key` is set, or `llm.mode=local`, the module builds an
-`OpenAIAsyncClient` for `llm.base-url` (default `http://localhost:11434/v1` in
-local mode, `https://api.openai.com/v1` otherwise) through
+`OpenAIAsyncClient` for `llm.base-url` (when blank, resolved as described in
+[LLM settings](#llm-settings-llm_mode-llm_base_url-llm_model-llm_api_key)) through
 `SemanticKernelOpenAiClientFactory`. The factory sends the API key over plain
 `http` only to a loopback host:
 

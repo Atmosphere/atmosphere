@@ -83,6 +83,38 @@ public ReactAgent reactAgent(ChatModel chatModel) throws Exception {
 }
 ```
 
+## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
+
+The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+
+Spring AI's OpenAI auto-configuration (the 1.x line the Alibaba agent framework pins)
+builds the `ChatModel` from `spring.ai.openai.*`. `AtmosphereSpringAiAlibabaEnvironmentPostProcessor`
+maps the `llm.*` / `LLM_*` settings onto those properties, each only when you have
+not set the `spring.ai.openai.*` property yourself:
+
+| `spring.ai.openai.*` property | Mapped from (first non-blank wins) |
+|---|---|
+| `api-key` | `llm.api-key`, `LLM_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`; in local mode with none, the placeholder `not-needed-for-local` |
+| `base-url` | `llm.base-url`, `LLM_BASE_URL`; else, in local mode (`llm.mode` / `LLM_MODE`), `http://localhost:11434`; else, when the model named is not OpenAI's, Gemini's endpoint |
+| `chat.options.model` | `llm.model`, `LLM_MODEL` (Spring AI's default is `gpt-4o-mini`) |
+
+Spring AI 1.x appends `/v1/chat/completions` to the base URL, so the mapped URL loses
+one trailing `/v1` (and a trailing slash): `LLM_BASE_URL=http://localhost:11434/v1`, the
+form documented for every runtime, becomes `http://localhost:11434`. A base URL that
+carries a version of its own, such as Gemini's `.../v1beta/openai`, keeps it, and the
+bridge sets `spring.ai.openai.chat.completions-path=/chat/completions` and
+`spring.ai.openai.embedding.embeddings-path=/embeddings` (unless you set them). A
+`spring.ai.openai.base-url` you set yourself is never rewritten: give it without `/v1`.
+When `atmosphere-spring-ai`'s own bridge has already run, this one does nothing.
+
+Apart from the `/v1` handling, resolution follows the built-in runtime
+(`AiConfig.resolveBaseUrl`): explicit base URL, then local mode, then the model's
+provider. The startup line `Spring AI Alibaba ChatModel in use: model=…, endpoint=…, local=…`
+names the endpoint (read from `spring.ai.openai.chat.base-url`, then
+`spring.ai.openai.base-url`, then Spring AI's default `https://api.openai.com`), with a
+`WARN` when local mode is set and the endpoint is not on this machine. For a `ChatModel`
+the application built itself, the line says its endpoint is its own.
+
 ## Key Classes
 
 | Class | Purpose |

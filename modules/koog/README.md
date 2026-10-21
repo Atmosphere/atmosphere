@@ -71,6 +71,25 @@ starter it only offers its executor and model to the context's `AiEnvironment`.
 The one-argument `setPromptExecutor(executor)` and `setDefaultModel(model)` still
 win too, for every application in the JVM, and are deprecated.
 
+## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
+
+The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+
+| Setting | Read from (first non-blank wins) | Default |
+|---|---|---|
+| API key | `atmosphere.koog.api-key`, `LLM_API_KEY`, `OPENAI_API_KEY` | none: no executor outside local mode (startup `WARN`) |
+| Base URL | `atmosphere.koog.base-url`, `LLM_BASE_URL` | resolved as below |
+| Model | `atmosphere.koog.model`, `LLM_MODEL` | `gpt-4o` |
+| Mode | `llm.mode`, `LLM_MODE` | remote |
+
+In local mode with no key the client sends the placeholder key `not-needed-for-local`.
+With no base URL, resolution is the built-in runtime's (`AiConfig.resolveBaseUrl`):
+local mode selects `http://localhost:11434/v1`, a model that is not OpenAI's selects
+Gemini's OpenAI-compatible endpoint, and an OpenAI model keeps Koog's own OpenAI client
+(`api.openai.com`, with the `OpenAIModels` catalogue). An explicit base URL wins, with a
+`WARN` when `LLM_MODE=local` is set and its host is not this machine. The startup line
+`Koog runtime configured: model '…' via OpenAILLMClient (…)` names the endpoint.
+
 ## Key Classes
 
 | Class | Purpose |

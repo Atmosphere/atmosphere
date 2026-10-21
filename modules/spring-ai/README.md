@@ -34,6 +34,43 @@ var session = StreamingSessions.start(resource);
 springAiAdapter.stream(chatClient, prompt, session);
 ```
 
+## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
+
+The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+
+When the application declares no `ChatClient`, the adapter builds one:
+
+| Setting | Read from (first non-blank wins) | Default |
+|---|---|---|
+| API key | `spring.ai.openai.api-key`, `llm.api-key`, `LLM_API_KEY` | none: no `ChatClient` outside local mode |
+| Base URL | `spring.ai.openai.base-url`, `llm.base-url`, `LLM_BASE_URL` | resolved as below |
+| Model | `spring.ai.openai.chat.options.model`, `llm.model`, `LLM_MODEL` | `gpt-4o-mini` |
+| Mode | `llm.mode`, `LLM_MODE` | remote |
+
+`AtmosphereSpringAiEnvironmentPostProcessor` also copies `llm.*` / `LLM_*` into the
+`spring.ai.openai.*` defaults Spring AI's own OpenAI beans read, at the lowest
+precedence (a `spring.ai.openai.*` value you set always wins): the key from `llm.api-key`,
+`LLM_API_KEY`, `OPENAI_API_KEY` or `GEMINI_API_KEY`; the base URL from `llm.base-url` /
+`LLM_BASE_URL`, else the local endpoint in local mode, else Gemini's endpoint when the
+model named is not OpenAI's; the model from `llm.model` / `LLM_MODEL`. In local mode
+with no key, both send the placeholder key `not-needed-for-local`. Spring AI 2.0 hands
+the base URL to the OpenAI SDK verbatim, so it keeps its `/v1`.
+
+Endpoint resolution is the built-in runtime's (`AiConfig.resolveBaseUrl`):
+
+1. an explicit base URL wins — with a `WARN` at startup when `LLM_MODE=local` is set and
+   the URL's host is not this machine;
+2. else `LLM_MODE=local` selects the local Ollama endpoint, `http://localhost:11434/v1`;
+3. else the model picks the provider: `gpt-*`, `o1*`, `o3*` go to `https://api.openai.com/v1`,
+   any other model (`gemini-2.5-flash`, ...) to Gemini's OpenAI-compatible endpoint
+   `https://generativelanguage.googleapis.com/v1beta/openai`.
+
+`LLM_MODE` is read trimmed and case-insensitively (`Local`, ` local ` are local mode).
+
+The startup line `Spring AI ChatClient built: model=…, endpoint=…, local=…` names the
+endpoint; when the application binds its own `ChatClient`, a second line says the
+auto-configured one is not used.
+
 ## Key Classes
 
 | Class | Purpose |

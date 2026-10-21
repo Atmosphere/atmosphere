@@ -36,6 +36,47 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 }, session)
 ```
 
+## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
+
+The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+
+Embabel builds its LLM clients from its own Spring Boot starters, not Atmosphere.
+`AtmosphereEmbabelEnvironmentPostProcessor` maps the shared settings onto the
+`embabel.*` properties those starters read, each only when you have not set it yourself:
+
+| `embabel.*` property | Mapped from (first non-blank wins) |
+|---|---|
+| `agent.platform.models.gemini.api-key`, `agent.platform.models.openai.api-key` | `llm.api-key`, `LLM_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`; else the placeholder `demo-placeholder` |
+| `models.default-llm` | `llm.model`, `LLM_MODEL` |
+| `agent.platform.models.openai.custom.base-url` | `llm.base-url`, `LLM_BASE_URL`; else, in local mode (`llm.mode` / `LLM_MODE`), `http://localhost:11434/v1` |
+| `agent.platform.models.openai.custom.api-key` | the key above, when a custom base URL is mapped |
+| `agent.platform.models.openai.custom.models` | `llm.model`, `LLM_MODEL`, when a custom base URL is mapped |
+
+**`LLM_MODE=local` takes effect only with `embabel-agent-starter-openai-custom`** on the
+classpath (`com.embabel.agent`, `${embabel.version}`, on Maven Central). It is the
+Embabel 1.5 starter that builds an LLM for any OpenAI-compatible endpoint and registers
+the model names in `...openai.custom.models`; it hands the base URL to the OpenAI SDK
+verbatim, so `/v1` stays. Set `LLM_MODEL` to a model the local server serves: the
+custom models are registered from it, and nothing else names one. Its own environment
+variables (`OPENAI_CUSTOM_BASE_URL`, `OPENAI_CUSTOM_API_KEY`, `OPENAI_CUSTOM_MODELS`)
+win over these properties.
+
+The other Embabel starters do not use the local endpoint:
+
+- `embabel-agent-starter-gemini` (the CLI's Embabel overlay) and
+  `embabel-agent-starter-openai` call their cloud provider. The OpenAI starter has a
+  `base-url` property, but registers only the models of its OpenAI catalogue, so a local
+  model name in `default-llm` is unknown to it; the bridge does not map local mode onto it.
+- `embabel-agent-starter-ollama` talks to Ollama's native API and is configured with
+  `embabel.agent.platform.models.ollama.base-url` (or `spring.ai.ollama.base-url`); the
+  bridge does not set it.
+
+At startup the adapter logs `Embabel default LLM in use: model=…, provider=…, local=…`,
+read from Embabel's own model provider. When `LLM_MODE=local` is set and that LLM is
+served by neither the `OpenAI-Custom` nor the `Ollama` provider, it logs a `WARN`
+that the local endpoint is not used; with `OpenAI-Custom`, it warns when the custom base
+URL is not on this machine.
+
 ## Key Classes
 
 | Class | Purpose |

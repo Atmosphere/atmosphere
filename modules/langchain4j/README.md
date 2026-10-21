@@ -39,8 +39,9 @@ model.chat(ChatMessage.userMessage(prompt),
 
 The bundled `AtmosphereLangChain4jAutoConfiguration` auto-builds an
 OpenAI-compatible `OpenAiStreamingChatModel` from `llm.api-key` /
-`llm.base-url` / `llm.model` **only** (gated on `@ConditionalOnExpression`
-for a non-empty `llm.api-key`):
+`llm.base-url` / `llm.model` / `llm.mode` **only** (gated on
+`@ConditionalOnExpression` for a non-empty `llm.api-key` or local mode; see
+[LLM settings](#llm-settings-llm_mode-llm_base_url-llm_model-llm_api_key)):
 
 ```yaml
 llm:
@@ -66,6 +67,37 @@ StreamingChatModel chatModel() {
 
 There is no multi-provider auto-wiring: the zero-config path is OpenAI-compatible
 only, and every other provider is a one-`@Bean` opt-in.
+
+## LLM settings (`LLM_MODE`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`)
+
+The shared `LLM_*` variables and their meaning are described in [Atmosphere AI → Configuration](../ai/README.md#configuration); this section lists only what this adapter reads.
+
+| Setting | Read from (first non-blank wins) | Default |
+|---|---|---|
+| API key | `llm.api-key` (Spring maps `LLM_API_KEY` onto it) | none: no model is built outside local mode |
+| Base URL | `llm.base-url` (`LLM_BASE_URL`) | resolved as below |
+| Model | `llm.model` (`LLM_MODEL`) | `gpt-4o-mini` |
+| Mode | `llm.mode`, or `LLM_MODE` | remote |
+
+`OPENAI_API_KEY` and `GEMINI_API_KEY` are not read by this adapter; map one onto
+`llm.api-key` in the application's configuration (`api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}`).
+In local mode with no key the model is built with the placeholder key
+`not-needed-for-local`, which a local server ignores. The base URL is handed to
+LangChain4j verbatim, `/v1` included.
+
+Endpoint resolution is the built-in runtime's (`AiConfig.resolveBaseUrl`):
+
+1. an explicit base URL wins — with a `WARN` at startup when `LLM_MODE=local` is set and
+   the URL's host is not this machine;
+2. else `LLM_MODE=local` selects the local Ollama endpoint, `http://localhost:11434/v1`;
+3. else the model picks the provider: `gpt-*`, `o1*`, `o3*` go to `https://api.openai.com/v1`,
+   any other model (`gemini-2.5-flash`, ...) to Gemini's OpenAI-compatible endpoint
+   `https://generativelanguage.googleapis.com/v1beta/openai`.
+
+`LLM_MODE` is read trimmed and case-insensitively (`Local`, ` local ` are local mode).
+
+The startup line `Auto-building LC4j OpenAiStreamingChatModel model=… endpoint=… local=…`
+names the endpoint in use. A `StreamingChatModel` bean of your own replaces this one.
 
 ## Key Classes
 
