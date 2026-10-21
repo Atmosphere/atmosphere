@@ -18,6 +18,7 @@ package org.atmosphere.ai.fs;
 import org.atmosphere.ai.CollectingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolKind;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,12 +27,14 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the eight built-in file tools: thin wrappers over the
  * conversation-scoped {@link AgentFileSystem} from the injectables seam, with
- * bounded-error messages surfaced as tool results (never stack traces), the
+ * a rejected call failing with a {@link ToolFailedException} that carries the
+ * text the model reads (never a stack trace), the
  * provider fallback on resource-free paths, and the READ / EDIT
  * {@link ToolKind} split the permission modes key on.
  */
@@ -49,6 +52,13 @@ public class FileSystemToolsTest {
     private static Object exec(ToolDefinition tool, Map<String, Object> args,
                                Map<Class<?>, Object> scope) throws Exception {
         return tool.executor().execute(args, scope);
+    }
+
+    /** The text the model reads for a call that failed; fails the test when the call succeeds. */
+    private static String failure(ToolDefinition tool, Map<String, Object> args,
+                                  Map<Class<?>, Object> scope) {
+        return assertThrows(ToolFailedException.class,
+                () -> tool.executor().execute(args, scope)).getMessage();
     }
 
     @Test
@@ -94,10 +104,9 @@ public class FileSystemToolsTest {
 
         var deleted = exec(FileSystemTools.delete(), Map.of("path", "new.md"), scope);
         assertEquals("Deleted new.md", deleted);
-        // Reading a deleted file surfaces the error as the tool result, not a throw.
-        var afterDelete = exec(FileSystemTools.readFile(), Map.of("path", "new.md"), scope).toString();
-        assertTrue(afterDelete.toLowerCase().contains("not found")
-                || afterDelete.startsWith("Error:"), afterDelete);
+        // Reading a deleted file fails the call with the text the model reads.
+        assertEquals("Error: File not found: new.md",
+                failure(FileSystemTools.readFile(), Map.of("path", "new.md"), scope));
     }
 
     @Test
@@ -105,14 +114,14 @@ public class FileSystemToolsTest {
         var scope = scopeWithFs();
         exec(FileSystemTools.writeFile(), Map.of("path", "f.txt", "content", "dup dup"), scope);
 
-        var multi = exec(FileSystemTools.editFile(),
+        var multi = failure(FileSystemTools.editFile(),
                 Map.of("path", "f.txt", "old_text", "dup", "new_text", "x"), scope);
-        assertTrue(multi.toString().startsWith("Error:"), multi.toString());
-        assertTrue(multi.toString().contains("2 times"), multi.toString());
+        assertTrue(multi.startsWith("Error:"), multi);
+        assertTrue(multi.contains("2 times"), multi);
 
-        var zero = exec(FileSystemTools.editFile(),
+        var zero = failure(FileSystemTools.editFile(),
                 Map.of("path", "f.txt", "old_text", "absent", "new_text", "x"), scope);
-        assertTrue(zero.toString().contains("not found"), zero.toString());
+        assertTrue(zero.contains("not found"), zero);
 
         var ok = exec(FileSystemTools.editFile(),
                 Map.of("path", "f.txt", "old_text", "dup dup", "new_text", "once"), scope);
@@ -140,28 +149,28 @@ public class FileSystemToolsTest {
     }
 
     @Test
-    public void traversalAndBoundsRejectionsSurfaceAsErrorStrings() throws Exception {
+    public void traversalAndBoundsRejectionsFailTheCallWithErrorText() {
         var fs = new WorkspaceAgentFileSystem(tmp.resolve("bounded"),
                 new AgentFileSystem.Limits(8, 10, 64));
         var scope = Map.<Class<?>, Object>of(AgentFileSystem.class, fs);
 
-        var traversal = exec(FileSystemTools.readFile(),
+        var traversal = failure(FileSystemTools.readFile(),
                 Map.of("path", "../secret"), scope);
-        assertTrue(traversal.toString().startsWith("Error:"), traversal.toString());
+        assertTrue(traversal.startsWith("Error:"), traversal);
 
-        var tooBig = exec(FileSystemTools.writeFile(),
+        var tooBig = failure(FileSystemTools.writeFile(),
                 Map.of("path", "f.txt", "content", "123456789"), scope);
-        assertTrue(tooBig.toString().startsWith("Error:"), tooBig.toString());
-        assertTrue(tooBig.toString().contains("per-file limit"), tooBig.toString());
+        assertTrue(tooBig.startsWith("Error:"), tooBig);
+        assertTrue(tooBig.contains("per-file limit"), tooBig);
 
-        var missingArg = exec(FileSystemTools.readFile(), Map.of(), scope);
-        assertTrue(missingArg.toString().contains("'path' is required"), missingArg.toString());
+        var missingArg = failure(FileSystemTools.readFile(), Map.of(), scope);
+        assertTrue(missingArg.contains("'path' is required"), missingArg);
     }
 
     @Test
-    public void unavailableFilesystemYieldsClearMessage() throws Exception {
-        var result = exec(FileSystemTools.ls(), Map.of(), Map.of());
-        assertTrue(result.toString().contains("no agent filesystem"), result.toString());
+    public void unavailableFilesystemFailsTheCallWithAClearMessage() {
+        var result = failure(FileSystemTools.ls(), Map.of(), Map.of());
+        assertTrue(result.contains("no agent filesystem"), result);
     }
 
     @Test

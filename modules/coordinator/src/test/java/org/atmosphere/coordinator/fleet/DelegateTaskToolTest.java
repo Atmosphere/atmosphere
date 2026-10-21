@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DelegateTaskToolTest {
@@ -49,7 +50,7 @@ public class DelegateTaskToolTest {
     public void unknownAgentReturnsHelpfulErrorListingAvailable() {
         var fleet = fleetWith("research-agent", "unused");
 
-        var reply = TOOL.delegateTask(fleet, "no-such-agent", "hello");
+        var reply = failure(() -> TOOL.delegateTask(fleet, "no-such-agent", "hello"));
 
         assertTrue(reply.contains("unknown agent 'no-such-agent'"), reply);
         assertTrue(reply.contains("research-agent"),
@@ -60,7 +61,7 @@ public class DelegateTaskToolTest {
     public void blankAgentNameReturnsHelpfulError() {
         var fleet = fleetWith("research-agent", "unused");
 
-        var reply = TOOL.delegateTask(fleet, "  ", "hello");
+        var reply = failure(() -> TOOL.delegateTask(fleet, "  ", "hello"));
 
         assertTrue(reply.contains("'agent' is required"), reply);
         assertTrue(reply.contains("research-agent"), reply);
@@ -68,7 +69,7 @@ public class DelegateTaskToolTest {
 
     @Test
     public void missingFleetReturnsToolError() {
-        var reply = TOOL.delegateTask(null, "research-agent", "hello");
+        var reply = failure(() -> TOOL.delegateTask(null, "research-agent", "hello"));
 
         assertTrue(reply.contains("no agent fleet"), reply);
     }
@@ -77,11 +78,11 @@ public class DelegateTaskToolTest {
     public void governanceDenySurfacesAsToolResultError() {
         // The same composition CoordinatorProcessor.applyPresetGovernance
         // builds: the fleet wrapped with GovernanceFleetInterceptor. A Deny
-        // must short-circuit the transport hop and surface in the tool result.
+        // must short-circuit the transport hop and fail the call with its reason.
         var governed = fleetWith("research-agent", "should never be reached")
                 .withInterceptor(new GovernanceFleetInterceptor(List.of(denyAll())));
 
-        var reply = TOOL.delegateTask(governed, "research-agent", "do something off-policy");
+        var reply = failure(() -> TOOL.delegateTask(governed, "research-agent", "do something off-policy"));
 
         assertTrue(reply.contains("failed"), reply);
         assertTrue(reply.contains("denied"), reply);
@@ -132,5 +133,10 @@ public class DelegateTaskToolTest {
                 return new PolicyDecision.Deny("off-policy dispatch");
             }
         };
+    }
+
+    /** The text the model reads for a delegation that failed; fails the test when it succeeds. */
+    private static String failure(org.junit.jupiter.api.function.Executable call) {
+        return assertThrows(org.atmosphere.ai.tool.ToolFailedException.class, call).getMessage();
     }
 }

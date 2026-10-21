@@ -17,6 +17,7 @@ package org.atmosphere.ai.fs;
 
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutor;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolKind;
 import org.atmosphere.ai.tool.ToolScopes;
 
@@ -34,10 +35,12 @@ import java.util.StringJoiner;
  * and {@code delete} ({@link ToolKind#DELETE}).
  *
  * <p>Each executor is a thin wrapper over the conversation-scoped
- * {@link AgentFileSystem} resolved from the injectables seam. Bounds and
- * traversal rejections ({@link IllegalArgumentException} with a clear
- * message) are returned to the model as the tool result — never a stack
- * trace — so it can correct course.</p>
+ * {@link AgentFileSystem} resolved from the injectables seam. A rejected call
+ * (a file not found, a traversal or bounds rejection: an
+ * {@link IllegalArgumentException} with a clear message), or a session with no
+ * filesystem bound, fails with a {@link ToolFailedException}: the call ends
+ * with a {@code tool-error} frame, and the model reads
+ * {@code Error: <message>} (never a stack trace) so it can correct course.</p>
  */
 public final class FileSystemTools {
 
@@ -249,8 +252,9 @@ public final class FileSystemTools {
      * conversation-scoped {@link AgentFileSystem} comes straight from the
      * injectables when the dispatch seam published it, else is derived from
      * the registered {@link AgentFileSystemProvider} and the conversation id
-     * (resource-free pipeline paths). Traversal / bounds rejections come
-     * back as clear tool-result strings.
+     * (resource-free pipeline paths). Traversal / bounds rejections, and a
+     * session with no filesystem, fail the call with a
+     * {@link ToolFailedException} carrying the text the model reads.
      */
     private static ToolExecutor fsExecutor(FsOperation operation) {
         return new ToolExecutor() {
@@ -265,14 +269,14 @@ public final class FileSystemTools {
                 var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
                 var fs = resolve(scope);
                 if (fs == null) {
-                    return "File tools unavailable: no agent filesystem is bound to "
-                            + "this session.";
+                    throw new ToolFailedException("File tools unavailable: no agent filesystem "
+                            + "is bound to this session.");
                 }
                 try {
                     return operation.apply(fs,
                             arguments != null ? arguments : Map.of());
                 } catch (IllegalArgumentException e) {
-                    return "Error: " + e.getMessage();
+                    throw new ToolFailedException("Error: " + e.getMessage(), e);
                 }
             }
         };

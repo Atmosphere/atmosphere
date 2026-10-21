@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -138,9 +137,10 @@ class McpToolSourceTest {
         assertEquals(McpToolBreaker.State.OPEN, breaker.state());
 
         // The breaker is open: the next call must NOT reach the transport,
-        // and must come back as a tool error rather than another timeout.
-        var shortCircuited = def.executor().execute(Map.of());
-        assertTrue(String.valueOf(shortCircuited).contains("circuit breaker open"),
+        // and must fail as a tool error rather than another timeout.
+        var shortCircuited = assertThrows(org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> def.executor().execute(Map.of())).getMessage();
+        assertTrue(shortCircuited.contains("circuit breaker open"),
                 "an open breaker must fail fast with a tool error: " + shortCircuited);
         verify(client, times(2)).callTool(any(McpSchema.CallToolRequest.class));
     }
@@ -187,11 +187,10 @@ class McpToolSourceTest {
     }
 
     @Test
-    void executorSurfacesServerErrorAsToolErrorString() throws Exception {
-        // Server-reported tool errors (isError=true) must be returned as a
-        // string so the agent loop decides what to do, NOT thrown — throwing
-        // would abort the loop. This matches how a local @AiTool failure
-        // surfaces after ToolExecutionHelper wraps the exception.
+    void executorFailsAServerErrorWithTheToolErrorText() throws Exception {
+        // A server-reported tool error (isError=true) fails the call with the
+        // "tool error: ..." text: ToolExecutionHelper hands it to the model as
+        // written and ends the call with a tool-error; the turn goes on.
         var schema = Map.<String, Object>of(
                 "type", "object",
                 "properties", Map.of(),
@@ -207,12 +206,12 @@ class McpToolSourceTest {
                         Boolean.TRUE, null, null));
 
         var def = invokeTranslate(tool, client, "test://server").get(0);
-        var result = def.executor().execute(Map.of());
+        var result = assertThrows(org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> def.executor().execute(Map.of())).getMessage();
 
-        assertNotNull(result);
-        assertTrue(result.toString().startsWith("tool error:"),
-                "server-reported errors must be returned as 'tool error: ...' strings");
-        assertTrue(result.toString().contains("rate limited"));
+        assertTrue(result.startsWith("tool error:"),
+                "server-reported errors must fail with 'tool error: ...' text");
+        assertTrue(result.contains("rate limited"));
     }
 
     @Test
@@ -280,7 +279,8 @@ class McpToolSourceTest {
         var metrics = new McpToolMetrics();
         var def = invokeTranslateWithMetrics(tool, client, "test://server", metrics);
 
-        def.executor().execute(Map.of());
+        assertThrows(org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> def.executor().execute(Map.of()));
         assertEquals(1, metrics.calls());
         assertEquals(1, metrics.errors());
     }

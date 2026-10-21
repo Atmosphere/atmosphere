@@ -34,6 +34,7 @@ import org.atmosphere.ai.plan.AgentPlanStore;
 import org.atmosphere.ai.plan.FileSystemAgentPlanStore;
 import org.atmosphere.ai.plan.PlanningTools;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolScopes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,12 @@ import java.util.function.Supplier;
  *       session, temp dir) and releases it; it never touches caller
  *       resources.</li>
  * </ul>
+ *
+ * <p>A spawn that returns no report (a missing description, an unknown type, a
+ * bound reached, a governance denial, a timeout, a subagent that failed) fails
+ * the call with a {@link ToolFailedException}: the call ends with a
+ * {@code tool-error} frame and the model reads the {@code task failed: …},
+ * {@code task refused: …} or {@code task denied by policy: …} text.</p>
  */
 public final class SpawnSubagentTool {
 
@@ -169,36 +176,39 @@ public final class SpawnSubagentTool {
                     String subagentType) {
 
         if (description == null || description.isBlank()) {
-            return "task failed: 'description' is required.";
+            throw new ToolFailedException("task failed: 'description' is required.");
         }
         var type = (subagentType == null || subagentType.isBlank()) ? GENERAL_PURPOSE : subagentType.trim();
         if (!GENERAL_PURPOSE.equalsIgnoreCase(type)) {
-            return "task failed: unknown subagent_type '" + type + "'. Only 'general-purpose' is "
-                    + "supported — use delegate_task for a named fleet specialist.";
+            throw new ToolFailedException("task failed: unknown subagent_type '" + type
+                    + "'. Only 'general-purpose' is supported — use delegate_task for a named "
+                    + "fleet specialist.");
         }
 
         var budget = BUDGET.get();
         if (budget[0] >= MAX_DEPTH) {
-            return "task refused: maximum subagent nesting depth (" + MAX_DEPTH + ") reached — "
-                    + "complete this step inline instead of spawning again.";
+            throw new ToolFailedException("task refused: maximum subagent nesting depth (" + MAX_DEPTH
+                    + ") reached — complete this step inline instead of spawning again.");
         }
         if (budget[1] >= MAX_SPAWNS_PER_REQUEST) {
-            return "task refused: maximum subagent spawns (" + MAX_SPAWNS_PER_REQUEST + ") for this "
-                    + "request reached.";
+            throw new ToolFailedException("task refused: maximum subagent spawns ("
+                    + MAX_SPAWNS_PER_REQUEST + ") for this request reached.");
         }
 
         var denial = governanceDenial(description);
         if (denial != null) {
-            return "task denied by policy: " + denial;
+            throw new ToolFailedException("task denied by policy: " + denial);
         }
 
         budget[0]++;
         budget[1]++;
         try {
             return runIsolated(description);
+        } catch (ToolFailedException e) {
+            throw e;
         } catch (RuntimeException e) {
             logger.warn("task subagent failed: {}", e.toString());
-            return "task failed: " + e.getMessage();
+            throw new ToolFailedException("task failed: " + e.getMessage(), e);
         } finally {
             budget[0]--;
         }
@@ -303,17 +313,19 @@ public final class SpawnSubagentTool {
                 }
                 worker.interrupt();
                 logger.info("Subagent {} timed out after {}s", agentId, timeout.toSeconds());
-                return "task did not complete within " + timeout.toSeconds() + " seconds.";
+                throw new ToolFailedException("task did not complete within " + timeout.toSeconds()
+                        + " seconds.");
             }
             if (session.failed()) {
                 var cause = session.failure();
-                return "task failed: " + (cause != null && cause.getMessage() != null
-                        ? cause.getMessage() : "unknown error");
+                throw new ToolFailedException("task failed: " + (cause != null && cause.getMessage() != null
+                        ? cause.getMessage() : "unknown error"), cause);
             }
             var text = session.text().strip();
             return text.isEmpty() ? "task completed with no output." : text;
         } catch (IOException e) {
-            return "task failed: could not create an isolated workspace: " + e.getMessage();
+            throw new ToolFailedException("task failed: could not create an isolated workspace: "
+                    + e.getMessage(), e);
         } finally {
             deleteQuietly(root);
         }

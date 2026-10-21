@@ -173,10 +173,12 @@ class OpenApiToolImporterTest {
     }
 
     @Test
-    void nonSuccessStatusIsReturnedNotThrown() throws Exception {
+    void nonSuccessStatusFailsTheCallWithTheStatusAndBody() {
         var defs = OpenApiToolImporter.fromSpec(spec(), OpenApiImportOptions.defaults());
-        var result = tool(defs, "missing").executor().execute(Map.of());
-        assertTrue(result.toString().startsWith("HTTP 404"), "got: " + result);
+        var result = org.junit.jupiter.api.Assertions.assertThrows(
+                org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> tool(defs, "missing").executor().execute(Map.of())).getMessage();
+        assertTrue(result.startsWith("HTTP 404"), "got: " + result);
     }
 
     @Test

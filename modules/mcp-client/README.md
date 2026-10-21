@@ -63,10 +63,11 @@ For the Spring Boot interceptor pattern, see
 * JSON Schema parameter introspection: `string`, `integer`, `number`,
   `boolean`, `object`, `array` types are surfaced; the `required[]` list
   determines which parameters are flagged required to the model.
-* Server-reported tool errors (`isError = true`) are returned to the model
-  as `"tool error: <text>"` strings rather than thrown — this matches local
-  `@AiTool` failure semantics and lets the agent loop decide to retry,
-  recover, or surface the error to the user.
+* A server-reported tool error (`isError = true`), or a call short-circuited
+  by an open circuit breaker, fails the call with a `ToolFailedException`: the
+  model reads `"tool error: <text>"` as written, the call ends with a
+  `tool-error` frame (the Console's "✕ Failed"), and the turn goes on, so the
+  agent loop can retry, recover, or surface the error to the user.
 
 ## Multi-server aggregation, filtering & renaming
 

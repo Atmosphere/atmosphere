@@ -197,12 +197,14 @@ class HarnessToolRoundTripHttpE2eTest {
                 "ls must list the written file, got: " + listed);
 
         // Bounds enforcement (Invariant #3): one byte over the per-file limit
-        // must be rejected with the clear message — surfaced as the tool
-        // result so the model can correct course, never a stack trace.
+        // must be rejected with the clear message: the call fails with the
+        // text the model reads, so it can correct course, never a stack trace.
         var oversized = "x".repeat(AgentFileSystem.Limits.DEFAULT_MAX_FILE_BYTES + 1);
-        var rejected = registry.getTool("write_file").orElseThrow().executor().execute(
-                Map.of("path", "notes/too-big.txt", "content", oversized),
-                injectables).toString();
+        var rejected = org.junit.jupiter.api.Assertions.assertThrows(
+                org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> registry.getTool("write_file").orElseThrow().executor().execute(
+                        Map.of("path", "notes/too-big.txt", "content", oversized),
+                        injectables)).getMessage();
         assertTrue(rejected.startsWith("Error: Write rejected:"),
                 "an over-limit write must surface the bounds rejection, got: "
                         + rejected.substring(0, Math.min(rejected.length(), 120)));

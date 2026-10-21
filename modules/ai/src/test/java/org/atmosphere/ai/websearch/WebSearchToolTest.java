@@ -18,6 +18,7 @@ package org.atmosphere.ai.websearch;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -73,16 +74,16 @@ public class WebSearchToolTest {
     }
 
     @Test
-    public void webSearchToolReturnsFailClosedNoticeWhenUnconfigured() throws Exception {
+    public void webSearchToolFailsWithTheFailClosedNoticeWhenUnconfigured() {
         // The shared instance reads system properties; by default no endpoint is
-        // configured, so the tool executor returns the fail-closed notice.
+        // configured, so the call fails with the fail-closed notice as its text.
         Assumptions.assumeFalse(WebSearchSupport.shared().isEnabled(),
                 "web search endpoint is configured in this environment");
 
-        var out = WebSearchTool.definition().executor()
-                .execute(Map.of("query", "atmosphere framework"));
-        assertTrue(out instanceof String);
-        assertTrue(out.toString().toLowerCase().contains("not configured"), out.toString());
+        var out = assertThrows(org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> WebSearchTool.definition().executor()
+                        .execute(Map.of("query", "atmosphere framework"))).getMessage();
+        assertTrue(out.toLowerCase().contains("not configured"), out);
     }
 
     @Test
@@ -149,8 +150,9 @@ public class WebSearchToolTest {
     }
 
     @Test
-    public void toolExecutorRejectsMissingQuery() throws Exception {
-        var out = WebSearchTool.definition().executor().execute(Map.of());
+    public void toolExecutorRejectsMissingQuery() {
+        var out = assertThrows(org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> WebSearchTool.definition().executor().execute(Map.of())).getMessage();
         assertEquals("Error: 'query' is required", out);
     }
 

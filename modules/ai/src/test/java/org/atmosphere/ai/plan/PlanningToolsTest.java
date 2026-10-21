@@ -29,6 +29,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -104,6 +105,13 @@ public class PlanningToolsTest {
             todo.put("activeForm", activeForm);
         }
         return todo;
+    }
+
+    /** The text the model reads for a call that failed; fails the test when the call succeeds. */
+    private static String failure(org.atmosphere.ai.tool.ToolDefinition tool, Map<String, Object> args,
+                                  Map<Class<?>, Object> scope) {
+        return assertThrows(org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> tool.executor().execute(args, scope)).getMessage();
     }
 
     @Test
@@ -185,35 +193,33 @@ public class PlanningToolsTest {
     }
 
     @Test
-    public void missingStoreYieldsClearMessage() throws Exception {
+    public void missingStoreFailsTheCallWithAClearMessage() {
         var tool = PlanningTools.writeTodosTool("a");
-        var result = tool.executor().execute(
-                Map.of("todos", List.of(todo("x", "pending", null))), Map.of());
-        assertTrue(result.toString().contains("no plan store"), result.toString());
+        var result = failure(tool, Map.of("todos", List.of(todo("x", "pending", null))), Map.of());
+        assertTrue(result.contains("no plan store"), result);
     }
 
     @Test
-    public void malformedArgumentsYieldClearMessages() throws Exception {
+    public void malformedArgumentsFailTheCallWithClearMessages() {
         var store = new FileSystemAgentPlanStore(root);
         var scope = Map.<Class<?>, Object>of(AgentPlanStore.class, store);
         var tool = PlanningTools.writeTodosTool("a");
 
-        var noTodos = tool.executor().execute(Map.of(), scope);
-        assertTrue(noTodos.toString().contains("'todos' is required"), noTodos.toString());
+        var noTodos = failure(tool, Map.of(), scope);
+        assertTrue(noTodos.contains("'todos' is required"), noTodos);
 
-        var notAList = tool.executor().execute(Map.of("todos", "nope"), scope);
-        assertTrue(notAList.toString().contains("'todos' is required"), notAList.toString());
+        var notAList = failure(tool, Map.of("todos", "nope"), scope);
+        assertTrue(notAList.contains("'todos' is required"), notAList);
 
-        var noContent = tool.executor().execute(
-                Map.of("todos", List.of(Map.of("status", "pending"))), scope);
-        assertTrue(noContent.toString().contains("non-empty 'content'"), noContent.toString());
+        var noContent = failure(tool, Map.of("todos", List.of(Map.of("status", "pending"))), scope);
+        assertTrue(noContent.contains("non-empty 'content'"), noContent);
 
         assertTrue(store.get("a", "default").isEmpty(),
                 "malformed input must not persist anything");
     }
 
     @Test
-    public void boundsRejectionSurfacesTheMessage() throws Exception {
+    public void boundsRejectionSurfacesTheMessage() {
         var store = new FileSystemAgentPlanStore(root);
         var scope = Map.<Class<?>, Object>of(AgentPlanStore.class, store);
         var tool = PlanningTools.writeTodosTool("a");
@@ -222,9 +228,9 @@ public class PlanningToolsTest {
         for (int i = 0; i <= FileSystemAgentPlanStore.MAX_STEPS; i++) {
             tooMany.add(todo("step " + i, "pending", null));
         }
-        var result = tool.executor().execute(Map.of("todos", tooMany), scope);
-        assertTrue(result.toString().startsWith("write_todos failed:"), result.toString());
-        assertTrue(result.toString().contains("limit"), result.toString());
+        var result = failure(tool, Map.of("todos", tooMany), scope);
+        assertTrue(result.startsWith("write_todos failed:"), result);
+        assertTrue(result.contains("limit"), result);
     }
 
     @Test
@@ -266,14 +272,14 @@ public class PlanningToolsTest {
     }
 
     @Test
-    public void unparseableTodosStringStillFailsClearly() throws Exception {
+    public void unparseableTodosStringStillFailsClearly() {
         var store = new FileSystemAgentPlanStore(root);
         var scope = Map.<Class<?>, Object>of(AgentPlanStore.class, store);
         var tool = PlanningTools.writeTodosTool("a");
 
-        var result = tool.executor().execute(Map.of("todos", "not json at all"), scope);
+        var result = failure(tool, Map.of("todos", "not json at all"), scope);
 
-        assertTrue(result.toString().contains("todos"),
+        assertTrue(result.contains("todos"),
                 "garbage must still produce the clear structure error, got: " + result);
     }
 

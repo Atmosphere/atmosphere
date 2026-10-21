@@ -21,6 +21,7 @@ import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTranspor
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -431,15 +432,16 @@ public final class McpToolSource implements AutoCloseable {
                                        McpToolBreaker breaker) {
         if (!breaker.tryAcquire()) {
             // Fail fast instead of paying another request timeout against a
-            // server that has failed its last N calls (Invariant #3). Returned
-            // as a tool-error string, not thrown, so the agent loop can pick a
-            // different tool rather than aborting the turn.
+            // server that has failed its last N calls (Invariant #3). The call
+            // fails with the text the model reads (ToolExecutionHelper hands it
+            // over as written and ends the call with a tool-error); the turn
+            // goes on, so the agent loop can pick a different tool.
             LOG.debug("McpToolSource[{}] breaker open for tool '{}' — short-circuiting",
                     label, toolName);
             metrics.recordError();
-            return "tool error: MCP tool '" + toolName + "' on " + label
+            throw new ToolFailedException("tool error: MCP tool '" + toolName + "' on " + label
                     + " is temporarily unavailable (circuit breaker open after "
-                    + breaker.consecutiveFailures() + " consecutive failures)";
+                    + breaker.consecutiveFailures() + " consecutive failures)");
         }
         var startNanos = System.nanoTime();
         McpSchema.CallToolResult result;
@@ -465,13 +467,12 @@ public final class McpToolSource implements AutoCloseable {
         if (Boolean.TRUE.equals(result.isError())) {
             metrics.recordError();
             breaker.recordFailure();
-            // Surface server-reported tool errors to the model as a string so
-            // the loop can decide whether to retry, fall through, or report
-            // the failure to the user. Throwing here would abort the loop;
-            // returning the error text matches how a local @AiTool that
-            // throws would surface to the model after ToolExecutionHelper
-            // wraps the exception.
-            return "tool error: " + flatten(result.content());
+            // A server-reported tool error fails the call: the model reads
+            // "tool error: <content>" as written (ToolExecutionHelper ends the
+            // call with a tool-error, the turn goes on), so the loop can
+            // decide whether to retry, fall through, or report the failure
+            // to the user.
+            throw new ToolFailedException("tool error: " + flatten(result.content()));
         }
         breaker.recordSuccess();
         return flatten(result.content());

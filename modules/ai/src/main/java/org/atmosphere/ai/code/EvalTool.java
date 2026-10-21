@@ -18,6 +18,7 @@ package org.atmosphere.ai.code;
 import java.util.Map;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutor;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolKind;
 
 /**
@@ -32,6 +33,10 @@ import org.atmosphere.ai.tool.ToolKind;
  * governance policy can gate it exactly like other code-execution surfaces. The
  * evaluator itself is default-off (see {@link EvalConfig}); this definition is
  * only registered when {@link EvalSupport#isEnabled()}.</p>
+ *
+ * <p>A snippet that does not evaluate (a syntax error, a thrown error, a
+ * timeout) fails the call with a {@link ToolFailedException}: the call ends
+ * with a {@code tool-error} frame and the model reads {@code Error: <reason>}.</p>
  */
 public final class EvalTool {
 
@@ -72,7 +77,7 @@ public final class EvalTool {
                 EvalResult result = EvalSupport.shared()
                         .evaluate(code == null ? null : code.toString());
                 if (!result.ok()) {
-                    return "Error: " + result.error();
+                    throw new ToolFailedException("Error: " + result.error());
                 }
                 return result.truncated()
                         ? result.value() + "\n…(output truncated)"

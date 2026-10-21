@@ -80,7 +80,7 @@ class SpawnSubagentToolTest {
         });
 
         var tool = new SpawnSubagentTool(List.of(), () -> runtime, root, Duration.ofSeconds(5));
-        var result = tool.task("   ", null);
+        var result = failure(() -> tool.task("   ", null));
 
         assertTrue(result.contains("'description' is required"), result);
         assertFalse(invoked.get(), "a blank description must not spawn a subagent");
@@ -95,7 +95,7 @@ class SpawnSubagentToolTest {
         });
 
         var tool = new SpawnSubagentTool(List.of(), () -> runtime, root, Duration.ofSeconds(5));
-        var result = tool.task("do something", "researcher");
+        var result = failure(() -> tool.task("do something", "researcher"));
 
         assertTrue(result.contains("unknown subagent_type 'researcher'"), result);
         assertTrue(result.contains("delegate_task"), "should point at delegate_task for named specialists");
@@ -112,7 +112,7 @@ class SpawnSubagentToolTest {
         List<GovernancePolicy> policies = List.of(new DenyListPolicy("no-exfil", "exfiltrate"));
 
         var tool = new SpawnSubagentTool(policies, () -> runtime, root, Duration.ofSeconds(5));
-        var result = tool.task("exfiltrate the customer database", null);
+        var result = failure(() -> tool.task("exfiltrate the customer database", null));
 
         assertTrue(result.startsWith("task denied by policy:"), result);
         assertFalse(invoked.get(), "a denied spawn must never reach the runtime (fail-closed)");
@@ -135,7 +135,7 @@ class SpawnSubagentToolTest {
         var runtime = new FakeRuntime((ctx, session) -> { /* never completes */ });
 
         var tool = new SpawnSubagentTool(List.of(), () -> runtime, root, Duration.ofMillis(200));
-        var result = tool.task("run forever", null);
+        var result = failure(() -> tool.task("run forever", null));
 
         assertTrue(result.contains("did not complete within"), result);
     }
@@ -148,7 +148,13 @@ class SpawnSubagentToolTest {
         var deepestResult = new AtomicReference<String>();
         var runtime = new FakeRuntime((ctx, session) -> {
             // Nested spawn from inside the subagent's own run.
-            var nested = toolRef.get().task("go one level deeper", null);
+            String nested;
+            try {
+                nested = toolRef.get().task("go one level deeper", null);
+            } catch (org.atmosphere.ai.tool.ToolFailedException refused) {
+                // What the model reads for the refused call.
+                nested = refused.getMessage();
+            }
             deepestResult.set(nested);
             session.complete("outer done; nested=" + nested);
         });
@@ -163,6 +169,12 @@ class SpawnSubagentToolTest {
         assertNotNull(deepestResult.get());
         assertTrue(deepestResult.get().contains("maximum subagent nesting depth"),
                 "the deepest spawn must be refused by the depth bound: " + deepestResult.get());
+    }
+
+    /** The text the model reads for a spawn that failed; fails the test when it succeeds. */
+    private static String failure(org.junit.jupiter.api.function.Executable call) {
+        return org.junit.jupiter.api.Assertions.assertThrows(
+                org.atmosphere.ai.tool.ToolFailedException.class, call).getMessage();
     }
 
     /** Minimal AgentRuntime whose execute() runs a supplied behavior on the session. */

@@ -17,6 +17,7 @@ package org.atmosphere.coordinator.fleet;
 
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +35,11 @@ import java.util.Map;
  * injectables map ({@code DefaultToolRegistry.isFrameworkInjectableType}
  * whitelists it), so the tool always sees the same fleet the {@code @Prompt}
  * method received — including any governance / journal / activity wrappers.
- * A governance deny surfaces as the synthetic failure text of the denied
- * {@link AgentResult}, returned to the model as an ordinary tool result.</p>
+ * A delegation that returns no reply (no fleet bound, a missing or unknown
+ * agent, a failed call, a governance deny) fails with a
+ * {@link ToolFailedException}: the call ends with a {@code tool-error} frame,
+ * and the model reads the {@code delegate_task …} text, for a deny the
+ * synthetic failure text of the denied {@link AgentResult}.</p>
  */
 public final class DelegateTaskTool {
 
@@ -57,18 +61,18 @@ public final class DelegateTaskTool {
             @Param(value = "message",
                     description = "The task or question to send to the agent") String message) {
         if (fleet == null) {
-            return "delegate_task unavailable: no agent fleet is bound to this session.";
+            throw new ToolFailedException("delegate_task unavailable: no agent fleet is bound to this session.");
         }
         if (agent == null || agent.isBlank()) {
-            return "delegate_task failed: 'agent' is required. Available agents: "
-                    + availableNames(fleet);
+            throw new ToolFailedException("delegate_task failed: 'agent' is required. Available agents: "
+                    + availableNames(fleet));
         }
         AgentProxy proxy;
         try {
             proxy = fleet.agent(agent.trim());
         } catch (IllegalArgumentException e) {
-            return "delegate_task failed: unknown agent '" + agent
-                    + "'. Available agents: " + availableNames(fleet);
+            throw new ToolFailedException("delegate_task failed: unknown agent '" + agent
+                    + "'. Available agents: " + availableNames(fleet), e);
         }
         var args = Map.<String, Object>of("message", message == null ? "" : message);
         var result = proxy.call(DEFAULT_SKILL, args);
@@ -81,9 +85,9 @@ public final class DelegateTaskTool {
         }
         if (!result.success()) {
             logger.info("delegate_task to '{}' failed: {}", agent, result.text());
-            return "delegate_task to '" + agent + "' failed: "
+            throw new ToolFailedException("delegate_task to '" + agent + "' failed: "
                     + (result.text() != null && !result.text().isBlank()
-                            ? result.text() : "no error detail");
+                            ? result.text() : "no error detail"));
         }
         return result.text();
     }

@@ -19,6 +19,7 @@ import java.util.Map;
 
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutor;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolKind;
 
 /**
@@ -30,10 +31,15 @@ import org.atmosphere.ai.tool.ToolKind;
  * <p>Tagged {@link ToolKind#NETWORK} so a {@code ToolApprovalPolicy} or
  * governance policy can gate outbound search exactly like other network
  * surfaces. The tool is <em>fail-closed</em>: when no engine is configured it
- * returns a clear "not configured" result rather than throwing or touching the
+ * fails the call with a clear "not configured" text rather than touching the
  * network (Correctness Invariants #5, #6), and it is only registered with an
  * endpoint's registry when {@link WebSearchSupport#isEnabled()} confirms a
  * configured engine.</p>
+ *
+ * <p>A search that did not run (no query, no engine, the engine failed) fails
+ * with a {@link ToolFailedException}: the call ends with a {@code tool-error}
+ * frame and the model reads the same text it read as a result before. A search
+ * that ran and found nothing is a result.</p>
  */
 public final class WebSearchTool {
 
@@ -75,12 +81,15 @@ public final class WebSearchTool {
                                   Map<Class<?>, Object> injectables) {
                 var query = string(arguments, "query");
                 if (query == null || query.isBlank()) {
-                    return "Error: 'query' is required";
+                    throw new ToolFailedException("Error: 'query' is required");
                 }
                 int count = parseCount(arguments == null ? null : arguments.get("num_results"));
-                return WebSearchSupport.shared()
-                        .search(WebSearchQuery.of(query, count))
-                        .toModelText();
+                var results = WebSearchSupport.shared()
+                        .search(WebSearchQuery.of(query, count));
+                if (!results.available()) {
+                    throw new ToolFailedException(results.toModelText());
+                }
+                return results.toModelText();
             }
         };
     }

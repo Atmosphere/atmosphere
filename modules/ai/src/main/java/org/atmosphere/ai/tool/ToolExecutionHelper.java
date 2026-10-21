@@ -178,7 +178,8 @@ public final class ToolExecutionHelper {
      *
      * <p>On success, returns the result's {@code toString()} representation
      * (or {@code "null"} if the result is null). On failure, returns a JSON
-     * error object with the exception message.</p>
+     * error object with the exception message, or, for a
+     * {@link ToolFailedException}, its message as written.</p>
      *
      * @param toolName the tool name (for logging)
      * @param executor the tool executor
@@ -260,8 +261,20 @@ public final class ToolExecutionHelper {
                     + ToolBridgeUtils.escapeJson(toolName) + "\"}",
                     "The tool was interrupted before completing");
         } catch (Exception e) {
-            logger.error("Tool {} execution failed", toolName, e);
-            var message = errorMessage(e);
+            // An @AiTool method is called reflectively: what it threw is the
+            // cause, and the wrapper's own message is null.
+            Throwable failure = e instanceof java.lang.reflect.InvocationTargetException wrapped
+                    && wrapped.getCause() != null ? wrapped.getCause() : e;
+            if (failure instanceof ToolFailedException expected) {
+                // A failure the tool reports to the model in its own words
+                // (a file not found, a store not bound): the model reads the
+                // text as written, the call still ends with a tool-error.
+                var text = errorMessage(expected);
+                logger.debug("Tool {} failed: {}", toolName, text);
+                return Outcome.failure(text, text);
+            }
+            logger.error("Tool {} execution failed", toolName, failure);
+            var message = errorMessage(failure);
             return Outcome.failure("{\"error\":\"" + ToolBridgeUtils.escapeJson(message) + "\"}", message);
         }
     }

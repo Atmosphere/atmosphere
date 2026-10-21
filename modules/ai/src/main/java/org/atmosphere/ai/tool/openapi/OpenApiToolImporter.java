@@ -471,7 +471,12 @@ public final class OpenApiToolImporter {
                     HttpResponse.BodyHandlers.ofInputStream());
             var payload = readBounded(response.body(), options.maxResponseBytes());
             var status = response.statusCode();
-            return status / 100 == 2 ? payload : "HTTP " + status + ": " + payload;
+            if (status / 100 != 2) {
+                // The operation failed: the model reads "HTTP <status>: <body>"
+                // as written, and the call ends with a tool-error.
+                throw new org.atmosphere.ai.tool.ToolFailedException("HTTP " + status + ": " + payload);
+            }
+            return payload;
         }
 
         private static String str(Object value) {

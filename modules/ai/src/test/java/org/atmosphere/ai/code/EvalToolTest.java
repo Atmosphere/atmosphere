@@ -240,4 +240,15 @@ public class EvalToolTest {
         assertFalse(r.ok());
         assertTrue(r.error().contains("required"), r.error());
     }
+
+    @Test
+    public void aSnippetThatDoesNotEvaluateFailsTheToolCallWithItsErrorText() {
+        // Whether the shared evaluator is enabled here or not, the snippet does
+        // not evaluate: the call fails with the "Error: ..." text the model reads.
+        var failure = org.junit.jupiter.api.Assertions.assertThrows(
+                org.atmosphere.ai.tool.ToolFailedException.class,
+                () -> EvalTool.definition().executor().execute(
+                        java.util.Map.of("code", "throw new Error('boom')"), java.util.Map.of()));
+        assertTrue(failure.getMessage().startsWith("Error: "), failure.getMessage());
+    }
 }

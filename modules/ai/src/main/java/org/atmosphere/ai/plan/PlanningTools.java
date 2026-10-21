@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutor;
+import org.atmosphere.ai.tool.ToolFailedException;
 import org.atmosphere.ai.tool.ToolKind;
 import org.atmosphere.ai.tool.ToolScopes;
 
@@ -41,6 +42,12 @@ import java.util.Map;
  * {@link AiEvent.PlanUpdate} so consoles render the live plan, and the tool
  * returns the plan as a Markdown checklist so the model sees the state it
  * just wrote.</p>
+ *
+ * <p>A call that writes no plan (no plan store bound to the session, a
+ * malformed list, a bounds rejection) fails with a
+ * {@link ToolFailedException}: the call ends with a {@code tool-error} frame
+ * and the model reads {@code write_todos unavailable: …} or
+ * {@code write_todos failed: …}.</p>
  */
 public final class PlanningTools {
 
@@ -104,13 +111,13 @@ public final class PlanningTools {
                               String defaultAgentId) {
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
         if (!(scope.get(AgentPlanStore.class) instanceof AgentPlanStore store)) {
-            return "write_todos unavailable: no plan store is bound to this session.";
+            throw new ToolFailedException("write_todos unavailable: no plan store is bound to this session.");
         }
         AgentPlan plan;
         try {
             plan = parsePlan(arguments);
         } catch (IllegalArgumentException e) {
-            return "write_todos failed: " + e.getMessage();
+            throw new ToolFailedException("write_todos failed: " + e.getMessage(), e);
         }
         var agentId = ToolScopes.agentId(scope, defaultAgentId);
         var conversationId = ToolScopes.conversationId(scope);
@@ -119,7 +126,7 @@ public final class PlanningTools {
         } catch (IllegalArgumentException e) {
             // Bounds rejection (Correctness Invariant #3) — surface the clear
             // message to the model instead of a stack trace.
-            return "write_todos failed: " + e.getMessage();
+            throw new ToolFailedException("write_todos failed: " + e.getMessage(), e);
         }
         StreamingSession session = ToolScopes.session(scope);
         if (session != null) {

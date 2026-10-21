@@ -19,8 +19,13 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.PendingApproval;
+import org.atmosphere.ai.fs.AgentFileSystem;
+import org.atmosphere.ai.fs.FileSystemTools;
+import org.atmosphere.ai.fs.WorkspaceAgentFileSystem;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -155,6 +160,58 @@ class ToolFailureFramesTest {
 
         assertEquals("{\"error\":\"weather service down\"}", result);
         assertEquals(List.of("ToolStart", "ToolError"), session.frames());
+    }
+
+    @Test
+    void readingAMissingWorkspaceFileEndsWithAToolErrorAndTheModelReadsTheSameText(@TempDir Path root) {
+        var session = new CapturingSession();
+        var scope = Map.<Class<?>, Object>of(AgentFileSystem.class,
+                new WorkspaceAgentFileSystem(root, AgentFileSystem.Limits.defaults()));
+
+        var result = ToolExecutionHelper.executeWithApproval(FileSystemTools.READ_FILE,
+                FileSystemTools.readFile(), Map.of("path", "missing.md"), session, null, null, scope);
+
+        // The text the model reads is the one it always read; only the frame changed.
+        assertEquals("Error: File not found: missing.md", result);
+        assertEquals(List.of("ToolStart", "ToolError"), session.frames());
+        assertEquals("Error: File not found: missing.md", session.error());
+    }
+
+    @Test
+    void readingAnExistingWorkspaceFileStillEndsWithItsResult(@TempDir Path root) {
+        var session = new CapturingSession();
+        var fs = new WorkspaceAgentFileSystem(root, AgentFileSystem.Limits.defaults());
+        fs.write("notes.md", "hello");
+        var scope = Map.<Class<?>, Object>of(AgentFileSystem.class, fs);
+
+        var result = ToolExecutionHelper.executeWithApproval(FileSystemTools.READ_FILE,
+                FileSystemTools.readFile(), Map.of("path", "notes.md"), session, null, null, scope);
+
+        assertEquals("hello", result);
+        assertEquals(List.of("ToolStart", "ToolResult"), session.frames());
+    }
+
+    @Test
+    void anAiToolMethodThatThrowsToolFailedExceptionEndsWithAToolErrorAndItsText() {
+        var registry = new DefaultToolRegistry();
+        registry.register(new FailingTools());
+        var session = new CapturingSession();
+
+        var result = ToolExecutionHelper.executeWithApproval("lookup",
+                registry.getTool("lookup").orElseThrow(), Map.of("key", "k"), session, null);
+
+        assertEquals("lookup failed: no entry for 'k'", result);
+        assertEquals(List.of("ToolStart", "ToolError"), session.frames());
+        assertEquals("lookup failed: no entry for 'k'", session.error());
+    }
+
+    /** An {@code @AiTool} that reports a failure the model reads verbatim. */
+    public static final class FailingTools {
+        @org.atmosphere.ai.annotation.AiTool(name = "lookup", description = "Look a key up")
+        public String lookup(@org.atmosphere.ai.annotation.Param(value = "key", description = "the key")
+                             String key) {
+            throw new ToolFailedException("lookup failed: no entry for '" + key + "'");
+        }
     }
 
     private static ToolDefinition gated() {
