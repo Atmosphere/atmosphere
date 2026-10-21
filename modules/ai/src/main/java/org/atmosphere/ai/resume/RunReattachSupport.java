@@ -631,6 +631,12 @@ public final class RunReattachSupport {
      * tool's card comes back with the answer.
      */
     static String replayJson(RunEvent event, AgentResumeHandle handle, String runId, long seq) {
+        if ("complete".equals(event.type()) && handle.replayBuffer().handedOffTo() != null) {
+            // A run that handed its turn off ends once its own work is done; the
+            // turn ends with the target's run, which a reattached client follows.
+            // Its complete would end the turn for that client early.
+            return null;
+        }
         var frame = replayFrame(event, handle, runId, seq);
         if (!TOOL_EVENT_TYPES.contains(event.type())) {
             return frame.toJson();

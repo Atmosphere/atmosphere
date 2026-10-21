@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A page reloaded before its run wrote a frame — the run id received, the
@@ -508,6 +509,60 @@ public class ReloadBeforeFirstFrameTest {
                 "the reloaded page gets the answer of the run the turn was handed off to");
         Thread.sleep(300);
         assertEquals(expectedAnswer(), answerOf(reloaded.frames()), "the whole answer, once");
+        assertEquals(1, DetachToolAgent.LOOKUPS.size(), "the tool ran once: " + DetachToolAgent.LOOKUPS);
+        reloaded.close();
+    }
+
+    /**
+     * The run that handed its turn off ends once its {@code @Prompt} method
+     * returned: on spring-boot-orchestration-demo (2026-10-20) the support run
+     * stayed registered after the turn, and a later reload detached it with a
+     * cancel grace. It stays replayable, so a page reattaching by its id still
+     * follows the turn to the target's run and gets that run's whole answer,
+     * ended once, by the target's complete.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aRunThatHandedItsTurnOffEndsAndAReattachByItsIdStillReachesTheTarget() throws Exception {
+        DetachTestEndpoint.RELEASE = new CountDownLatch(1);
+        DetachToolAgent.LOOKUPS.clear();
+        var runId = java.util.UUID.randomUUID().toString();
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+
+        var page = connect("/atmosphere/agent/" + DetachHandoffAgent.NAME, "0", null);
+        page.socket.sendText(envelope(runId, "use the tool"), true).join();
+        page.await(frames -> frames.stream().filter(f -> "metadata".equals(f.path("type").asString())
+                        && "X-Atmosphere-Run-Id".equals(f.path("key").asString())).count() >= 2,
+                "the page is named both runs");
+        var targetRunId = page.frames().stream()
+                .filter(f -> "metadata".equals(f.path("type").asString())
+                        && RUN_ID_KEY.equals(f.path("key").asString())
+                        && !runId.equals(f.path("value").asString()))
+                .map(f -> f.path("value").asString()).findFirst().orElseThrow();
+
+        // The source run's method returned once the handoff dispatched: its run ends.
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (registry.lookup(runId).isPresent() && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
+        assertTrue(registry.lookup(runId).isEmpty(), "the run that handed its turn off is still live");
+        assertTrue(registry.lookupReplayable(runId).isPresent(), "it stays replayable for a reattach");
+        assertTrue(registry.lookup(targetRunId).isPresent(), "the target's run goes on");
+        assertTrue(page.frames().stream().noneMatch(f -> "complete".equals(f.path("type").asString())),
+                "the source run's end writes no complete: " + describe(page.frames()));
+
+        page.socket.sendClose(1001, "reload").get(5, TimeUnit.SECONDS);
+        Thread.sleep(300);
+        var reloaded = connect("/atmosphere/agent/" + DetachHandoffAgent.NAME, "0", runId);
+        Thread.sleep(300);
+        DetachTestEndpoint.RELEASE.countDown();
+        reloaded.await(frames -> frames.stream().anyMatch(f -> "complete".equals(f.path("type").asString()))
+                        && texts(frames).size() >= TOKENS,
+                "the page reattached by the source run's id gets the target's answer");
+        Thread.sleep(300);
+        assertEquals(expectedAnswer(), answerOf(reloaded.frames()), "the whole answer, once");
+        assertEquals(1, reloaded.frames().stream().filter(f -> "complete".equals(f.path("type").asString())).count(),
+                "the turn ends once, with the target's complete: " + describe(reloaded.frames()));
         assertEquals(1, DetachToolAgent.LOOKUPS.size(), "the tool ran once: " + DetachToolAgent.LOOKUPS);
         reloaded.close();
     }

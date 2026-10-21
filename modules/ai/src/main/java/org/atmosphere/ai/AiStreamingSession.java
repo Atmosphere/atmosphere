@@ -2299,6 +2299,17 @@ public class AiStreamingSession implements StreamingSession {
         return true;
     }
 
+    /**
+     * The turn of this session was handed off to another agent's run, which
+     * answers it and writes its terminal frame: this session's part of the
+     * turn ends here, with no frame of its own, its session-scoped resources
+     * closed and the session no longer reached through its connection.
+     */
+    public void endHandedOffTurn() {
+        fireTerminate();
+        removeActiveSession(this);
+    }
+
     @Override
     public void complete() {
         if (firingBeforeCompletion.get()) {

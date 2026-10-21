@@ -1712,6 +1712,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                                                 org.atmosphere.ai.resume.RunRegistry registry,
                                                 org.atmosphere.ai.resume.AgentResumeHandle handle) {
         var leftOpen = !replay.isTerminated();
+        if (leftOpen && replay.handedOffTo() != null) {
+            // The method handed the turn off to another agent's run, which
+            // answers it and ends it: this run's own work is done. It ends now,
+            // writing nothing to the client, and stays replayable for the
+            // registry TTL, so a client reattaching by its id still follows the
+            // turn to the target's run.
+            session.endHandedOffTurn();
+            run.complete();
+            return false;
+        }
         if (leftOpen && !registry.keepOpenAfterPrompt(handle)) {
             // Past the cap the run ends now, as complete: the registry records it in the replay.
             run.complete();
