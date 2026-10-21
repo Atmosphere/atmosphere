@@ -21,6 +21,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.core.env.StandardEnvironment;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -55,7 +56,8 @@ class AtmosphereSpringAiAlibabaAutoConfigurationEnvironmentTest {
             beanFactory.registerSingleton("aiEnvironment", environment);
             beanFactory.registerSingleton("chatModel", mock(ChatModel.class));
             new AtmosphereSpringAiAlibabaAutoConfiguration(beanFactory.getBeanProvider(AiEnvironment.class))
-                    .springAiAlibabaAgentRuntime(agent, beanFactory.getBeanProvider(ChatModel.class));
+                    .springAiAlibabaAgentRuntime(agent, beanFactory.getBeanProvider(ChatModel.class),
+                            new StandardEnvironment());
 
             assertSame(agent, environment.client(SpringAiAlibabaAgentRuntime.class, ReactAgent.class, null),
                     "the context's agent must serve the context's application");

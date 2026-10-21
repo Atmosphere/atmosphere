@@ -16,6 +16,7 @@
 package org.atmosphere.ai.spring.alibaba;
 
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.PropertyResolver;
 
 /**
  * Spring Boot auto-configuration that wires Spring AI Alibaba into
@@ -132,7 +135,7 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
     // Without an AiEnvironment bean in the context the process-wide binder is the only one.
     @SuppressWarnings("deprecation")
     SpringAiAlibabaAgentRuntime springAiAlibabaAgentRuntime(
-            ReactAgent agent, ObjectProvider<ChatModel> chatModelProvider) {
+            ReactAgent agent, ObjectProvider<ChatModel> chatModelProvider, Environment springEnvironment) {
         var environment = aiEnvironment();
         if (environment != null) {
             SpringAiAlibabaAgentRuntime.setAgent(environment, agent);
@@ -148,8 +151,63 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
             // for tool-free calls; documented in SpringAiAlibabaAgentRuntime
             // class javadoc.
             bindChatModel(wrap(chatModel));
+            logChatModelInUse(chatModel, springEnvironment);
         }
         return new SpringAiAlibabaAgentRuntime();
+    }
+
+    /** Spring AI 1.x's {@code OpenAiChatModel}, the one {@code spring.ai.openai.*} configures. */
+    static final String SPRING_AI_OPENAI_CHAT_MODEL = "org.springframework.ai.openai.OpenAiChatModel";
+
+    /**
+     * Spring AI 1.x's default {@code spring.ai.openai.base-url}
+     * ({@code OpenAiConnectionProperties.DEFAULT_BASE_URL} in
+     * spring-ai-autoconfigure-model-openai 1.1.8).
+     */
+    static final String SPRING_AI_1_DEFAULT_BASE_URL = "https://api.openai.com";
+
+    /**
+     * Log, once at startup, the model and endpoint the {@link ChatModel} calls
+     * and whether {@code llm.mode=local} is set (Runtime Truth): the
+     * {@code ChatModel} is built by Spring AI's OpenAI auto-configuration, not
+     * here, so without this line nothing names the endpoint the user's prompts
+     * go to. The model is the {@code ChatModel}'s own default; the endpoint is
+     * read from {@code spring.ai.openai.*} only for Spring AI's
+     * {@code OpenAiChatModel}, the model those properties configure.
+     *
+     * @param chatModel  the context's chat model, wrapped or not
+     * @param properties the context's properties
+     */
+    static void logChatModelInUse(ChatModel chatModel, PropertyResolver properties) {
+        var raw = chatModel instanceof UsageCapturingChatModel captured ? captured.delegate() : chatModel;
+        var mode = firstNonBlank(properties.getProperty("llm.mode"), properties.getProperty("LLM_MODE"));
+        var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim());
+        var options = raw.getDefaultOptions();
+        var model = options != null ? options.getModel() : null;
+        if (SPRING_AI_OPENAI_CHAT_MODEL.equals(raw.getClass().getName())) {
+            // spring.ai.openai.chat.base-url overrides the shared base URL in Spring AI 1.x.
+            var endpoint = firstNonBlank(properties.getProperty("spring.ai.openai.chat.base-url"),
+                    properties.getProperty("spring.ai.openai.base-url"));
+            if (endpoint == null) {
+                endpoint = SPRING_AI_1_DEFAULT_BASE_URL;
+            }
+            logger.info("Spring AI Alibaba ChatModel in use: model={}, endpoint={}, local={}",
+                    model, endpoint, local);
+            AiConfig.warnIfLocalModeOverridden(mode, endpoint);
+        } else {
+            logger.info("Spring AI Alibaba ChatModel in use: {} supplied by the application, model={}, "
+                    + "endpoint=(its own, not spring.ai.openai.*), local={}",
+                    raw.getClass().getName(), model, local);
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private static ChatModel wrap(ChatModel raw) {

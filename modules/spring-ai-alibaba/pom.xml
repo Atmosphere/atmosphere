@@ -126,6 +126,15 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- The OpenAI ChatModel Spring AI 1.x's auto-configuration builds, so
+             the startup line naming its endpoint is tested against the real class. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+            <version>${spring-ai-alibaba-spring-ai.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai-test</artifactId>
