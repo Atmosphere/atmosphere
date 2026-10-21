@@ -40,10 +40,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@code ToolLoopInspector}, Semantic Kernel hides
  * {@code ToolCallBehavior.maxAutoInvokeAttempts} behind a package-private
  * constructor). A wire-level enforcer driven by the
- * {@link AgentLifecycleListener#onModelStart} hook works uniformly because
- * every framework runtime now fires that hook. The user observes a hard cap
- * on every runtime regardless of whether the upstream library exposed a
- * per-request knob.</p>
+ * {@link AgentLifecycleListener#onModelStart} hook needs no per-framework
+ * seam. It is a hard cap only on a runtime that fires that hook once per
+ * round of its tool loop, which most framework runtimes do not: see the
+ * counting model below, and the runtime-by-runtime list in the
+ * {@code modules/ai} README.</p>
  *
  * <h2>Semantics</h2>
  *
@@ -93,7 +94,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *       cap</b> — their upstream library's own default governs, and a
  *       per-request {@link ToolLoopPolicy} is honored only where the runtime
  *       translates it to a native knob (see each module's README).
- *       <p>Surveyed against the versions this build resolves — google-adk 1.5.0,
+ *       <p>Surveyed against the versions this build resolves — google-adk 1.11.0,
  *       agentscope-core 1.0.12, spring-ai 2.0.0 (final, not a milestone),
  *       spring-ai-alibaba 1.1.2.3, semantic-kernel 1.5.0 — three of the six are
  *       translatable and three are not. Re-check against the resolved jar, not
