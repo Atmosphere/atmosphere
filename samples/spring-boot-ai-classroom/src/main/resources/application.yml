@@ -15,10 +15,12 @@ atmosphere:
     # message, so a phone back from the background gets the turns it missed.
     "[org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime]": 300
     # A student that goes silent without closing (a laptop lid, a network that
-    # drops packets) leaves its room: a connection heard nothing from for two
-    # minutes is closed and the room counts the student out. The handshake asks
-    # every client for a heartbeat every 30 s, which atmosphere.js sends on its
-    # own, so a quiet but live tab is never closed.
+    # drops packets) leaves its room: a connection with no traffic for two
+    # minutes is closed and the room counts the student out. A message the room
+    # delivers to the connection counts as traffic too, so in a busy room a
+    # silent member stays until a write to it fails. The handshake asks every
+    # client for a heartbeat every 30 s, which atmosphere.js sends on its own,
+    # so a quiet but live tab is never closed.
     "[org.atmosphere.cpr.CometSupport.maxInactiveActivity]": 120000
     "[org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds]": 30
 
