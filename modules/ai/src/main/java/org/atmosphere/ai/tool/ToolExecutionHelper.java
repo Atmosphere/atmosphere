@@ -557,7 +557,11 @@ public final class ToolExecutionHelper {
             // not dispatched, and no approval is requested for it.
             logger.debug("Tool {} not dispatched: the turn of session {} was cancelled",
                     toolName, session.sessionId());
-            emitNotRun(toolName, args, session, TURN_CANCELLED_ERROR);
+            if (!session.isClosed()) {
+                // Reported while the turn is still open; once the session has
+                // written its cancelled frame, nothing may follow it.
+                emitNotRun(toolName, args, session, TURN_CANCELLED_ERROR);
+            }
             return TURN_CANCELLED_RESULT;
         }
         if (session != null && session.isClosed()) {
