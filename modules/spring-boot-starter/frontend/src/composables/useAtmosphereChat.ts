@@ -33,8 +33,16 @@ export interface ToolCall {
   result?: string
   done: boolean
   approval?: PendingApproval
-  /** The tool never ran: its approval was not given in time, or was refused. */
-  outcome?: 'timed-out' | 'denied'
+  /**
+   * How the tool ended other than with a result: its approval was not given in
+   * time or was refused (it never ran), it failed (`error` says why), or its
+   * turn ended with no result or error reported for it.
+   */
+  outcome?: 'timed-out' | 'denied' | 'failed' | 'ended'
+  /** The error a failed tool reported. */
+  error?: string
+  /** The session whose frames opened the card: its terminal frame ends it. */
+  sessionId?: string
 }
 
 /**
@@ -525,6 +533,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           }
         }
         finalizeAssistant()
+        endUnresolvedTools(msg)
         break
       }
       case 'error': {
@@ -542,6 +551,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         }
         appendToAssistant(rendered)
         finalizeAssistant()
+        endUnresolvedTools(msg)
         break
       }
       case 'cancelled': {
@@ -553,6 +563,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         }
         appendToAssistant(`\n\n*${cancelledNotice(msg.data)}*`)
         finalizeAssistant()
+        endUnresolvedTools(msg)
         break
       }
       case 'prompt': {
@@ -644,7 +655,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         const args = ((msg.data as Record<string, unknown>)?.arguments ?? {}) as Record<string, unknown>
         if (name) {
           const id = `${++toolCallCounter}-${name}`
-          toolCalls.value = [...toolCalls.value, { id, name, args, done: false }]
+          toolCalls.value = [...toolCalls.value, { id, name, args, done: false, sessionId: sessionOf(msg) }]
         }
         break
       }
@@ -655,6 +666,19 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         // For true out-of-order correlation, the server should include a correlation ID
         // in tool-start/tool-result events (planned for AgentRuntime SPI).
         let tc = toolCalls.value.find(t => t.name === name && !t.done)
+        if (!tc && name) {
+          // A tool already reported failed may still send the result the model
+          // was given (the built-in client's unknown tool): it stays failed and
+          // does not close another tool's card. One its turn ended without a
+          // result takes the result that arrives after all.
+          const reported = toolCalls.value.find(t => t.name === name && t.outcome === 'failed' && t.result === undefined)
+          if (reported) {
+            reported.result = typeof result === 'string' ? result : JSON.stringify(result)
+            toolCalls.value = [...toolCalls.value]
+            break
+          }
+          tc = toolCalls.value.find(t => t.name === name && t.outcome === 'ended')
+        }
         if (!tc) {
           // Fallback: if no unfinished match by name, match any unfinished call
           tc = toolCalls.value.find(t => !t.done)
@@ -667,6 +691,28 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           tc.outcome = approvalOutcome(result)
           toolCalls.value = [...toolCalls.value]
         }
+        break
+      }
+      case 'tool-error': {
+        // AiEvent.ToolError: {toolName, error}. Same correlation as tool-result,
+        // and a card of its own when no tool-start announced the tool, so a
+        // failure is never dropped.
+        const data = (msg.data ?? {}) as Record<string, unknown>
+        const name = typeof data.toolName === 'string' ? data.toolName : ''
+        const error = typeof data.error === 'string' && data.error ? data.error : 'The tool failed.'
+        let tc = name
+          ? toolCalls.value.find(t => t.name === name && !t.done)
+            ?? toolCalls.value.find(t => t.name === name && t.outcome === 'ended')
+          : toolCalls.value.find(t => !t.done)
+        if (!tc) {
+          tc = { id: `${++toolCallCounter}-${name || 'tool'}`, name: name || 'tool', args: {}, done: false, sessionId: sessionOf(msg) }
+          toolCalls.value = [...toolCalls.value, tc]
+        }
+        tc.done = true
+        tc.approval = undefined
+        tc.outcome = 'failed'
+        tc.error = error
+        toolCalls.value = [...toolCalls.value]
         break
       }
       case 'presence': {
@@ -757,7 +803,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         } else {
           const id = `${++toolCallCounter}-${toolName || 'approval'}`
           toolCalls.value = [...toolCalls.value, {
-            id, name: toolName || 'approval', args, done: false, approval,
+            id, name: toolName || 'approval', args, done: false, approval, sessionId: sessionOf(msg),
           }]
         }
         break
@@ -876,6 +922,31 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       currentAssistantMessage = updated
     }
     messages.value = [...messages.value]
+  }
+
+  function sessionOf(msg: Record<string, unknown>): string | undefined {
+    return typeof msg.sessionId === 'string' && msg.sessionId ? msg.sessionId : undefined
+  }
+
+  /**
+   * A turn's terminal frame ends the cards its session opened that never got
+   * a result or an error: nothing more will come for them, so they read as
+   * ended without a result rather than working forever. A frame or card with
+   * no session (AG-UI) ends every open card. Only the terminal frame does this:
+   * a dropped connection may reattach and replay the tool's answer.
+   */
+  function endUnresolvedTools(msg: Record<string, unknown>) {
+    const session = sessionOf(msg)
+    let changed = false
+    for (const tc of toolCalls.value) {
+      if (tc.done) continue
+      if (session && tc.sessionId && tc.sessionId !== session) continue
+      tc.done = true
+      tc.approval = undefined
+      tc.outcome = 'ended'
+      changed = true
+    }
+    if (changed) toolCalls.value = [...toolCalls.value]
   }
 
   function finalizeAssistant() {

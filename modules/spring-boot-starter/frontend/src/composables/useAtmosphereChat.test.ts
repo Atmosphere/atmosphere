@@ -42,6 +42,7 @@ import ChatInput from '../components/ChatInput.vue'
 import ToolCard from '../components/ToolCard.vue'
 import ChatMessage from '../components/ChatMessage.vue'
 import { loadMath } from '../lib/markdown'
+import { AgUiEventTranslator } from '../transports/agui'
 
 /**
  * Mount the composable inside a component that actually renders the messages.
@@ -240,6 +241,152 @@ describe('a tool whose approval was not given', () => {
     const card = await cardAfter('All cached data for Osaka has been reset.')
     expect(card.status).toBe('Done')
     expect(card.icon).toBe('✓')
+  })
+})
+
+describe('a tool that failed, or never reported back', () => {
+  // 2026-10-20 sweep (round 10, lane B): a fleet agent whose task failed sent
+  // {"event":"tool-error","data":{"toolName":"writer","error":"…"}} and its card
+  // kept reading "● Writer Working..." after the turn had ended.
+  beforeEach(() => { sent.length = 0 })
+
+  function card(tool: unknown) {
+    const c = mount(ToolCard, { props: { tool: tool as never } })
+    return {
+      icon: c.find('.tool-icon').text(),
+      status: c.find('.tool-status').text(),
+      text: c.text(),
+    }
+  }
+
+  it('shows a tool-error as failed, with its error', async () => {
+    const { chat } = await mountChat()
+    chat.send('write the article')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: { input: 'x' } }, sessionId: 's-f', seq: 4 })
+    handlers.onEvent({ event: 'tool-error', data: { toolName: 'writer', error: 'writer deliberately failed for the lane-B test' }, sessionId: 's-f', seq: 5 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-f', seq: 6 })
+    await nextTick()
+    const c = card(chat.toolCalls.value[0])
+    expect(c.status).toBe('Failed')
+    expect(c.icon).toBe('✕')
+    expect(c.text).toContain('writer deliberately failed for the lane-B test')
+  })
+
+  it('shows a tool-error that arrives after the turn ended as failed', async () => {
+    const { chat } = await mountChat()
+    chat.send('write the article')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: {} }, sessionId: 's-l', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-l', seq: 2 })
+    handlers.onEvent({ event: 'tool-error', data: { toolName: 'writer', error: 'late failure' }, sessionId: 's-l', seq: 3 })
+    await nextTick()
+    const c = card(chat.toolCalls.value[0])
+    expect(c.status).toBe('Failed')
+    expect(c.text).toContain('late failure')
+  })
+
+  it('keeps the error of a tool reported failed then answered, and leaves other open cards alone', async () => {
+    // The built-in client reports an unknown tool as ToolStart, ToolError, then
+    // a ToolResult carrying the error JSON for the model.
+    const { chat } = await mountChat()
+    chat.send('go')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'search', arguments: {} }, sessionId: 's-t', seq: 1 })
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'nope', arguments: {} }, sessionId: 's-t', seq: 2 })
+    handlers.onEvent({ event: 'tool-error', data: { toolName: 'nope', error: 'Tool not found' }, sessionId: 's-t', seq: 3 })
+    handlers.onEvent({ event: 'tool-result', data: { toolName: 'nope', result: '{"error":"Tool not found: nope"}' }, sessionId: 's-t', seq: 4 })
+    await nextTick()
+    const [search, nope] = chat.toolCalls.value
+    expect(card(nope).status).toBe('Failed')
+    expect(card(nope).text).toContain('Tool not found')
+    expect(search.done).toBe(false)
+    expect(card(search).status).toBe('Working...')
+  })
+
+  it('shows a tool-error with no tool-start before it as its own failed card', async () => {
+    const { chat } = await mountChat()
+    chat.send('go')
+    handlers.onEvent({ event: 'tool-error', data: { toolName: 'writer', error: null }, sessionId: 's-n', seq: 1 })
+    await nextTick()
+    expect(chat.toolCalls.value).toHaveLength(1)
+    const c = card(chat.toolCalls.value[0])
+    expect(c.status).toBe('Failed')
+    expect(c.text).toContain('Writer')
+  })
+
+  it('rebuilds a failed card from a replayed run this page did not send for', async () => {
+    // After a reload the server replays the run's tool frames as they were written.
+    const { chat } = await mountChat()
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: {} }, sessionId: 's-r', seq: 1 })
+    handlers.onEvent({ event: 'tool-error', data: { toolName: 'writer', error: 'replayed failure' }, sessionId: 's-r', seq: 2 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-r', seq: 3 })
+    await nextTick()
+    const c = card(chat.toolCalls.value[0])
+    expect(c.status).toBe('Failed')
+    expect(c.text).toContain('replayed failure')
+  })
+
+  for (const terminal of [
+    { type: 'complete' },
+    { type: 'error', data: 'boom' },
+    { type: 'cancelled', data: 'disconnect' },
+  ]) {
+    it(`does not leave a card working once the turn ends with ${terminal.type}`, async () => {
+      const { chat } = await mountChat()
+      chat.send('go')
+      handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: {} }, sessionId: 's-e', seq: 1 })
+      handlers.onEvent({ ...terminal, sessionId: 's-e', seq: 2 })
+      await nextTick()
+      const c = card(chat.toolCalls.value[0])
+      expect(c.status).toBe('No result')
+      expect(c.icon).toBe('✕')
+    })
+  }
+
+  it('still shows a result that arrives after the turn ended', async () => {
+    const { chat } = await mountChat()
+    chat.send('go')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: {} }, sessionId: 's-a', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-a', seq: 2 })
+    handlers.onEvent({ event: 'tool-result', data: { toolName: 'writer', result: 'the article' }, sessionId: 's-a', seq: 3 })
+    await nextTick()
+    const c = card(chat.toolCalls.value[0])
+    expect(c.status).toBe('Done')
+    expect(c.icon).toBe('✓')
+  })
+
+  it('leaves a card of another session working when one session ends', async () => {
+    // A handed-off turn: the first agent's run ends while the target's tool runs.
+    const { chat } = await mountChat()
+    chat.send('go')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: {} }, sessionId: 's-target', seq: 1 })
+    handlers.onEvent({ type: 'complete', sessionId: 's-first', seq: 9 })
+    await nextTick()
+    expect(card(chat.toolCalls.value[0]).status).toBe('Working...')
+  })
+
+  it('does not end a card when the connection drops in the middle of a turn', async () => {
+    const { chat } = await mountChat()
+    chat.send('go')
+    handlers.onEvent({ event: 'tool-start', data: { toolName: 'writer', arguments: {} }, sessionId: 's-d', seq: 1 })
+    handlers.onClose?.()
+    await nextTick()
+    expect(card(chat.toolCalls.value[0]).status).toBe('Working...')
+  })
+
+  it('ends an AG-UI tool call whose run finished without a result', async () => {
+    // AG-UI carries a failed tool as a bare TOOL_CALL_END: only the run's end
+    // closes its card.
+    const { chat } = await mountChat()
+    chat.send('go')
+    const t = new AgUiEventTranslator()
+    for (const ev of [
+      { type: 'TOOL_CALL_START', data: { toolCallId: 'tc1', toolCallName: 'writer' } },
+      { type: 'TOOL_CALL_END', data: { toolCallId: 'tc1' } },
+      { type: 'RUN_FINISHED', data: {} },
+    ]) {
+      for (const frame of t.translate(ev)) handlers.onEvent(frame)
+    }
+    await nextTick()
+    expect(card(chat.toolCalls.value[0]).status).toBe('No result')
   })
 })
 

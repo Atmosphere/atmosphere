@@ -19,11 +19,15 @@ const displayName = computed(() => {
     .replace(/\b\w/g, c => c.toUpperCase())
 })
 
+// A failed tool shows its error; the result that may follow it is the same
+// error, written for the model.
+const shownResult = computed(() => props.tool.outcome === 'failed' ? '' : (props.tool.result ?? ''))
+
 const renderedResult = computed(() => {
-  if (!props.tool.result) return ''
-  const text = props.tool.result.length > 800
-    ? props.tool.result.slice(0, 800) + '...'
-    : props.tool.result
+  if (!shownResult.value) return ''
+  const text = shownResult.value.length > 800
+    ? shownResult.value.slice(0, 800) + '...'
+    : shownResult.value
   // Render markdown (tables, bold, lists) if content has markdown syntax
   if (text.includes('|') || text.includes('**') || text.includes('- ')) {
     return renderMarkdown(text)
@@ -32,15 +36,18 @@ const renderedResult = computed(() => {
 })
 
 const truncatedResult = computed(() => {
-  if (!props.tool.result) return ''
-  return props.tool.result.length > 400
-    ? props.tool.result.slice(0, 400) + '...'
-    : props.tool.result
+  if (!shownResult.value) return ''
+  return shownResult.value.length > 400
+    ? shownResult.value.slice(0, 400) + '...'
+    : shownResult.value
 })
 
 const statusLabel = computed(() => {
   if (props.tool.outcome === 'timed-out') return 'Timed out'
   if (props.tool.outcome === 'denied') return 'Denied'
+  if (props.tool.outcome === 'failed') return 'Failed'
+  // The turn ended with neither a result nor an error for the tool.
+  if (props.tool.outcome === 'ended') return 'No result'
   if (props.tool.approval) return 'Awaiting approval'
   return props.tool.done ? 'Done' : 'Working...'
 })
@@ -51,7 +58,8 @@ const argEntries = computed(() =>
 </script>
 
 <template>
-  <div class="tool-card" :class="{ 'tool-card--done': tool.done && !tool.outcome, 'tool-card--not-run': tool.outcome }"
+  <div class="tool-card" :class="{ 'tool-card--done': tool.done && !tool.outcome, 'tool-card--not-run': tool.outcome && tool.outcome !== 'ended',
+                                'tool-card--ended': tool.outcome === 'ended' }"
        data-testid="tool-card">
     <div class="tool-header">
       <div class="tool-label">
@@ -59,7 +67,7 @@ const argEntries = computed(() =>
         <span class="tool-name">{{ displayName }}</span>
       </div>
       <span class="tool-status"
-            :class="{ 'tool-status--approval': tool.approval, 'tool-status--not-run': tool.outcome }">
+            :class="{ 'tool-status--approval': tool.approval, 'tool-status--not-run': tool.outcome && tool.outcome !== 'ended' }">
         {{ statusLabel }}
       </span>
     </div>
@@ -83,6 +91,9 @@ const argEntries = computed(() =>
           @click="emit('deny', tool.approval!.approvalId)"
         >Deny</button>
       </div>
+    </div>
+    <div v-if="tool.outcome === 'failed'" class="tool-error" data-testid="tool-error">
+      {{ tool.error }}
     </div>
     <div v-if="renderedResult" class="tool-result tool-result--md" v-html="renderedResult"></div>
     <div v-else-if="truncatedResult" class="tool-result">
@@ -152,6 +163,18 @@ const argEntries = computed(() =>
 
 .tool-status--not-run {
   color: #ef4444;
+}
+
+.tool-card--ended {
+  border-left-color: var(--text-tertiary);
+}
+
+.tool-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .approval-prompt {
