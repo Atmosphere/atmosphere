@@ -15,7 +15,16 @@
  */
 package org.atmosphere.ai.sk;
 
+import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
+import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -116,5 +125,53 @@ class SemanticKernelOpenAiClientFactoryTest {
         var client = SemanticKernelOpenAiClientFactory.forEndpoint(
                 "https://generativelanguage.googleapis.com/v1beta/openai", "AIza-test");
         assertNotNull(client);
+    }
+
+    /**
+     * A plain-HTTP endpoint (the local default {@code http://localhost:11434/v1},
+     * vLLM, LM Studio) is reached: the URL rewrite runs after the Azure SDK's
+     * key-credential policy, which refuses a key on an {@code http} URL ("Key
+     * credentials require HTTPS") and failed every local call before it left.
+     */
+    @Test
+    void forEndpointReachesAPlainHttpServer() throws Exception {
+        var paths = new CopyOnWriteArrayList<String>();
+        var authorizations = new CopyOnWriteArrayList<String>();
+        var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/", exchange -> {
+            try (exchange) {
+                paths.add(exchange.getRequestURI().getPath());
+                authorizations.add(exchange.getRequestHeaders().getFirst("Authorization"));
+                exchange.getRequestBody().readAllBytes();
+                var body = """
+                        {"id":"chatcmpl-1","object":"chat.completion","created":1700000000,"model":"llama3",
+                         "choices":[{"index":0,"finish_reason":"stop",
+                           "message":{"role":"assistant","content":"pong"}}],
+                         "usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}
+                        """.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, body.length);
+                exchange.getResponseBody().write(body);
+            }
+        });
+        server.start();
+        try {
+            var client = SemanticKernelOpenAiClientFactory.forEndpoint(
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/v1", "not-needed-for-local");
+            var service = OpenAIChatCompletion.builder()
+                    .withOpenAIAsyncClient(client)
+                    .withModelId("llama3")
+                    .build();
+
+            var messages = service.getChatMessageContentsAsync(
+                    new ChatHistory().addUserMessage("ping"), null, null).block();
+
+            assertNotNull(messages);
+            assertEquals("pong", messages.get(messages.size() - 1).getContent());
+            assertEquals(List.of("/v1/chat/completions"), paths);
+            assertEquals("Bearer not-needed-for-local", authorizations.get(0));
+        } finally {
+            server.stop(0);
+        }
     }
 }

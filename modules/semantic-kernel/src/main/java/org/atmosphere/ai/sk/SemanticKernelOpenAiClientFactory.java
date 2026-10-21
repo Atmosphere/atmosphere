@@ -103,9 +103,10 @@ public final class SemanticKernelOpenAiClientFactory {
 
     /**
      * HTTP pipeline policy that swaps {@code https://api.openai.com/v1} for
-     * the configured real base URL on every outgoing request. Runs at the
-     * per-call position so it sees the URL after the SDK has appended path
-     * segments ({@code /chat/completions}, {@code /embeddings}, etc.).
+     * the configured real base URL on every outgoing request. Runs in the
+     * pipeline, so it sees the URL after the SDK has appended path segments
+     * ({@code /chat/completions}, {@code /embeddings}, etc.), and per retry,
+     * after the key-credential policy (see {@link #getPipelinePosition()}).
      */
     static final class RewriteUrlPolicy implements HttpPipelinePolicy {
         private final String realBaseUrl;
@@ -126,9 +127,18 @@ public final class SemanticKernelOpenAiClientFactory {
             return next.processSync();
         }
 
+        /**
+         * Per-retry, so the rewrite runs after the SDK's key-credential policy:
+         * that policy refuses a key on an {@code http} URL ("Key credentials
+         * require HTTPS"), and before the rewrite the URL is still the
+         * {@code https} sentinel. A per-call rewrite failed every call to a
+         * plain-HTTP endpoint (the local default {@code http://localhost:11434/v1}).
+         * The retry policy hands each attempt a copy of the original request,
+         * so every attempt is rewritten once.
+         */
         @Override
         public HttpPipelinePosition getPipelinePosition() {
-            return HttpPipelinePosition.PER_CALL;
+            return HttpPipelinePosition.PER_RETRY;
         }
 
         private void applyRewrite(HttpPipelineCallContext ctx) {
