@@ -54,7 +54,14 @@ import java.util.List;
  *       The trade-off: an unformatted phone number with no {@code +}
  *       ({@code 5145551234}) is not detected either. See
  *       {@code PiiPatterns.PHONE}.</li>
- *   <li>Credit card (13–19 digits with Luhn-shaped grouping) → {@code [redacted-cc]}</li>
+ *   <li>Credit card → {@code [redacted-cc]}: 13–19 digits, optionally grouped
+ *       by single spaces or hyphens ({@code 4111 1111 1111 1111},
+ *       {@code 3782 822463 10005}), standing on their own and passing the
+ *       Luhn checksum. A large integer in an answer that fails Luhn
+ *       ({@code 2^50 = 1125899906842624}, a factorial, {@code 1234567890123456})
+ *       is neither redacted nor blocked. The trade-off: a random 13–19 digit
+ *       number passes Luhn one time in ten, so about one in ten such integers
+ *       is still taken for a card. See {@code PiiPatterns.CREDIT_CARD}.</li>
  *   <li>US SSN-shaped → {@code [redacted-ssn]}</li>
  *   <li>IPv4 → {@code [redacted-ip]}</li>
  * </ul>
@@ -92,8 +99,8 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
             // The shared definition: a number written as a phone, never a bare digit run.
             new Pattern(org.atmosphere.ai.filter.PiiPatterns.PHONE,
                     "[redacted-phone]", "phone"),
-            new Pattern(java.util.regex.Pattern.compile(
-                    "\\b(?:\\d{4}[\\s-]?){3}\\d{1,4}\\b"),
+            // The shared definition: 13-19 digits that pass the Luhn check, never any large integer.
+            new Pattern(org.atmosphere.ai.filter.PiiPatterns.CREDIT_CARD,
                     "[redacted-cc]", "credit-card"),
             new Pattern(java.util.regex.Pattern.compile(
                     "\\b\\d{3}-\\d{2}-\\d{4}\\b"),
@@ -134,8 +141,8 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
         }
         var kinds = new ArrayList<String>();
         for (var p : patterns) {
-            var matcher = p.regex.matcher(accumulatedResponse);
-            if (matcher.find()) {
+            // PiiPatterns.find applies the Luhn check to a credit-card candidate.
+            if (org.atmosphere.ai.filter.PiiPatterns.find(p.regex, accumulatedResponse)) {
                 kinds.add(p.kind);
             }
         }
@@ -173,10 +180,9 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
         var redacted = request.message();
         var kinds = new ArrayList<String>();
         for (var p : patterns) {
-            var matcher = p.regex.matcher(redacted);
-            if (matcher.find()) {
+            if (org.atmosphere.ai.filter.PiiPatterns.find(p.regex, redacted)) {
                 kinds.add(p.kind);
-                redacted = matcher.replaceAll(p.replacement);
+                redacted = org.atmosphere.ai.filter.PiiPatterns.replaceAll(p.regex, redacted, p.replacement);
             }
         }
         if (kinds.isEmpty()) {

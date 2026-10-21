@@ -101,7 +101,7 @@ public final class PiiTapeRedactor implements TapeRedactor {
     private static String redactText(String text) {
         var result = text;
         for (var pattern : PATTERNS) {
-            result = pattern.matcher(result).replaceAll(REPLACEMENT);
+            result = PiiPatterns.replaceAll(pattern, result, REPLACEMENT);
         }
         return result;
     }

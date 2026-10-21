@@ -2570,7 +2570,12 @@ Four zero-dep implementations ship in-tree:
   `514-555-1234`, `514.555.1234`). A bare run of digits is not, so a math
   result (`2^31 = 2147483648`), a quantity, a year, an order number or the
   digits of a decimal passes; the trade-off is that an unformatted number with
-  no `+` (`5145551234`) is not detected either. `PiiRedactionFilter` and the
+  no `+` (`5145551234`) is not detected either. A credit card is 13–19
+  digits, optionally grouped by single spaces or hyphens (`4111 1111 1111 1111`,
+  `3782 822463 10005`), standing on its own and passing the Luhn checksum, so
+  a power of two, a factorial or `1234567890123456` in an answer passes; the
+  trade-off is that a random 13–19 digit number passes Luhn one time in ten,
+  so about one such integer in ten is still taken for a card. `PiiRedactionFilter` and the
   session tape's `PiiTapeRedactor` share the same definitions; they match the
   North American forms only (`PiiPatterns.US_PHONE`), the guardrail the
   international ones too (`PiiPatterns.PHONE`).

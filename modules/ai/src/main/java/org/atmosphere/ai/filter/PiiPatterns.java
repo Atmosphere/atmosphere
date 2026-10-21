@@ -114,9 +114,129 @@ public final class PiiPatterns {
     public static final Pattern SSN =
             Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
 
-    /** Credit-card numbers (13-19 digits, optional separators). */
+    /**
+     * Candidate credit-card numbers: 13 to 19 digits, optionally grouped by
+     * single spaces or hyphens ({@code 4111 1111 1111 1111},
+     * {@code 4111-1111-1111-1111}, {@code 3782 822463 10005},
+     * {@code 4111111111111111}), standing on their own — not after a letter, a
+     * digit, an underscore, a {@code +}, a {@code -} or the {@code d.} of a
+     * decimal, and not before another digit or a {@code .} followed by one.
+     *
+     * <p>A regex cannot compute a checksum, so a match is only a candidate:
+     * {@link #find(Pattern, String)} and {@link #replaceAll(Pattern, String, String)}
+     * keep it only when it passes the Luhn check, cutting it back to its longest
+     * group-aligned prefix that does when the whole run does not
+     * ({@code 4111 1111 1111 1111 12/27} is the card plus an expiry). Use those
+     * methods, not this pattern's own matcher, to detect or redact cards. A
+     * power of two, a factorial or another large integer in an answer
+     * ({@code 2^50 = 1125899906842624}, {@code 1234567890123456}) fails Luhn and
+     * is not a card. The trade-off: a random 13–19 digit number passes Luhn one
+     * time in ten, so about one large integer in ten that stands on its own is
+     * still taken for a card.</p>
+     */
     public static final Pattern CREDIT_CARD =
-            Pattern.compile("\\b(?:\\d[\\s-]?){13,19}\\b");
+            Pattern.compile("(?<![\\w+-])(?<!\\d\\.)\\d(?:[ -]?\\d){12,18}(?!\\d)(?!\\.\\d)");
+
+    /**
+     * Whether {@code pattern} finds PII in {@code text}. For
+     * {@link #CREDIT_CARD} a candidate counts only when it passes the Luhn
+     * check; any other pattern is used as is.
+     */
+    public static boolean find(Pattern pattern, String text) {
+        var matcher = pattern.matcher(text);
+        if (pattern != CREDIT_CARD) {
+            return matcher.find();
+        }
+        while (matcher.find()) {
+            if (cardEnd(text, matcher.start(), matcher.end()) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Replace every PII match of {@code pattern} in {@code text} with
+     * {@code replacement}. For {@link #CREDIT_CARD} only the candidates that
+     * pass the Luhn check are replaced, each up to its last card digit; any
+     * other pattern behaves as {@link java.util.regex.Matcher#replaceAll(String)}.
+     */
+    public static String replaceAll(Pattern pattern, String text, String replacement) {
+        if (pattern != CREDIT_CARD) {
+            return pattern.matcher(text).replaceAll(replacement);
+        }
+        var matcher = CREDIT_CARD.matcher(text);
+        StringBuilder out = null;
+        var last = 0;
+        while (matcher.find()) {
+            var end = cardEnd(text, matcher.start(), matcher.end());
+            if (end < 0) {
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuilder(text.length());
+            }
+            out.append(text, last, matcher.start()).append(replacement);
+            last = end;
+        }
+        if (out == null) {
+            return text;
+        }
+        return out.append(text, last, text.length()).toString();
+    }
+
+    /**
+     * Where the card in the candidate {@code text[start, end)} ends: {@code end}
+     * when the whole candidate passes Luhn, else the end of its longest prefix
+     * that stops before a separator, holds 13 to 19 digits and passes Luhn, or
+     * {@code -1} when there is none.
+     */
+    private static int cardEnd(String text, int start, int end) {
+        for (var cut = end; cut > start; cut--) {
+            if (cut < end && !isSeparator(text.charAt(cut))) {
+                continue;
+            }
+            var digits = 0;
+            for (var i = start; i < cut; i++) {
+                if (Character.isDigit(text.charAt(i))) {
+                    digits++;
+                }
+            }
+            if (digits < 13) {
+                return -1;
+            }
+            if (digits <= 19 && passesLuhn(text, start, cut)) {
+                return cut;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isSeparator(char c) {
+        return c == ' ' || c == '-';
+    }
+
+    /** The Luhn (mod 10) checksum over the digits of {@code text[start, end)}. */
+    private static boolean passesLuhn(String text, int start, int end) {
+        var sum = 0;
+        var doubled = false;
+        for (var i = end - 1; i >= start; i--) {
+            var c = text.charAt(i);
+            if (c < '0' || c > '9') {
+                continue;
+            }
+            var digit = c - '0';
+            if (doubled) {
+                digit *= 2;
+                if (digit > 9) {
+                    digit -= 9;
+                }
+            }
+            sum += digit;
+            doubled = !doubled;
+        }
+        return sum % 10 == 0;
+    }
 
     private PiiPatterns() {
     }

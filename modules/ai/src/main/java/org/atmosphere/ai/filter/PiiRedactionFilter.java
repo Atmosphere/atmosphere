@@ -172,7 +172,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     String redact(String text) {
         var result = text;
         for (var entry : patterns.entrySet()) {
-            result = entry.getValue().matcher(result).replaceAll(replacement);
+            result = PiiPatterns.replaceAll(entry.getValue(), result, replacement);
         }
         return result;
     }
