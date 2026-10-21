@@ -352,6 +352,25 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             throw re;
         }
 
+        // A failed model call does not reach the catch blocks above: the
+        // graph's AgentLlmNode catches it and ends the run with an
+        // AssistantMessage carrying the exception text ("Exception: HTTP 401
+        // - ..."). Streaming that text would show a provider failure as an
+        // answer; end the turn with the error instead, as the other runtimes
+        // do (Correctness Invariant #7). Seen through the UsageCapturingChatModel
+        // the auto-configuration wraps every ChatModel in; a user ReactAgent
+        // built on an unwrapped model is not covered, as for TOKEN_USAGE.
+        var failure = collector != null ? collector.failure() : null;
+        if (failure != null) {
+            UsageCapturingChatModel.endCapture();
+            modelScope.fail(failure);
+            var classified = org.atmosphere.ai.ProviderErrorClassifier.wrap(failure);
+            session.error(classified);
+            throw classified instanceof RuntimeException runtime
+                    ? runtime
+                    : new IllegalStateException("Spring AI Alibaba model call failed", classified);
+        }
+
         // Buffered delivery: one chunk + complete. The Atmosphere transport
         // still streams this chunk to the client; the limitation is that
         // there is no incremental token surface from the LLM.

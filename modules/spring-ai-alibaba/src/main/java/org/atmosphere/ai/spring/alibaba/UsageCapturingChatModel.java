@@ -75,16 +75,39 @@ public final class UsageCapturingChatModel implements ChatModel {
         return COLLECTOR.get();
     }
 
+    /**
+     * Records a failed model call before rethrowing it: Spring AI Alibaba's
+     * {@code AgentLlmNode} catches it and ends the ReAct run with an
+     * {@code AssistantMessage} that carries the exception text, so
+     * {@code ReactAgent.call} returns normally and the runtime would otherwise
+     * stream a provider error (an HTTP 401, say) as the answer.
+     */
     @Override
     public ChatResponse call(Prompt prompt) {
-        var response = delegate.call(prompt);
+        ChatResponse response;
+        try {
+            response = delegate.call(prompt);
+        } catch (RuntimeException e) {
+            COLLECTOR.get().fail(e);
+            throw e;
+        }
+        COLLECTOR.get().succeeded();
         recordUsage(response);
         return response;
     }
 
     @Override
     public Flux<ChatResponse> stream(Prompt prompt) {
-        return delegate.stream(prompt).doOnNext(this::recordUsage);
+        // The collector is taken on the thread that asks for the stream (the
+        // dispatch's, as for call()), so signals emitted on a Reactor thread
+        // still reach that dispatch.
+        var collector = COLLECTOR.get();
+        return delegate.stream(prompt)
+                .doOnNext(response -> {
+                    collector.succeeded();
+                    recordUsage(response, collector);
+                })
+                .doOnError(collector::fail);
     }
 
     @Override
@@ -96,6 +119,10 @@ public final class UsageCapturingChatModel implements ChatModel {
     }
 
     private void recordUsage(ChatResponse response) {
+        recordUsage(response, COLLECTOR.get());
+    }
+
+    private static void recordUsage(ChatResponse response, UsageCollector collector) {
         if (response == null) {
             return;
         }
@@ -107,7 +134,6 @@ public final class UsageCapturingChatModel implements ChatModel {
         if (usage == null) {
             return;
         }
-        var collector = COLLECTOR.get();
         collector.accumulate(
                 nullToZero(usage.getPromptTokens()),
                 nullToZero(usage.getCompletionTokens()),
@@ -126,6 +152,25 @@ public final class UsageCapturingChatModel implements ChatModel {
         private final AtomicLong totalTokens = new AtomicLong();
         private volatile String model;
         private final AtomicLong callCount = new AtomicLong();
+        private volatile Throwable failure;
+
+        /** The latest model call failed with {@code cause}. */
+        void fail(Throwable cause) {
+            failure = cause;
+        }
+
+        /** The latest model call succeeded: a failure before it no longer ends the run. */
+        void succeeded() {
+            failure = null;
+        }
+
+        /**
+         * The failure of the latest model call, or {@code null} when it
+         * succeeded (or none was made).
+         */
+        Throwable failure() {
+            return failure;
+        }
 
         void accumulate(long prompt, long completion, long total, String model) {
             if (prompt > 0) {
