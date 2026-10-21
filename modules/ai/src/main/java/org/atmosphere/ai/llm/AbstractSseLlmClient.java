@@ -57,6 +57,13 @@ import java.util.function.Consumer;
  * <p>Subclasses pass their resolved configuration via an immutable
  * {@link SseClientConfig} carrier to the protected super-constructor; each
  * subclass keeps its own concrete {@code Builder}.</p>
+ *
+ * <p>The API key goes over plain {@code http} only to a loopback host
+ * ({@link CleartextApiKeyPolicy}): with a key and an {@code http} base URL on
+ * any other host the refusal is logged at {@code ERROR} when the client is
+ * built, and {@link #runRound} ends every call with {@code session.error(...)}
+ * without sending it, unless {@link SseClientConfig#allowCleartextApiKey()}
+ * opts in (a {@code WARN} when the client is built).</p>
  */
 public abstract class AbstractSseLlmClient {
 
@@ -87,6 +94,8 @@ public abstract class AbstractSseLlmClient {
      * (defaulted to {@link RetryPolicy#DEFAULT} by the constructor).
      */
     protected final RetryPolicy retryPolicy;
+    /** See {@link #cleartextRefusal()}. */
+    private final String cleartextRefusal;
 
     /**
      * Immutable configuration carrier passed from each subclass Builder into
@@ -102,6 +111,8 @@ public abstract class AbstractSseLlmClient {
      * @param maxTokens     default {@code max_tokens}
      * @param customHeaders caller custom headers (copied defensively)
      * @param retryPolicy   HTTP retry policy; null means {@link RetryPolicy#DEFAULT}
+     * @param allowCleartextApiKey whether the key may go over plain {@code http}
+     *                      to a host that is not loopback ({@link CleartextApiKeyPolicy})
      */
     public record SseClientConfig(
             String baseUrl,
@@ -110,7 +121,15 @@ public abstract class AbstractSseLlmClient {
             Duration timeout,
             int maxTokens,
             Map<String, String> customHeaders,
-            RetryPolicy retryPolicy) {
+            RetryPolicy retryPolicy,
+            boolean allowCleartextApiKey) {
+
+        /** Carrier without the cleartext opt-in: a key goes over plain http only to loopback. */
+        public SseClientConfig(String baseUrl, String apiKey, HttpClient httpClient,
+                               Duration timeout, int maxTokens,
+                               Map<String, String> customHeaders, RetryPolicy retryPolicy) {
+            this(baseUrl, apiKey, httpClient, timeout, maxTokens, customHeaders, retryPolicy, false);
+        }
 
         /** Legacy carrier without a retry policy — defaults to {@link RetryPolicy#DEFAULT}. */
         public SseClientConfig(String baseUrl, String apiKey, HttpClient httpClient,
@@ -139,6 +158,30 @@ public abstract class AbstractSseLlmClient {
         this.customHeaders = Map.copyOf(config.customHeaders());
         this.retryPolicy = config.retryPolicy() != null ? config.retryPolicy()
                 : RetryPolicy.DEFAULT;
+        this.cleartextRefusal = switch (CleartextApiKeyPolicy.verdict(
+                this.baseUrl, this.apiKey, config.allowCleartextApiKey())) {
+            case SEND -> null;
+            case SEND_IN_CLEARTEXT -> {
+                CleartextApiKeyPolicy.warnCleartext(logger, getClass().getSimpleName(), this.baseUrl);
+                yield null;
+            }
+            case REFUSE -> {
+                var refusal = CleartextApiKeyPolicy.refusal(getClass().getSimpleName(), this.baseUrl);
+                logger.error("{} Every call of this client fails until then.", refusal);
+                yield refusal;
+            }
+        };
+    }
+
+    /**
+     * Why this client refuses to send its key, fixed when it was built, or
+     * {@code null} when it sends it ({@link CleartextApiKeyPolicy}). A request
+     * outside {@link #runRound} checks it before sending.
+     *
+     * @return the refusal, or {@code null}
+     */
+    protected final String cleartextRefusal() {
+        return cleartextRefusal;
     }
 
     /**
@@ -204,6 +247,12 @@ public abstract class AbstractSseLlmClient {
                                      StreamingSession session,
                                      AtomicBoolean cancelled,
                                      Consumer<JsonNode> onEvent) {
+        if (cleartextRefusal != null) {
+            // Fail closed: the key would cross the network in cleartext.
+            logger.error(cleartextRefusal);
+            session.error(new IllegalStateException(cleartextRefusal));
+            return false;
+        }
         var maxRetries = retryPolicy.maxRetries();
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             if (cancelled.get()) {

@@ -723,20 +723,60 @@ on the runtime; within each list, the first non-blank value wins.
   `llm.*` properties are not read.
 
 So `atmosphere.ai.base-url=http://gpu-box:8000/v1` reaches every runtime (Embabel's through
-`embabel-agent-starter-openai-custom`, see its README), and
+`embabel-agent-starter-openai-custom`, see its README; with an API key, such a plain-`http`
+host that is not loopback needs the opt-in described in
+[API keys over plain http](#api-keys-over-plain-http)), and
 `atmosphere.ai.mode=local` with no key builds an adapter's keyless local model. The two orders
 differ only when `atmosphere.ai.X` and `llm.X` / `LLM_X` are both set: the built-in runtime takes
 `atmosphere.ai.X`, an adapter takes `llm.X` / `LLM_X`. Set one of them.
+
+### API keys over plain http
+
+Every runtime applies one rule, `org.atmosphere.ai.llm.CleartextApiKeyPolicy`, to the base URL
+Atmosphere sends an API key to:
+
+| Endpoint | API key set | No API key (or the placeholder `not-needed-for-local`) |
+|---|---|---|
+| `https://…` | sent | allowed |
+| `http://` + loopback host | sent (local Ollama, vLLM, LM Studio) | allowed |
+| `http://` + any other host, or not a URI | **refused**, logged at `ERROR` | allowed |
+| `http://` + any other host, opt-in set | sent, with a `WARN` that the key goes in cleartext | allowed |
+
+- **Loopback** is read from the URL alone, with no DNS lookup: the name `localhost` (any case),
+  an IPv4 literal in `127.0.0.0/8`, or an IPv6 literal that is loopback (`::1`, or an
+  IPv4-mapped `::ffff:127.x.y.z`). Any other name is not loopback, `host.docker.internal` and
+  a name that resolves to `127.0.0.1` included.
+- **Opt-in**: `atmosphere.ai.allow-cleartext-api-key=true`, environment variable
+  `ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY=true`. Only `true` opts in. It is read per application:
+  the built-in, Anthropic and Cohere clients and the built-in embedding runtime read it as a knob
+  of their `AiEnvironment` ([Knob precedence](#knob-precedence)); the Spring auto-configurations
+  read it from that application's Spring `Environment`.
+- **Refusal**: where the endpoint is known at startup the application fails to start with the
+  message (LangChain4j, Spring AI, Spring AI Alibaba, AgentScope, Koog, Embabel's
+  `openai-custom` mapping, Semantic Kernel). The built-in, Anthropic and Cohere clients are built
+  from the application's settings: they log the refusal when built, then end every call with
+  `session.error(...)` (model enumeration returns an empty list), and the built-in embedding
+  runtime throws on each request. The message names the endpoint, that the key would cross the
+  network in cleartext, and the opt-in; it never carries the key. In every case the key is not
+  sent.
+- **Not covered**: a client or model bean the application builds itself and binds (a
+  `ChatClient`, `StreamingChatModel`, `OpenAIAsyncClient`, ...) does not go through Atmosphere's
+  URL handling; nor do the providers' own `spring.ai.openai.*` / `quarkus.langchain4j.*` /
+  `embabel.*` properties when Atmosphere maps nothing into them. An `OpenAiCompatibleClient`,
+  `AnthropicMessagesClient` or `CohereChatClient` built by hand applies the rule, and opts in
+  with its builder's `allowCleartextApiKey(true)`. The TypeSafe decision model applies the same
+  loopback rule with no opt-in.
 
 ### Knob precedence
 
 The `atmosphere.ai.*` knobs `AiConfig` reads — `temperature`, `max-tokens`, `top-p`, `stop`,
 `embedding-model`, `prompt-cache-key`, `logprobs`, `native-structured-output`, `planning`,
-`filesystem`, `runtime`, `reattach.grace`; the authoritative list is `AiConfig.knobProperties()` — are resolved in this
+`filesystem`, `runtime`, `reattach.grace`, `allow-cleartext-api-key`; the authoritative list is `AiConfig.knobProperties()` — are resolved in this
 order, first non-blank value wins:
 
 1. the JVM system property (`-Datmosphere.ai.temperature=0.2`);
-2. the knob's environment variable (`LLM_TEMPERATURE=0.2`);
+2. the knob's environment variable (`LLM_TEMPERATURE=0.2`; for `allow-cleartext-api-key`,
+   `ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY`);
 3. the application's own configuration: `application.yml` / `application.properties` with either
    Spring Boot starter, `application.properties` with the Quarkus extension (same key, no
    `quarkus.` prefix), the framework's init-params on a plain servlet or embedded server

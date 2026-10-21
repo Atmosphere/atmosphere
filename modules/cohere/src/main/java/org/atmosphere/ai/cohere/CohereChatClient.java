@@ -104,7 +104,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
 
     private CohereChatClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
-                b.maxTokens, b.customHeaders, b.retryPolicy));
+                b.maxTokens, b.customHeaders, b.retryPolicy, b.allowCleartextApiKey));
         this.generation = b.generation != null
                 ? b.generation : org.atmosphere.ai.GenerationParams.defaults();
     }
@@ -697,6 +697,11 @@ public final class CohereChatClient extends AbstractSseLlmClient {
      * @return immutable list of model identifiers; never {@code null}
      */
     public List<String> listModels() {
+        if (cleartextRefusal() != null) {
+            // Fail closed: the key would cross the network in cleartext.
+            logger.error(cleartextRefusal());
+            return List.of();
+        }
         var enumTimeout = timeout.compareTo(Duration.ofSeconds(10)) < 0
                 ? timeout : Duration.ofSeconds(10);
         var builder = HttpRequest.newBuilder()
@@ -770,6 +775,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         private org.atmosphere.ai.RetryPolicy retryPolicy;
         private org.atmosphere.ai.GenerationParams generation =
                 org.atmosphere.ai.GenerationParams.defaults();
+        private boolean allowCleartextApiKey;
 
         private Builder() {
         }
@@ -796,6 +802,19 @@ public final class CohereChatClient extends AbstractSseLlmClient {
 
         public Builder maxTokens(int maxTokens) {
             this.maxTokens = maxTokens;
+            return this;
+        }
+
+        /**
+         * Let the API key go over plain {@code http} to a host that is not
+         * loopback, with a {@code WARN} when the client is built. Off by
+         * default: such a client refuses every call
+         * ({@link org.atmosphere.ai.llm.CleartextApiKeyPolicy}). The runtime
+         * sets it from the application's
+         * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY} knob.
+         */
+        public Builder allowCleartextApiKey(boolean allowCleartextApiKey) {
+            this.allowCleartextApiKey = allowCleartextApiKey;
             return this;
         }
 

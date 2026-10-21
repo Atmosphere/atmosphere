@@ -89,4 +89,24 @@ class LangChain4jChatModelListenerTest {
         LangChain4jAgentRuntime.registerChatModelListener(new ChatModelListener() { });
         assertTrue(snapshot.size() == 1, "snapshot must be an independent copy");
     }
+
+    /**
+     * The runtime's own factory builds the model where no Spring
+     * auto-configuration does (a plain servlet or Quarkus app, an agent's
+     * scoped settings): it applies the same cleartext-key rule, so a real key
+     * never goes over plain http to a host that is not loopback.
+     */
+    @Test
+    void theFactoryRefusesAKeyOverPlainHttpToANonLoopbackHost() {
+        var remote = new AiConfig.LlmSettings(null, "gpt-4o-mini", "remote", "http://10.0.0.5:8000/v1",
+                "sk-live", null, null);
+        var refused = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new LangChain4jAgentRuntime().createNativeClient(remote));
+        assertTrue(refused.getMessage().contains("http://10.0.0.5:8000/v1"), refused.getMessage());
+        assertFalse(refused.getMessage().contains("sk-live"), "the refusal must not carry the key");
+
+        var loopback = new AiConfig.LlmSettings(null, "gpt-4o-mini", "local", "http://localhost:11434/v1",
+                "sk-live", null, null);
+        assertNotNull(new LangChain4jAgentRuntime().createNativeClient(loopback));
+    }
 }

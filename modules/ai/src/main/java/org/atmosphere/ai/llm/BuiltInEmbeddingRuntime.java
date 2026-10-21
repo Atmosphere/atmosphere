@@ -54,6 +54,12 @@ import java.util.Optional;
  * report {@code false}, and consumers take their documented no-runtime
  * path.</p>
  *
+ * <p>The API key goes over plain {@code http} only to a loopback host
+ * ({@link CleartextApiKeyPolicy}): to any other {@code http} host
+ * {@link #embedAll} logs the refusal at {@code ERROR} and throws without
+ * sending, unless the application sets
+ * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}{@code =true}.</p>
+ *
  * <p>Discovered through the standard {@code ServiceLoader} path so
  * programmatic callers can use {@code EmbeddingRuntime} without wiring a
  * framework-specific client. Priority sits below Spring AI / LC4j so that
@@ -77,6 +83,9 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
     private boolean closed;
     /** The application this instance serves; {@code null} until {@link #attach}. */
     private volatile AiEnvironment environment;
+    /** Whether the cleartext opt-in was already warned about: once per instance. */
+    private final java.util.concurrent.atomic.AtomicBoolean cleartextWarned =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     public BuiltInEmbeddingRuntime() {
     }
@@ -164,6 +173,25 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
                         + "one with the " + AiConfig.EMBEDDING_MODEL_ENV + " environment variable "
                         + "or the " + AiConfig.EMBEDDING_MODEL_PROPERTY + " system property"));
         var endpoint = normalizedEndpoint(baseUrl) + "/embeddings";
+        // Fail closed: a key goes over plain http only to a loopback host,
+        // unless this application opts in. The configured key decides, not
+        // the placeholder a keyless local server is sent.
+        switch (CleartextApiKeyPolicy.verdict(baseUrl, configured,
+                environment().resolveAllowCleartextApiKey())) {
+            case SEND -> {
+                // https, loopback, or no key.
+            }
+            case SEND_IN_CLEARTEXT -> {
+                if (cleartextWarned.compareAndSet(false, true)) {
+                    CleartextApiKeyPolicy.warnCleartext(logger, "The built-in embedding runtime", baseUrl);
+                }
+            }
+            case REFUSE -> {
+                var refusal = CleartextApiKeyPolicy.refusal("The built-in embedding runtime", baseUrl);
+                logger.error(refusal);
+                throw new IllegalStateException(refusal);
+            }
+        }
         try {
             var body = buildRequestBody(model, texts);
             var request = HttpRequest.newBuilder(URI.create(endpoint))

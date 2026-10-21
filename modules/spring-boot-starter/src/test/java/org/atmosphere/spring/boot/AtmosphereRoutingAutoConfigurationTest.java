@@ -330,6 +330,32 @@ class AtmosphereRoutingAutoConfigurationTest {
     }
 
     /**
+     * A rule client of its own takes the application's cleartext opt-in, as the
+     * resolved client does: an opted-in application's routed turns are not
+     * refused while its other turns go through.
+     */
+    @Test
+    void aRuleClientOfItsOwnTakesTheApplicationsCleartextOptIn() {
+        contextRunner
+                .withPropertyValues(
+                        "atmosphere.ai.allow-cleartext-api-key=true",
+                        "atmosphere.ai.routing.enabled=true",
+                        "atmosphere.ai.routing.content-rules[0].keywords[0]=code",
+                        "atmosphere.ai.routing.content-rules[0].model=gpt-4o",
+                        "atmosphere.ai.routing.content-rules[0].base-url=http://gpu-box:8000/v1",
+                        "atmosphere.ai.routing.content-rules[0].api-key=sk-rule")
+                .run(context -> {
+                    var installer = context.getBean(
+                            AtmosphereAiAutoConfiguration.RoutingClientInstaller.class);
+                    var rule = (RoutingLlmClient.RoutingRule.ContentBased) rulesOf(installer.router()).get(0);
+                    var client = (OpenAiCompatibleClient) rule.target();
+                    assertThat(client.allowsCleartextApiKey())
+                            .as("the rule client must carry the application's opt-in")
+                            .isTrue();
+                });
+    }
+
+    /**
      * A client built for a rule or a cost option with its own endpoint belongs
      * to the routing installer, which shuts it down when the context closes.
      * The environment shuts down only the client it built, so without the

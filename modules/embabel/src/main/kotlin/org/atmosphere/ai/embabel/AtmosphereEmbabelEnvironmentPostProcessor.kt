@@ -16,6 +16,7 @@
 package org.atmosphere.ai.embabel
 
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy
 import org.slf4j.LoggerFactory
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.env.EnvironmentPostProcessor
@@ -55,6 +56,12 @@ import org.springframework.core.env.MapPropertySource
  * Embabel's strict bean construction succeeds in demo-mode boots — sample
  * code is expected to short-circuit to a demo response producer before the
  * placeholder ever hits the wire.</p>
+ *
+ * <p>When the bridge maps the `openai-custom` endpoint or its key, a real key
+ * goes over plain {@code http} only to a loopback host: with any other
+ * {@code http} host the application fails to start (logged at {@code ERROR})
+ * unless it sets {@code atmosphere.ai.allow-cleartext-api-key=true}
+ * ([CleartextApiKeyPolicy]). The placeholder is no secret and goes anywhere.</p>
  */
 class AtmosphereEmbabelEnvironmentPostProcessor : EnvironmentPostProcessor {
 
@@ -106,6 +113,17 @@ class AtmosphereEmbabelEnvironmentPostProcessor : EnvironmentPostProcessor {
             }
             if (model != null && env.getProperty("$CUSTOM_PREFIX.models").isNullOrBlank()) {
                 mapped["$CUSTOM_PREFIX.models"] = model
+            }
+            if (mapped.containsKey("$CUSTOM_PREFIX.base-url") || mapped.containsKey("$CUSTOM_PREFIX.api-key")) {
+                // Atmosphere picks the endpoint or routes the key to it: a real
+                // key goes over plain http only to a loopback host, unless the
+                // application opts in. Thrown here, the application fails to
+                // start. The placeholder (no llm.api-key) is no secret.
+                val effectiveKey = firstNonBlank(env.getProperty("$CUSTOM_PREFIX.api-key"),
+                    if (mapped.containsKey("$CUSTOM_PREFIX.api-key")) apiKey else null)
+                val effectiveUrl = firstNonBlank(env.getProperty("$CUSTOM_PREFIX.base-url"), endpoint)
+                CleartextApiKeyPolicy.requireAllowed(logger, "Embabel (openai-custom)", effectiveUrl, effectiveKey,
+                    CleartextApiKeyPolicy.optedIn(env.getProperty(CleartextApiKeyPolicy.ALLOW_PROPERTY)))
             }
         }
 

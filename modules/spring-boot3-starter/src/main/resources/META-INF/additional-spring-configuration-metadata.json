@@ -167,6 +167,12 @@
       "description": "Override the LLM API base URL. Auto-detected from mode and model name when not set. The runtime adapters (LangChain4j, Spring AI, Koog, ...) read it as llm.base-url when llm.base-url / LLM_BASE_URL is unset."
     },
     {
+      "name": "atmosphere.ai.allow-cleartext-api-key",
+      "type": "java.lang.Boolean",
+      "description": "Let an API key go over plain http to a host that is not loopback, for every runtime of the application (built-in, Anthropic, Cohere, LangChain4j, Spring AI, Spring AI Alibaba, AgentScope, Koog, Embabel, Semantic Kernel). Without it, such a key is refused: a runtime configured at startup fails to start, a client built per request fails each call, both logged at ERROR. https and loopback hosts (localhost, 127.0.0.0/8, ::1) are unaffected, and a call with no key goes anywhere. Only true opts in, with a WARN that the key goes in cleartext. Also read from ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY.",
+      "defaultValue": false
+    },
+    {
       "name": "atmosphere.ai.path",
       "type": "java.lang.String",
       "description": "URL path for the default AI chat endpoint.",

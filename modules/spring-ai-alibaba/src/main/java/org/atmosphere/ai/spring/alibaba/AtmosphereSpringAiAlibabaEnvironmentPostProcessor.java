@@ -16,6 +16,7 @@
 package org.atmosphere.ai.spring.alibaba;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -63,6 +64,12 @@ import java.util.Map;
  * <p>The property source registered here has the lowest precedence among
  * Atmosphere-supplied sources, so users who set the {@code spring.ai.openai.*}
  * properties directly always win.</p>
+ *
+ * <p>When the bridge maps the key or the endpoint, a real key goes over plain
+ * {@code http} only to a loopback host: with any other {@code http} host the
+ * application fails to start (logged at {@code ERROR}) unless it sets
+ * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}{@code =true}
+ * ({@link CleartextApiKeyPolicy}).</p>
  */
 // EnvironmentPostProcessor is deprecated for removal in Spring Boot 4.0 but
 // is still the only documented hook for mutating the Environment before
@@ -165,6 +172,21 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
                 env.getProperty("LLM_MODEL"));
         if (model != null && isBlank(env.getProperty("spring.ai.openai.chat.options.model"))) {
             mapped.put("spring.ai.openai.chat.options.model", model);
+        }
+
+        if (mapped.containsKey("spring.ai.openai.api-key") || mapped.containsKey("spring.ai.openai.base-url")) {
+            // Atmosphere routes the key or picks the endpoint: a real key goes
+            // over plain http only to a loopback host, unless the application
+            // opts in. Thrown here, the application fails to start. In Spring
+            // AI 1.x spring.ai.openai.chat.base-url overrides the shared one.
+            var effectiveKey = firstNonBlank(env.getProperty("spring.ai.openai.chat.api-key"),
+                    env.getProperty("spring.ai.openai.api-key"),
+                    (String) mapped.get("spring.ai.openai.api-key"));
+            var effectiveUrl = firstNonBlank(env.getProperty("spring.ai.openai.chat.base-url"),
+                    env.getProperty("spring.ai.openai.base-url"),
+                    (String) mapped.get("spring.ai.openai.base-url"));
+            CleartextApiKeyPolicy.requireAllowed(logger, "Spring AI Alibaba", effectiveUrl, effectiveKey,
+                    CleartextApiKeyPolicy.optedIn(env.getProperty(CleartextApiKeyPolicy.ALLOW_PROPERTY)));
         }
 
         if (!mapped.isEmpty()) {

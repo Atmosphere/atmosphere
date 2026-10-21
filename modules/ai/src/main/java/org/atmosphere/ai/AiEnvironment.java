@@ -810,7 +810,8 @@ public final class AiEnvironment implements AutoCloseable {
 
     /**
      * The value of one knob, trimmed: the JVM system property, then the knob's
-     * {@code LLM_*} environment variable, then this environment's value (for
+     * environment variable ({@code LLM_*}, or
+     * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_ENV}), then this environment's value (for
      * the process default, the host configuration installed last).
      *
      * @param property a knob property name, one of {@link AiConfig#knobProperties()}
@@ -879,6 +880,15 @@ public final class AiEnvironment implements AutoCloseable {
     /** @return the embedding model this environment's knobs name */
     public Optional<String> resolveEmbeddingModel() {
         return AiConfig.embeddingModel(hostValues());
+    }
+
+    /**
+     * @return whether this environment's knobs let an API key go over plain
+     *         {@code http} to a host that is not loopback
+     *         ({@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}=true)
+     */
+    public boolean resolveAllowCleartextApiKey() {
+        return AiConfig.allowCleartextApiKey(hostValues());
     }
 
     /** @return the reattach grace this environment's knobs set */

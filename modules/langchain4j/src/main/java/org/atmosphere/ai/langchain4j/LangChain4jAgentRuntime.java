@@ -89,6 +89,12 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         eagerLoad("dev.langchain4j.http.client.SuccessfulHttpResponse$Builder");
         eagerLoad("dev.langchain4j.http.client.HttpException");
 
+        // Where no Spring auto-configuration built the model (a plain servlet or
+        // Quarkus app, an agent's scoped settings) the same rule applies: a real
+        // key never goes over plain http to a host that is not loopback.
+        org.atmosphere.ai.llm.CleartextApiKeyPolicy.requireAllowed(logger, "LangChain4j",
+                settings.baseUrl(), apiKey, environment().resolveAllowCleartextApiKey());
+
         var builder = dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
                 .apiKey(apiKey)

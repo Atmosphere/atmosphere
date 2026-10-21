@@ -184,6 +184,22 @@ class TypesafeDiscoveryTest {
     }
 
     @Test
+    void plainHttpIsAcceptedForTheLoopbackHostsEveryRuntimeAccepts() {
+        // The list used to be four spellings; it is now the shared rule, so
+        // all of 127.0.0.0/8, LOCALHOST and IPv4-mapped loopback are loopback.
+        for (var url : java.util.List.of("http://LOCALHOST:8080", "http://127.0.0.2:8080",
+                "http://[::ffff:127.0.0.1]:8080", "http://[0:0:0:0:0:0:0:1]:8080")) {
+            try (var model = TypesafeDecisionModel.builder().baseUrl(url).build()) {
+                org.junit.jupiter.api.Assertions.assertNotNull(model, url);
+            }
+        }
+        for (var url : java.util.List.of("http://localhost.invalid:8080", "http://[::ffff:10.0.0.1]:8080")) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> TypesafeDecisionModel.builder().baseUrl(url).build(), url);
+        }
+    }
+
+    @Test
     void theBuilderRejectsUnsafeOrMalformedConfiguration() {
         assertThrows(IllegalArgumentException.class,
                 () -> TypesafeDecisionModel.builder().baseUrl("http://api.typesafe.ai").build());

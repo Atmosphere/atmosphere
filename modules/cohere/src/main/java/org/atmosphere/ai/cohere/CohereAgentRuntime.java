@@ -104,7 +104,10 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
     protected CohereChatClient createNativeClient(AiConfig.LlmSettings settings) {
         var builder = CohereChatClient.builder()
                 .apiKey(ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR,
-                        settings != null ? settings.apiKey() : null));
+                        settings != null ? settings.apiKey() : null))
+                // A key goes over plain http only to a loopback host unless
+                // this application opts in (atmosphere.ai.allow-cleartext-api-key).
+                .allowCleartextApiKey(environment().resolveAllowCleartextApiKey());
         // Sovereign-deploy story: the {@code cohere.base.url} system property
         // wins outright; otherwise the framework-resolved settings.baseUrl()
         // is honored so the existing {@code LLM_BASE_URL} env var works

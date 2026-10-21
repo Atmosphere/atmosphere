@@ -20,6 +20,7 @@ import com.openai.client.OpenAIClientAsync;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +100,7 @@ public class AtmosphereSpringAiAutoConfiguration {
     static final String LOCAL_PLACEHOLDER_API_KEY = "not-needed-for-local";
 
     /**
-     * As {@link #atmosphereChatClient(String, String, String, String)} with no
+     * As {@link #atmosphereChatClient(String, String, String, String, String)} with no
      * {@code llm.mode}: a blank base URL resolves to OpenAI.
      *
      * @param apiKey  the API key; blank builds no client
@@ -108,7 +109,22 @@ public class AtmosphereSpringAiAutoConfiguration {
      * @return the client, or {@code null} when no API key is configured
      */
     public ChatClient atmosphereChatClient(String apiKey, String baseUrl, String model) {
-        return atmosphereChatClient(apiKey, baseUrl, model, null);
+        return atmosphereChatClient(apiKey, baseUrl, model, null, null);
+    }
+
+    /**
+     * As {@link #atmosphereChatClient(String, String, String, String, String)}
+     * without the cleartext opt-in: a key goes over plain {@code http} only to
+     * a loopback host.
+     *
+     * @param apiKey  the API key; blank builds no client unless the mode is local
+     * @param baseUrl the explicit endpoint, blank to resolve it from the mode
+     * @param model   the model
+     * @param mode    {@code llm.mode}; {@code local} selects the local endpoint
+     * @return the client, or {@code null} when no API key is configured outside local mode
+     */
+    public ChatClient atmosphereChatClient(String apiKey, String baseUrl, String model, String mode) {
+        return atmosphereChatClient(apiKey, baseUrl, model, mode, null);
     }
 
     /**
@@ -131,6 +147,11 @@ public class AtmosphereSpringAiAutoConfiguration {
      * @param baseUrl the explicit endpoint, blank to resolve it from the mode
      * @param model   the model
      * @param mode    {@code llm.mode}; {@code local} selects the local endpoint
+     * @param allowCleartextApiKey
+     *                {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}:
+     *                only {@code true} lets a key go over plain {@code http} to
+     *                a host that is not loopback; without it the application
+     *                fails to start ({@link CleartextApiKeyPolicy})
      * @return the client, or {@code null} when no API key is configured outside local mode
      */
     @Bean
@@ -139,7 +160,8 @@ public class AtmosphereSpringAiAutoConfiguration {
             @Value("${spring.ai.openai.api-key:${llm.api-key:${LLM_API_KEY:}}}") String apiKey,
             @Value("${spring.ai.openai.base-url:${llm.base-url:${LLM_BASE_URL:}}}") String baseUrl,
             @Value("${spring.ai.openai.chat.options.model:${llm.model:${LLM_MODEL:gpt-4o-mini}}}") String model,
-            @Value("${llm.mode:${LLM_MODE:}}") String mode) {
+            @Value("${llm.mode:${LLM_MODE:}}") String mode,
+            @Value("${" + CleartextApiKeyPolicy.ALLOW_PROPERTY + ":}") String allowCleartextApiKey) {
         var local = isLocal(mode);
         var resolvedKey = resolveApiKey(apiKey, local);
         if (resolvedKey == null) {
@@ -147,6 +169,10 @@ public class AtmosphereSpringAiAutoConfiguration {
             return null;
         }
         var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode, model);
+        // The configured key decides, before the local placeholder takes its
+        // place: a real key goes over plain http only to a loopback host.
+        CleartextApiKeyPolicy.requireAllowed(logger, "Spring AI", resolvedBaseUrl, apiKey,
+                CleartextApiKeyPolicy.optedIn(allowCleartextApiKey));
         // OpenAi SDK Kotlin builders reject null Duration/int for timeout/maxRetries;
         // use the SDK's published defaults rather than guessing values.
         // Spring AI 2.0.0 GA added three trailing params to OpenAiSetup

@@ -115,6 +115,9 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     protected AnthropicMessagesClient createNativeClient(AiConfig.LlmSettings settings) {
         var builder = AnthropicMessagesClient.builder()
                 .environment(environment())
+                // A key goes over plain http only to a loopback host unless
+                // this application opts in (atmosphere.ai.allow-cleartext-api-key).
+                .allowCleartextApiKey(environment().resolveAllowCleartextApiKey())
                 .apiKey(ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR,
                         settings != null ? settings.apiKey() : null))
                 .anthropicVersion(systemProperty(VERSION_PROPERTY, "2023-06-01"));

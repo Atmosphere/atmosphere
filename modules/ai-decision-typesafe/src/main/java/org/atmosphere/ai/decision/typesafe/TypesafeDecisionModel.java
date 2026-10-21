@@ -19,6 +19,7 @@ import org.atmosphere.ai.decision.Answer;
 import org.atmosphere.ai.decision.DecisionModel;
 import org.atmosphere.ai.decision.DecisionRequest;
 import org.atmosphere.ai.decision.DecisionResult;
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +70,10 @@ import java.util.regex.Pattern;
  *   <li>the API key — {@value #API_KEY_PROPERTY} / {@value #API_KEY_ENV};</li>
  *   <li>the base URL — {@value #BASE_URL_PROPERTY} / {@value #BASE_URL_ENV}, default
  *       {@value #DEFAULT_BASE_URL}. Plain {@code http} is accepted only for a
- *       loopback host, so the key never crosses a network in the clear;</li>
+ *       loopback host, read from the URL alone as every runtime reads it
+ *       ({@link CleartextApiKeyPolicy#isLoopbackHost}), so the key never
+ *       crosses a network in the clear. Unlike the runtimes, there is no
+ *       opt-in;</li>
  *   <li>the model — {@value #MODEL_PROPERTY} / {@value #MODEL_ENV}, default the
  *       pinned {@value #DEFAULT_MODEL}. {@code jev-latest} and {@code jev-preview}
  *       are moving aliases: the answers behind them can change without a change
@@ -855,9 +859,9 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         return URI.create(scheme + "://" + uri.getRawAuthority() + "/");
     }
 
+    /** Loopback as every runtime reads it ({@link CleartextApiKeyPolicy#isLoopbackHost}): from the name alone. */
     private static boolean isLoopback(String host) {
-        var h = host.toLowerCase(Locale.ROOT);
-        return h.equals("localhost") || h.equals("127.0.0.1") || h.equals("[::1]") || h.equals("::1");
+        return CleartextApiKeyPolicy.isLoopbackHost(host);
     }
 
     private static void validateModel(String model) {

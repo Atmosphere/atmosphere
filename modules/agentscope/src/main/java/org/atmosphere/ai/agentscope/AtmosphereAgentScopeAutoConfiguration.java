@@ -19,6 +19,7 @@ import io.agentscope.core.ReActAgent;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OpenAIChatModel;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +89,11 @@ public class AtmosphereAgentScopeAutoConfiguration {
      * @param baseUrl the explicit endpoint, blank to resolve it from the mode
      * @param model   the model
      * @param mode    {@code llm.mode}; {@code local} selects the local endpoint
+     * @param allowCleartextApiKey
+     *                {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}:
+     *                only {@code true} lets a key go over plain {@code http} to
+     *                a host that is not loopback; without it the application
+     *                fails to start ({@link CleartextApiKeyPolicy})
      * @return the model
      */
     @Bean
@@ -99,9 +105,14 @@ public class AtmosphereAgentScopeAutoConfiguration {
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,
             @Value("${llm.model:gpt-4o-mini}") String model,
-            @Value("${llm.mode:${LLM_MODE:}}") String mode) {
+            @Value("${llm.mode:${LLM_MODE:}}") String mode,
+            @Value("${" + CleartextApiKeyPolicy.ALLOW_PROPERTY + ":}") String allowCleartextApiKey) {
         var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim());
         var resolvedBaseUrl = resolveBaseUrl(baseUrl, mode, model);
+        // The configured key decides, before the local placeholder takes its
+        // place: a real key goes over plain http only to a loopback host.
+        CleartextApiKeyPolicy.requireAllowed(logger, "AgentScope", resolvedBaseUrl, apiKey,
+                CleartextApiKeyPolicy.optedIn(allowCleartextApiKey));
         var resolvedApiKey = (apiKey == null || apiKey.isBlank()) && local ? LOCAL_PLACEHOLDER_API_KEY : apiKey;
         logger.info("Auto-building AgentScope OpenAIChatModel model={} endpoint={} local={}",
                 model, resolvedBaseUrl, local);

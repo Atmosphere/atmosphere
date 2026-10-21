@@ -104,35 +104,37 @@ When `llm.api-key` is set, or `llm.mode=local`, the module builds an
 `OpenAIAsyncClient` for `llm.base-url` (when blank, resolved as described in
 [LLM settings](#llm-settings-llm_mode-llm_base_url-llm_model-llm_api_key)) through
 `SemanticKernelOpenAiClientFactory`. The factory sends the API key over plain
-`http` only to a loopback host:
+`http` only to a loopback host, the rule every runtime applies (see
+[API keys over plain http](../ai/README.md#api-keys-over-plain-http)):
 
 | Endpoint | API key set | No API key |
 |---|---|---|
 | `https://…` | sent | allowed |
 | `http://` + loopback host | sent (local Ollama, vLLM, LM Studio) | allowed |
-| `http://` + any other host | **refused**: the application fails to start, the error names the endpoint and the opt-in | allowed |
+| `http://` + any other host | **refused**: the application fails to start, the error (logged at `ERROR`) names the endpoint and the opt-in | allowed |
 | `http://` + any other host, opt-in set | sent, with a `WARN` at startup that the key goes in cleartext | allowed |
 
 - **Loopback** is read from the URL alone, with no DNS lookup: the name
-  `localhost`, or an IPv4 literal in `127.0.0.0/8`, or the IPv6 literal `::1`.
+  `localhost` (any case), an IPv4 literal in `127.0.0.0/8`, or an IPv6 literal
+  that is loopback (`::1`, or an IPv4-mapped `::ffff:127.x.y.z`).
   Any other name is not loopback, including `host.docker.internal` and a name
   that resolves to `127.0.0.1`.
 - **Keyless calls** (no `llm.api-key`, e.g. `llm.mode=local` against Ollama on
   another machine) go to any host: no secret goes on the wire. The client sends
   the placeholder `not-needed-for-local`, which a keyless server ignores. The
   prompts still travel unencrypted on plain `http`.
-- **Opt-in**: set `atmosphere.semantic-kernel.allow-cleartext-api-key=true`
-  in the application's Spring configuration. Spring's standard mapping also
-  reads it from `ATMOSPHERE_SEMANTIC_KERNEL_ALLOW_CLEARTEXT_API_KEY`. The value
-  is read per application context. Only `true` opts in; any other value keeps
-  the refusal.
+- **Opt-in**: set `atmosphere.ai.allow-cleartext-api-key=true` in the
+  application's Spring configuration, the one opt-in every runtime reads.
+  Spring's standard mapping also reads it from
+  `ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY`. The value is read per application
+  context. Only `true` opts in; any other value keeps the refusal.
 - **Clients you build yourself**: `forEndpoint(endpoint, apiKey)` applies the
   same rule. `forEndpoint(endpoint, apiKey, true)` is the opt-in. An
   `OpenAIAsyncClient` or `ChatCompletionService` bean you supply yourself does
   not go through the factory, so the rule does not apply to it.
 
-Only the Semantic Kernel adapter applies this rule. The other runtimes'
-handling of `llm.base-url` is described in their own modules.
+The other runtimes apply the same rule to the base URL Atmosphere sends a key
+to; their handling of `llm.base-url` is described in their own modules.
 
 ## EmbeddingRuntime
 

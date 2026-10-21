@@ -44,6 +44,22 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class AtmosphereSpringAiAlibabaLocalModeTest {
 
     @Test
+    void aKeyRoutedOverPlainHttpToANonLoopbackHostFailsTheStart() {
+        var env = environment(Map.of("LLM_API_KEY", "sk-test", "LLM_BASE_URL", "http://llm.invalid:8000/v1"));
+
+        var refused = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null));
+        // The endpoint as Spring AI 1.x would call it: the mapped base URL, without /v1.
+        org.junit.jupiter.api.Assertions.assertTrue(refused.getMessage().contains("'http://llm.invalid:8000'"),
+                refused.getMessage());
+
+        var optedIn = environment(Map.of("LLM_API_KEY", "sk-test", "LLM_BASE_URL", "http://llm.invalid:8000/v1",
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY, "true"));
+        new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(optedIn, null);
+        assertEquals("sk-test", optedIn.getProperty("spring.ai.openai.api-key"));
+    }
+
+    @Test
     void localModeAloneMapsTheLocalEndpointAndAPlaceholderKey() {
         var env = environment(Map.of("LLM_MODE", "local"));
 

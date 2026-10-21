@@ -1657,7 +1657,9 @@ public class AtmosphereAiAutoConfiguration {
         var clientBuilder = org.atmosphere.ai.llm.OpenAiCompatibleClient.builder()
                 .baseUrl(hasBaseUrl ? ruleBaseUrl : baseSettings.baseUrl())
                 .promptCacheKeyMode(aiEnvironment.resolvePromptCacheKeyMode())
-                .logprobsMode(aiEnvironment.resolveLogprobsMode());
+                .logprobsMode(aiEnvironment.resolveLogprobsMode())
+                // The application's cleartext opt-in, as the resolved client has it.
+                .allowCleartextApiKey(aiEnvironment.resolveAllowCleartextApiKey());
         var key = hasApiKey ? ruleApiKey : baseSettings.apiKey();
         if (key != null && !key.isBlank()) {
             clientBuilder.apiKey(key);

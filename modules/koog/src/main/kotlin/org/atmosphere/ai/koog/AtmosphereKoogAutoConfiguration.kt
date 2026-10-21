@@ -23,6 +23,7 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AiEnvironment
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -46,6 +47,11 @@ import org.springframework.core.env.PropertyResolver
  *    (`https://generativelanguage.googleapis.com/v1beta/openai`). The requested
  *    `model` id is used verbatim with GPT-4o's capability profile, so any
  *    OpenAI-compatible model name (e.g. `gemini-2.5-flash`) works.
+ *
+ * An API key goes over plain `http` only to a loopback host: with a key and an
+ * `http` endpoint on any other host the application fails to start (logged at
+ * `ERROR`), unless it sets `atmosphere.ai.allow-cleartext-api-key=true`
+ * ([CleartextApiKeyPolicy]).
  *
  * Users needing a non-OpenAI-compatible Koog client (Anthropic, Bedrock,
  * Ollama) build their own [PromptExecutor] and inject it via
@@ -104,12 +110,20 @@ open class AtmosphereKoogAutoConfiguration {
                 model = first("atmosphere.koog.model", "llm.model", "LLM_MODEL").ifEmpty { "gpt-4o" },
                 apiKey = first("atmosphere.koog.api-key", "llm.api-key", "LLM_API_KEY", "OPENAI_API_KEY"),
                 baseUrl = first("atmosphere.koog.base-url", "llm.base-url", "LLM_BASE_URL"),
-                mode = first("llm.mode", "LLM_MODE"))
+                mode = first("llm.mode", "LLM_MODE"),
+                allowCleartextApiKey = CleartextApiKeyPolicy.optedIn(
+                    properties.getProperty(CleartextApiKeyPolicy.ALLOW_PROPERTY)))
         }
     }
 
     /** The settings [resolveSettings] reads; blank when unset, except the model. */
-    internal data class KoogSettings(val model: String, val apiKey: String, val baseUrl: String, val mode: String)
+    internal data class KoogSettings(
+        val model: String,
+        val apiKey: String,
+        val baseUrl: String,
+        val mode: String,
+        val allowCleartextApiKey: Boolean = false
+    )
 
     @org.springframework.context.annotation.Bean
     open fun koogAgentRuntime(
@@ -117,7 +131,8 @@ open class AtmosphereKoogAutoConfiguration {
         environmentProvider: ObjectProvider<AiEnvironment>?
     ): KoogAgentRuntime {
         val settings = resolveSettings(environment)
-        return koogAgentRuntime(settings.model, settings.apiKey, settings.baseUrl, settings.mode, environmentProvider)
+        return koogAgentRuntime(settings.model, settings.apiKey, settings.baseUrl, settings.mode, environmentProvider,
+            settings.allowCleartextApiKey)
     }
 
     /** Builds the runtime from resolved settings; the bean above reads them from the environment. */
@@ -126,7 +141,8 @@ open class AtmosphereKoogAutoConfiguration {
         apiKey: String,
         baseUrl: String,
         mode: String,
-        environmentProvider: ObjectProvider<AiEnvironment>? = null
+        environmentProvider: ObjectProvider<AiEnvironment>? = null,
+        allowCleartextApiKey: Boolean = false
     ): KoogAgentRuntime {
         // A locally served backend (Ollama, vLLM, LM Studio) needs no credential,
         // so a blank key says nothing about whether a model is reachable. Keying
@@ -145,6 +161,10 @@ open class AtmosphereKoogAutoConfiguration {
         val resolvedApiKey = if (apiKey.isBlank()) "not-needed-for-local" else apiKey
 
         val resolvedBaseUrl = resolveEndpoint(baseUrl, mode, modelName)
+        // The configured key decides, before the local placeholder takes its
+        // place: a real key goes over plain http only to a loopback host. A
+        // blank endpoint is Koog's own api.openai.com, https.
+        CleartextApiKeyPolicy.requireAllowed(logger, "Koog", resolvedBaseUrl, apiKey, allowCleartextApiKey)
 
         val executor: PromptExecutor
         val model: LLModel

@@ -114,6 +114,15 @@ The `LLM_*` env vars come from `AiConfig.LlmSettings` and are read by
 the framework's sample-level bridge (`samples/spring-boot-ai-chat`).
 System properties override env-derived values.
 
+The API key goes over plain `http` only to a loopback host (`localhost`,
+`127.0.0.0/8`, `::1`, read from the URL alone): with a key and an `http` base
+URL on any other host the client logs the refusal at `ERROR` when it is built
+and ends every call with an error without sending anything, unless the
+application sets `atmosphere.ai.allow-cleartext-api-key=true`
+(`ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY=true`), which logs a `WARN` instead. The
+Anthropic runtime applies the same rule. See
+[API keys over plain http](../ai/README.md#api-keys-over-plain-http).
+
 ## What's NOT in this module
 
 Per [`feedback_no_per_runtime_samples.md`](../../.claude/memory/feedback_no_per_runtime_samples.md):

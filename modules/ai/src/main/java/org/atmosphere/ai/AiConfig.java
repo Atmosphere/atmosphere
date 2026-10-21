@@ -622,7 +622,10 @@ public final class AiConfig {
         var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl)
                 .generation(generation)
                 .promptCacheKeyMode(cacheKeyMode)
-                .logprobsMode(knobs.resolveLogprobsMode());
+                .logprobsMode(knobs.resolveLogprobsMode())
+                // A key goes over plain http only to a loopback host unless
+                // this application opts in; the client refuses each call otherwise.
+                .allowCleartextApiKey(knobs.resolveAllowCleartextApiKey());
         if (resolvedKey != null) {
             builder.apiKey(resolvedKey);
         } else if (!"local".equalsIgnoreCase(mode)) {
@@ -902,7 +905,9 @@ public final class AiConfig {
             new Knob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV),
             new Knob(STOP_PROPERTY, STOP_ENV),
             new Knob(RUNTIME_PROPERTY, RUNTIME_ENV),
-            new Knob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV));
+            new Knob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV),
+            new Knob(org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY,
+                    org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_ENV));
 
     private static final java.util.Map<String, Knob> KNOBS_BY_PROPERTY = KNOBS.stream()
             .collect(java.util.stream.Collectors.toUnmodifiableMap(Knob::property, k -> k));
@@ -1134,11 +1139,11 @@ public final class AiConfig {
 
     /**
      * The knobs read when settings are built (prompt-cache-key, logprobs,
-     * temperature, max-tokens, top-p, stop) whose current value differs from
+     * temperature, max-tokens, top-p, stop, allow-cleartext-api-key) whose current value differs from
      * the one {@code settings} carries: settings built before the host
-     * configuration was installed, which do not apply it. The logprobs mode is
-     * carried by the client, so it is compared only when the settings' client
-     * is an {@link OpenAiCompatibleClient}.
+     * configuration was installed, which do not apply it. The logprobs mode and
+     * the cleartext-key opt-in are carried by the client, so they are compared
+     * only when the settings' client is an {@link OpenAiCompatibleClient}.
      *
      * @param settings settings built by {@link #configure}
      * @return the differing knob property names, in {@link #knobs()} order
@@ -1180,6 +1185,10 @@ public final class AiConfig {
         }
         if (!java.util.Objects.equals(generation.stop(), baked.stop())) {
             differing.add(STOP_PROPERTY);
+        }
+        if (settings.client() instanceof OpenAiCompatibleClient client
+                && knobs.resolveAllowCleartextApiKey() != client.allowsCleartextApiKey()) {
+            differing.add(org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY);
         }
         return java.util.List.copyOf(differing);
     }
@@ -1275,6 +1284,17 @@ public final class AiConfig {
     @Deprecated
     public static java.time.Duration resolveReattachGrace() {
         return AiEnvironment.current().resolveReattachGrace();
+    }
+
+    /**
+     * Whether the application lets an API key go over plain {@code http} to a
+     * host that is not loopback ({@link org.atmosphere.ai.llm.CleartextApiKeyPolicy}):
+     * only {@code true} opts in.
+     */
+    static boolean allowCleartextApiKey(java.util.Map<String, String> host) {
+        return org.atmosphere.ai.llm.CleartextApiKeyPolicy.optedIn(rawKnob(
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY,
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_ENV, host));
     }
 
     static java.time.Duration reattachGrace(java.util.Map<String, String> host) {

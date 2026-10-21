@@ -20,6 +20,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.azure.ai.openai.OpenAIAsyncClient;
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,6 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -62,7 +62,7 @@ class SemanticKernelCleartextKeyGuardTest {
      */
     private static final String[] NO_BACKEND = {
             "llm.api-key=", "llm.mode=", "LLM_MODE=", "LLM_API_KEY=", "llm.base-url=",
-            SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + "="
+            CleartextApiKeyPolicy.ALLOW_PROPERTY + "="
     };
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -101,7 +101,7 @@ class SemanticKernelCleartextKeyGuardTest {
         assertTrue(refused.getMessage().contains(REMOTE_HTTP),
                 "the error names the endpoint: " + refused.getMessage());
         assertTrue(refused.getMessage().contains(
-                        SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY),
+                        CleartextApiKeyPolicy.ALLOW_PROPERTY),
                 "the error names the opt-in: " + refused.getMessage());
         assertFalse(refused.getMessage().contains(KEY), "the error never carries the key");
     }
@@ -174,22 +174,18 @@ class SemanticKernelCleartextKeyGuardTest {
     }
 
     @Test
-    void loopbackIsReadFromTheNameAlone() {
-        for (var host : List.of("localhost", "LocalHost", "127.0.0.1", "127.255.255.254", "127.1.2.3",
-                "[::1]", "::1", "[0:0:0:0:0:0:0:1]", "[::ffff:127.0.0.1]")) {
-            assertTrue(SemanticKernelOpenAiClientFactory.isLoopbackHost(host), host);
-        }
-        for (var host : Arrays.asList("128.0.0.1", "10.0.0.1", "0.0.0.0", "127.0.0.256", "127.0.0",
-                "[::2]", "[::]", "llm.invalid", "localhost.invalid", "127.0.0.1.invalid",
-                "host.docker.internal", "", " ", null)) {
-            assertFalse(SemanticKernelOpenAiClientFactory.isLoopbackHost(host), String.valueOf(host));
-        }
+    void theRuleIsTheOneEveryRuntimeShares() {
+        // The loopback table is pinned by CleartextApiKeyPolicyTest; here, that
+        // an IPv4-mapped loopback literal reaches the same verdict through SK.
+        assertNotNull(SemanticKernelOpenAiClientFactory.forEndpoint("http://[::ffff:127.0.0.1]:11434/v1", KEY));
+        assertThrows(IllegalArgumentException.class,
+                () -> SemanticKernelOpenAiClientFactory.forEndpoint("http://[::ffff:10.0.0.1]:11434/v1", KEY));
     }
 
     @Test
     void theApplicationStartsWithTheOptInAndWarns() {
         runner.withPropertyValues("llm.api-key=" + KEY, "llm.base-url=" + REMOTE_HTTP,
-                        SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + "=true")
+                        CleartextApiKeyPolicy.ALLOW_PROPERTY + "=true")
                 .run(context -> {
                     assertNull(context.getStartupFailure(), String.valueOf(context.getStartupFailure()));
                     assertEquals(1, context.getBeanNamesForType(OpenAIAsyncClient.class).length);
@@ -203,7 +199,7 @@ class SemanticKernelCleartextKeyGuardTest {
         // upper-case, underscore form onto the property.
         runner.withInitializer(context -> context.getEnvironment().getPropertySources().addFirst(
                         new SystemEnvironmentPropertySource("test-env",
-                                Map.of("ATMOSPHERE_SEMANTIC_KERNEL_ALLOW_CLEARTEXT_API_KEY", "true"))))
+                                Map.of(CleartextApiKeyPolicy.ALLOW_ENV, "true"))))
                 .withPropertyValues("llm.api-key=" + KEY, "llm.base-url=" + REMOTE_HTTP)
                 .run(context -> {
                     assertNull(context.getStartupFailure(), String.valueOf(context.getStartupFailure()));
@@ -215,7 +211,7 @@ class SemanticKernelCleartextKeyGuardTest {
     @Test
     void onlyTrueOptsIn() {
         runner.withPropertyValues("llm.api-key=" + KEY, "llm.base-url=" + REMOTE_HTTP,
-                        SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + "=yes")
+                        CleartextApiKeyPolicy.ALLOW_PROPERTY + "=yes")
                 .run(context -> assertNotNull(context.getStartupFailure(), "'yes' is not an opt-in"));
     }
 

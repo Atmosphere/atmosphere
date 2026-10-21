@@ -157,6 +157,57 @@ class AtmosphereSpringAiLocalModeTest {
     }
 
     @Test
+    void theBridgeRefusesToRouteAKeyOverPlainHttpToANonLoopbackHost() {
+        // Before, the bridge mapped llm.api-key and llm.base-url and Spring
+        // AI's own OpenAI beans sent the key in cleartext to any http host.
+        var env = environment(Map.of("LLM_API_KEY", "sk-test", "LLM_BASE_URL", "http://llm.invalid:8000/v1"));
+
+        var refused = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(env, null));
+        assertTrue(refused.getMessage().contains("http://llm.invalid:8000/v1"), refused.getMessage());
+        assertTrue(refused.getMessage().contains(org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY),
+                refused.getMessage());
+    }
+
+    @Test
+    void theBridgeChecksTheChatEndpointThatOverridesTheSharedOne() {
+        // Spring AI's chat client uses spring.ai.openai.chat.base-url over the
+        // shared base-url: the routed key goes there.
+        var env = environment(Map.of("LLM_API_KEY", "sk-test",
+                "spring.ai.openai.chat.base-url", "http://llm.invalid:8000/v1"));
+
+        var refused = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(env, null));
+        assertTrue(refused.getMessage().contains("http://llm.invalid:8000/v1"), refused.getMessage());
+    }
+
+    @Test
+    void theBridgeRoutesTheKeyWithTheOptInOrToLoopbackOrWithoutAKey() {
+        var optedIn = environment(Map.of("LLM_API_KEY", "sk-test", "LLM_BASE_URL", "http://llm.invalid:8000/v1",
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY, "true"));
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(optedIn, null);
+        assertEquals("sk-test", optedIn.getProperty("spring.ai.openai.api-key"));
+
+        var loopback = environment(Map.of("LLM_API_KEY", "sk-test", "LLM_BASE_URL", "http://127.0.0.1:8000/v1"));
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(loopback, null);
+        assertEquals("http://127.0.0.1:8000/v1", loopback.getProperty("spring.ai.openai.base-url"));
+
+        var keyless = environment(Map.of("LLM_MODE", "local", "LLM_BASE_URL", "http://gpu.invalid:11434/v1"));
+        new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(keyless, null);
+        assertEquals("http://gpu.invalid:11434/v1", keyless.getProperty("spring.ai.openai.base-url"));
+    }
+
+    @Test
+    void theAutoConfiguredClientRefusesAKeyOverPlainHttpToANonLoopbackHost() {
+        var refused = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new AtmosphereSpringAiAutoConfiguration().atmosphereChatClient(
+                        "sk-test", "http://llm.invalid:8000/v1", "gpt-4o-mini", null, null));
+        assertTrue(refused.getMessage().contains("http://llm.invalid:8000/v1"), refused.getMessage());
+        assertTrue(new AtmosphereSpringAiAutoConfiguration().atmosphereChatClient(
+                "sk-test", "http://llm.invalid:8000/v1", "gpt-4o-mini", null, "true") != null);
+    }
+
+    @Test
     void theBridgeReadsTheModeTrimmedAndCaseInsensitive() {
         var env = environment(Map.of("LLM_MODE", " Local "));
 

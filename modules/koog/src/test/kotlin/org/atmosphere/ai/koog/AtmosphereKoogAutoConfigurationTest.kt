@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AiEnvironment
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
@@ -38,10 +39,12 @@ import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
 import org.springframework.core.env.SystemEnvironmentPropertySource
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Verifies [AtmosphereKoogAutoConfiguration] wires the Koog [PromptExecutor]
@@ -200,6 +203,35 @@ class AtmosphereKoogAutoConfigurationTest {
         assertEquals("",
             AtmosphereKoogAutoConfiguration.resolveEndpoint("", "remote", "gpt-4o"),
             "an OpenAI model must not be pinned to an explicit endpoint")
+    }
+
+    @Test
+    fun `a key over plain http to a non-loopback endpoint fails the start`() {
+        // Before, LLM_BASE_URL=http://<any host> sent the key in cleartext.
+        val refused = assertFailsWith<IllegalArgumentException> {
+            AtmosphereKoogAutoConfiguration().koogAgentRuntime(
+                "qwen2.5:7b", "sk-test", "http://llm.invalid:8000/v1", "remote")
+        }
+        assertTrue(refused.message!!.contains("http://llm.invalid:8000/v1"), refused.message)
+        assertTrue(refused.message!!.contains(CleartextApiKeyPolicy.ALLOW_PROPERTY), refused.message)
+    }
+
+    @Test
+    fun `the opt-in is read from the application's environment and lets the key through`() {
+        val properties = StandardEnvironment()
+        properties.propertySources.remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)
+        properties.propertySources.remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME)
+        properties.propertySources.addFirst(MapPropertySource("test", mapOf<String, Any>(
+            "llm.api-key" to "sk-test", "llm.base-url" to "http://llm.invalid:8000/v1",
+            CleartextApiKeyPolicy.ALLOW_PROPERTY to "true")))
+        val settings = AtmosphereKoogAutoConfiguration.resolveSettings(properties)
+        assertTrue(settings.allowCleartextApiKey)
+        clearExecutor()
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime(settings.model, settings.apiKey, settings.baseUrl,
+            settings.mode, null, settings.allowCleartextApiKey)
+        assertNotNull(executor())
+        // Keyless, the same endpoint needs no opt-in.
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime("qwen2.5:7b", "", "http://llm.invalid:8000/v1", "local")
     }
 
     @Test

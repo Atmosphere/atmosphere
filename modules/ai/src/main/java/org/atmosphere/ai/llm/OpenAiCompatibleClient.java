@@ -54,6 +54,14 @@ import java.util.Map;
  *
  * <p>Uses JDK 21's {@link HttpClient} with no external HTTP dependencies.</p>
  *
+ * <p>The API key goes over plain {@code http} only to a loopback host
+ * ({@link CleartextApiKeyPolicy}). Built with a key and an {@code http} base URL
+ * on any other host, the client logs the refusal at {@code ERROR} when it is
+ * built and refuses every call: {@link #streamChatCompletion} ends the turn with
+ * {@code session.error(...)} and {@link #listModels()} returns an empty list,
+ * both without sending anything. {@link Builder#allowCleartextApiKey(boolean)}
+ * opts in, with a {@code WARN} when the client is built.</p>
+ *
  * <p>Supported endpoints:</p>
  * <ul>
  *   <li>OpenAI: {@code https://api.openai.com/v1}</li>
@@ -112,6 +120,13 @@ public class OpenAiCompatibleClient implements LlmClient {
      * like {@link #promptCacheKeyMode}.
      */
     private final LogprobsMode logprobsMode;
+    /** Whether the key may go over plain http to a host that is not loopback. */
+    private final boolean allowCleartextApiKey;
+    /**
+     * Why this client refuses to send its key, fixed when it is built; {@code null}
+     * when it sends it ({@link CleartextApiKeyPolicy}).
+     */
+    private final String cleartextRefusal;
 
     /**
      * Max cached conversation IDs for Responses API stateful continuation.
@@ -132,7 +147,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                    java.util.Map<String, String> customHeaders,
                                    org.atmosphere.ai.GenerationParams generation,
                                    PromptCacheKeyMode promptCacheKeyMode,
-                                   LogprobsMode logprobsMode) {
+                                   LogprobsMode logprobsMode,
+                                   boolean allowCleartextApiKey) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
@@ -144,6 +160,27 @@ public class OpenAiCompatibleClient implements LlmClient {
                 ? generation : org.atmosphere.ai.GenerationParams.defaults();
         this.promptCacheKeyMode = promptCacheKeyMode;
         this.logprobsMode = logprobsMode;
+        this.allowCleartextApiKey = allowCleartextApiKey;
+        this.cleartextRefusal = switch (CleartextApiKeyPolicy.verdict(this.baseUrl, apiKey, allowCleartextApiKey)) {
+            case SEND -> null;
+            case SEND_IN_CLEARTEXT -> {
+                CleartextApiKeyPolicy.warnCleartext(logger, "The built-in OpenAI-compatible client", this.baseUrl);
+                yield null;
+            }
+            case REFUSE -> {
+                var refusal = CleartextApiKeyPolicy.refusal("The built-in OpenAI-compatible client", this.baseUrl);
+                logger.error("{} Every call of this client fails until then.", refusal);
+                yield refusal;
+            }
+        };
+    }
+
+    /**
+     * Whether this client may send its key over plain {@code http} to a host
+     * that is not loopback ({@link Builder#allowCleartextApiKey(boolean)}).
+     */
+    public boolean allowsCleartextApiKey() {
+        return allowCleartextApiKey;
     }
 
     /**
@@ -299,6 +336,13 @@ public class OpenAiCompatibleClient implements LlmClient {
     public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session,
                                      java.util.concurrent.atomic.AtomicBoolean cancelled,
                                      java.util.function.Consumer<java.io.Closeable> streamSink) {
+        if (cleartextRefusal != null) {
+            // Fail closed: the key would cross the network in cleartext, so
+            // nothing is sent and the turn ends with the reason.
+            logger.error(cleartextRefusal);
+            session.error(new IllegalStateException(cleartextRefusal));
+            return;
+        }
         var effective = cancelled != null
                 ? cancelled
                 : new java.util.concurrent.atomic.AtomicBoolean();
@@ -1366,7 +1410,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .timeout(timeout);
 
-        if (apiKey != null && !apiKey.isBlank()) {
+        if (apiKey != null && !apiKey.isBlank() && cleartextRefusal == null) {
             builder.header("Authorization", "Bearer " + apiKey);
         }
         applyCustomHeaders(builder);
@@ -1436,6 +1480,10 @@ public class OpenAiCompatibleClient implements LlmClient {
      */
     @Override
     public List<String> listModels() {
+        if (cleartextRefusal != null) {
+            logger.error(cleartextRefusal);
+            return List.of();
+        }
         var enumTimeout = timeout.compareTo(Duration.ofSeconds(10)) < 0
                 ? timeout : Duration.ofSeconds(10);
         var builder = HttpRequest.newBuilder()
@@ -1788,6 +1836,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 org.atmosphere.ai.GenerationParams.defaults();
         private PromptCacheKeyMode promptCacheKeyMode;
         private LogprobsMode logprobsMode;
+        private boolean allowCleartextApiKey;
 
         private Builder() {
         }
@@ -1914,6 +1963,20 @@ public class OpenAiCompatibleClient implements LlmClient {
             return this;
         }
 
+        /**
+         * Let the key go over plain {@code http} to a host that is not
+         * loopback, with a {@code WARN} when the client is built. Off by
+         * default: such a client refuses every call
+         * ({@link CleartextApiKeyPolicy}). The framework sets it from the
+         * application's
+         * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}
+         * knob; a client built by hand sets it here.
+         */
+        public Builder allowCleartextApiKey(boolean allowCleartextApiKey) {
+            this.allowCleartextApiKey = allowCleartextApiKey;
+            return this;
+        }
+
         public OpenAiCompatibleClient build() {
             var client = this.httpClient != null ? this.httpClient : HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
@@ -1928,7 +1991,8 @@ public class OpenAiCompatibleClient implements LlmClient {
             var logprobs = this.logprobsMode != null ? this.logprobsMode
                     : org.atmosphere.ai.AiEnvironment.current().resolveLogprobsMode();
             return new OpenAiCompatibleClient(baseUrl, apiKey, client, this.httpClient == null,
-                    timeout, policy, java.util.Map.copyOf(customHeaders), generation, cacheKeyMode, logprobs);
+                    timeout, policy, java.util.Map.copyOf(customHeaders), generation, cacheKeyMode, logprobs,
+                    allowCleartextApiKey);
         }
     }
 }

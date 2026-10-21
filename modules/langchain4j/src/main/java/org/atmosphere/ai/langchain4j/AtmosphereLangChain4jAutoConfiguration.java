@@ -18,6 +18,7 @@ package org.atmosphere.ai.langchain4j;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,6 +81,12 @@ public class AtmosphereLangChain4jAutoConfiguration {
      * resolved base URL is not readable from a built
      * {@link OpenAiStreamingChatModel} without reflecting through its {@code
      * internal} client, so the tests read it from the startup line below.</p>
+     *
+     * <p>An API key goes over plain {@code http} only to a loopback host: with
+     * a key and an {@code http} base URL on any other host the application
+     * fails to start (logged at {@code ERROR}), unless it sets
+     * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}{@code =true}
+     * ({@link CleartextApiKeyPolicy}).</p>
      */
     @Bean
     @ConditionalOnMissingBean(StreamingChatModel.class)
@@ -91,7 +98,8 @@ public class AtmosphereLangChain4jAutoConfiguration {
             @Value("${llm.base-url:}") String baseUrl,
             @Value("${llm.mode:}") String mode,
             @Value("${LLM_MODE:}") String environmentMode,
-            @Value("${llm.model:gpt-4o-mini}") String model) {
+            @Value("${llm.model:gpt-4o-mini}") String model,
+            @Value("${" + CleartextApiKeyPolicy.ALLOW_PROPERTY + ":}") String allowCleartextApiKey) {
 
         // Trimmed and case-insensitive, as the gate above and AiConfig read it.
         var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim())
@@ -101,6 +109,11 @@ public class AtmosphereLangChain4jAutoConfiguration {
         // an empty value still binds, which would NPE OpenAiStreamingChatModel
         // (baseUrl cannot be null or blank).
         var resolvedBaseUrl = resolveBaseUrl(baseUrl, local, model);
+
+        // The configured key decides, before the local placeholder takes its
+        // place: a real key goes over plain http only to a loopback host.
+        CleartextApiKeyPolicy.requireAllowed(logger, "LangChain4j", resolvedBaseUrl, apiKey,
+                CleartextApiKeyPolicy.optedIn(allowCleartextApiKey));
 
         // A local server ignores the credential but the builder still rejects a
         // blank one, so send a placeholder rather than failing to construct.

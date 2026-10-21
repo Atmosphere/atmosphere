@@ -83,11 +83,17 @@ The built-in `OpenAiCompatibleClient` honours
 `LLM_BASE_URL` directly — no runtime swap needed:
 
 ```bash
-export LLM_BASE_URL=http://vllm.internal.example.com:8000/v1
+export LLM_BASE_URL=https://vllm.internal.example.com:8000/v1
 export LLM_API_KEY=any-string-your-server-accepts
 export LLM_MODEL=meta-llama/Llama-3.1-70B-Instruct
 ./mvnw spring-boot:run -pl samples/spring-boot-ai-chat
 ```
+
+An API key goes over plain `http` only to a loopback host: with a key and an
+`http://` URL on another host every runtime refuses to send it (logged at
+`ERROR`) unless `ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY=true` is set. A server
+that needs no key takes plain `http` anywhere. See
+[API keys over plain http](../modules/ai/README.md#api-keys-over-plain-http).
 
 ## What carries over from the cloud sample
 

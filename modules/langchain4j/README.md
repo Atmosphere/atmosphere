@@ -100,6 +100,17 @@ Endpoint resolution is the built-in runtime's (`AiConfig.resolveBaseUrl`):
 The startup line `Auto-building LC4j OpenAiStreamingChatModel model=… endpoint=… local=…`
 names the endpoint in use. A `StreamingChatModel` bean of your own replaces this one.
 
+
+### API keys over plain http
+
+A key goes over plain `http` only to a loopback host (`localhost`, `127.0.0.0/8`, `::1`,
+read from the URL alone, no DNS lookup): with a key and an `http` base URL on any other host the application fails to start, the error logged at `ERROR` naming the endpoint and the opt-in, unless the application sets
+`atmosphere.ai.allow-cleartext-api-key=true` (environment variable
+`ATMOSPHERE_AI_ALLOW_CLEARTEXT_API_KEY=true`), which logs a `WARN` instead. `https`
+endpoints are unaffected, and a keyless call (local mode with no key) goes to any host. The
+rule is shared by every runtime: see
+[API keys over plain http](../ai/README.md#api-keys-over-plain-http).
+
 ## Key Classes
 
 | Class | Purpose |

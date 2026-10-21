@@ -16,13 +16,16 @@
 package org.atmosphere.ai.embabel
 
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.llm.CleartextApiKeyPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringApplication
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * `LLM_MODE=local` maps the local Ollama endpoint into the properties of
@@ -78,6 +81,26 @@ class AtmosphereEmbabelEnvironmentPostProcessorTest {
         assertNull(env.getProperty("$prefix.base-url"),
             "remote mode with no base URL must not invent an endpoint")
         assertNull(env.getProperty("$prefix.models"))
+    }
+
+    @Test
+    fun `a key routed over plain http to a non-loopback openai-custom endpoint fails the start`() {
+        val refused = assertFailsWith<IllegalArgumentException> {
+            bridged(mapOf("LLM_API_KEY" to "sk-test", "LLM_BASE_URL" to "http://llm.invalid:8000/v1"))
+        }
+        assertTrue(refused.message!!.contains("http://llm.invalid:8000/v1"), refused.message)
+        assertTrue(refused.message!!.contains(CleartextApiKeyPolicy.ALLOW_PROPERTY), refused.message)
+    }
+
+    @Test
+    fun `the opt-in, a loopback endpoint or no key lets the bridge map the endpoint`() {
+        val optedIn = bridged(mapOf("LLM_API_KEY" to "sk-test", "LLM_BASE_URL" to "http://llm.invalid:8000/v1",
+            CleartextApiKeyPolicy.ALLOW_PROPERTY to "true"))
+        assertEquals("sk-test", optedIn.getProperty("$prefix.api-key"))
+
+        val keyless = bridged(mapOf("LLM_MODE" to "local", "LLM_BASE_URL" to "http://gpu.invalid:11434/v1"))
+        assertEquals("demo-placeholder", keyless.getProperty("$prefix.api-key"),
+            "the placeholder is no secret and goes anywhere")
     }
 
     private fun bridged(properties: Map<String, Any>): ConfigurableEnvironment {

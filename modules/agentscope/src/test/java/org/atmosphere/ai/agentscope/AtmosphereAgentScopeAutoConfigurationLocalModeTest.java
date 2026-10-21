@@ -83,6 +83,24 @@ class AtmosphereAgentScopeAutoConfigurationLocalModeTest {
     }
 
     @Test
+    void aKeyOverPlainHttpToANonLoopbackHostFailsTheStart() {
+        // Before, llm.base-url=http://<any host> got the key in cleartext.
+        var failure = org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+                () -> context(Map.of("llm.api-key", "sk-test", "llm.base-url", "http://llm.invalid:8000/v1")));
+        Throwable root = failure;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        org.junit.jupiter.api.Assertions.assertInstanceOf(IllegalArgumentException.class, root);
+        org.junit.jupiter.api.Assertions.assertTrue(root.getMessage().contains("http://llm.invalid:8000/v1"),
+                root.getMessage());
+        try (var context = context(Map.of("llm.api-key", "sk-test", "llm.base-url", "http://llm.invalid:8000/v1",
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY, "true"))) {
+            assertNotNull(context.getBean(Model.class), "the opt-in lets the key through");
+        }
+    }
+
+    @Test
     void anExplicitBaseUrlStillWinsOverLocalMode() {
         try (var context = context(Map.of("llm.mode", "local", "llm.base-url", "http://127.0.0.1:8000/v1"))) {
             context.getBean(Model.class);

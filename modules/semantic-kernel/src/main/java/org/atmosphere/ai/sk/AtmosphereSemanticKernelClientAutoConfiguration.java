@@ -71,7 +71,7 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
      * <p>An API key goes over plain {@code http} only to a loopback host: with a
      * key and an {@code http} base URL on any other host the application fails
      * to start, unless it sets
-     * {@value SemanticKernelOpenAiClientFactory#ALLOW_CLEARTEXT_API_KEY_PROPERTY}
+     * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}
      * to {@code true} (see
      * {@link SemanticKernelOpenAiClientFactory#forEndpoint(String, String, boolean)}).</p>
      */
@@ -86,7 +86,7 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
             @Value("${llm.mode:}") String mode,
             @Value("${LLM_MODE:}") String environmentMode,
             @Value("${llm.model:gpt-4o-mini}") String model,
-            @Value("${" + SemanticKernelOpenAiClientFactory.ALLOW_CLEARTEXT_API_KEY_PROPERTY + ":}")
+            @Value("${" + org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY + ":}")
             String allowCleartextApiKey) {
 
         // Trimmed and case-insensitive, as the gate above and AiConfig read it.
@@ -105,7 +105,7 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
         logger.info("Auto-building SK OpenAIAsyncClient endpoint={} local={} model={}", resolvedBaseUrl, local, model);
         return SemanticKernelOpenAiClientFactory.forEndpoint(resolvedBaseUrl, apiKey,
                 // Only "true" opts in: blank, "false" or anything else keeps the refusal.
-                Boolean.parseBoolean(allowCleartextApiKey.strip()));
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.optedIn(allowCleartextApiKey));
     }
 
     /**
