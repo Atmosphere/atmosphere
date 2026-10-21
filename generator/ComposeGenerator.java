@@ -552,6 +552,8 @@ public class ComposeGenerator implements Runnable {
     List<Map<String, Object>> buildWorkflowModel() {
         var steps = new ArrayList<Map<String, Object>>();
         var previousVars = new ArrayList<String>();
+        // An agent called again in a later step gets a variable of its own.
+        var declared = new java.util.HashSet<String>();
 
         for (int i = 0; i < workflowSteps.size(); i++) {
             var step = workflowSteps.get(i);
@@ -563,11 +565,18 @@ public class ComposeGenerator implements Runnable {
 
             // Agent references in this step
             var stepAgents = new ArrayList<Map<String, String>>();
+            var stepVars = new ArrayList<String>();
             for (var agentName : step.agentNames()) {
+                var varName = toCamelCase(agentName);
+                if (!declared.add(varName)) {
+                    varName = varName + "Step" + (i + 1);
+                    declared.add(varName);
+                }
                 var am = new LinkedHashMap<String, String>();
                 am.put("name", agentName);
-                am.put("varName", toCamelCase(agentName));
+                am.put("varName", varName);
                 stepAgents.add(am);
+                stepVars.add(varName + "Result");
             }
             sm.put("agents", stepAgents);
 
@@ -578,9 +587,7 @@ public class ComposeGenerator implements Runnable {
             steps.add(sm);
 
             // Add this step's vars to previousVars for next iteration
-            for (var agentName : step.agentNames()) {
-                previousVars.add(toCamelCase(agentName) + "Result");
-            }
+            previousVars.addAll(stepVars);
         }
 
         return steps;

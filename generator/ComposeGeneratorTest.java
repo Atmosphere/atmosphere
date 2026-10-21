@@ -411,6 +411,22 @@ public class ComposeGeneratorTest {
         assertTrue(coordContent.contains("session.emit(new AiEvent.ToolError(agent, result.text()))"), coordContent);
     }
 
+    @Test
+    void buildWorkflowModel_anAgentCalledAgainGetsAVariableOfItsOwn() {
+        var g = gen();
+        g.workflowSteps = g.parseWorkflow("""
+                # Lead
+
+                ## Workflow
+                worker -> reviewer -> worker
+                """);
+        var steps = g.buildWorkflowModel();
+        var third = (java.util.Map<?, ?>) ((List<?>) steps.get(2).get("agents")).get(0);
+        assertEquals("workerStep3", third.get("varName"));
+        assertEquals("worker", third.get("name"));
+        assertEquals(List.of("workerResult", "reviewerResult"), steps.get(2).get("previousVars"));
+    }
+
     // ========== Auto-Generated Coordinator ==========
 
     @Test
