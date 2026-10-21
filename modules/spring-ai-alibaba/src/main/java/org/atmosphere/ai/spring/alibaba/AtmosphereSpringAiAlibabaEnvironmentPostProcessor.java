@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.spring.alibaba;
 
+import org.atmosphere.ai.AiConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -46,7 +47,9 @@ import java.util.Map;
  * is not already configured by the user):</p>
  * <ul>
  *   <li>{@code llm.api-key} → {@code spring.ai.openai.api-key}</li>
- *   <li>{@code llm.base-url} → {@code spring.ai.openai.base-url}</li>
+ *   <li>{@code llm.base-url} → {@code spring.ai.openai.base-url}; with none,
+ *       {@code llm.mode=local} ({@code LLM_MODE=local}) maps the local Ollama
+ *       endpoint and, when no key is set, a placeholder key</li>
  *   <li>{@code llm.model}    → {@code spring.ai.openai.chat.options.model}</li>
  * </ul>
  *
@@ -63,6 +66,19 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
 
     static final String SOURCE_NAME = "atmosphere-spring-ai-alibaba-llm-bridge";
 
+    /**
+     * The local Ollama endpoint ({@link AiConfig#OLLAMA_ENDPOINT}) as Spring AI
+     * 1.x, the line the Alibaba agent framework pins, takes it: its
+     * {@code OpenAiApi} appends {@code /v1/chat/completions} to the base URL,
+     * so the {@code /v1} the OpenAI SDK expects would be doubled.
+     */
+    static final String LOCAL_BASE_URL = AiConfig.OLLAMA_ENDPOINT.endsWith("/v1")
+            ? AiConfig.OLLAMA_ENDPOINT.substring(0, AiConfig.OLLAMA_ENDPOINT.length() - "/v1".length())
+            : AiConfig.OLLAMA_ENDPOINT;
+
+    /** The key a local backend is sent: it ignores it, Spring AI requires one. */
+    static final String LOCAL_PLACEHOLDER_API_KEY = "not-needed-for-local";
+
     private static final Logger logger =
             LoggerFactory.getLogger(AtmosphereSpringAiAlibabaEnvironmentPostProcessor.class);
 
@@ -77,12 +93,20 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
         }
 
         Map<String, Object> mapped = new HashMap<>();
+        var local = "local".equalsIgnoreCase(firstNonBlank(
+                env.getProperty("llm.mode"),
+                env.getProperty("LLM_MODE")));
 
         var apiKey = firstNonBlank(
                 env.getProperty("llm.api-key"),
                 env.getProperty("LLM_API_KEY"),
                 env.getProperty("OPENAI_API_KEY"),
                 env.getProperty("GEMINI_API_KEY"));
+        if (apiKey == null && local) {
+            // A local backend ignores the credential; Spring AI's OpenAI
+            // auto-configuration refuses to build a ChatModel without one.
+            apiKey = LOCAL_PLACEHOLDER_API_KEY;
+        }
         if (apiKey != null && isBlank(env.getProperty("spring.ai.openai.api-key"))) {
             mapped.put("spring.ai.openai.api-key", apiKey);
         }
@@ -90,6 +114,12 @@ public class AtmosphereSpringAiAlibabaEnvironmentPostProcessor implements Enviro
         var baseUrl = firstNonBlank(
                 env.getProperty("llm.base-url"),
                 env.getProperty("LLM_BASE_URL"));
+        if (baseUrl == null && local) {
+            // llm.mode=local means the local Ollama endpoint, as for the
+            // built-in runtime; without this the ChatModel called
+            // api.openai.com with the user's prompt.
+            baseUrl = LOCAL_BASE_URL;
+        }
         if (baseUrl != null && isBlank(env.getProperty("spring.ai.openai.base-url"))) {
             mapped.put("spring.ai.openai.base-url", baseUrl);
         }
