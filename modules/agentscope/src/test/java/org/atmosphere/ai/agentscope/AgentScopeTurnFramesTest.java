@@ -163,6 +163,25 @@ class AgentScopeTurnFramesTest {
         assertEquals(List.of(), session.toolFrames(), "generate_response is AgentScope's tool, not a call to report");
     }
 
+    @Test
+    void agentScopesOwnToolRejectedForItsArgumentsIsNotReported() {
+        var model = new ScriptedModel(List.of(List.of(toolUse("call-1", "generate_response",
+                "{\"answer\":true}", Map.of("answer", true)))));
+        var agent = ReActAgent.builder().name("base").sysPrompt("sys").model(model).build();
+        var context = new AgentExecutionContext(
+                "Is it raining?", "sys", null, null, "s", null, null,
+                List.of(convert(new AtomicInteger())), null, null, List.of(), Map.of(),
+                List.of(), Reply.class, null)
+                .withMetadata(Map.of(NativeStructuredOutput.APPLY_METADATA_KEY, Boolean.TRUE));
+        var session = new RecordingSession();
+
+        new AgentScopeVisionWireShapeTest.TestableAgentScopeRuntime(agent).execute(context, session);
+
+        assertTrue(model.toolResultText.startsWith("Error: Parameter validation failed for tool 'generate_response'"),
+                model.toolResultText);
+        assertEquals(List.of(), session.toolFrames(), "generate_response is AgentScope's tool, not a call to report");
+    }
+
     private static RecordingSession run(ScriptedModel model, List<ToolDefinition> tools) {
         var session = new RecordingSession();
         var agent = ReActAgent.builder().name("base").sysPrompt("sys").model(model).build();
