@@ -1,0 +1,22 @@
+{
+  "sha": "00ac7fb403c28d4be52aed92dd129a2cd3a83838",
+  "version": "4.0.76-SNAPSHOT",
+  "date": "2026-10-21",
+  "verdict": "clean",
+  "ledgers": [
+    "sample-sweep-2026-10-20-retest-4076r13-R13",
+    "sample-sweep-2026-10-20-retest-4076r13-S13",
+    "sample-sweep-2026-10-20-retest-4076r12-R",
+    "sample-sweep-2026-10-20-retest-4076r12-S12",
+    "sample-sweep-2026-10-20-retest-4076r11-B",
+    "sample-sweep-2026-10-20-retest-4076r11-C",
+    "sample-sweep-2026-10-20-retest-4076r11-P",
+    "sample-sweep-2026-10-20-retest-4076r11-R"
+  ],
+  "skipped": [
+    "timeout bubble on Koog, Semantic Kernel, AgentScope, Spring AI Alibaba, Embabel: driven on built-in, LangChain4j and Spring AI only; the timeout path is runtime-agnostic",
+    "Expo client: last driven in round 11 lane P (after 48bbd14802, the last atmosphere.js/Expo change); not re-driven in rounds 12-13",
+    "CrewAI: sidecar not installed (known tool loop)",
+    "known log-level items deferred to 4.0.77 by the maintainer: provider call outlives a timed-out turn (late ERROR + stack on built-in and Spring AI), two WARN lines per timeout, provider timeout can win the race, ai-tools cost log on overlapping turns"
+  ]
+}
