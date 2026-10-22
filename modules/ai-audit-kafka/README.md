@@ -13,7 +13,7 @@ serving the admin console.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai-audit-kafka</artifactId>
-    <version>4.0.75</version>
+    <version>4.0.76</version>
 </dependency>
 ```
 

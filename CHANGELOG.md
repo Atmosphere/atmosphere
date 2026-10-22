@@ -7,6 +7,236 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.76] - 2026-10-22
+
+### Added
+
+- keep a prompt under the run id its transport mints, shown again on reload at once
+- send a prompt under a run id the client mints, kept before it is sent
+- adopt the run id a client mints for its prompt, running a prompt once per id
+- serve the Atmosphere Console as the sample UI
+- keep the picked room across a page reload
+
+### Fixed
+
+- ai-tools lets atmosphere.ai.mode and model apply when LLM_MODE and LLM_MODEL are unset
+- log a refused cleartext key once and a tool failure without a stack
+- new --runtime without --force warns when the template pins another adapter
+- startup-team web_search card ends as failed when the search did not run
+- ai-tools derives llm.base-url after atmosphere.ai.* is mapped onto llm.*
+- a timed-out @Prompt turn ends with an error frame the client keeps, live and on reload
+- every runtime sends an API key over plain http only to a loopback host
+- a workspace tool that fails (read_file on a missing file) ends with a tool-error
+- atmosphere.ai.mode/model/api-key/base-url reach the runtime adapters as llm.*
+- read llm.* between atmosphere.koog.* and LLM_*, first non-blank wins
+- read LLM_MODE trimmed, as AiConfig and the other adapters do
+- the llm.* bridges read LLM_MODE trimmed, as AiConfig does
+- the keyless-model gate reads LLM_MODE trimmed and case-insensitive
+- a blank base URL follows the model in LC4j, Spring AI, Alibaba, AgentScope, SK
+- LLM_MODE=local maps the local endpoint into the openai-custom starter
+- log the ChatModel's model, endpoint and local flag at startup
+- LLM_BASE_URL with /v1 is mapped without it, as Spring AI 1.x appends /v1
+- mcp-server tools report a failure as isError true, not an error-shaped success
+- a2a-agent's ask skill no longer records the user message twice
+- durable-sessions keeps missed messages for the Console's whole reconnect window
+- ms-governance denies a Luhn-valid card number, not every 16-digit integer
+- ai-tools no longer imports LangChain4j, so --runtime X --force compiles
+- LLM_MODE=local builds the auto-configured model for the local endpoint
+- a provider error ends the turn with an error frame, not an answer
+- LLM_MODE=local maps the local Ollama endpoint, not api.openai.com
+- LLM_MODE=local builds the ChatClient for the local endpoint, not api.openai.com
+- a tool call AgentScope rejects before the tool runs ends with a tool-error
+- stream each answer once, not again as the round's and the agent's result
+- a large integer in an answer is not a credit card to PII redaction
+- a bare run of digits in an answer is not a phone number to PII redaction
+- send an API key over plain http only to a loopback host
+- a turn that ended with no text, tool card or error renders no bubble
+- cap the wait between reconnect attempts at 25 s
+- a tool call whose outcome the journal cannot record keeps its one end frame
+- a tool call that failed stays in the lineage record, with its error
+- a cancelled turn's undispatched tool reports nothing once the session closed
+- a failed tool call carries its error over AG-UI and the Console shows it failed
+- a tool call that failed ends with a tool-error, once per call, on every runtime
+- a tool-error ends its card as failed, and a turn's end leaves no card working
+- the semantic-kernel overlay takes the SK version the adapter builds on
+- tools go out under their own names and the shared schema
+- an approval bound by its turn ends the turn when it times out, decided when asked
+- the import run hint also shows the keyless local-model command
+- point a composed fleet's Console at its coordinator
+- a local agent whose task failed is a failure, read as over A2A
+- a tool left in a round whose approval ended the turn is not dispatched
+- the Expo classroom shows cos(C) as written, not cos©
+- a write failing while the container closes a WebSocket keeps its @Disconnect
+- log a rate-limited turn as one warning, not an error with a stack
+- end the session when a gateway refusal or setup failure ends a dispatch
+- stop polling an admin tab the server refused, until it is opened again or refreshed
+- give an agent a workflow calls twice its own result variable
+- report a task's status with the time it entered its state, not the time of the read
+- composed coordinators call the default skill their agents serve
+- run boots a shaded sample's runnable jar, never the shade plugin's thin one
+- serve the kotlin-dsl-chat favicon instead of a 404
+- a turn cancelled before its tool loop starts ends without an error
+- run a turn's tools through SK's non-streaming tool loop
+- reach a plain-HTTP OpenAI-compatible endpoint
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a tool round that ended the turn calls the model no more
+- a long reply stays whole in its run's replay
+- a tool round that ended the turn calls the model no more
+- a frame written while another write runs the interceptors reaches the connection
+- end a run that handed its turn off when its prompt method returns
+- show a tool whose approval timed out or was refused as not run
+- one write at a time on a WebSocket or WebTransport connection
+- log an approval that ran out with its turn as a warning, not an error
+- end the kept prompt with a turn a reattach followed through a handoff
+- a reattached client follows a handoff made while it follows the run
+- a reloaded page gets a pending approval back and can answer it
+- keep a run's metadata and handoff for a reattach
+- serialize a frame at deploy, so the first run-id frame loads no Jackson classes
+- a reattach to a run that handed its turn off follows it to the target's run
+- classroom asks clients for a heartbeat and evicts a silent member from its room
+- send gRPC chat messages one at a time so a burst arrives in order
+- flag the streamed artifact's final chunk with lastChunk
+- treat addresses at reserved documentation domains as not PII
+- render sin(π/6) for \sin\left(\frac{\pi}{6}\right)
+- ready an endpoint's first prompt at deploy, so its run id goes out at once
+- log at debug each turn cancel and whether a model call was in flight
+- start no agent run when the turn is cancelled while the agent is built
+- build no agent for a turn cancelled before its model call
+- cancel an evaluation in flight when the turn is cancelled
+- end a cancelled turn when the cancel lands, not at the next model call
+- stream the answer as it arrives and stop on CancelTask
+- CancelTask stops the running skill; streams begin with the Task
+- stop a model call whose turn is cancelled
+- a write to a session whose connection went away logs at debug
+- set a turn up on its run's thread once the run is announced
+- write a rejoined room member each session's frames in seq order
+- a WebSocket lost on a failed write reaches @Disconnect once, with its resource
+- deny a gated tool call of a cancelled run
+- a cancelled turn runs no model call, no tool and no new delegation
+- log tape steps that arrive after their run's terminal at debug
+- announce a run's id before the turn's setup, so a reload during it reattaches
+- deliver the cancelled error frame before closing a deleted sidecar stream
+- reserve queue slots so a sidecar SSE stream always terminates
+- classroom tracks a member once by tracking id and joins it once across long-polls
+- answer HEAD / with the Console redirect, and redirect / on Spring Boot 3 too
+- @Disconnect keeps its request when another thread takes the resource out of scope
+- classroom @Disconnect reads the member's room from @Ready, not its request
+- a tool-calling turn's handle is done when its last round ends
+- a cancelled tool-calling run ends without Koog logging ERROR
+- the in-flight prompt follows the run a handoff started
+- tools, the @Prompt method and a handoff read the run's view of a reloaded connection
+- log a run's failure that comes after its connection went away
+- a room join replays the room history, all of it without a sinceId cursor
+- spring-boot-chat keeps lobby history before it takes connections
+- a connection under a carried tracking id keeps the announced heartbeat
+- a member rejoining mid-broadcast always gets the message
+- a drop mid-answer resumed by the reconnect keeps one assistant bubble
+- replay a run's tool frames so a reloaded page shows its tool cards again
+- a run reads its connection's request after a page reload cancelled it
+- a broadcast page shows what it sent once, whether or not the server echoes it
+- room-mode pages read the protocol handshake and heartbeat
+- startup-team admin controls accept the demo operator token
+- root redirect to the Console keeps the query string
+- mcp-server chat tools broadcast raw JSON, not once per recipient
+- cache keeps a long-connected client's messages after it leaves
+- coding-agent offers no LLM key; the sample never calls a model
+- info covers every sample whose code reaches a model via AiConfig
+- chat samples ask clients for a heartbeat within their idle timeout
+- a cache inspector registered during a broadcast no longer drops that broadcast
+- a fallback subscription comes back under the lost tracking id and resume point
+- catch a reloaded room member up on its run before any live frame of the room
+- installer verifies the CLI it installed, not the first on PATH
+- info documents keyless LLM_MODE=local for every AiConfig sample
+- mcp-server chat asks clients for a heartbeat within its idle timeout
+- idle eviction keeps caching for the evicted client's uuid
+- DSL replays cached messages one by one, lost = disconnect
+- length z-score guardrail counts a streamed reply once, not every partial check
+- classroom drift watcher flags long answers instead of blocking them mid-stream
+- load KaTeX again after a failed chunk load instead of keeping the failure
+- show the prompt of a turn reattached after a reload
+- say why the Sessions tab cancel was refused instead of a bare 403
+- render TeX math in AI replies only, never in what a person typed
+- show another room member's prompt in the transcript, labelled with its member id
+- render a ^\circ superscript as a degree sign
+- useStreamingRN disconnect carries the resume point to the stream it reopens
+- send the resume point on every request so a reconnect gets what it missed
+- resume a reconnect from what its client last received, cache overflow included
+- replay a reconnecting client's own reply in its session's numbering
+- a room listener follows every turn; replayed prompts and frames render once
+- cache the classroom rooms so a student back from a drop gets missed turns
+- deliver missed room turns once on reconnect, cache and replay coordinated
+- render TeX math in replies as MathML instead of dropping its backslashes
+- warn at build time when an indexed @AiEndpoint/@Agent/@Coordinator has no processor
+- register @AiEndpoint classes without the LangChain4j bridge
+- render LaTeX math in the Expo classroom client as Unicode text
+- stop classroom room prompts steering the model into refusals
+- answer each classroom room with its own demo persona
+- document the keyless LLM_MODE=local path in atmosphere info for the AiConfig samples
+- install the CLI from the installer's own release tag instead of main
+- cache kotlin-dsl-chat broadcasts so a reconnecting client gets missed replies
+- show the a2a-agent skill hints in the SendMessage shape the handler reads
+- keep ?token= on the personal-assistant root redirect so sign-in reaches the Console
+- write the CLI zip checksum with the bare file name so shasum -c verifies
+- the MCP server status reports the transports its clients use
+- name the scope redirect as a labelled reply, not a reply template
+- end a run its caller cancelled without logging ERROR
+- report a WebTransport client's transport as WEBTRANSPORT
+- the Console bundle check fails when a committed copy sends a stale atmosphere.js version
+- each bare text broadcast renders as its own bubble
+- session stats count each turn on its own
+- a WebTransport session survives a frame it cannot parse
+- replay a WebSocket's run off the thread that opened it
+- write each replayed frame alone so WebTransport clients can parse it
+- keep a detached run's session open until the run ends
+
+### Changed
+
+- record the pre-4.0.76 sample sweep at 00ac7fb403
+- the Embabel overlay says how to run on a local endpoint; AgentScope's note is current
+- document LLM_MODE, LLM_BASE_URL, LLM_MODEL, LLM_API_KEY resolution per adapter
+- team-rooms' /api/console/info reports mode broadcast on /atmosphere/rooms/general
+- a rejected generate_response call is AgentScope's own and gets no tool frames
+- say the classroom's idle eviction counts a delivered message as traffic
+- send the lifecycle counts before ending a failed turn with its error
+- say which runtimes the tool-loop guard can cap, and the ADK version it was checked on
+- name the runtimes ToolLoopPolicy.strict(N) caps
+- keep the tool-request response's doc comment on its method
+- describe how a run's replay keeps a long reply whole
+- raise the atmosphere.js core bundle cap to 64KB
+- reattach the isTurnCancelled and approvalPending Javadocs turnDeadline split off
+- sweep recipe — DevTools Offline silences an open WebSocket without closing it
+- reattach the fleet and proxy Javadocs the cancel methods split off
+- check a rejoined room member against the resume point it sent
+- say a cancelled run commits no budget and delegates no more
+- make the drained-session lifecycle test assert a done frame
+- fail a hung sidecar test after 60s via pytest-timeout
+- attach the tool-loop fixture's Javadoc to its method
+- every tool-calling runtime proves its turn ends with its last round
+- wait for the classroom Console, not its former root page
+- team-rooms round-trip over two pages; lobby probe runs on Spring Boot 3 and 4
+- early-reload test tears down only what its setUp built
+- a pin inside the JDK's MethodType interning is not the probe's monitor
+- onConnect runs before suspend; its broadcast is cached for a reconnect
+- drift watcher test checks each reply under one request, as a session does
+- sweep drops a connection in-page; DevTools Offline leaves open sockets working
+- the Expo classroom client keeps its stream open in the background
+- expo sweep reads the screen with maestro hierarchy on Xcode 27.1
+- how a broadcastReply room's cache and run replay deliver a reconnecting member
+- an app @AiEndpoint registers on Vert.x with no index config
+- run the Expo classroom client's unit tests and type check
+- state classroom refusal counts precisely and document Expo math rendering
+- the Console reattaches to its answer across a reload over WebTransport
+- a WebSocket reattached mid-run on Quarkus is replayed promptly
+- a classroom student reloading mid-answer returns to the same room
+- stop the paced model once its session reports closed
+- refuse to release a commit the sample sweep does not cover
+
 ## [4.0.75] - 2026-10-17
 
 ### Added
