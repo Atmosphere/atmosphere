@@ -8,9 +8,12 @@ atmosphere:
     enabled: true
     port: 4445
 
+# No default for mode/model here: an unset LLM_MODE/LLM_MODEL lets
+# atmosphere.ai.mode/model apply, then LlmEndpointDefaults falls back to
+# remote + gemini-2.5-flash (AiConfig's defaults).
 llm:
-  mode: ${LLM_MODE:remote}
-  model: ${LLM_MODEL:gemini-2.5-flash}
+  mode: ${LLM_MODE:}
+  model: ${LLM_MODEL:}
   base-url: ${LLM_BASE_URL:}
   api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
 

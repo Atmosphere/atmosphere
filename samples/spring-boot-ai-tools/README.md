@@ -162,4 +162,7 @@ the LangChain4j dependencies and still compile. When `llm.base-url` is blank,
 `META-INF/spring.factories`) fills it with the endpoint `AiConfig` derives from
 `llm.mode` and `llm.model` — Ollama for `LLM_MODE=local`, OpenAI for a `gpt-*`
 model, Gemini otherwise — so a `GEMINI_API_KEY` reaches Gemini whichever adapter
-is present. An explicit `LLM_BASE_URL` always wins.
+is present. An explicit `LLM_BASE_URL` always wins. `application.yml` gives
+`LLM_MODE` and `LLM_MODEL` no default, so `atmosphere.ai.mode` / `atmosphere.ai.model`
+apply when they are unset; with neither set, `LlmEndpointDefaults` uses `AiConfig`'s
+defaults (`remote`, `gemini-2.5-flash`).

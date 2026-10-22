@@ -63,6 +63,26 @@ class LlmEndpointDefaultsTest {
     }
 
     @Test
+    void aBlankModeAndModelFallBackToTheFrameworkDefaults() {
+        // application.yml leaves LLM_MODE/LLM_MODEL without a default so
+        // atmosphere.ai.* can apply; the adapters read ${llm.model:...}, whose
+        // fallback ignores an empty string, so nothing set must not stay blank.
+        var env = environment(Map.of("llm.mode", "", "llm.model", "", "llm.base-url", ""));
+        assertEquals(AiConfig.DEFAULT_MODE, env.getProperty("llm.mode"));
+        assertEquals(AiConfig.DEFAULT_MODEL, env.getProperty("llm.model"));
+        assertEquals(AiConfig.resolveBaseUrl(AiConfig.DEFAULT_MODE, null, AiConfig.DEFAULT_MODEL),
+                env.getProperty("llm.base-url"));
+    }
+
+    @Test
+    void aSetModelIsKeptWhenOnlyTheModeIsBlank() {
+        var env = environment(Map.of("llm.mode", " ", "llm.model", "gpt-4o-mini", "llm.base-url", ""));
+        assertEquals(AiConfig.DEFAULT_MODE, env.getProperty("llm.mode"));
+        assertEquals("gpt-4o-mini", env.getProperty("llm.model"));
+        assertEquals(AiConfig.resolveBaseUrl("remote", null, "gpt-4o-mini"), env.getProperty("llm.base-url"));
+    }
+
+    @Test
     void aBlankBaseUrlInLocalModeResolvesToOllama() {
         var env = environment(Map.of("llm.mode", "local", "llm.model", "qwen2.5:7b", "llm.base-url", ""));
         assertEquals(AiConfig.resolveBaseUrl("local", null, "qwen2.5:7b"), env.getProperty("llm.base-url"));

@@ -22,14 +22,22 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Fills a blank {@code llm.base-url} with the endpoint
- * {@link AiConfig#resolveBaseUrl(String, String, String)} derives from
- * {@code llm.mode} and {@code llm.model}: Ollama for {@code local}, OpenAI for
- * a {@code gpt-*}/{@code o1}/{@code o3} model, Gemini otherwise (this sample's
- * default model is {@code gemini-2.5-flash}).
+ * Fills a blank {@code llm.mode} and {@code llm.model} with
+ * {@link AiConfig#DEFAULT_MODE} and {@link AiConfig#DEFAULT_MODEL}, then a blank
+ * {@code llm.base-url} with the endpoint
+ * {@link AiConfig#resolveBaseUrl(String, String, String)} derives from them:
+ * Ollama for {@code local}, OpenAI for a {@code gpt-*}/{@code o1}/{@code o3}
+ * model, Gemini otherwise.
+ *
+ * <p>{@code application.yml} leaves {@code LLM_MODE}/{@code LLM_MODEL} without
+ * a default so {@code atmosphere.ai.mode}/{@code model} can reach the adapters
+ * (the starter maps them onto a blank {@code llm.*} only). The adapters read
+ * {@code ${llm.model:...}}, whose fallback does not apply to an empty string,
+ * so a model nobody set is filled here rather than left blank.</p>
  *
  * <p>The adapters' own auto-configurations read {@code llm.base-url} as given
  * and fall back to OpenAI's endpoint when it is blank, so with only a
@@ -62,18 +70,32 @@ public class LlmEndpointDefaults implements EnvironmentPostProcessor, Ordered {
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        var baseUrl = environment.getProperty("llm.base-url");
-        if (baseUrl != null && !baseUrl.isBlank()) {
-            return;
+        Map<String, Object> defaults = new LinkedHashMap<>();
+        var mode = valueOr(environment, "llm.mode", AiConfig.DEFAULT_MODE, defaults);
+        var model = valueOr(environment, "llm.model", AiConfig.DEFAULT_MODEL, defaults);
+        if (isBlank(environment.getProperty("llm.base-url"))) {
+            defaults.put("llm.base-url", AiConfig.resolveBaseUrl(mode, null, model));
         }
-        var resolved = AiConfig.resolveBaseUrl(
-                environment.getProperty("llm.mode", "remote"), null,
-                environment.getProperty("llm.model", "gemini-2.5-flash"));
-        // First, not last: application.yml declares llm.base-url as an empty
-        // string, which would shadow a lower-precedence source. Only a blank
-        // value reaches this line, so nothing a user set is overridden.
-        environment.getPropertySources().addFirst(
-                new MapPropertySource(SOURCE_NAME, Map.of("llm.base-url", resolved)));
+        if (!defaults.isEmpty()) {
+            // First, not last: application.yml declares these as empty strings,
+            // which would shadow a lower-precedence source. Only blank values
+            // are put here, so nothing a user set is overridden.
+            environment.getPropertySources().addFirst(new MapPropertySource(SOURCE_NAME, defaults));
+        }
+    }
+
+    private static String valueOr(ConfigurableEnvironment environment, String key, String fallback,
+                                  Map<String, Object> defaults) {
+        var value = environment.getProperty(key);
+        if (isBlank(value)) {
+            defaults.put(key, fallback);
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     /**
