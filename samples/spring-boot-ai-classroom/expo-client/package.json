@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.4",
-    "markdown-it": "^10.0.0",
+    "markdown-it": "^15.0.3",
     "typescript": "~6.0.3"
   }
 }
