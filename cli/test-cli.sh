@@ -986,9 +986,9 @@ cat > "$overlay_tmp/harness.sh" <<HARNESS
 # Stand-alone harness that calls apply_runtime_overlay with the env the
 # real CLI provides. Third arg (optional) is the force flag.
 die()  { echo "error: \$1" >&2; exit 1; }
-info() { :; }
+info() { echo "info: \$1" >&2; }
 ok()   { :; }
-warn() { :; }
+warn() { echo "warn: \$1" >&2; }
 has_jq() { command -v jq >/dev/null 2>&1; }
 ensure_cache_dir() { :; }
 download() { :; }
@@ -1124,6 +1124,39 @@ if [ -f "$ai_tools_pom" ]; then
     else
         fail "--force builtin preserves foundational atmosphere-ai dep"
     fi
+
+    # Without --force the overlay is additive, so ai-tools' pinned
+    # atmosphere-langchain4j stays on the classpath and wins runtime selection
+    # ('runtime: langchain4j' at startup) over the requested runtime. The CLI
+    # used to report a clean swap — for builtin even "no extra deps required".
+    # It must instead name the pinned adapter and point at --force.
+    for rt in builtin semantic-kernel agentscope spring-ai-alibaba embabel; do
+        noforce_pom="$overlay_tmp/pom.noforce.$rt.xml"
+        cp "$ai_tools_pom" "$noforce_pom"
+        out=$(drive_overlay "$rt" "$noforce_pom" 2>&1) && ec=0 || ec=$?
+        assert_exit_code "$ec" 0 "non-force overlay '$rt' on ai-tools pom succeeds"
+        assert_contains "$out" "already pins the adapter(s) atmosphere-langchain4j" \
+            "non-force overlay '$rt' on ai-tools warns that atmosphere-langchain4j stays pinned"
+        assert_contains "$out" "Re-run with --force" \
+            "non-force overlay '$rt' on ai-tools points at --force"
+    done
+    cp "$ai_tools_pom" "$overlay_tmp/pom.noforce.builtin.check.xml"
+    out=$(drive_overlay builtin "$overlay_tmp/pom.noforce.builtin.check.xml" 2>&1) || true
+    assert_not_contains "$out" "no extra deps required" \
+        "non-force builtin overlay on ai-tools does not claim 'no extra deps required'"
+
+    # No false alarm: requesting the adapter the sample already pins, a --force
+    # run, or a template that pins no adapter (ai-chat) stays quiet.
+    cp "$ai_tools_pom" "$overlay_tmp/pom.noforce.langchain4j.xml"
+    out=$(drive_overlay langchain4j "$overlay_tmp/pom.noforce.langchain4j.xml" 2>&1) || true
+    assert_not_contains "$out" "already pins" "langchain4j overlay on ai-tools does not warn about its own adapter"
+    cp "$ai_tools_pom" "$overlay_tmp/pom.force.sk.xml"
+    out=$(drive_overlay semantic-kernel "$overlay_tmp/pom.force.sk.xml" true 2>&1) || true
+    assert_not_contains "$out" "already pins" "--force overlay on ai-tools does not warn"
+    cp "$overlay_tmp/pom.xml" "$overlay_tmp/pom.aichat.builtin.xml"
+    out=$(drive_overlay builtin "$overlay_tmp/pom.aichat.builtin.xml" 2>&1) || true
+    assert_not_contains "$out" "already pins" "builtin overlay on ai-chat (no pinned adapter) does not warn"
+    assert_contains "$out" "no extra deps required" "builtin overlay on ai-chat still reports no extra deps"
 fi
 
 # ── --force: a template's own sources must not need a dep --force strips ──

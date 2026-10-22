@@ -152,7 +152,7 @@ For a production-shaped AI service, start from the tool template instead of the
 plain chat template:
 
 ```bash
-atmosphere new support-agent --template ai-tools --runtime builtin
+atmosphere new support-agent --template ai-tools --runtime builtin --force
 cd support-agent
 export LLM_API_KEY=...
 mvn spring-boot:run

@@ -1110,6 +1110,24 @@ strip_competing_adapters() {
     rm -f "$artifacts_file"
 }
 
+# Print, space-separated, the Atmosphere adapter artifactIds (atmosphere-*
+# deps of any overlay in cli/runtime-overlays.json) that <pom-path> already
+# declares and that the requested overlay does not itself bring. Empty when
+# the pom pins no competing adapter.
+#
+# Usage: pinned_competing_adapters <pom-path> <overlays-json> <overlay-json>
+pinned_competing_adapters() {
+    _pca_pom="$1"
+    _pca_own=$(printf '%s' "$3" | jq -r '.deps[]?.artifactId')
+    _pca_found=""
+    for _pca_a in $(printf '%s' "$2" | jq -r '.overlays | to_entries[] | .value.deps[]?.artifactId' | grep '^atmosphere-' | sort -u); do
+        printf '%s\n' "$_pca_own" | grep -qxF -e "$_pca_a" && continue
+        grep -qF -e "<artifactId>$_pca_a</artifactId>" "$_pca_pom" || continue
+        _pca_found="${_pca_found:+$_pca_found }$_pca_a"
+    done
+    printf '%s' "$_pca_found"
+}
+
 # ── Runtime overlay (--runtime) ─────────────────────────────────────────────
 # Apply a runtime overlay (cli/runtime-overlays.json) to a scaffolded sample's
 # pom.xml. Appends <dependency> blocks before </dependencies> and an optional
@@ -1161,11 +1179,28 @@ apply_runtime_overlay() {
         info "Stripped pre-pinned adapter deps (--force)"
     fi
 
+    # Without --force the overlay is additive: an Atmosphere adapter the sample
+    # already pins (ai-tools pins atmosphere-langchain4j) stays on the classpath
+    # next to the requested one, and the resolver runs the highest-priority
+    # runtime — Built-in has the lowest, and equal priorities fall to
+    # ServiceLoader order — so the requested runtime is not necessarily the
+    # one that runs. Say so instead of reporting a clean swap.
+    pinned=""
+    if [ "$force" != "true" ]; then
+        pinned=$(pinned_competing_adapters "$pom" "$overlays" "$overlay")
+    fi
+    if [ -n "$pinned" ]; then
+        warn "pom.xml already pins the adapter(s) $pinned: they stay on the classpath and can win runtime selection, so '$runtime' may not be the runtime that runs."
+        warn "Re-run with --force to strip pre-pinned adapters before applying '$runtime'."
+    fi
+
     # Built-in is the default — no overlay deps to inject (force already wiped
     # any pre-pinned adapters above, so we can return cleanly).
     dep_count=$(printf '%s' "$overlay" | jq '.deps | length')
     if [ "$dep_count" -eq 0 ]; then
-        info "Runtime '$runtime' uses Atmosphere's built-in adapter — no extra deps required"
+        if [ -z "$pinned" ]; then
+            info "Runtime '$runtime' uses Atmosphere's built-in adapter — no extra deps required"
+        fi
         return 0
     fi
 

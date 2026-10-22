@@ -87,7 +87,7 @@ Use this path when the goal is a production-shaped JVM agent rather than a
 minimal chat demo:
 
 ```bash
-atmosphere new support-agent --template ai-tools --runtime builtin
+atmosphere new support-agent --template ai-tools --runtime builtin --force
 cd support-agent
 export LLM_API_KEY=...
 mvn spring-boot:run
