@@ -244,6 +244,46 @@ public class McpProtocolHandlerTest {
         assertTrue(result.get("content").get(0).get("text").stringValue().contains("Something went wrong"));
     }
 
+    /**
+     * A tool that throws is an ordinary failure the caller gets as isError:
+     * one WARN line carrying its message, the stack only at DEBUG. It used to
+     * log the WARN with the full stack trace.
+     */
+    @Test
+    public void aFailingToolLogsOneWarningWithItsMessageAndTheStackOnlyAtDebug() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{
+                    "name":"failing_tool"
+                }}""";
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(McpProtocolHandler.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var previous = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        appender.start();
+        logger.addAppender(appender);
+        JsonNode result;
+        try {
+            result = mapper.readTree(handler.handleMessage(resource, request)).get("result");
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+            logger.setLevel(previous);
+        }
+
+        assertTrue(result.get("isError").asBoolean());
+        assertTrue(result.get("content").get(0).get("text").stringValue().contains("Something went wrong"));
+        var warnings = appender.list.stream()
+                .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN).toList();
+        assertEquals(1, warnings.size(), "one warning: " + appender.list);
+        assertTrue(warnings.get(0).getFormattedMessage().contains("failing_tool"),
+                warnings.get(0).getFormattedMessage());
+        assertTrue(warnings.get(0).getFormattedMessage().contains("Something went wrong"),
+                warnings.get(0).getFormattedMessage());
+        assertNull(warnings.get(0).getThrowableProxy(), "the warning carried a stack trace");
+        assertTrue(appender.list.stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.DEBUG
+                && e.getThrowableProxy() != null), "the stack should still be logged at DEBUG: " + appender.list);
+    }
+
     // ── Resources ────────────────────────────────────────────────────────
 
     @Test

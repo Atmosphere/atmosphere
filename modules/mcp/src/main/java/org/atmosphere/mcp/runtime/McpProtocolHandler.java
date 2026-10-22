@@ -544,7 +544,10 @@ public final class McpProtocolHandler {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
         } catch (InvocationTargetException e) {
             var cause = e.getCause() != null ? e.getCause() : e;
-            logger.warn("Tool {} invocation failed", toolName, cause);
+            // A tool that threw is an ordinary failure the caller gets as
+            // isError: one WARN line with its message, the stack at DEBUG.
+            logger.warn("Tool {} invocation failed: {}", toolName, String.valueOf(cause));
+            logger.debug("Tool {} invocation failure", toolName, cause);
             return JsonRpc.Response.success(id, Map.of(
                     "content", List.of(Map.of("type", "text", "text", cause.getMessage())),
                     "isError", true
@@ -726,7 +729,8 @@ public final class McpProtocolHandler {
                 return new ToolRun(null, ire.inputRequests(), null);
             }
             var cause = e.getCause() != null ? e.getCause() : e;
-            logger.warn("MCP tool invocation failed", cause);
+            logger.warn("MCP tool invocation failed: {}", String.valueOf(cause));
+            logger.debug("MCP tool invocation failure", cause);
             return new ToolRun(errorCallResult(cause.getMessage()), null, null);
         } catch (McpInputRequiredException ire) {
             // A dynamic (lambda) handler throws directly, not via reflection.

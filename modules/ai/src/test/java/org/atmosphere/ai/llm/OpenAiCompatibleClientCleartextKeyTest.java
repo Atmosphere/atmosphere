@@ -87,6 +87,50 @@ class OpenAiCompatibleClientCleartextKeyTest {
         assertFalse(reason.contains(KEY), "the reason never carries the key");
     }
 
+    /**
+     * A refused turn is logged once: the client's ERROR naming the refusal. The
+     * streaming session that ends the turn used to add a second ERROR with the
+     * refusal's full stack trace, which named nothing the message did not.
+     */
+    @Test
+    void aRefusedTurnLogsOneErrorWithoutAStackAndStillSendsTheErrorFrame() throws Exception {
+        var client = client(recordingClient(), REMOTE_HTTP).build();
+        var resource = mock(org.atmosphere.cpr.AtmosphereResource.class);
+        var broadcaster = mock(org.atmosphere.cpr.Broadcaster.class);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        var frames = new java.util.ArrayList<String>();
+        when(broadcaster.broadcast(any(), org.mockito.ArgumentMatchers.anySet())).thenAnswer(inv -> {
+            frames.add(String.valueOf(((org.atmosphere.cpr.RawMessage) inv.getArgument(0)).message()));
+            return null;
+        });
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var loggers = List.of(
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleClient.class),
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(
+                        org.atmosphere.ai.DefaultStreamingSession.class));
+        appender.start();
+        loggers.forEach(l -> l.addAppender(appender));
+        try {
+            var session = org.atmosphere.ai.StreamingSessions.start("refused-" + System.nanoTime(), resource);
+            client.streamChatCompletion(ChatCompletionRequest.of("gpt-4o-mini", "hello"), session);
+            assertTrue(session.hasErrored(), "the refused turn still ends in error");
+        } finally {
+            loggers.forEach(l -> l.detachAppender(appender));
+            appender.stop();
+        }
+
+        var errors = appender.list.stream()
+                .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.ERROR).toList();
+        assertEquals(1, errors.size(), "one ERROR for one refused turn: " + errors);
+        assertTrue(errors.get(0).getFormattedMessage().contains(REMOTE_HTTP), errors.get(0).getFormattedMessage());
+        assertTrue(appender.list.stream().allMatch(e -> e.getThrowableProxy() == null),
+                "the refusal was logged with a stack trace: " + appender.list);
+        assertEquals(1, frames.size(), "one terminal frame: " + frames);
+        var frame = org.atmosphere.ai.filter.AiStreamMessage.parse(frames.get(0));
+        assertTrue(frame.isError(), frames.get(0));
+        assertTrue(frame.data().contains(REMOTE_HTTP), frame.data());
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void modelEnumerationIsRefusedTooWithoutSendingAnything() throws Exception {

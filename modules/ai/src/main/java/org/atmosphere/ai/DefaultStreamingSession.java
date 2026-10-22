@@ -17,6 +17,7 @@ package org.atmosphere.ai;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.ai.llm.CleartextApiKeyRefusedException;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
@@ -461,6 +462,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // A rate limit (the gateway's or the provider's 429) is an
                 // expected refusal: one line and no stack.
                 logger.warn("Streaming session {} rate limited: {}", sessionId, limited.getMessage());
+            } else if (t instanceof CleartextApiKeyRefusedException refused) {
+                // The client refused to send its key over plain http and logged
+                // the refusal at ERROR: no second error and no stack here.
+                logger.debug("Streaming session {} refused: {}", sessionId, refused.getMessage());
             } else {
                 logger.error("Streaming session {} error", sessionId, t);
             }

@@ -340,7 +340,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             // Fail closed: the key would cross the network in cleartext, so
             // nothing is sent and the turn ends with the reason.
             logger.error(cleartextRefusal);
-            session.error(new IllegalStateException(cleartextRefusal));
+            session.error(new CleartextApiKeyRefusedException(cleartextRefusal));
             return;
         }
         var effective = cancelled != null

@@ -250,7 +250,7 @@ public abstract class AbstractSseLlmClient {
         if (cleartextRefusal != null) {
             // Fail closed: the key would cross the network in cleartext.
             logger.error(cleartextRefusal);
-            session.error(new IllegalStateException(cleartextRefusal));
+            session.error(new CleartextApiKeyRefusedException(cleartextRefusal));
             return false;
         }
         var maxRetries = retryPolicy.maxRetries();
