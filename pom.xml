@@ -1458,7 +1458,7 @@
              2026-09/10 batch (GHSA-7hhh-6rmp-j9qf, GHSA-cxp5-3px4-pw24,
              GHSA-gx83-3vf8-gh7j, GHSA-p6pp-m3f8-5c89, GHSA-q4xh-88c3-wmh7,
              GHSA-wjgm-6hv5-3cvf, GHSA-wv8q-qhhj-9h54). -->
-        <jackson2.version>2.22.3</jackson2.version>
+        <jackson2.version>2.22.4</jackson2.version>
         <jackson-annotations.version>2.22</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <!-- CVE force-pin properties (entries in the dependencyManagement
