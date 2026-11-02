@@ -22,27 +22,29 @@ reads it; a file nothing reads does not belong here.
 | File | Read by | Runs in |
 |------|---------|---------|
 | `capabilities.snapshot.json` | `regen-capability-snapshot.sh --check`, `validate-capability-claims.sh`, `regen-skillcards.sh`, `validate-runtime-overlay-coverage.sh`, `CapabilitySnapshotTest`, `SkillCardSnapshotTest` | pre-push; CI (`mvnw test`, `cli-e2e.yml`); release (`release-4x.yml`); `sign-skillcards.yml` |
-| `enumeration-allowlist.txt` | `validate-capability-claims.sh` | pre-push |
+| `enumeration-allowlist.txt` | `validate-capability-claims.sh` | pre-push; CI (`doc-gates.yml`) |
 | `sweep-attestation.json` | `validate-sweep-attestation.sh` (self-test `test-sweep-attestation.sh`) | release (`release-4x.yml`); CI runs the self-test |
 | `blog-claims.json` | `validate-blog-claims.sh` | release (`release-4x.yml`) |
 | `playwright-project-exclusions.txt` | `validate-playwright-project-coverage.sh`, `test-playwright-project-coverage.sh` | pre-push; CI (`ci.yml`, `e2e.yml`) |
-| `doc-version-allowlist.txt` | `validate-doc-version-alignment.sh`, `validate-atmosphere-doc-version.sh` | pre-push; CI (`doc-version-guard.yml`); release |
+| `doc-version-allowlist.txt` | `validate-doc-version-alignment.sh`, `validate-atmosphere-doc-version.sh` | pre-push; CI (`doc-version-guard.yml`, `doc-gates.yml`); release |
 | `atmosphere-doc-version-allowlist.txt` | `validate-atmosphere-doc-version.sh` | pre-push; CI (`doc-version-guard.yml`, `ci.yml`); release (`release-4x.yml`, `release-preflight.sh`) |
-| `thirdparty-version-allowlist.txt` | `validate-doc-thirdparty-versions.sh` | pre-push |
-| `doc-symbol-allowlist.txt` | `validate-doc-symbols.sh` | pre-push |
-| `phantom-javadoc-allowlist.txt` | `validate-no-phantom-javadoc-refs.sh` | pre-push |
-| `orphan-class-allowlist.txt` | `validate-no-orphan-classes.sh` | pre-push |
-| `external-class-allowlist.txt` | `validate-backend-class-refs.sh` | pre-push |
-| `private-handle-allowlist.txt` | `validate-no-private-handle.sh` | pre-push |
-| `facts.json` | `validate-facts-registry.sh`, `.claude/workflows/doc-drift-audit.js` | pre-push |
-| `drift-log.md` | `validate-drift-log.sh` (structure only) | pre-push, when the log or its validator changes |
+| `thirdparty-version-allowlist.txt` | `validate-doc-thirdparty-versions.sh` | pre-push; CI (`doc-gates.yml`) |
+| `doc-symbol-allowlist.txt` | `validate-doc-symbols.sh` | pre-push; CI (`doc-gates.yml`) |
+| `phantom-javadoc-allowlist.txt` | `validate-no-phantom-javadoc-refs.sh` | pre-push; CI (`doc-gates.yml`) |
+| `orphan-class-allowlist.txt` | `validate-no-orphan-classes.sh` | pre-push; CI (`doc-gates.yml`) |
+| `external-class-allowlist.txt` | `validate-backend-class-refs.sh` | pre-push; CI (`doc-gates.yml`) |
+| `private-handle-allowlist.txt` | `validate-no-private-handle.sh` | pre-push; CI (`doc-gates.yml`) |
+| `facts.json` | `validate-facts-registry.sh`, `.claude/workflows/doc-drift-audit.js` | pre-push; CI (`doc-gates.yml`) |
+| `drift-log.md` | `validate-drift-log.sh` (structure only) | pre-push, when the log or its validator changes; CI (`doc-gates.yml`) |
 | `crewai-e2e-success.png` | cited by `CHANGELOG.md` only | nothing; removed at the next release cut together with that citation |
 | `skillcard-scan-report.json` | gitignored output of `scan-skillcards.sh`, not an input | — |
 
 "pre-push" means `scripts/pre-push-validate.sh`, which runs a gate only
-when the push touches the paths that gate watches. A gate that runs
-nowhere else is skipped by a merge made on GitHub, so its silence is not
-evidence that nothing drifted.
+when the push touches the paths that gate watches. A merge made on GitHub
+skips it, so `.github/workflows/doc-gates.yml` runs every doc gate on
+each push to main and each pull request, and
+`scripts/lib/prove_doc_gates.sh` (run by `gate-selftest.yml`) proves each
+one fails on an injected violation.
 
 Adding a file here means adding an input to a gate. If you can't name the
 validator that reads it and where that validator runs, don't add it.

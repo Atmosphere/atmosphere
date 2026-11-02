@@ -299,6 +299,10 @@ clean capability-claims-clean capability-claims "validate-capability-claims.sh: 
 
 bites drift-log-future-section drift-log \
     "future-dated section '2099-12-31'" s_drift_future
+# The log is frozen: a section dated after FROZEN_ON fails with its own message
+# (2099 is also future-dated, so both checks fire on the same injection).
+bites drift-log-after-freeze drift-log \
+    "is after the freeze" s_drift_future
 bites drift-log-out-of-order drift-log \
     "section '2000-01-01' precedes" s_drift_order
 bites drift-log-past-header-edited drift-log \
