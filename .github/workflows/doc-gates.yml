@@ -1,0 +1,111 @@
+name: "CI: Doc Gates"
+
+# The doc/consistency gates below used to run only from
+# scripts/pre-push-validate.sh, and only when a path matching their trigger
+# regex changed, so a merge from the GitHub UI or a push that skipped the hook
+# went through unchecked. This workflow runs every one of them on every push to
+# main and every pull request, with no path filter: they take seconds, and a
+# path filter would have to cover every input each gate reads (Markdown,
+# Java/Kotlin sources, pom.xml, package.json, the .harness allowlists, the
+# capability snapshot and the skill cards) to be trusted.
+#
+# Each gate is its own step so a red run names the gate that failed.
+# scripts/lib/prove_doc_gates.sh (run by gate-selftest.yml) proves each one
+# fails on an injected violation.
+#
+# None of these gates calls ripgrep. The facts-registry, third-party-version and
+# version-alignment gates also scan the sibling atmosphere.github.io checkout
+# when one is present, as advisory output only; it is absent here, so they scan
+# this repository alone and fail only on its findings.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  doc-gates:
+    name: Doc Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # no-orphan-classes, no-beta-on-main and drift-log diff against
+        # origin/main; a shallow checkout has neither the ref nor the merge base.
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+
+    # On a pull request origin/main is the base branch, so the diff-aware gates
+    # see exactly the PR's changes. On a push to main origin/main IS the pushed
+    # commit, which would leave them nothing to diff and make them pass
+    # vacuously; point origin/main at the commit main held before the push so
+    # they grade everything the push brought. drift-log reads origin/main
+    # directly, so moving the ref (not passing BASE_REF) is what reaches it.
+    - name: Diff the diff-aware gates against the pre-push commit
+      if: github.event_name == 'push'
+      env:
+        BEFORE: ${{ github.event.before }}
+      run: |
+        if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+          base="$BEFORE"
+        else
+          echo "Pre-push commit '$BEFORE' is not available; diffing against HEAD~1."
+          base=$(git rev-parse HEAD~1)
+        fi
+        git update-ref refs/remotes/origin/main "$base"
+        echo "origin/main -> $(git rev-parse --short origin/main); HEAD $(git rev-parse --short HEAD)"
+
+    - name: Doc symbols (phantom @Annotations in Markdown)
+      if: success() || failure()
+      run: ./scripts/validate-doc-symbols.sh
+
+    - name: Phantom Javadoc class references
+      if: success() || failure()
+      run: ./scripts/validate-no-phantom-javadoc-refs.sh
+
+    - name: Orphan classes (new classes with no consumer)
+      if: success() || failure()
+      run: ./scripts/validate-no-orphan-classes.sh
+
+    - name: Backend class references
+      if: success() || failure()
+      run: ./scripts/validate-backend-class-refs.sh
+
+    - name: Facts registry (business dates and superlatives)
+      if: success() || failure()
+      run: ./scripts/validate-facts-registry.sh
+
+    - name: Third-party dependency versions in docs
+      if: success() || failure()
+      run: ./scripts/validate-doc-thirdparty-versions.sh
+
+    - name: Doc dependency-version alignment
+      if: success() || failure()
+      run: ./scripts/validate-doc-version-alignment.sh
+
+    - name: No private handle in committed files
+      if: success() || failure()
+      run: ./scripts/validate-no-private-handle.sh
+
+    # Also checks the capability snapshot and skill cards are fresh; the skill
+    # card check needs jq, which ubuntu-latest ships.
+    - name: Capability claims and enumeration denominators
+      if: success() || failure()
+      run: ./scripts/validate-capability-claims.sh
+
+    - name: Drift-log structure
+      if: success() || failure()
+      run: ./scripts/validate-drift-log.sh
+
+    - name: No beta or deferral framing added on main
+      if: success() || failure()
+      run: ./scripts/validate-no-beta-on-main.sh
