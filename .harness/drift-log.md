@@ -4438,3 +4438,21 @@ the sibling components for the same list, so two copies stayed live for three mo
 **Gate added:** none. Both copies are fixed in `atmosphere.github.io` `ab83dc3`. No check ties the
 site's transport lists to `TransportType`, so the next edit needs a manual
 `grep -rn -i grpc website/src` before it ships.
+
+## 2026-11-02 — The log is frozen; drift is filed as carnet issues
+
+**Why:** nothing read this log any more. No agent context, skill, hook or workflow loaded it
+(`doc-drift-audit.js` lists it among the files not to audit), scripts stopped citing entries by
+number in June, and nothing was appended after 2026-10-14 across three releases. Lessons had moved
+into private agent memory, which no other reader sees. The Stop hook that asked for entries was
+skipped about six times in October and fired on sessions that only discussed the log.
+**What changes:** the Stop hook (`.claude/hooks/check-drift-log.sh`) is removed.
+`scripts/validate-drift-log.sh` now fails on any section dated after 2026-11-02. A caught drift
+is filed with `.agents/skills/carnet/carnet.sh create` (claim, truth, slip path, gate added), so it
+has an owner and is closed with the commit that gates it.
+**Retired or moved, so earlier sections point at paths that no longer exist:**
+`scripts/check-website-urls.sh` and `.harness/url-allowlist.txt` (2026-06-15 sections) are
+deleted: the script was never wired into pre-push, CI, release or any skill.
+`.harness/release-audit-truth.md` (2026-06-02) and `.harness/postmortem-4.0.51-mcp-oversell.md`
+(2026-06-07) moved to the maintainers' knowledge vault; the audit's counts (26 samples,
+20 capabilities) were stale.
