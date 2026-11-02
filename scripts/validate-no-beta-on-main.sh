@@ -66,8 +66,7 @@ PATTERN='@Beta\b|\(@Beta\)|@api\.status[[:space:]]+Beta|⏳|deferred to |next se
 # - the validator script itself: must mention the patterns it detects
 # - pre-push-validate.sh: documents the validator in its error messages
 # - feedback_no_beta_on_main.md: the memory document defining the rule
-# - allowlist file itself: tooling
-ALLOWLIST='^\.harness/drift-log\.md$|^scripts/validate-no-beta-on-main\.sh$|^scripts/pre-push-validate\.sh$|^\.harness/no-beta-allowlist\.txt$|/feedback_no_beta_on_main\.md$'
+ALLOWLIST='^\.harness/drift-log\.md$|^scripts/validate-no-beta-on-main\.sh$|^scripts/pre-push-validate\.sh$|/feedback_no_beta_on_main\.md$'
 
 # Get the list of changed files in the push range
 CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD 2>/dev/null || true)
