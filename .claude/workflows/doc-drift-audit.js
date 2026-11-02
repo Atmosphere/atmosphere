@@ -5,7 +5,7 @@ export const meta = {
   phases: [
     { title: 'Inventory', detail: 'enumerate doc surfaces across both repos, group by area' },
     { title: 'Audit', detail: 'one agent per group reads prose against code, flags semantic drift' },
-    { title: 'Verify', detail: 'adversarially refute each finding; drop the ones that survive as correct/historical' },
+    { title: 'Verify', detail: 'zero-context goldfish reviewers try to refute each finding from the claim alone' },
     { title: 'Synthesize', detail: 'report confirmed drift + which classes admit a new structural gate' },
   ],
 }
@@ -137,21 +137,43 @@ const perGroup = await pipeline(
     if (audit && audit.__failed) return [{ __failed: true, name: g.name }]
     const findings = (audit && audit.findings) ? audit.findings : []
     if (!findings.length) return []
-    return parallel(findings.map((f) => () =>
-      agent(
-        `Adversarially REFUTE this documentation-drift finding. Default to confirmed=false
-         unless you can independently reproduce the drift with a command. A claim that is
-         actually correct, or legitimately historical (changelog/dated audit), is NOT drift.
+    // Goldfish verification: the verifier runs as the goldfish-reviewer agent
+    // (.claude/agents/goldfish-reviewer.md: no CLAUDE.md, AGENTS.md or memory) and
+    // sees only the claim and where it is, never the auditor's evidence or fix, so it
+    // re-derives the truth instead of agreeing with the context that produced it.
+    // A verifier that cannot start (e.g. a session begun before the agent file
+    // existed) is a failed verification, which makes the run INCOMPLETE.
+    return parallel(findings.map((f) => async () => {
+      const blind = { file: f.file, line: f.line, claim: f.claim, drift_class: f.drift_class }
+      let v
+      try {
+        v = await agent(
+          `Adversarially REFUTE this documentation-drift finding. Default to confirmed=false
+           unless you can independently reproduce the drift with a command. A claim that is
+           actually correct, or legitimately historical (changelog/dated audit), is NOT drift.
 
-         Finding (group "${g.name}"):
-         ${JSON.stringify(f, null, 2)}
+           Finding (group "${g.name}", ${g.repo === 'site' ? 'the sibling repo ../atmosphere.github.io' : 'this repo'}):
+           ${JSON.stringify(blind, null, 2)}
 
-         Re-run the verification yourself (git grep / curl -sI / read the source / check
-         .harness/facts.json). Decide confirmed (real drift) or not, give the corrected
-         ground truth if confirmed, and whether a deterministic gate could catch this class.`,
-        { schema: VERDICT_SCHEMA, phase: 'Verify', label: `verify:${f.drift_class}` },
-      ).then((v) => ({ ...f, verdict: (v === null ? { __failed: true } : v) })),
-    ))
+           Drift classes: citation (external reference mislabeled or moved; check with
+           curl -sI), superlative ("first/only" with no cited survey; .harness/facts.json
+           lists the allowed ones), shipped_no_consumer (no non-test production caller:
+           git grep '<Symbol>' -- ':!**/test/**' ':!**/*Test.java'), subset_enumeration
+           ("N of the runtimes do X": grep each *AgentRuntime.{java,kt}), business_fact
+           (dates/years against .harness/facts.json), capability_contradiction (the code
+           contradicts a capability claim).
+
+           Read the cited line yourself, then establish the ground truth from the source.
+           Decide confirmed (real drift) or not, give the corrected ground truth if confirmed,
+           and whether a deterministic gate could catch this class.`,
+          { schema: VERDICT_SCHEMA, phase: 'Verify', label: `verify:${f.drift_class}`, agentType: 'goldfish-reviewer' },
+        )
+      } catch (e) {
+        log(`verify agent could not start for ${f.file}: ${e && e.message ? e.message : e}`)
+        v = null
+      }
+      return { ...f, verdict: (v === null || v === undefined ? { __failed: true } : v) }
+    }))
   },
 )
 
@@ -201,8 +223,8 @@ const report = await agent(
   `Write a concise Markdown report of confirmed documentation drift. Group by drift_class.
    For each finding: file:line, the claim (quoted), the verified ground truth, and the fix.
    End with a "Gate proposals" section: for any class where verdict.gateable is true and no
-   existing scripts/validate-*.sh covers it, propose the specific structural gate (this feeds
-   the drift-log's open-gate backlog). Do not invent findings beyond the data below.
+   existing scripts/validate-*.sh covers it, propose the specific structural gate; each proposal is
+   filed as a carnet issue (.agents/skills/carnet/carnet.sh create). Do not invent findings beyond the data below.
 
    Confirmed findings:
    ${JSON.stringify(confirmed, null, 2)}`,
