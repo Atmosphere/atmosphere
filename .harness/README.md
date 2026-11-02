@@ -8,33 +8,48 @@ agents*](https://www.anthropic.com/engineering/effective-harnesses-for-long-runn
 and OpenAI ([*Harness engineering: leveraging Codex in an agent-first
 world*](https://openai.com/index/harness-engineering/)): the model is the
 engine, the harness is the rails — instructions, state, verification,
-scope, and session lifecycle around the model. This directory is the
-**verification** rail for AI prose claims about this repo. The point is
-**not** utilization metrics — that's Goodhart's-Law-bait. The point is to
-keep prose claims honest against running code, and to record every agent
-claim that diverged from ground truth so the *rate* of divergence over
-time is a diff-reviewable curve.
+scope, and session lifecycle around the model. This directory holds the
+**inputs of the gates** that keep prose claims about this repo honest
+against running code: snapshots, registries and allowlists that the
+validators in `scripts/` read. The point is **not** utilization metrics,
+which invite Goodhart's Law. Each file here exists because a validator
+reads it; a file nothing reads does not belong here.
 
 ---
 
 ## Files
 
-| Path | Purpose | Source of truth | Append-only? |
-|------|---------|-----------------|---------------|
-| `capabilities.snapshot.json` | Canonical aggregate of `AiCapability` enum (currently 21 entries) and each runtime's pinned `expectedCapabilities()` (currently 12 contract-tested runtimes — `DemoAgentRuntime` is the no-key fallback and is excluded from the snapshot by design). Used to validate aggregate count claims in `modules/ai/README.md` and to drive per-runtime `modules/<X>/SKILLCARD.yaml` regeneration. | `modules/ai/src/main/java/org/atmosphere/ai/AiCapability.java` + every `*RuntimeContractTest.{java,kt}` | No — regenerated whenever a capability or runtime is added/removed. |
-| `drift-log.md` | Structured record of every agent claim that diverged from ground truth (claim, truth, slip path, gate added). The diff-reviewable curve of hallucinations-over-time. | Appended by the agent during sessions; reviewed by the maintainer. | **Yes** — pre-existing date sections are immutable. New entries go in today's section (or a new section at the bottom). |
+| File | Read by | Runs in |
+|------|---------|---------|
+| `capabilities.snapshot.json` | `regen-capability-snapshot.sh --check`, `validate-capability-claims.sh`, `regen-skillcards.sh`, `validate-runtime-overlay-coverage.sh`, `CapabilitySnapshotTest`, `SkillCardSnapshotTest` | pre-push; CI (`mvnw test`, `cli-e2e.yml`); release (`release-4x.yml`); `sign-skillcards.yml` |
+| `enumeration-allowlist.txt` | `validate-capability-claims.sh` | pre-push |
+| `sweep-attestation.json` | `validate-sweep-attestation.sh` (self-test `test-sweep-attestation.sh`) | release (`release-4x.yml`); CI runs the self-test |
+| `blog-claims.json` | `validate-blog-claims.sh` | release (`release-4x.yml`) |
+| `playwright-project-exclusions.txt` | `validate-playwright-project-coverage.sh`, `test-playwright-project-coverage.sh` | pre-push; CI (`ci.yml`, `e2e.yml`) |
+| `doc-version-allowlist.txt` | `validate-doc-version-alignment.sh`, `validate-atmosphere-doc-version.sh` | pre-push; CI (`doc-version-guard.yml`); release |
+| `atmosphere-doc-version-allowlist.txt` | `validate-atmosphere-doc-version.sh` | pre-push; CI (`doc-version-guard.yml`, `ci.yml`); release (`release-4x.yml`, `release-preflight.sh`) |
+| `thirdparty-version-allowlist.txt` | `validate-doc-thirdparty-versions.sh` | pre-push |
+| `doc-symbol-allowlist.txt` | `validate-doc-symbols.sh` | pre-push |
+| `phantom-javadoc-allowlist.txt` | `validate-no-phantom-javadoc-refs.sh` | pre-push |
+| `orphan-class-allowlist.txt` | `validate-no-orphan-classes.sh` | pre-push |
+| `external-class-allowlist.txt` | `validate-backend-class-refs.sh` | pre-push |
+| `private-handle-allowlist.txt` | `validate-no-private-handle.sh` | pre-push |
+| `facts.json` | `validate-facts-registry.sh`, `.claude/workflows/doc-drift-audit.js` | pre-push |
+| `drift-log.md` | `validate-drift-log.sh` (structure only) | pre-push, when the log or its validator changes |
+| `crewai-e2e-success.png` | cited by `CHANGELOG.md` only | nothing; removed at the next release cut together with that citation |
+| `skillcard-scan-report.json` | gitignored output of `scan-skillcards.sh`, not an input | — |
 
-Adding new files here means adding a new instrument. If you can't articulate
-what failure mode it catches and what gate enforces it, don't add it.
+"pre-push" means `scripts/pre-push-validate.sh`, which runs a gate only
+when the push touches the paths that gate watches. A gate that runs
+nowhere else is skipped by a merge made on GitHub, so its silence is not
+evidence that nothing drifted.
+
+Adding a file here means adding an input to a gate. If you can't name the
+validator that reads it and where that validator runs, don't add it.
 
 ---
 
-## Validators (pre-push Tier 1, gating)
-
-Both run from `scripts/pre-push-validate.sh` Tier 1 alongside
-`architectural-validation.sh`. Each is fast (~1s on a clean tree) so they
-don't add meaningful pre-push latency; they're the cheapest gate that
-catches the highest-leverage drift class.
+## Validators
 
 ### `scripts/validate-capability-claims.sh`
 1. Re-derives the snapshot from source (calls `regen-capability-snapshot.sh --check`).
@@ -82,15 +97,14 @@ between releases are unsigned by design — `SkillCardSnapshotTest`
 skips signature verification when no `.sig` is present.
 
 ### `scripts/validate-drift-log.sh`
-Structural hygiene only — the validator does **not** enforce that drift
-gets *added* (the Stop hook does that). It enforces:
+The drift-log is frozen (see below). The validator checks structure only:
 
-1. File exists and parses.
-2. At least one `## YYYY-MM-DD` section present.
-3. No future-dated section headers.
-4. Sections in chronological order (oldest top, newest bottom).
-5. Pre-existing date sections (older than today) match `origin/main`
-   verbatim — append-only against the upstream baseline.
+1. File exists and has at least one `## YYYY-MM-DD` section.
+2. No future-dated section headers.
+3. Sections in chronological order (oldest top, newest bottom).
+4. Every header of a section older than today that is on `origin/main`
+   still exists verbatim. Section bodies are not compared.
+5. No section is dated after the freeze date (`FROZEN_ON`).
 
 ### `modules/ai-test/.../CapabilitySnapshotTest`
 Pure-Java mirror of the bash validator, so `mvn test` catches the same
@@ -112,30 +126,19 @@ Refuses to pass when a snapshot runtime has no SKILLCARD on disk.
 
 ---
 
-## Hooks (Claude Code, behavioral)
+## The drift-log is frozen
 
-Registered in `.claude/settings.json` under the project-level `hooks`
-block. Adds to (does not replace) any hooks defined in
-`~/.claude/settings.json`.
+`drift-log.md` recorded agent claims that diverged from ground truth
+(claim, truth, slip path, gate added) from 2026-05 to 2026-11-02. Its
+May–June backlog produced most of the gates above. After that nothing
+read it, and new lessons went to private agent memory instead, so it was
+frozen on 2026-11-02 and the Stop hook that asked for entries was
+removed. It stays as history: gate scripts cite its entries by number.
 
-### `Stop` hook → `.claude/hooks/check-drift-log.sh`
-Fires at the end of every Claude Code session in this repo.
-
-1. Reads the session transcript path from the hook input JSON.
-2. Greps the transcript for **high-precision** drift-correction patterns
-   (`stale memory`, `\boff-by-one\b`, `I (was wrong|claimed)…(but|actual|truth)`,
-   `memor… was/is wrong/stale/out of date`, `fabricated rule/stat/count/claim`,
-   `verified by grep…disagree/contradict/wrong/stale`).
-3. If a pattern matches **and** `.harness/drift-log.md` was not modified
-   this session (no working-tree diff, no untracked add, not in last 3 commits),
-   emits `{"decision": "block", "reason": "..."}` to force the agent to
-   either append an entry or explicitly state the correction was trivial.
-4. `stop_hook_active=true` short-circuits to a no-op so deliberate skips
-   don't loop.
-
-The patterns are deliberately narrow to minimize false positives. If a
-recurring real correction shape isn't matching, add a new pattern with
-concrete real-session evidence — don't loosen existing ones.
+A caught drift is now filed as a carnet issue
+(`.agents/skills/carnet/carnet.sh create`) with the claim, the truth, the
+slip path and the gate that would catch the class. The issue has an owner
+and is closed with the commit that fixes and gates it.
 
 ---
 
@@ -154,37 +157,15 @@ concrete real-session evidence — don't loosen existing ones.
 that treats `_` differently from `I`). Without that the snapshot's
 capability list and the JUnit test's `TreeSet<String>` view diverge.
 
-### Appending a drift entry
+### Verifying a claim with a zero-context reviewer
 
-When the project maintainer catches an agent claim that diverged from ground truth
-(or you self-catch via `git grep` / `find` / file read after spotting
-memory↔code disagreement):
-
-1. **Verify against current code first** — re-read the source. Don't
-   trust memory files older than the most recent CHANGELOG bump.
-2. State the correction transparently in conversation — quote the false
-   claim verbatim, quote the ground truth verbatim.
-3. Append a structured entry to `drift-log.md` in today's date section
-   (start one if today doesn't have one yet). Required columns: claim,
-   truth, slip path, gate added.
-4. Add a regression-class gate where feasible (validator, JUnit test,
-   memory update, prose-grep). Writing `none` is a legitimate value when
-   no automated check makes sense — don't fabricate a gate.
-5. Bundle log update + gate + prose fix in **a single commit**. That
-   commit is the review unit.
-
-The log is **append-only**. Don't edit older entries to "improve" them;
-write a new entry pointing back if context changes. The signal is the
-*rate* of entries over time, not the cleanliness of any single one.
-
----
-
-## Memory anchor
-
-`feedback_drift_log.md` in the user's auto-memory codifies the protocol
-above so it loads at every session start. If that memory ever drifts
-from this README, the README wins (this directory is the source of truth
-for the harness shape; the memory is a pointer).
+`.claude/agents/goldfish-reviewer.md` defines a reviewer that starts
+without CLAUDE.md, AGENTS.md or memory and has read-only tools. Use it
+when the agent that wrote a claim should not be the one checking it:
+`doc-drift-audit.js` runs its Verify stage with it and hands each
+verifier only the claim and its location, never the auditor's evidence.
+Agent definitions load when a session starts, so a session begun before
+the file existed cannot use it; the workflow then reports INCOMPLETE.
 
 ---
 
@@ -194,10 +175,8 @@ The directory is self-contained and clearly scoped — anyone seeing
 `.harness/` knows it's project-engineering plumbing, not runtime code.
 That's intentional: it keeps the boundary visible so:
 
-- The pre-push gates know what to validate (everything under `.harness/`
-  is fair game for hygiene checks).
-- A future contributor doesn't have to grep a dozen places to understand
-  the AI-engineering feedback loop — they read this README.
+- A future contributor finds every gate input in one place, with the
+  validator that reads it, by reading the table above.
 - If we decide to share the pattern publicly, the directory exports
   cleanly.
 
