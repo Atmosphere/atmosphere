@@ -11,7 +11,9 @@ name: "CI: Gate Self-Test"
 #
 # Path-filtered to the gate itself and to every file a case injects into
 # (INJECT_TRACKED in scripts/lib/prove_gate.sh, which fails when one is missing
-# from the push paths or from the pull_request paths here): the suite runs
+# from the push paths or from the pull_request paths here). The second job
+# proves the doc/consistency gates run by doc-gates.yml the same way
+# (scripts/lib/prove_doc_gates.sh, which checks its own paths below). The suite runs
 # the full gate once per case, which is only worth paying when the gate, its
 # config or a file a case edits and asserts on changes. A refactor of one of those files can turn
 # its case into a NO-OP (s_ai_stale asserts LlmReranker still holds the read it
@@ -37,6 +39,24 @@ on:
       - 'modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointProcessor.java'
       - 'modules/kotlin/src/main/kotlin/org/atmosphere/kotlin/ai/AgentRegistration.kt'
       - 'modules/quarkus-extension/runtime/src/main/java/org/atmosphere/quarkus/runtime/AtmosphereBootstrap.java'
+      # Doc/consistency gates proven by scripts/lib/prove_doc_gates.sh, and the
+      # tracked files its cases edit or derive values from.
+      - 'scripts/validate-doc-symbols.sh'
+      - 'scripts/validate-no-phantom-javadoc-refs.sh'
+      - 'scripts/validate-no-orphan-classes.sh'
+      - 'scripts/validate-backend-class-refs.sh'
+      - 'scripts/validate-facts-registry.sh'
+      - 'scripts/validate-doc-thirdparty-versions.sh'
+      - 'scripts/validate-doc-version-alignment.sh'
+      - 'scripts/validate-no-private-handle.sh'
+      - 'scripts/validate-capability-claims.sh'
+      - 'scripts/validate-drift-log.sh'
+      - 'scripts/validate-no-beta-on-main.sh'
+      - '.harness/*-allowlist.txt'
+      - '.harness/facts.json'
+      - '.harness/capabilities.snapshot.json'
+      - '.harness/drift-log.md'
+      - 'pom.xml'
   pull_request:
     paths:
       - 'scripts/architectural-validation.sh'
@@ -55,6 +75,24 @@ on:
       - 'modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointProcessor.java'
       - 'modules/kotlin/src/main/kotlin/org/atmosphere/kotlin/ai/AgentRegistration.kt'
       - 'modules/quarkus-extension/runtime/src/main/java/org/atmosphere/quarkus/runtime/AtmosphereBootstrap.java'
+      # Doc/consistency gates proven by scripts/lib/prove_doc_gates.sh, and the
+      # tracked files its cases edit or derive values from.
+      - 'scripts/validate-doc-symbols.sh'
+      - 'scripts/validate-no-phantom-javadoc-refs.sh'
+      - 'scripts/validate-no-orphan-classes.sh'
+      - 'scripts/validate-backend-class-refs.sh'
+      - 'scripts/validate-facts-registry.sh'
+      - 'scripts/validate-doc-thirdparty-versions.sh'
+      - 'scripts/validate-doc-version-alignment.sh'
+      - 'scripts/validate-no-private-handle.sh'
+      - 'scripts/validate-capability-claims.sh'
+      - 'scripts/validate-drift-log.sh'
+      - 'scripts/validate-no-beta-on-main.sh'
+      - '.harness/*-allowlist.txt'
+      - '.harness/facts.json'
+      - '.harness/capabilities.snapshot.json'
+      - '.harness/drift-log.md'
+      - 'pom.xml'
   workflow_dispatch:
 
 jobs:
@@ -84,3 +122,22 @@ jobs:
 
     - name: Prove every check fails on a violation
       run: ./scripts/lib/prove_gate.sh
+
+  prove-doc-gates:
+    name: Prove every doc gate bites
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+
+    # Each case runs in a throwaway clone of this checkout, so the gates see
+    # the injected violation through git exactly as they would a real commit,
+    # and the checkout itself is never written to.
+    - name: Prove every doc gate fails on a violation and passes when clean
+      run: ./scripts/lib/prove_doc_gates.sh
