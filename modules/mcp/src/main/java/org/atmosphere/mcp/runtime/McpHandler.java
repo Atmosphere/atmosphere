@@ -54,6 +54,8 @@ public final class McpHandler implements AtmosphereHandler {
     private static final Logger logger = LoggerFactory.getLogger(McpHandler.class);
     private static final String APPLICATION_JSON = "application/json";
     private static final String TEXT_EVENT_STREAM = "text/event-stream";
+    /** Request attribute holding the sink a GET stream was attached to its session with. */
+    private static final String STREAM_SINK_ATTRIBUTE = "org.atmosphere.mcp.streamSink";
     private static final int DEFAULT_MAX_SESSIONS = 10_000;
     private static final int MAX_BODY_SIZE = 10 * 1024 * 1024;
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -418,17 +420,14 @@ public final class McpHandler implements AtmosphereHandler {
         response.setCharacterEncoding("UTF-8");
         resource.suspend();
 
-        // Replay any notifications buffered while the client was disconnected
+        // This stream becomes the session's: messages queued while the client
+        // was disconnected are replayed on it, and server-initiated requests
+        // issued from now on are written to it as they are issued.
         if (session != null) {
-            var pending = session.drainPendingNotifications();
-            if (!pending.isEmpty()) {
-                var events = new StringBuilder();
-                for (var notification : pending) {
-                    events.append(SseEvents.message(notification));
-                }
-                SseEvents.write(response, events.toString());
-                logger.debug("Replayed {} pending notifications for session {}", pending.size(), sessionId);
-            }
+            McpSession.StreamSink sink = message -> SseEvents.write(response, SseEvents.message(message));
+            request.setAttribute(STREAM_SINK_ATTRIBUTE, sink);
+            session.attachStream(sink);
+            logger.debug("GET stream attached to MCP session {}", sessionId);
         }
     }
 
@@ -467,6 +466,10 @@ public final class McpHandler implements AtmosphereHandler {
         var resource = event.getResource();
         if (event.isCancelled() || event.isClosedByClient() || event.isClosedByApplication()) {
             logger.debug("MCP connection closed: {}", resource.uuid());
+            var stream = sessionStream(resource);
+            if (stream != null) {
+                stream.session().detachStream(stream.sink());
+            }
             return;
         }
 
@@ -481,12 +484,33 @@ public final class McpHandler implements AtmosphereHandler {
             }
         } else if (message instanceof List<?> list) {
             // Broadcast — write each message
+            // A session's GET stream is also written by server-initiated
+            // requests from tool threads: share the session's write lock.
+            var stream = sessionStream(resource);
             for (var item : list) {
                 if (item instanceof String text) {
-                    SseEvents.deliver(resource, text);
+                    if (stream != null) {
+                        stream.session().writeSerialized(m -> SseEvents.deliver(resource, m), text);
+                    } else {
+                        SseEvents.deliver(resource, text);
+                    }
                 }
             }
         }
+    }
+
+    private record SessionStream(McpSession session, McpSession.StreamSink sink) {
+    }
+
+    /** The session and sink a GET stream was attached with, or {@code null} for any other resource. */
+    private static SessionStream sessionStream(AtmosphereResource resource) {
+        var request = resource.getRequest();
+        if (request == null
+                || !(request.getAttribute(McpSession.ATTRIBUTE_KEY) instanceof McpSession session)
+                || !(request.getAttribute(STREAM_SINK_ATTRIBUTE) instanceof McpSession.StreamSink sink)) {
+            return null;
+        }
+        return new SessionStream(session, sink);
     }
 
     /**

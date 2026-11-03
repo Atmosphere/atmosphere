@@ -15,8 +15,11 @@
  */
 package org.atmosphere.mcp.runtime;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +41,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * while the client is temporarily disconnected can be replayed on reconnect.
  */
 public final class McpSession {
+
+    private static final Logger logger = LoggerFactory.getLogger(McpSession.class);
 
     /** Attribute key used to store the session on AtmosphereResource. */
     public static final String ATTRIBUTE_KEY = "org.atmosphere.mcp.session";
@@ -75,6 +80,15 @@ public final class McpSession {
     private final int maxPending;
     private final Deque<String> pendingNotifications;
     private final ReentrantLock pendingLock = new ReentrantLock();
+    /**
+     * Serialises every write to the session's live stream: a server-initiated
+     * request issued from a tool thread and a broadcast delivered by the
+     * broadcaster must not interleave on one response. Taken before
+     * {@link #pendingLock}, never after it.
+     */
+    private final ReentrantLock streamLock = new ReentrantLock();
+    /** The open GET stream, or {@code null}. Guarded by {@link #streamLock}. */
+    private StreamSink stream;
     private final Set<String> subscriptions = new HashSet<>();
     private final ReentrantLock subscriptionLock = new ReentrantLock();
 
@@ -207,6 +221,119 @@ public final class McpSession {
         }
     }
 
+    // ── Live stream (Streamable HTTP GET) ───────────────────────────────
+
+    /**
+     * Writes one JSON-RPC message, already serialised, on the session's open
+     * stream. Implementations frame it for their transport (an SSE
+     * {@code message} event on a GET stream).
+     */
+    @FunctionalInterface
+    public interface StreamSink {
+        void send(String message) throws IOException;
+    }
+
+    /**
+     * Attach the stream a client just opened and write to it, in order, every
+     * message queued while no stream was open. A message whose write fails is
+     * put back at the head of the queue with those after it, and the stream is
+     * detached, so a reconnect replays it.
+     */
+    public void attachStream(StreamSink sink) {
+        streamLock.lock();
+        try {
+            stream = sink;
+            var queued = drainPendingNotifications();
+            for (var i = 0; i < queued.size(); i++) {
+                if (!sendLocked(queued.get(i))) {
+                    requeueAtHead(queued.subList(i, queued.size()));
+                    return;
+                }
+            }
+        } finally {
+            streamLock.unlock();
+        }
+    }
+
+    /** Detach {@code sink} if it is still the session's stream; a newer stream is kept. */
+    public void detachStream(StreamSink sink) {
+        streamLock.lock();
+        try {
+            if (stream == sink) {
+                stream = null;
+            }
+        } finally {
+            streamLock.unlock();
+        }
+    }
+
+    /** Whether a stream is attached. */
+    public boolean hasStream() {
+        streamLock.lock();
+        try {
+            return stream != null;
+        } finally {
+            streamLock.unlock();
+        }
+    }
+
+    /**
+     * Write {@code message} on the open stream now, or queue it for the next
+     * stream the client opens when none is attached or the write fails.
+     */
+    public void sendOrQueue(String message) {
+        streamLock.lock();
+        try {
+            if (stream != null && sendLocked(message)) {
+                return;
+            }
+            addPendingNotification(message);
+        } finally {
+            streamLock.unlock();
+        }
+    }
+
+    /**
+     * Write through {@code sink} under the session's stream lock, so a write
+     * made outside {@link #sendOrQueue} (a broadcast to the same response)
+     * cannot interleave with one made by it.
+     */
+    public void writeSerialized(StreamSink sink, String message) throws IOException {
+        streamLock.lock();
+        try {
+            sink.send(message);
+        } finally {
+            streamLock.unlock();
+        }
+    }
+
+    private boolean sendLocked(String message) {
+        try {
+            stream.send(message);
+            return true;
+        } catch (IOException | RuntimeException e) {
+            logger.debug("MCP session {}: stream write failed, detaching it and queueing the message",
+                    sessionId, e);
+            stream = null;
+            return false;
+        }
+    }
+
+    private void requeueAtHead(List<String> messages) {
+        pendingLock.lock();
+        try {
+            for (var i = messages.size() - 1; i >= 0; i--) {
+                if (pendingNotifications.size() >= maxPending) {
+                    // Full: keep the oldest, which the client has waited on longest.
+                    pendingNotifications.pollLast();
+                }
+                pendingNotifications.addFirst(messages.get(i));
+            }
+        } finally {
+            pendingLock.unlock();
+        }
+    }
+
     // ── Server-initiated requests (elicitation, future: tasks) ──────────
 
     /**
@@ -311,6 +438,12 @@ public final class McpSession {
      */
     public int close() {
         closed = true;
+        streamLock.lock();
+        try {
+            stream = null;
+        } finally {
+            streamLock.unlock();
+        }
         return cancelAllPendingServerRequests();
     }
 

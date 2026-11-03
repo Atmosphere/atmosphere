@@ -1114,8 +1114,8 @@ public final class McpProtocolHandler {
 
     /**
      * Shared server→client request issuance: capability gate, bounded pending
-     * slot, JSON-RPC envelope, and enqueue onto the session's notification
-     * queue (which the SSE GET stream drains). Every failure path completes the
+     * slot, JSON-RPC envelope, and write to the session's open GET stream, or
+     * queue for the next one. Every failure path completes the
      * returned future exceptionally and leaves no reserved slot behind
      * (Correctness Invariant #2).
      *
@@ -1155,7 +1155,9 @@ public final class McpProtocolHandler {
         }
 
         try {
-            session.addPendingNotification(mapper.writeValueAsString(request));
+            // Written to the session's open GET stream now; queued for the
+            // next one when none is open.
+            session.sendOrQueue(mapper.writeValueAsString(request));
         } catch (Exception e) {
             session.cancelServerRequest(requestId, e);
             return CompletableFuture.failedFuture(e);
