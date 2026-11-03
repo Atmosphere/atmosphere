@@ -17,13 +17,7 @@ server:
   # No logging capability: logging/setLevel is METHOD_NOT_FOUND.
   - logging-set-level:logging-set-level
   - tools-call-with-logging:tools-call-with-logging
-  # Server-to-client requests (sampling/createMessage, elicitation/create) are
-  # queued for the standalone GET stream; the SDK client expects them on the
-  # tools/call POST response stream, so they never reach it.
-  - tools-call-sampling:tools-call-sampling
-  - tools-call-elicitation:tools-call-elicitation
-  # SEP-1034 / SEP-1330 elicitation fixtures are not implemented (they also
-  # depend on the POST-stream delivery above).
+  # SEP-1034 / SEP-1330 elicitation fixtures are not implemented.
   - elicitation-sep1034-defaults:elicitation-sep1034-general
   - elicitation-sep1330-enums:elicitation-sep1330-general
   # No Host/Origin validation against DNS rebinding on a localhost server.

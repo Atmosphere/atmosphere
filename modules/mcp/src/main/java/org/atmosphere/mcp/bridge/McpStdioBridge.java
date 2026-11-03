@@ -159,6 +159,14 @@ public final class McpStdioBridge implements AutoCloseable {
             }
         }
 
+        /** Like the record's own, with the token redacted. */
+        @Override
+        public String toString() {
+            return "Options[endpoint=" + endpoint + ", bearerToken=" + (bearerToken == null ? "none" : "<redacted>")
+                    + ", requestTimeout=" + requestTimeout + ", connectTimeout=" + connectTimeout
+                    + ", drainTimeout=" + drainTimeout + ", openStream=" + openStream + "]";
+        }
+
         /** Defaults for {@code endpoint}: no token, no request timeout, GET stream on. */
         public static Options of(String endpoint) {
             return new Options(URI.create(endpoint), null, null, null, null, true);
@@ -502,6 +510,14 @@ public final class McpStdioBridge implements AutoCloseable {
     }
 
     // ── DELETE ──────────────────────────────────────────────────────────
+
+    /**
+     * End the MCP session with {@code DELETE} now, leaving the bridge running.
+     * {@link #close()} does this too.
+     */
+    public void terminate() {
+        terminateSession();
+    }
 
     private void terminateSession() {
         if (sessionId == null) {

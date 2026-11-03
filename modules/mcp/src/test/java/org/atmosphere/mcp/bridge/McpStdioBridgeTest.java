@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -103,6 +104,12 @@ public class McpStdioBridgeTest {
                 new String[] {"http://localhost/mcp", "--timeout", "-1"}, Map.of()));
         assertThrows(IllegalArgumentException.class, () -> McpStdioBridge.Options.parse(
                 new String[] {"http://localhost/mcp"}, Map.of(McpStdioBridge.ENV_TOKEN, "a\r\nX-Injected: 1")));
+    }
+
+    @Test
+    public void testOptionsToStringRedactsTheToken() {
+        var options = McpStdioBridge.Options.of("http://localhost/mcp").withBearerToken("s3cr3t");
+        assertFalse(options.toString().contains("s3cr3t"), options.toString());
     }
 
     @Test
