@@ -154,7 +154,44 @@ Works with Claude Desktop, VS Code Copilot, Cursor, and any MCP-compatible agent
 }
 ```
 
-For clients that only support stdio, build the bridge JAR with `mvn package -Pstdio-bridge -DskipTests` and point the client at the resulting `atmosphere-mcp-*-stdio-bridge.jar`.
+### stdio bridge
+
+For clients that only speak stdio, build the bridge JAR with
+`./mvnw package -pl modules/mcp -Pstdio-bridge -DskipTests` and point the client at
+`modules/mcp/target/atmosphere-mcp-*-stdio-bridge.jar` (Java 21+ on the client machine):
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "java",
+      "args": ["-jar", "/path/to/atmosphere-mcp-stdio-bridge.jar", "http://localhost:8080/atmosphere/mcp"],
+      "env": { "ATMOSPHERE_MCP_TOKEN": "<bearer token, if the endpoint requires one>" }
+    }
+  }
+}
+```
+
+What the bridge (`org.atmosphere.mcp.bridge.McpStdioBridge`) does:
+
+- POSTs each stdin line on its own virtual thread, so a long tool call does not block a ping or a
+  second call; `initialize` goes first and every later request carries its `Mcp-Session-Id` and
+  `MCP-Protocol-Version`.
+- Relays SSE responses event by event, and holds the GET stream open after `initialize`
+  (reconnecting with backoff) so server-initiated messages — `elicitation/create`,
+  `sampling/createMessage`, `roots/list` — reach the client, whose answers go back like any message.
+- Answers an HTTP error, a timeout or an unreachable endpoint with a JSON-RPC error carrying the
+  request's `id` and keeps running; writes every message as one line of JSON.
+- At the end of stdin, gives in-flight requests 30 s to finish, then ends the session with `DELETE`.
+
+| Setting | Where | Default |
+|---|---|---|
+| Endpoint | first argument, or `ATMOSPHERE_MCP_URL` | required |
+| Bearer token | `ATMOSPHERE_MCP_TOKEN` only — never an argument, which the process list exposes | none |
+| Response timeout (seconds until the response headers) | `--timeout <s>` or `ATMOSPHERE_MCP_TIMEOUT`; `0` = none | none |
+
+Tested against a live server by `McpStdioBridgeIntegrationTest` (modules/integration-tests), and the
+packaged JAR by `modules/mcp/stdio-bridge-smoke.sh` in the MCP conformance workflow.
 
 ## Sample
 

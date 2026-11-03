@@ -74,9 +74,20 @@ jobs:
     - name: Run MCP conformance suite (both dialects)
       run: modules/integration-tests/mcp-conformance/run.sh "$RUNNER_TEMP/mcp-conformance"
 
+    # The stdio bridge (atmosphere-mcp's -Pstdio-bridge jar) is what a stdio-only
+    # client (Claude Desktop, an .mcpb bundle) runs: pipe JSON-RPC through the
+    # packaged jar against the same fixture and check what comes back.
+    - name: Package the MCP stdio bridge
+      run: ./mvnw -B package -pl modules/mcp -Pstdio-bridge -DskipTests -Dgpg.skip=true
+
+    - name: Smoke-test the stdio bridge jar
+      run: modules/mcp/stdio-bridge-smoke.sh "$RUNNER_TEMP/stdio-bridge-smoke"
+
     - name: Upload conformance results
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: mcp-conformance-results
-        path: ${{ runner.temp }}/mcp-conformance/
+        path: |
+          ${{ runner.temp }}/mcp-conformance/
+          ${{ runner.temp }}/stdio-bridge-smoke/

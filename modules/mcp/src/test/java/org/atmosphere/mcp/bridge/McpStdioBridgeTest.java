@@ -13,17 +13,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.mcp;
-
-import org.atmosphere.mcp.bridge.McpStdioBridge;
+package org.atmosphere.mcp.bridge;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import tools.jackson.databind.ObjectMapper;
+
+import java.time.Duration;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the stdio-to-HTTP MCP bridge.
  */
 public class McpStdioBridgeTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     public void testParseSseDataSingleEvent() {
@@ -60,8 +68,67 @@ public class McpStdioBridgeTest {
     }
 
     @Test
-    public void testBridgeConstructor() {
-        var bridge = new McpStdioBridge("http://localhost:8083/mcp");
-        assertNotNull(bridge);
+    public void testParseSseDataJoinsMultiLineDataOfOneEvent() {
+        var sse = "event: message\ndata: {\"a\":\ndata: 1}\n\n";
+        assertEquals("{\"a\":\n1}", McpStdioBridge.parseSseData(sse));
+    }
+
+    @Test
+    public void testOptionsReadEndpointArgumentTimeoutAndTokenFromEnvironment() {
+        var options = McpStdioBridge.Options.parse(new String[] {"http://localhost:8083/mcp", "--timeout", "45"},
+                Map.of(McpStdioBridge.ENV_TOKEN, "secret"));
+        assertEquals("http://localhost:8083/mcp", options.endpoint().toString());
+        assertEquals(Duration.ofSeconds(45), options.requestTimeout());
+        assertEquals("secret", options.bearerToken());
+        assertTrue(options.openStream());
+    }
+
+    @Test
+    public void testOptionsFallBackToEnvironmentEndpointAndNoTimeout() {
+        var options = McpStdioBridge.Options.parse(new String[0],
+                Map.of(McpStdioBridge.ENV_URL, "https://mcp.example.com/mcp", McpStdioBridge.ENV_TIMEOUT, "0"));
+        assertEquals("https://mcp.example.com/mcp", options.endpoint().toString());
+        assertNull(options.requestTimeout(), "0 means wait as long as the call takes");
+        assertNull(options.bearerToken());
+    }
+
+    @Test
+    public void testOptionsRejectTokenOnCommandLineAndBadInput() {
+        assertThrows(IllegalArgumentException.class, () -> McpStdioBridge.Options.parse(
+                new String[] {"http://localhost/mcp", "--token", "leaks-into-ps"}, Map.of()));
+        assertThrows(IllegalArgumentException.class, () -> McpStdioBridge.Options.parse(new String[0], Map.of()));
+        assertThrows(IllegalArgumentException.class, () -> McpStdioBridge.Options.parse(
+                new String[] {"file:///etc/passwd"}, Map.of()));
+        assertThrows(IllegalArgumentException.class, () -> McpStdioBridge.Options.parse(
+                new String[] {"http://localhost/mcp", "--timeout", "-1"}, Map.of()));
+        assertThrows(IllegalArgumentException.class, () -> McpStdioBridge.Options.parse(
+                new String[] {"http://localhost/mcp"}, Map.of(McpStdioBridge.ENV_TOKEN, "a\r\nX-Injected: 1")));
+    }
+
+    @Test
+    public void testErrorAnswersARequestWithItsId() {
+        var request = MAPPER.readTree("{\"jsonrpc\":\"2.0\",\"id\":\"abc\",\"method\":\"tools/call\"}");
+        var error = McpStdioBridge.error(request, McpStdioBridge.TRANSPORT_ERROR, "boom", "body");
+        assertEquals("abc", error.get("id").asString());
+        assertEquals(McpStdioBridge.TRANSPORT_ERROR, error.path("error").path("code").asInt());
+        assertEquals("body", error.path("error").path("data").path("body").asString());
+    }
+
+    @Test
+    public void testErrorIsNotSentForANotificationOrAResponse() {
+        var notification = MAPPER.readTree("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+        var response = MAPPER.readTree("{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":{}}");
+        assertNull(McpStdioBridge.error(notification, -1, "x", null));
+        assertNull(McpStdioBridge.error(response, -1, "x", null));
+    }
+
+    @Test
+    public void testErrorForABatchAnswersEachRequestInIt() {
+        var batch = MAPPER.readTree("[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"},"
+                + "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/x\"}]");
+        var errors = McpStdioBridge.error(batch, -1, "x", null);
+        assertTrue(errors.isArray());
+        assertEquals(1, errors.size());
+        assertEquals(1, errors.get(0).get("id").asInt());
     }
 }

@@ -145,20 +145,24 @@ Add to Cursor Settings → MCP Servers:
 ### stdio Bridge (for clients that only support stdio)
 
 ```bash
-# Build the bridge JAR
-cd modules/mcp && mvn package -Pstdio-bridge -DskipTests
+# Build the bridge JAR (from the repository root)
+./mvnw package -pl modules/mcp -Pstdio-bridge -DskipTests
 
 # Configure your client:
 {
   "mcpServers": {
     "atmosphere-demo": {
       "command": "java",
-      "args": ["-jar", "path/to/atmosphere-mcp-*.jar",
+      "args": ["-jar", "path/to/modules/mcp/target/atmosphere-mcp-<version>-stdio-bridge.jar",
                "http://localhost:8083/atmosphere/mcp"]
     }
   }
 }
 ```
+
+A bearer token goes in the `ATMOSPHERE_MCP_TOKEN` environment variable; see
+[the bridge section of the MCP module README](../../modules/mcp/README.md#stdio-bridge) for what it relays
+and its settings.
 
 ## Testing with curl
 
