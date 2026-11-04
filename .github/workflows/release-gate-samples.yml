@@ -64,7 +64,8 @@ jobs:
 
   gate:
     name: Gate — ${{ matrix.shard }}
-    runs-on: ubuntu-latest
+    # Playwright 1.59 cannot install Chromium on ubuntu-26.04, which ubuntu-latest now resolves to.
+    runs-on: ubuntu-24.04
     needs: [build]
     timeout-minutes: 40
     strategy:

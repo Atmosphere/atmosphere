@@ -72,7 +72,8 @@ jobs:
 
   e2e:
     name: E2E — ${{ matrix.group.name }} (SB${{ matrix.spring-boot-version }})
-    runs-on: ubuntu-latest
+    # Playwright 1.59 cannot install Chromium on ubuntu-26.04, which ubuntu-latest now resolves to.
+    runs-on: ubuntu-24.04
     needs: [build]
 
     strategy:

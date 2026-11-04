@@ -43,7 +43,8 @@ concurrency:
 jobs:
   ollama-e2e:
     name: Ollama real-llm-chat
-    runs-on: ubuntu-latest
+    # Playwright 1.59 cannot install Chromium on ubuntu-26.04, which ubuntu-latest now resolves to.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
       ollama:

@@ -31,7 +31,8 @@ permissions:
 jobs:
   quarantined:
     name: Quarantined e2e specs
-    runs-on: ubuntu-latest
+    # Playwright 1.59 cannot install Chromium on ubuntu-26.04, which ubuntu-latest now resolves to.
+    runs-on: ubuntu-24.04
     # Reporting lane: never blocks. The step below still surfaces the outcome
     # in the job summary so a pass (or a new failure mode) is visible.
     continue-on-error: true
