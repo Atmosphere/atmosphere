@@ -305,6 +305,7 @@ public interface AgentRuntime {
                                        StreamingSession sink,
                                        CollectingSession latch,
                                        Duration timeout) {
+        var deadlineNanos = System.nanoTime() + timeout.toNanos();
         var handleRef = new java.util.concurrent.atomic.AtomicReference<ExecutionHandle>();
         var failureRef = new java.util.concurrent.atomic.AtomicReference<Throwable>();
         // The carrier sees the application the caller is bound to, as an
@@ -337,6 +338,7 @@ public interface AgentRuntime {
                     }
                 });
         if (latch.await(timeout)) {
+            awaitCarrierAfterFailure(carrier, latch, deadlineNanos);
             rethrowCarrierFailure(failureRef.get());
             return;
         }
@@ -349,6 +351,32 @@ public interface AgentRuntime {
         carrier.interrupt();
         if (!latch.isClosed()) {
             latch.complete();
+        }
+    }
+
+    /**
+     * Let the carrier finish after the session ended in failure, within what is
+     * left of the caller's bound. A runtime that ends the session and then throws
+     * wakes the caller before the carrier has recorded the throw; reading it at
+     * that point loses the failure and turns it into an empty response. A carrier
+     * still running at the deadline is abandoned like any timed-out call.
+     *
+     * @param carrier       the dispatch carrier
+     * @param latch         the session the caller waited on
+     * @param deadlineNanos the {@link System#nanoTime()} value the bound ends at
+     */
+    private static void awaitCarrierAfterFailure(Thread carrier, CollectingSession latch, long deadlineNanos) {
+        if (!latch.failed()) {
+            return;
+        }
+        try {
+            var remaining = Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime()));
+            if (!carrier.join(remaining)) {
+                carrier.interrupt();
+            }
+        } catch (InterruptedException e) {
+            carrier.interrupt();
+            Thread.currentThread().interrupt();
         }
     }
 

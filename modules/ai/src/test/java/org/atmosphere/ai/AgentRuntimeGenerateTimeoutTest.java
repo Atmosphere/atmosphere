@@ -220,6 +220,66 @@ class AgentRuntimeGenerateTimeoutTest {
                         + elapsed.toMillis() + "ms");
     }
 
+    /** Runtime whose dispatch runs the given body, for the session-then-throw orderings. */
+    private static AgentRuntime dispatching(java.util.function.Consumer<StreamingSession> body) {
+        return new AgentRuntime() {
+            @Override public String name() { return "dispatching"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public int priority() { return 0; }
+            @Override public void configure(AiConfig.LlmSettings settings) { }
+            @Override
+            public void execute(AgentExecutionContext ctx, StreamingSession session) {
+                body.accept(session);
+            }
+        };
+    }
+
+    @Test
+    void failureThrownAfterEndingTheSessionStillReachesTheCaller() {
+        var failure = new IllegalStateException("refused");
+        var runtime = dispatching(session -> {
+            session.error(failure);
+            // The caller is awake by now; the throw lands well after it.
+            java.util.concurrent.locks.LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+            throw failure;
+        });
+
+        var thrown = assertThrows(IllegalStateException.class,
+                () -> runtime.generate(context(), Duration.ofSeconds(30)),
+                "ending the session before throwing must not turn the failure into an empty "
+                        + "response: guardrails read an empty return as 'admit'");
+        assertEquals("refused", thrown.getMessage());
+    }
+
+    @Test
+    void failureReportedOnlyThroughTheSessionDoesNotThrow() {
+        var runtime = dispatching(session -> session.error(new IllegalStateException("stream broke")));
+
+        assertEquals("", runtime.generate(context(), Duration.ofSeconds(30)));
+    }
+
+    @Test
+    void carrierStillRunningAfterASessionFailureIsAbandonedAtTheBound() throws Exception {
+        var interrupted = new CountDownLatch(1);
+        var runtime = dispatching(session -> {
+            session.error(new IllegalStateException("stream broke"));
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                interrupted.countDown();
+            }
+        });
+
+        var start = System.nanoTime();
+        assertEquals("", runtime.generate(context(), BOUND));
+        var elapsed = Duration.ofNanos(System.nanoTime() - start);
+
+        assertTrue(elapsed.toMillis() < 5_000,
+                "a carrier that outlives a failed session must not outlast the bound; took "
+                        + elapsed.toMillis() + "ms");
+        assertTrue(interrupted.await(5, TimeUnit.SECONDS), "the carrier must be interrupted at the bound");
+    }
+
     @Test
     void generateResultHonoursTheSameBound() {
         var runtime = new SlowBlockingRuntime();
