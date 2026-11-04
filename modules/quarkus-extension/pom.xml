@@ -41,6 +41,26 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- The API trio Quarkus 3.39.5 ships. The root POM's newer opentelemetry-api
+                 no longer has the internal classes Quarkus's SDK 1.62.0 and
+                 instrumentation-api 2.28.1 call, and its exporters use SDK internals, so
+                 the family cannot be moved above Quarkus. An application gets this
+                 version from its own quarkus-bom: the dependency is optional. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-api</artifactId>
+                <version>1.62.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-common</artifactId>
+                <version>1.62.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-context</artifactId>
+                <version>1.62.0</version>
+            </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-bom</artifactId>

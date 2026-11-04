@@ -82,6 +82,23 @@
                 <artifactId>native-windows-x86_64</artifactId>
                 <version>1.23.0</version>
             </dependency>
+            <!-- This sample uses the OTel API alone, with no SDK or instrumentation, so
+                 the trio can follow the root POM, above the 1.62.0 of quarkus-bom. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-api</artifactId>
+                <version>${opentelemetry-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-common</artifactId>
+                <version>${opentelemetry-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-context</artifactId>
+                <version>${opentelemetry-api.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-bom</artifactId>

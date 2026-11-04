@@ -46,6 +46,9 @@ public final class McpTracing {
     /** Reads propagation keys out of an MCP {@code _meta} trace carrier. */
     private static final TextMapGetter<Map<String, String>> CARRIER_GETTER =
             new TextMapGetter<>() {
+                // Deprecated from OpenTelemetry 1.67 but abstract before it, and a
+                // Quarkus application runs on the older API its BOM ships.
+                @SuppressWarnings("deprecation")
                 @Override
                 public Iterable<String> keys(Map<String, String> carrier) {
                     return carrier.keySet();
