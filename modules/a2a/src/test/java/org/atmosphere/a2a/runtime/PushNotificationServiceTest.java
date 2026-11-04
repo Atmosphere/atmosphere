@@ -81,6 +81,55 @@ class PushNotificationServiceTest {
     }
 
     @Test
+    void rejectsInternalAddressesCarriedInIpv6TransitionForms() {
+        var tm = new TaskManager();
+        try (var svc = new PushNotificationService(tm)) {
+            for (var host : List.of(
+                    "[64:ff9b::7f00:1]", "[64:ff9b::a9fe:a9fe]", "[64:ff9b::a00:1]", // NAT64
+                    "[64:ff9b:1::1]", // NAT64 local-use prefix
+                    "[2002:7f00:1::1]", "[2002:a9fe:a9fe::1]", "[2002:a00:1::1]", // 6to4
+                    "[::127.0.0.1]", "[::a9fe:a9fe]", // IPv4-compatible
+                    "[::ffff:127.0.0.1]", "[::ffff:a9fe:a9fe]", // IPv4-mapped
+                    "[::ffff:0:7f00:1]", // IPv4-translated
+                    "[2001:0:4136:e378:8000:63bf:3fff:fdd2]", // Teredo
+                    "[2001:db8::5efe:7f00:1]", "[2001:db8::200:5efe:a9fe:a9fe]")) { // ISATAP
+                assertThrows(IllegalArgumentException.class,
+                        () -> svc.create(new TaskPushNotificationConfig("t1", "http://" + host + "/hook")),
+                        host + " reaches an internal address and must be rejected (SSRF)");
+            }
+            assertEquals(0, svc.list("t1").size(), "a rejected target must not be stored");
+        }
+    }
+
+    @Test
+    void rejectsSpecialUseIpv4Ranges() {
+        var tm = new TaskManager();
+        try (var svc = new PushNotificationService(tm)) {
+            for (var host : List.of("0.1.2.3", "100.64.0.1", "100.100.100.200", "100.127.255.255",
+                    "192.0.0.1", "198.18.0.1", "198.19.255.255", "240.0.0.1", "255.255.255.255")) {
+                assertThrows(IllegalArgumentException.class,
+                        () -> svc.create(new TaskPushNotificationConfig("t1", "http://" + host + "/hook")),
+                        host + " is not a public address and must be rejected (SSRF)");
+            }
+        }
+    }
+
+    @Test
+    void acceptsPublicAddressesIncludingThoseCarriedInIpv6TransitionForms() {
+        var tm = new TaskManager();
+        try (var svc = new PushNotificationService(tm)) {
+            // A DNS64 resolver on an IPv6-only network returns 64:ff9b:: for a public
+            // IPv4 host, so the prefix alone must not reject a legitimate webhook.
+            for (var host : List.of("93.184.216.34", "100.63.255.255", "100.128.0.1", "198.17.0.1",
+                    "198.20.0.1", "[2606:4700:4700::1111]", "[64:ff9b::808:808]", "[2002:808:808::1]")) {
+                assertNotNull(svc.create(new TaskPushNotificationConfig("t1", "http://" + host + "/hook")).id(),
+                        host + " is a public address and must be accepted");
+                svc.list("t1").forEach(config -> svc.delete("t1", config.id()));
+            }
+        }
+    }
+
+    @Test
     void allowsInternalTargetsWhenOptedIn() {
         var tm = new TaskManager();
         try (var svc = new PushNotificationService(tm, true)) { // explicit opt-in

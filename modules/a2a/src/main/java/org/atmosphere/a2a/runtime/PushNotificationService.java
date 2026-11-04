@@ -28,6 +28,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -289,10 +290,73 @@ public final class PushNotificationService implements AutoCloseable {
                 || address.isMulticastAddress()) {
             return true;
         }
-        // IPv6 unique-local addresses (fc00::/7) are not covered by
-        // isSiteLocalAddress and are used by some cloud metadata services.
         var octets = address.getAddress();
-        return octets.length == 16 && (octets[0] & 0xfe) == 0xfc;
+        return octets.length == 4 ? isSpecialUseIpv4(octets) : isInternalIpv6(octets);
+    }
+
+    /** IPv4 ranges that are not publicly routable and that {@link InetAddress} has no predicate for. */
+    private static boolean isSpecialUseIpv4(byte[] octets) {
+        var first = octets[0] & 0xff;
+        var second = octets[1] & 0xff;
+        return first == 0 // 0.0.0.0/8 "this network"
+                || first == 100 && (second & 0xc0) == 64 // 100.64.0.0/10 carrier-grade NAT, used by cloud metadata
+                || first == 192 && second == 0 && octets[2] == 0 // 192.0.0.0/24 IETF protocol assignments
+                || first == 198 && (second & 0xfe) == 18 // 198.18.0.0/15 benchmarking
+                || first >= 240; // 240.0.0.0/4 reserved, including broadcast
+    }
+
+    /**
+     * IPv6 ranges that are internal themselves or that can carry a packet to an
+     * IPv4 address. A form that names its IPv4 target is judged by that target, so
+     * a public host behind DNS64 or 6to4 stays reachable while an internal one does
+     * not; a form that cannot be judged here is refused.
+     */
+    private static boolean isInternalIpv6(byte[] octets) {
+        // fc00::/7 unique-local addresses are not covered by isSiteLocalAddress and
+        // are used by some cloud metadata services.
+        if ((octets[0] & 0xfe) == 0xfc) {
+            return true;
+        }
+        // ::/96 IPv4-compatible (deprecated) and ::ffff:0:0/96 IPv4-translated. The JDK
+        // turns ::ffff:a.b.c.d (IPv4-mapped) into an Inet4Address before this runs.
+        if (isZero(octets, 0, 8) && (isZero(octets, 8, 12)
+                || (octets[8] & 0xff) == 0xff && (octets[9] & 0xff) == 0xff && isZero(octets, 10, 12))) {
+            return true;
+        }
+        if (octets[0] == 0x00 && octets[1] == 0x64 && (octets[2] & 0xff) == 0xff && (octets[3] & 0xff) == 0x9b) {
+            // 64:ff9b::/96 NAT64 embeds its target; 64:ff9b:1::/48 is local-use, and the
+            // rest of 64:ff9b::/32 is not assigned.
+            return !isZero(octets, 4, 12) || isInternalIpv4At(octets, 12);
+        }
+        if (octets[0] == 0x20 && octets[1] == 0x02) {
+            return isInternalIpv4At(octets, 2); // 2002::/16 6to4
+        }
+        if (octets[0] == 0x20 && octets[1] == 0x01 && octets[2] == 0x00 && octets[3] == 0x00) {
+            return true; // 2001::/32 Teredo tunnels through a relay this check cannot judge
+        }
+        // ISATAP keeps its IPv4 target in the interface identifier under any prefix.
+        if ((octets[8] & 0xfd) == 0 && octets[9] == 0 && octets[10] == 0x5e && (octets[11] & 0xff) == 0xfe) {
+            return isInternalIpv4At(octets, 12);
+        }
+        return false;
+    }
+
+    private static boolean isZero(byte[] octets, int from, int to) {
+        for (var i = from; i < to; i++) {
+            if (octets[i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isInternalIpv4At(byte[] octets, int offset) {
+        try {
+            return isInternalAddress(InetAddress.getByAddress(Arrays.copyOfRange(octets, offset, offset + 4)));
+        } catch (UnknownHostException e) {
+            logger.debug("could not read the IPv4 address embedded in an IPv6 webhook target", e);
+            return true;
+        }
     }
 
     private static String unbracket(String host) {
