@@ -247,6 +247,25 @@ class A2aProtocolHandlerTest {
         assertEquals(1, result.get("totalSize").asInt(), result.toString());
     }
 
+    /** {@code statusTimestampAfter} keeps only tasks whose status changed after it. */
+    @Test
+    void listTasksFiltersOnStatusTimestampAfter() throws Exception {
+        handler.handleMessage(sendRequestCtx(1, "SendMessage", "Alice", "ctx-after"));
+
+        assertEquals(1, listAfter("1970-01-01T00:00:00Z").get("result").get("totalSize").asInt());
+        var future = java.time.Instant.now().plus(java.time.Duration.ofHours(1)).toString();
+        assertEquals(0, listAfter(future).get("result").get("totalSize").asInt());
+
+        var invalid = listAfter("yesterday");
+        assertEquals(JsonRpc.INVALID_PARAMS, invalid.get("error").get("code").asInt(), invalid.toString());
+    }
+
+    private tools.jackson.databind.JsonNode listAfter(String after) throws Exception {
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ListTasks\","
+                + "\"params\":{\"contextId\":\"ctx-after\",\"statusTimestampAfter\":\"" + after + "\"}}";
+        return mapper.readTree(handler.handleMessage(req));
+    }
+
     @Test
     void listTasksRespectsPageSize() throws Exception {
         handler.handleMessage(sendRequestCtx(1, "SendMessage", "A", "ctx-page"));

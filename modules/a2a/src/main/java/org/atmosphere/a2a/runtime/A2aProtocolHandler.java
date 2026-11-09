@@ -622,6 +622,16 @@ public final class A2aProtocolHandler {
                         "Invalid status filter: " + params.get("status").asString());
             }
         }
+        java.time.Instant updatedAfter = null;
+        var after = textParam(params, "statusTimestampAfter");
+        if (after != null && !after.isBlank()) {
+            try {
+                updatedAfter = java.time.Instant.parse(after);
+            } catch (java.time.format.DateTimeParseException e) {
+                return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                        "Invalid statusTimestampAfter: " + after);
+            }
+        }
         var pageSize = intParam(params, "pageSize", 50);
         if (pageSize < 1) {
             pageSize = 50;
@@ -635,6 +645,10 @@ public final class A2aProtocolHandler {
 
         // Stream#toList() is unmodifiable; sort the snapshot in a mutable copy.
         var all = new java.util.ArrayList<>(taskManager.listTasks(contextId, statusFilter));
+        if (updatedAfter != null) {
+            final var bound = updatedAfter;
+            all.removeIf(t -> !statusTime(t).isAfter(bound));
+        }
         all.sort((a, b) -> Long.compare(b.createdAtMillis(), a.createdAtMillis()));
         var startIdx = decodePageToken(pageToken);
         var endIdx = Math.min(all.size(), startIdx + pageSize);
@@ -644,6 +658,19 @@ public final class A2aProtocolHandler {
         var tasks = page.stream().map(t -> t.toTask(clampHistory)).toList();
         return JsonRpc.Response.success(id, new ListTasksResponse(
                 tasks, nextToken, pageSize, all.size()));
+    }
+
+    /** When the task's status last changed: its status timestamp, else its creation. */
+    private static java.time.Instant statusTime(TaskContext task) {
+        var timestamp = task.status().timestamp();
+        if (timestamp != null) {
+            try {
+                return java.time.Instant.parse(timestamp);
+            } catch (java.time.format.DateTimeParseException e) {
+                logger.trace("Unparseable status timestamp {} on task {}", timestamp, task.taskId(), e);
+            }
+        }
+        return java.time.Instant.ofEpochMilli(task.createdAtMillis());
     }
 
     private JsonRpc.Response handleCancelTask(Object id, JsonNode params) {

@@ -38,6 +38,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -111,6 +113,10 @@ public class A2aSdkInteropIntegrationTest {
 
             var listed = client.listTasks(ListTasksParams.builder().contextId(task.contextId()).build());
             assertTrue(listed.tasks().stream().anyMatch(t -> task.id().equals(t.id())), listed.tasks().toString());
+
+            var later = client.listTasks(ListTasksParams.builder().contextId(task.contextId())
+                    .statusTimestampAfter(Instant.now().plus(Duration.ofHours(1))).build());
+            assertTrue(later.tasks().isEmpty(), later.tasks().toString());
         }
     }
 
