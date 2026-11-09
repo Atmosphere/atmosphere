@@ -1,0 +1,64 @@
+{
+  "manifest_version": "0.3",
+  "name": "atmosphere-mcp-bridge",
+  "display_name": "Atmosphere MCP Bridge",
+  "version": "0.0.0",
+  "description": "Connects Claude Desktop to an Atmosphere MCP server over Streamable HTTP, including one on localhost or a private network.",
+  "long_description": "A native build of Atmosphere's stdio bridge (org.atmosphere.mcp.bridge.McpStdioBridge). Claude Desktop starts it and talks MCP over stdio; the bridge forwards each message to the configured Atmosphere endpoint over Streamable HTTP and relays responses, server notifications and server-initiated requests (elicitation, sampling, roots) back. Because it runs on your machine, it reaches servers that Anthropic's cloud cannot, such as http://localhost. No Java installation is needed.",
+  "author": {
+    "name": "Async-IO.org",
+    "url": "https://github.com/Atmosphere/atmosphere"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Atmosphere/atmosphere"
+  },
+  "homepage": "https://github.com/Atmosphere/atmosphere/tree/main/modules/mcp",
+  "documentation": "https://github.com/Atmosphere/atmosphere/blob/main/modules/mcp/README.md",
+  "license": "Apache-2.0",
+  "keywords": ["atmosphere", "mcp", "bridge", "streamable-http"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/atmosphere-mcp-bridge",
+    "mcp_config": {
+      "command": "${__dirname}/server/atmosphere-mcp-bridge",
+      "args": ["${user_config.endpoint}"],
+      "env": {
+        "ATMOSPHERE_MCP_TOKEN": "${user_config.token}",
+        "ATMOSPHERE_MCP_TIMEOUT": "${user_config.timeout}"
+      },
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/atmosphere-mcp-bridge.exe"
+        }
+      }
+    }
+  },
+  "user_config": {
+    "endpoint": {
+      "type": "string",
+      "title": "MCP endpoint URL",
+      "description": "The Atmosphere MCP endpoint, for example http://localhost:8080/atmosphere/mcp",
+      "required": true
+    },
+    "token": {
+      "type": "string",
+      "title": "Bearer token",
+      "description": "Sent as Authorization: Bearer when the endpoint requires authentication. Leave empty otherwise.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "timeout": {
+      "type": "number",
+      "title": "Response timeout (seconds)",
+      "description": "How long to wait for a response's headers. 0 waits as long as the call takes.",
+      "required": false,
+      "default": 0,
+      "min": 0
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin"]
+  }
+}

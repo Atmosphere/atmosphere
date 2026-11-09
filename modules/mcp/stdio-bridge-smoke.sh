@@ -7,6 +7,8 @@
 # jar starts and relays, which the in-process integration test cannot.
 #
 # Usage: modules/mcp/stdio-bridge-smoke.sh [out-dir]
+# MCP_BRIDGE_BIN=<native binary> runs that build of the bridge (the one an .mcpb
+# bundle ships) instead of the jar.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -16,14 +18,21 @@ OUT="${1:-$HERE/target/stdio-bridge-smoke}"
 PORT="${MCP_BRIDGE_SMOKE_PORT:-39218}"
 URL="http://localhost:${PORT}/mcp"
 
-shopt -s nullglob
-jars=("$HERE"/target/atmosphere-mcp-*-stdio-bridge.jar)
-shopt -u nullglob
-if [ "${#jars[@]}" -ne 1 ]; then
-    echo "error: expected one stdio-bridge jar in $HERE/target, found ${#jars[@]}" >&2
-    exit 2
+if [ -n "${MCP_BRIDGE_BIN:-}" ]; then
+    [ -x "$MCP_BRIDGE_BIN" ] || { echo "error: MCP_BRIDGE_BIN $MCP_BRIDGE_BIN is not executable" >&2; exit 2; }
+    bridge=("$MCP_BRIDGE_BIN")
+    bridge_name="$(basename "$MCP_BRIDGE_BIN")"
+else
+    shopt -s nullglob
+    jars=("$HERE"/target/atmosphere-mcp-*-stdio-bridge.jar)
+    shopt -u nullglob
+    if [ "${#jars[@]}" -ne 1 ]; then
+        echo "error: expected one stdio-bridge jar in $HERE/target, found ${#jars[@]}" >&2
+        exit 2
+    fi
+    bridge=(java -jar "${jars[0]}")
+    bridge_name="$(basename "${jars[0]}")"
 fi
-bridge_jar="${jars[0]}"
 if [ ! -d "$FIXTURE/target/classes" ] || [ ! -d "$FIXTURE/target/e2e-lib" ]; then
     echo "error: $FIXTURE is not packaged (target/classes + target/e2e-lib missing)" >&2
     exit 2
@@ -72,7 +81,7 @@ printf '%s\n' \
     '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
     '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"test_simple_text","arguments":{}}}' \
     'not json' \
-    | timeout 60 java -jar "$bridge_jar" "$URL" >"$stdout" 2>"$stderr"
+    | timeout 60 "${bridge[@]}" "$URL" >"$stdout" 2>"$stderr"
 
 fail() {
     echo "error: $1" >&2
@@ -90,4 +99,4 @@ jq -e . "$stdout" >/dev/null || fail "stdout is not one JSON message per line"
     || fail "tools/call was not answered"
 [ "$(jq -s 'map(select(.id == null and .error.code == -32700)) | length' "$stdout")" = 1 ] \
     || fail "a line that is not JSON was not answered with a parse error"
-echo "stdio bridge smoke test passed ($(wc -l <"$stdout" | tr -d ' ') messages relayed by $(basename "$bridge_jar"))"
+echo "stdio bridge smoke test passed ($(wc -l <"$stdout" | tr -d ' ') messages relayed by $bridge_name)"

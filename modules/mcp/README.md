@@ -193,6 +193,30 @@ What the bridge (`org.atmosphere.mcp.bridge.McpStdioBridge`) does:
 Tested against a live server by `McpStdioBridgeIntegrationTest` (modules/integration-tests), and the
 packaged JAR by `modules/mcp/stdio-bridge-smoke.sh` in the MCP conformance workflow.
 
+#### Claude Desktop bundle (.mcpb)
+
+`modules/mcp/mcpb/` packs the bridge as an [MCP Bundle](https://github.com/modelcontextprotocol/mcpb)
+(manifest 0.3, `server.type: binary`): a GraalVM native-image build of the same jar, so the machine
+running Claude Desktop needs no Java. Installing the bundle asks for the endpoint URL, an optional
+bearer token (stored as a sensitive setting and passed in `ATMOSPHERE_MCP_TOKEN`, never as an
+argument) and an optional response timeout.
+
+```bash
+./mvnw package -pl modules/mcp -Pstdio-bridge -DskipTests
+GRAALVM_HOME=/path/to/graalvm-25 modules/mcp/mcpb/build-mcpb.sh
+# -> modules/mcp/target/atmosphere-mcp-bridge-<version>-<os>-<arch>.mcpb
+```
+
+A bundle holds one binary, so it is built per platform, on that platform: the MCP conformance
+workflow builds `linux-x64` (and runs the smoke test against the bundled binary) and `darwin-arm64`,
+and uploads both as artifacts. `MCP_BRIDGE_BIN=<binary> modules/mcp/stdio-bridge-smoke.sh` runs the
+smoke test against any native build.
+
+The macOS binary carries only the linker's ad-hoc signature; it is not signed with a Developer ID
+or notarized. macOS blocks such a binary when it carries the quarantine attribute a browser adds to
+downloads, and whether Claude Desktop keeps that attribute on the files it extracts from a bundle has
+not been verified yet.
+
 ## Sample
 
 - [Spring Boot MCP Server](../../samples/spring-boot-mcp-server/) -- tools, resources, and prompts with a React frontend

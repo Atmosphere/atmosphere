@@ -83,6 +83,28 @@ jobs:
     - name: Smoke-test the stdio bridge jar
       run: modules/mcp/stdio-bridge-smoke.sh "$RUNNER_TEMP/stdio-bridge-smoke"
 
+    # The .mcpb bundle ships a native-image build of the same jar: build it,
+    # validate and pack the bundle, and run the smoke test against its binary.
+    - name: Set up GraalVM 25
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '25'
+        distribution: 'graalvm'
+
+    - name: Build the stdio bridge .mcpb
+      run: modules/mcp/mcpb/build-mcpb.sh "$RUNNER_TEMP/mcpb"
+
+    - name: Smoke-test the bundled native bridge
+      env:
+        MCP_BRIDGE_BIN: modules/mcp/target/mcpb/linux-x64/server/atmosphere-mcp-bridge
+      run: modules/mcp/stdio-bridge-smoke.sh "$RUNNER_TEMP/stdio-bridge-native-smoke"
+
+    - name: Upload the .mcpb bundle
+      uses: actions/upload-artifact@v7
+      with:
+        name: atmosphere-mcp-bridge-linux-x64-mcpb
+        path: ${{ runner.temp }}/mcpb/*.mcpb
+
     - name: Upload conformance results
       if: always()
       uses: actions/upload-artifact@v7
@@ -91,3 +113,49 @@ jobs:
         path: |
           ${{ runner.temp }}/mcp-conformance/
           ${{ runner.temp }}/stdio-bridge-smoke/
+          ${{ runner.temp }}/stdio-bridge-native-smoke/
+
+  # Claude Desktop's main platform: build the darwin-arm64 bundle on a macOS
+  # runner and check that its binary starts and answers, here an unreachable
+  # endpoint, which the bridge must report as a JSON-RPC error on stdout.
+  mcpb-macos:
+    name: MCP Bundle (macOS arm64)
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up GraalVM 25
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '25'
+        distribution: 'graalvm'
+        cache: 'maven'
+
+    - name: Set up Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Package the MCP stdio bridge
+      run: |
+        ./mvnw -B install -pl modules/mcp -am -DskipTests -Dgpg.skip=true
+        ./mvnw -B package -pl modules/mcp -Pstdio-bridge -DskipTests -Dgpg.skip=true
+
+    - name: Build the stdio bridge .mcpb
+      run: modules/mcp/mcpb/build-mcpb.sh "$RUNNER_TEMP/mcpb"
+
+    - name: Run the bundled native bridge
+      run: |
+        out="$RUNNER_TEMP/native-run.out"
+        printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+          | modules/mcp/target/mcpb/darwin-arm64/server/atmosphere-mcp-bridge http://127.0.0.1:9/mcp >"$out"
+        cat "$out"
+        [ "$(jq -s 'map(select(.id == 1 and .error != null)) | length' "$out")" = 1 ]
+
+    - name: Upload the .mcpb bundle
+      uses: actions/upload-artifact@v7
+      with:
+        name: atmosphere-mcp-bridge-darwin-arm64-mcpb
+        path: ${{ runner.temp }}/mcpb/*.mcpb
