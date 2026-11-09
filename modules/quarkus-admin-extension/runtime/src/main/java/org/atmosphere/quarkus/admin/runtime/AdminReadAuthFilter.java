@@ -113,8 +113,9 @@ public class AdminReadAuthFilter implements ContainerRequestFilter {
      * Whether this admin read hits a recorded-content surface that carries
      * arbitrary user/model content — {@code /governance/decisions} (message +
      * response previews and session ids), {@code /audit} (message bodies +
-     * principals) and {@code /journal} (+ {@code /journal/{id}} and
-     * {@code /journal/{id}/log}, coordination content). Default-DENY (returns
+     * principals), {@code /journal} (+ {@code /journal/{id}} and
+     * {@code /journal/{id}/log}, coordination content) and {@code /ai/lineage}
+     * (user and conversation ids per turn). Default-DENY (returns
      * true) unless a demo opts out with
      * {@code atmosphere.admin.content-read-auth-required=false}. Metadata
      * surfaces ({@code governance/summary|health|policies|commitments}) are NOT
@@ -134,7 +135,8 @@ public class AdminReadAuthFilter implements ContainerRequestFilter {
             // No config backend (embedded test) — keep the secure default (on).
         }
         return path != null
-                && path.matches(".*api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?)$");
+                && path.matches(".*api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
+                        + "|ai/lineage)$");
     }
 
     /**

@@ -1126,6 +1126,27 @@ public class AtmosphereAdminEndpoint {
         }
     }
 
+    // ── Lineage (per-turn attribution) ──
+
+    @GetMapping("/ai/lineage")
+    public ResponseEntity<List<Map<String, Object>>> lineageRecent(
+            @RequestParam(value = "limit", required = false, defaultValue = "50") int limit) {
+        org.atmosphere.admin.ai.LineageController controller = admin.lineageController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.recent(limit));
+    }
+
+    @GetMapping("/ai/lineage/status")
+    public ResponseEntity<Map<String, Object>> lineageStatus() {
+        org.atmosphere.admin.ai.LineageController controller = admin.lineageController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("recorder", "none"));
+        }
+        return ResponseEntity.ok(controller.status());
+    }
+
     // ── Dev Inspector (inner-loop, dev-only) ──
 
     @GetMapping("/ai/dev/inspector")

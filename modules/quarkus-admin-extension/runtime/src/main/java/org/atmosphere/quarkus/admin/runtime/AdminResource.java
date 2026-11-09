@@ -944,6 +944,25 @@ public class AdminResource {
                 : List.of();
     }
 
+    // ── Lineage (per-turn attribution) ──
+    // Mirrors the Spring Boot /ai/lineage routes (Mode Parity, invariant #7).
+    // /ai/lineage carries user and conversation ids, so AdminReadAuthFilter
+    // holds it on the content-read gate; /ai/lineage/status carries none.
+
+    @GET
+    @Path("/ai/lineage")
+    public List<Map<String, Object>> lineageRecent(@QueryParam("limit") Integer limit) {
+        var controller = admin.lineageController();
+        return controller != null ? controller.recent(limit != null ? limit : 50) : List.of();
+    }
+
+    @GET
+    @Path("/ai/lineage/status")
+    public Map<String, Object> lineageStatus() {
+        var controller = admin.lineageController();
+        return controller != null ? controller.status() : Map.of("recorder", "none");
+    }
+
     @GET
     @Path("/governance/owasp")
     public Map<String, Object> governanceOwasp() {

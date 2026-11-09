@@ -70,13 +70,25 @@ exchange.
 `AgentFingerprint` names the configuration that served a turn: the runtime,
 the requested model, a SHA-256 of the stable system prompt (a trailing
 grounded-facts block removed, so it stays the same from turn to turn) and a
-SHA-256 of the offered tool names. Lineage capture is opt-in (the application
-installs a recorder with `LineageRecorderHolder.install(...)`); once it is on,
-every lineage entry, on both dispatch paths, carries the fingerprint under the
-`ai.agent.runtime`, `ai.agent.model`, `ai.agent.system_prompt_sha256` and
-`ai.agent.tool_set_sha256` attributes, so a turn's tool calls are attributable
-to the exact agent configuration that made them; a runtime cannot overwrite
-those keys through its metadata. Governance decisions record the same prompt
+SHA-256 of the offered tool names. Every lineage entry, on both dispatch
+paths, carries the fingerprint under the `ai.agent.runtime`, `ai.agent.model`,
+`ai.agent.system_prompt_sha256` and `ai.agent.tool_set_sha256` attributes, so a
+turn's tool calls are attributable to the exact agent configuration that made
+them; a runtime cannot overwrite those keys through its metadata.
+
+Lineage is on by default in the Spring Boot starters and the Quarkus extension
+(`atmosphere.ai.lineage.*`, on Quarkus `quarkus.atmosphere.ai.lineage.*`). They
+install a user `LineageRecorder` bean when one exists, otherwise an in-memory
+recorder holding the last `capacity` entries (default 1000), and only when the
+application has not installed a recorder itself. The in-memory recorder keeps
+no prompt or tool-result text, drops streamed tool arguments
+(`ai.toolCall.delta.*`) and cuts other attribute values to 256 characters,
+unless `capture-content=true` (logged at WARN). `enabled=false` turns lineage
+off. `GET /api/admin/ai/lineage` serves the buffered entries, behind the same
+default-deny content-read gate as `/governance/decisions`, because entries carry
+user and conversation ids; `GET /api/admin/ai/lineage/status` reports which
+recorder is installed. The in-memory recorder does not survive a restart, and
+no persistent `LineageRecorder` ships yet. Governance decisions record the same prompt
 hash under `system_prompt_sha256` in their context snapshot, which reaches
 `/api/admin/governance/decisions` and the Kafka and Postgres audit sinks.
 Neither record contains the prompt itself.

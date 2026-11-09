@@ -267,6 +267,16 @@ public final class AtmosphereAdmin {
         return devInspectorController;
     }
 
+    private org.atmosphere.admin.ai.LineageController lineageController;
+
+    public void setLineageController(org.atmosphere.admin.ai.LineageController controller) {
+        this.lineageController = controller;
+    }
+
+    public org.atmosphere.admin.ai.LineageController lineageController() {
+        return lineageController;
+    }
+
     /**
      * Install the admin control-plane authorizer. Every HTTP write endpoint,
      * MCP write tool, and SSE control-channel mutation consults this gate;

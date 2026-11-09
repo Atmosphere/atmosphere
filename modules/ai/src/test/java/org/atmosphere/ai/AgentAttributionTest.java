@@ -81,6 +81,60 @@ class AgentAttributionTest {
     }
 
     @Test
+    void defaultRecorderKeepsTheAttributionButNotThePromptOrToolText() {
+        // What the Spring Boot and Quarkus integrations install by default.
+        var recorder = new InMemoryLineageRecorder(100, false);
+        LineageRecorderHolder.install(recorder);
+        var runtime = runtime(session -> {
+            // A runtime streaming tool arguments as metadata.
+            session.sendMetadata("ai.toolCall.delta.call-1", "{\"card\":\"4242 4242 4242 4242\"}");
+            session.emit(new AiEvent.ToolStart("charge_card", Map.of("card", "4242")));
+            session.emit(new AiEvent.ToolResult("charge_card", "charged card 4242 for $90"));
+            session.sendMetadata("ai.custom.note", "x".repeat(1000));
+            session.complete();
+        });
+        var pipeline = new AiPipeline(runtime, SYSTEM_PROMPT, "billing-model",
+                null, null, List.of(), List.of(), AiMetrics.NOOP);
+
+        pipeline.execute("c1", "Charge my card 4242 4242 4242 4242", new CollectingSession("attr-3"));
+
+        var entry = recorder.recent(1).get(0);
+        assertEquals("", entry.userPrompt(), "the user's prompt is not kept");
+        assertEquals("charge_card", entry.toolCalls().get(0).name());
+        assertEquals("", entry.toolCalls().get(0).resultSummary(), "the tool result is not kept");
+        var attributes = entry.attributes();
+        assertFalse(attributes.containsKey("ai.toolCall.delta.call-1"),
+                "streamed tool arguments are not kept");
+        assertEquals(InMemoryLineageRecorder.MAX_REDACTED_ATTRIBUTE_CHARS,
+                attributes.get("ai.custom.note").length());
+        assertEquals("billing-model", attributes.get(AgentFingerprint.MODEL_ATTRIBUTE));
+        assertEquals(AgentFingerprint.systemPromptSha256(SYSTEM_PROMPT),
+                attributes.get(AgentFingerprint.SYSTEM_PROMPT_ATTRIBUTE));
+        assertEquals("OK", entry.terminalReason());
+    }
+
+    @Test
+    void recorderCapturingContentKeepsThePromptAndToolText() {
+        var recorder = new InMemoryLineageRecorder(100, true);
+        LineageRecorderHolder.install(recorder);
+        var runtime = runtime(session -> {
+            session.sendMetadata("ai.toolCall.delta.call-1", "{\"id\":42}");
+            session.emit(new AiEvent.ToolStart("lookup_invoice", Map.of("id", "42")));
+            session.emit(new AiEvent.ToolResult("lookup_invoice", "paid"));
+            session.complete();
+        });
+        var pipeline = new AiPipeline(runtime, SYSTEM_PROMPT, "billing-model",
+                null, null, List.of(), List.of(), AiMetrics.NOOP);
+
+        pipeline.execute("c1", "Was invoice 42 paid?", new CollectingSession("attr-4"));
+
+        var entry = recorder.recent(1).get(0);
+        assertEquals("Was invoice 42 paid?", entry.userPrompt());
+        assertEquals("paid", entry.toolCalls().get(0).resultSummary());
+        assertEquals("{\"id\":42}", entry.attributes().get("ai.toolCall.delta.call-1"));
+    }
+
+    @Test
     void governanceDecisionOnAPipelineTurnCarriesThePromptVersionNotThePrompt() {
         var log = GovernanceDecisionLog.install(10);
         GovernancePolicy admit = new GovernancePolicy() {

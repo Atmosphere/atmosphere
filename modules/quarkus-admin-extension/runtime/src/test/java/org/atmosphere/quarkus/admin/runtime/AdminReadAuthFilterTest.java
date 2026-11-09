@@ -145,7 +145,8 @@ class AdminReadAuthFilterTest {
                 "/api/admin/audit",
                 "/api/admin/journal",
                 "/api/admin/journal/coord-123",
-                "/api/admin/journal/coord-123/log"}) {
+                "/api/admin/journal/coord-123/log",
+                "/api/admin/ai/lineage"}) {
             var ctx = mockReadRequest(path, null, null);
             filter.filter(ctx);
             var captor = ArgumentCaptor.forClass(Response.class);
@@ -161,6 +162,7 @@ class AdminReadAuthFilterTest {
         for (var path : new String[]{
                 "/api/admin/governance/summary",
                 "/api/admin/governance/commitments",
+                "/api/admin/ai/lineage/status",
                 "/api/admin/overview"}) {
             var ctx = mockReadRequest(path, null, null);
             filter.filter(ctx);

@@ -349,7 +349,9 @@ public class AtmosphereAdminAutoConfiguration {
          * the coordination journal (agent-to-agent message content), and the
          * dev inspector ({@code DevInspectorEntry} retains a 2000-char preview
          * of both the prompt and the response — the single most content-dense
-         * admin read there is). These are the same "arbitrary model/user
+         * admin read there is), and lineage ({@code /ai/lineage}: user and
+         * conversation ids per turn, plus the prompt when content capture is
+         * on). These are the same "arbitrary model/user
          * content" class the workspace surfaces guard, so they are default-DENY
          * too, independent of the general read gate (Correctness Invariant #6).
          * A demo that wants these console tabs open without a token opts out
@@ -371,7 +373,7 @@ public class AtmosphereAdminAutoConfiguration {
             var uri = req.getRequestURI();
             return uri != null
                     && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
-                            + "|tape/runs(/[^/]+/(steps|replay))?|ai/dev/inspector)$");
+                            + "|tape/runs(/[^/]+/(steps|replay))?|ai/dev/inspector|ai/lineage)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {
@@ -524,6 +526,18 @@ public class AtmosphereAdminAutoConfiguration {
                             .orElseGet(org.atmosphere.ai.AiEnvironment::current));
             admin.setAiRuntimeController(controller);
             logger.debug("Atmosphere Admin: AI runtime controller wired");
+            return controller;
+        }
+
+        @Bean
+        org.atmosphere.admin.ai.LineageController atmosphereAdminLineageController(
+                AtmosphereAdmin admin) {
+            // Reads LineageRecorderHolder per request, so it reports whatever
+            // recorder is installed (the AI auto-configuration's default
+            // in-memory one, an application's own, or none).
+            var controller = new org.atmosphere.admin.ai.LineageController();
+            admin.setLineageController(controller);
+            logger.debug("Atmosphere Admin: lineage controller wired");
             return controller;
         }
 

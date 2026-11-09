@@ -388,6 +388,51 @@ public interface AtmosphereConfig {
         Gateway gateway();
 
         /**
+         * Per-turn lineage configuration block.
+         *
+         * @return the lineage sub-configuration block
+         */
+        Lineage lineage();
+
+        /**
+         * Per-turn lineage, bound to {@code quarkus.atmosphere.ai.lineage.*}.
+         * Mirrors the Spring Boot starter's {@code atmosphere.ai.lineage.*}
+         * keys. On by default: {@code AtmosphereLineageRecorderProducer}
+         * installs a user {@code LineageRecorder} CDI bean, or else a bounded
+         * in-memory recorder, so each turn records which agent configuration
+         * ran it, the tools it called, its tokens, cost and outcome.
+         */
+        interface Lineage {
+
+            /**
+             * Master switch. Defaults to {@code true}.
+             *
+             * @return {@code true} if lineage is recorded
+             */
+            @WithDefault("true")
+            boolean enabled();
+
+            /**
+             * Entries the in-memory recorder keeps; the oldest is evicted
+             * first.
+             *
+             * @return the in-memory recorder's capacity
+             */
+            @WithDefault("1000")
+            int capacity();
+
+            /**
+             * Whether the in-memory recorder keeps the user prompt and tool
+             * result text. Defaults to {@code false}: entries keep only
+             * content-free attribution.
+             *
+             * @return {@code true} to keep prompt and tool-result text
+             */
+            @WithDefault("false")
+            boolean captureContent();
+        }
+
+        /**
          * Outbound gateway sub-configuration, bound to
          * {@code quarkus.atmosphere.ai.gateway.*}. Mirrors the Spring Boot
          * starter's {@code atmosphere.ai.gateway.*} keys.

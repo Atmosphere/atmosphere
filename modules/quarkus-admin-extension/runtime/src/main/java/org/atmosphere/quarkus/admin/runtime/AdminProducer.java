@@ -138,6 +138,8 @@ public class AdminProducer {
             admin.setAiRuntimeController(new org.atmosphere.admin.ai.AiRuntimeController(
                     () -> org.atmosphere.ai.AiEnvironment.find(aiFramework.getAtmosphereConfig())
                             .orElseGet(org.atmosphere.ai.AiEnvironment::current)));
+            // Per-turn lineage, read from LineageRecorderHolder per request.
+            admin.setLineageController(new org.atmosphere.admin.ai.LineageController());
         } catch (ClassNotFoundException ignored) {
             // atmosphere-ai not on classpath
         }

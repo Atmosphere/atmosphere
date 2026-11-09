@@ -273,6 +273,18 @@ public class AtmosphereAdminAutoConfiguration {
             logger.debug("Atmosphere Admin: AI runtime controller wired");
             return controller;
         }
+
+        @Bean
+        org.atmosphere.admin.ai.LineageController atmosphereAdminLineageController(
+                AtmosphereAdmin admin) {
+            // Reads LineageRecorderHolder per request, so it reports whatever
+            // recorder is installed (the AI auto-configuration's default
+            // in-memory one, an application's own, or none).
+            var controller = new org.atmosphere.admin.ai.LineageController();
+            admin.setLineageController(controller);
+            logger.debug("Atmosphere Admin: lineage controller wired");
+            return controller;
+        }
     }
 
     /**
@@ -561,7 +573,7 @@ public class AtmosphereAdminAutoConfiguration {
             var uri = req.getRequestURI();
             return uri != null
                     && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
-                            + "|tape/runs(/[^/]+/(steps|replay))?|ai/dev/inspector)$");
+                            + "|tape/runs(/[^/]+/(steps|replay))?|ai/dev/inspector|ai/lineage)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

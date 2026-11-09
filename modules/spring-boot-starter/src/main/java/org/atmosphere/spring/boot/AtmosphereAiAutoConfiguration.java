@@ -1996,4 +1996,95 @@ public class AtmosphereAiAutoConfiguration {
     public record GovernanceMemoryWiring(boolean active) {
     }
 
+    /**
+     * Turns per-turn lineage on: installs a {@link org.atmosphere.ai.lineage.LineageRecorder}
+     * into the process-wide {@link org.atmosphere.ai.lineage.LineageRecorderHolder}
+     * so {@code DispatchDecorators} records one
+     * {@link org.atmosphere.ai.lineage.LineageEntry} per turn on both dispatch
+     * paths, carrying the {@code ai.agent.*} fingerprint of the agent
+     * configuration that ran it. A user {@code LineageRecorder} bean wins
+     * (a persistent sink); otherwise a bounded
+     * {@link org.atmosphere.ai.lineage.InMemoryLineageRecorder} of
+     * {@code atmosphere.ai.lineage.capacity} entries (default
+     * {@value org.atmosphere.ai.lineage.InMemoryLineageRecorder#DEFAULT_CAPACITY})
+     * that blanks prompt and tool-result text unless
+     * {@code atmosphere.ai.lineage.capture-content=true}. Disable with
+     * {@code atmosphere.ai.lineage.enabled=false}.
+     */
+    @Bean
+    @ConditionalOnMissingBean(LineageRecorderInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.ai.lineage.enabled", matchIfMissing = true)
+    public LineageRecorderInstaller atmosphereLineageRecorderInstaller(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.lineage.LineageRecorder>
+                    userRecorder,
+            org.springframework.core.env.Environment env) {
+        var user = userRecorder.getIfAvailable();
+        if (user != null) {
+            return new LineageRecorderInstaller(user, "user-bean");
+        }
+        var capacity = env.getProperty("atmosphere.ai.lineage.capacity", Integer.class,
+                org.atmosphere.ai.lineage.InMemoryLineageRecorder.DEFAULT_CAPACITY);
+        var captureContent = env.getProperty("atmosphere.ai.lineage.capture-content",
+                Boolean.class, false);
+        return new LineageRecorderInstaller(
+                new org.atmosphere.ai.lineage.InMemoryLineageRecorder(capacity, captureContent),
+                "in-memory");
+    }
+
+    /**
+     * Installs the lineage recorder at startup, only when none is installed
+     * yet, and takes it back out on shutdown only when it is still the
+     * installed one (Ownership, Correctness Invariant #1).
+     */
+    public static final class LineageRecorderInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.lineage.LineageRecorder recorder;
+        private final String source;
+        private volatile boolean installed;
+
+        LineageRecorderInstaller(org.atmosphere.ai.lineage.LineageRecorder recorder, String source) {
+            this.recorder = recorder;
+            this.source = source;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            installed = org.atmosphere.ai.lineage.LineageRecorderHolder.installIfAbsent(recorder);
+            if (!installed) {
+                logger.info("Lineage: a recorder is already installed ({}); keeping it",
+                        org.atmosphere.ai.lineage.LineageRecorderHolder.get().getClass().getName());
+            } else if (recorder instanceof org.atmosphere.ai.lineage.InMemoryLineageRecorder buffer) {
+                if (buffer.captureContent()) {
+                    logger.warn("Lineage records prompt and tool-result text "
+                            + "(atmosphere.ai.lineage.capture-content=true, capacity={})",
+                            buffer.capacity());
+                } else {
+                    logger.info("Lineage on: in-memory, capacity={}, prompt and tool-result "
+                            + "text not kept", buffer.capacity());
+                }
+            } else {
+                logger.info("Lineage on ({}): {}", source, recorder.getClass().getName());
+            }
+        }
+
+        @Override
+        public void destroy() {
+            if (installed) {
+                org.atmosphere.ai.lineage.LineageRecorderHolder.resetIf(recorder);
+                installed = false;
+            }
+        }
+
+        /** Exposed so tests can assert which recorder was chosen. */
+        public org.atmosphere.ai.lineage.LineageRecorder recorder() {
+            return recorder;
+        }
+
+        /** Exposed so tests can assert which path fired. */
+        public String source() {
+            return source;
+        }
+    }
 }

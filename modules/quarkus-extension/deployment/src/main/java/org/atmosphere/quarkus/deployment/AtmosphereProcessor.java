@@ -1008,6 +1008,22 @@ class AtmosphereProcessor {
     }
 
     /**
+     * Registers {@code AtmosphereLineageRecorderProducer} when
+     * {@code atmosphere-ai} is on the classpath ({@code LineageRecorderHolder}
+     * lives there). On startup it installs per-turn lineage unless
+     * {@code quarkus.atmosphere.ai.lineage.enabled=false} — the mirror of the
+     * Spring Boot starter's {@code LineageRecorderInstaller}.
+     */
+    @BuildStep
+    void registerLineageRecorderProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("org.atmosphere.ai.lineage.LineageRecorderHolder")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereLineageRecorderProducer"));
+    }
+
+    /**
      * Registers the gateway-profile producer when {@code atmosphere-ai} is on
      * the classpath ({@code AiGatewayHolder} lives there). The bean is a no-op
      * unless {@code quarkus.atmosphere.ai.gateway.profile=production}, which
