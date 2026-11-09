@@ -371,8 +371,7 @@ public final class A2aProtocolHandler {
             }
 
             var msg = extractMessage(params);
-            var contextId = params.has("contextId")
-                    ? params.get("contextId").stringValue() : UUID.randomUUID().toString();
+            var contextId = resolveContextId(params, msg);
             var skillId = resolveSkillId(msg);
 
             var taskCtx = taskManager.createTask(contextId);
@@ -614,6 +613,10 @@ public final class A2aProtocolHandler {
         if (params != null && params.has("status") && !params.get("status").isNull()) {
             try {
                 statusFilter = TaskState.fromWire(params.get("status").asString());
+                // The protobuf default a client sends for an unset filter.
+                if (statusFilter == TaskState.UNSPECIFIED) {
+                    statusFilter = null;
+                }
             } catch (IllegalArgumentException e) {
                 return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
                         "Invalid status filter: " + params.get("status").asString());
@@ -890,12 +893,20 @@ public final class A2aProtocolHandler {
                 Role.USER, List.of(Part.text("")), null, null, null);
     }
 
+    /**
+     * The message's context, else a top-level {@code contextId}, else a new one.
+     * A blank value counts as absent: A2A v1.0 is defined in protobuf, where an
+     * unset string is the empty string, and a task always carries a context.
+     */
     private String resolveContextId(JsonNode params, Message message) {
-        if (message.contextId() != null) {
+        if (message.contextId() != null && !message.contextId().isBlank()) {
             return message.contextId();
         }
         if (params != null && params.has("contextId")) {
-            return params.get("contextId").stringValue();
+            var contextId = params.get("contextId").stringValue();
+            if (contextId != null && !contextId.isBlank()) {
+                return contextId;
+            }
         }
         return UUID.randomUUID().toString();
     }

@@ -21,9 +21,11 @@ import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.runtime.A2aProtocolHandler;
+import org.atmosphere.a2a.runtime.A2aStreamSink;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.runtime.TaskManager;
 import org.atmosphere.a2a.types.Artifact;
+import org.atmosphere.a2a.types.Task;
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.protocol.JsonRpc;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -225,6 +228,23 @@ class A2aProtocolHandlerTest {
         assertTrue(result.get("tasks").isArray());
         assertEquals(2, result.get("totalSize").asInt());
         assertEquals(10, result.get("pageSize").asInt());
+    }
+
+    /**
+     * A protobuf-based client (the official A2A Java SDK) sends every unset field
+     * at its default, so a listing with no status filter arrives with
+     * {@code TASK_STATE_UNSPECIFIED}, which means no filter.
+     */
+    @Test
+    void listTasksTreatsAnUnspecifiedStatusAsNoFilter() throws Exception {
+        handler.handleMessage(sendRequestCtx(1, "SendMessage", "Alice", "ctx-unspecified"));
+
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ListTasks\","
+                + "\"params\":{\"tenant\":\"\",\"contextId\":\"ctx-unspecified\","
+                + "\"status\":\"TASK_STATE_UNSPECIFIED\",\"pageToken\":\"\","
+                + "\"statusTimestampAfter\":\"1970-01-01T00:00:00Z\"}}";
+        var result = mapper.readTree(handler.handleMessage(req)).get("result");
+        assertEquals(1, result.get("totalSize").asInt(), result.toString());
     }
 
     @Test
@@ -441,6 +461,59 @@ class A2aProtocolHandlerTest {
         assertEquals(1, errors.size());
         assertTrue(errors.get(0).contains("nosuch"));
         assertTrue(completed[0]);
+    }
+
+    /**
+     * A2A v1.0 encodes an unset {@code contextId} as an empty string, which a
+     * protobuf-based client (the official A2A Java SDK) reads back as absent; a
+     * task must always carry a context, so a blank one is generated like a
+     * missing one.
+     */
+    @Test
+    void aBlankContextIdIsGeneratedNotEchoed() throws Exception {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\","
+                + "\"params\":{\"message\":{\"messageId\":\"m1\",\"contextId\":\"\","
+                + "\"role\":\"ROLE_USER\",\"parts\":[{\"text\":\"hi\"}]},"
+                + "\"arguments\":{\"name\":\"World\"}}}";
+        var task = mapper.readTree(handler.handleMessage(request)).get("result").get("task");
+        assertFalse(task.get("contextId").stringValue().isBlank(), task.toString());
+    }
+
+    /** The streaming send keeps the message's context exactly as the unary send does. */
+    @Test
+    void aStreamingSendKeepsTheMessageContextId() {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendStreamingMessage\","
+                + "\"params\":{\"message\":{\"messageId\":\"m1\",\"contextId\":\"ctx-stream\","
+                + "\"role\":\"ROLE_USER\",\"parts\":[{\"text\":\"hi\"}]},"
+                + "\"arguments\":{\"name\":\"World\"}}}";
+        assertEquals("ctx-stream", streamedTask(request).contextId());
+    }
+
+    @Test
+    void aStreamingSendWithABlankContextIdGeneratesOne() {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendStreamingMessage\","
+                + "\"params\":{\"message\":{\"messageId\":\"m1\",\"contextId\":\"\","
+                + "\"role\":\"ROLE_USER\",\"parts\":[{\"text\":\"hi\"}]},"
+                + "\"arguments\":{\"name\":\"World\"}}}";
+        var contextId = streamedTask(request).contextId();
+        assertNotNull(contextId);
+        assertFalse(contextId.isBlank());
+    }
+
+    private Task streamedTask(String request) {
+        var first = new AtomicReference<Task>();
+        handler.handleStreamingMessage(request, new A2aStreamSink() {
+            @Override
+            public void task(Task task) {
+                first.compareAndSet(null, task);
+            }
+
+            @Override
+            public void token(String text) {
+            }
+        });
+        assertNotNull(first.get(), "the stream must begin with the task");
+        return first.get();
     }
 
     private String streamRequest(String text) {
