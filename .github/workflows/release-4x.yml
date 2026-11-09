@@ -717,10 +717,22 @@ jobs:
   # ─────────────────────────────────────────────
   # Phase 5: Create GitHub Release with notes
   # ─────────────────────────────────────────────
-  github-release:
-    name: Create GitHub Release
+  # The stdio bridge's MCP Bundles (.mcpb), one per platform, built from the
+  # release tag and attached to the GitHub release below.
+  mcpb-bundles:
+    name: MCP Bundles
     needs: [release-maven]
     if: inputs.dry_run == false
+    uses: ./.github/workflows/mcpb-bundles.yml
+    with:
+      ref: atmosphere-${{ inputs.release_version }}
+
+  github-release:
+    name: Create GitHub Release
+    # Maven Central has already published when this runs, so a failed bundle
+    # build must not also cost the GitHub release: it is created without them.
+    needs: [release-maven, mcpb-bundles]
+    if: ${{ !cancelled() && inputs.dry_run == false && needs.release-maven.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -830,6 +842,19 @@ jobs:
         "$GITHUB_WORKSPACE/scripts/write-release-checksum.sh" "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
         ls -la "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
 
+    - name: Download the MCP Bundles
+      if: needs.mcpb-bundles.result == 'success'
+      uses: actions/download-artifact@v8
+      with:
+        pattern: mcpb-*
+        path: mcpb
+        merge-multiple: true
+
+    - name: Note MCP Bundles missing from the release
+      if: needs.mcpb-bundles.result != 'success'
+      run: |
+        echo "::warning::the MCP Bundle build did not succeed; the release carries no .mcpb"
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v3
       with:
@@ -842,6 +867,7 @@ jobs:
         files: |
           atmosphere-${{ inputs.release_version }}.zip
           atmosphere-${{ inputs.release_version }}.zip.sha256
+          mcpb/*.mcpb
       env:
         GITHUB_TOKEN: ${{ github.token }}
 

@@ -1,0 +1,84 @@
+name: "CI: MCP Bundles"
+
+# Builds the stdio bridge's MCP Bundle (.mcpb, modules/mcp/mcpb/) on each
+# platform Claude Desktop runs on — a bundle holds one native binary, so it is
+# built per platform, on that platform — checks that the bundled binary starts
+# and answers, and uploads the bundles. release-4x.yml calls it on the release
+# tag and attaches the bundles to the GitHub release; a push that touches the
+# bundle runs it too. The relay itself is smoke-tested against a live server by
+# the linux-x64 bundle in mcp-conformance.yml.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to build (the release tag)'
+        required: true
+        type: string
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'modules/mcp/mcpb/**'
+      - 'modules/mcp/src/main/java/org/atmosphere/mcp/bridge/**'
+      - '.github/workflows/mcpb-bundles.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: MCP Bundle (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform: darwin-arm64
+            binary: atmosphere-mcp-bridge
+          - os: ubuntu-24.04
+            platform: linux-x64
+            binary: atmosphere-mcp-bridge
+          - os: windows-2025
+            platform: win32-x64
+            binary: atmosphere-mcp-bridge.exe
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.ref || github.sha }}
+
+    - name: Set up GraalVM 25
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '25'
+        distribution: 'graalvm'
+        cache: 'maven'
+
+    - name: Set up Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Package the MCP stdio bridge
+      run: |
+        ./mvnw -B install -pl modules/mcp -am -DskipTests -Dgpg.skip=true
+        ./mvnw -B package -pl modules/mcp -Pstdio-bridge -DskipTests -Dgpg.skip=true
+
+    - name: Build the .mcpb
+      run: modules/mcp/mcpb/build-mcpb.sh "$RUNNER_TEMP/mcpb"
+
+    - name: Check the bundled binary
+      run: modules/mcp/mcpb/check-bundled-binary.sh "modules/mcp/target/mcpb/${{ matrix.platform }}/server/${{ matrix.binary }}"
+
+    - name: Upload the .mcpb
+      uses: actions/upload-artifact@v7
+      with:
+        name: mcpb-${{ matrix.platform }}
+        path: ${{ runner.temp }}/mcpb/*.mcpb
+        if-no-files-found: error

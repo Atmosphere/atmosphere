@@ -207,15 +207,14 @@ GRAALVM_HOME=/path/to/graalvm-25 modules/mcp/mcpb/build-mcpb.sh
 # -> modules/mcp/target/atmosphere-mcp-bridge-<version>-<os>-<arch>.mcpb
 ```
 
-A bundle holds one binary, so it is built per platform, on that platform: the MCP conformance
-workflow builds `linux-x64` (and runs the smoke test against the bundled binary) and `darwin-arm64`,
-and uploads both as artifacts. `MCP_BRIDGE_BIN=<binary> modules/mcp/stdio-bridge-smoke.sh` runs the
-smoke test against any native build.
+A bundle holds one binary, so it is built per platform, on that platform: `mcpb-bundles.yml` builds
+`darwin-arm64`, `linux-x64` and `win32-x64` bundles, and the release workflow attaches them to the
+GitHub release. The MCP conformance workflow runs the smoke test against the bundled `linux-x64`
+binary; `MCP_BRIDGE_BIN=<binary> modules/mcp/stdio-bridge-smoke.sh` runs it against any native build.
 
-The macOS binary carries only the linker's ad-hoc signature; it is not signed with a Developer ID
-or notarized. macOS blocks such a binary when it carries the quarantine attribute a browser adds to
-downloads, and whether Claude Desktop keeps that attribute on the files it extracts from a bundle has
-not been verified yet.
+The macOS binary carries only the linker's ad-hoc signature; it is not signed with a Developer ID or
+notarized. A `darwin-arm64` bundle downloaded with a browser and installed through Claude Desktop
+started and served its tools; that has been checked on one Mac only.
 
 ## Sample
 
