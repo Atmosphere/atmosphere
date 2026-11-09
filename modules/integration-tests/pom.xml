@@ -17,6 +17,8 @@
 
     <properties>
         <kafka.version>3.9.2</kafka.version>
+        <!-- Official A2A Java SDK, used only as the client in A2aSdkInteropIntegrationTest -->
+        <a2a-java-sdk.version>1.5.0.Final</a2a-java-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -29,6 +31,14 @@
                 <version>4.1.137.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- protobuf-java-util (a provided dependency of the A2A SDK's JSON-RPC
+                 transport, declared below) brings gson 2.8.9 nearer than gRPC's 2.13.2;
+                 the SDK needs 2.15.0 (com.google.gson.Strictness, since 2.11). -->
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>2.15.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -119,6 +129,31 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-skills</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Official A2A Java SDK JSON-RPC client, test only: interop check against
+             Atmosphere's own A2A server. The transport declares protobuf as provided. -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client</artifactId>
+            <version>${a2a-java-sdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-jsonrpc</artifactId>
+            <version>${a2a-java-sdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
             <scope>test</scope>
         </dependency>
 
