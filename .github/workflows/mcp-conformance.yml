@@ -94,10 +94,12 @@ jobs:
     - name: Build the stdio bridge .mcpb
       run: modules/mcp/mcpb/build-mcpb.sh "$RUNNER_TEMP/mcpb"
 
+    # The fixture server stays on the JDK 21 the jar smoke used (setup-graalvm
+    # put GraalVM first on PATH); only the bridge under test is the native one.
     - name: Smoke-test the bundled native bridge
       env:
         MCP_BRIDGE_BIN: modules/mcp/target/mcpb/linux-x64/server/atmosphere-mcp-bridge
-      run: modules/mcp/stdio-bridge-smoke.sh "$RUNNER_TEMP/stdio-bridge-native-smoke"
+      run: PATH="$JAVA_HOME_21_X64/bin:$PATH" modules/mcp/stdio-bridge-smoke.sh "$RUNNER_TEMP/stdio-bridge-native-smoke"
 
     - name: Upload the .mcpb bundle
       uses: actions/upload-artifact@v7

@@ -28,11 +28,18 @@ version="$(basename "$jar")"
 version="${version#atmosphere-mcp-}"
 version="${version%-stdio-bridge.jar}"
 
-native_image="native-image"
-if [ -n "${GRAALVM_HOME:-}" ]; then
-    native_image="$GRAALVM_HOME/bin/native-image"
+# GraalVM ships bin/native-image, or bin/native-image.cmd on Windows.
+native_image=""
+for candidate in "${GRAALVM_HOME:-}/bin/native-image" "${GRAALVM_HOME:-}/bin/native-image.cmd"; do
+    if [ -n "${GRAALVM_HOME:-}" ] && [ -f "$candidate" ]; then
+        native_image="$candidate"
+        break
+    fi
+done
+if [ -z "$native_image" ]; then
+    native_image="$(command -v native-image || command -v native-image.cmd || true)"
 fi
-command -v "$native_image" >/dev/null 2>&1 || { echo "error: native-image not found (set GRAALVM_HOME)" >&2; exit 2; }
+[ -n "$native_image" ] || { echo "error: native-image not found (set GRAALVM_HOME)" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || { echo "error: jq is required" >&2; exit 2; }
 command -v npx >/dev/null 2>&1 || { echo "error: npx is required" >&2; exit 2; }
 
