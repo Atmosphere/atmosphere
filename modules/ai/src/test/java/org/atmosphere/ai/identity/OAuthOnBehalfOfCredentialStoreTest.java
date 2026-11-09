@@ -26,6 +26,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -147,5 +148,73 @@ class OAuthOnBehalfOfCredentialStoreTest {
         assertFalse(obo.get("frank", "s").isEmpty());
         obo.delete("frank", "oauth.subject_token");
         assertTrue(obo.get("frank", "s").isEmpty(), "deleting the subject token revokes access");
+    }
+
+    private OAuthOnBehalfOfCredentialStore storeWithActor(Supplier<String> actor) {
+        var config = OAuthOboConfig.builder(tokenEndpoint, "agent-client", "secret")
+                .actorToken(actor)
+                .actorTokenType("urn:ietf:params:oauth:token-type:jwt")
+                .build();
+        var obo = new OAuthOnBehalfOfCredentialStore(new InMemoryCredentialStore(), config);
+        obo.put("alice", "oauth.subject_token", "SUBJ");
+        return obo;
+    }
+
+    @Test
+    void sendsActorTokenWithItsTypeSoTheIssuedTokenNamesTheAgent() {
+        var obo = storeWithActor(() -> "AGENT-TOKEN");
+
+        assertEquals("AT-123", obo.get("alice", "s").orElseThrow());
+
+        var form = lastForm.get();
+        assertTrue(form.contains("actor_token=AGENT-TOKEN"), form);
+        assertTrue(form.contains("actor_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Ajwt"),
+                "RFC 8693 requires actor_token_type alongside actor_token: " + form);
+    }
+
+    @Test
+    void withoutActorConfiguredNoActorTokenIsSent() {
+        var obo = store(new InMemoryCredentialStore());
+        obo.put("alice", "oauth.subject_token", "SUBJ");
+
+        obo.get("alice", "s").orElseThrow();
+
+        assertFalse(lastForm.get().contains("actor_token"), lastForm.get());
+    }
+
+    @Test
+    void actorSourceYieldingNoTokenFailsClosedWithoutExchanging() {
+        var obo = storeWithActor(() -> " ");
+
+        assertTrue(obo.get("alice", "s").isEmpty(),
+                "a configured actor that yields no token must not fall back to a user-only token");
+        assertEquals(0, calls.get(), "no exchange may be made without the actor token");
+    }
+
+    @Test
+    void actorSourceThrowingFailsClosedWithoutExchanging() {
+        var obo = storeWithActor(() -> {
+            throw new IllegalStateException("identity provider down");
+        });
+
+        assertTrue(obo.get("alice", "s").isEmpty());
+        assertEquals(0, calls.get());
+    }
+
+    @Test
+    void tokensAreCachedPerActorSoOneActorsTokenIsNeverServedToAnother() {
+        var actor = new AtomicReference<>("AGENT-A");
+        var obo = storeWithActor(actor::get);
+
+        obo.get("alice", "s").orElseThrow();
+        actor.set("AGENT-B");
+        obo.get("alice", "s").orElseThrow();
+
+        assertEquals(2, calls.get(), "a second actor must get its own exchange, not the first one's token");
+        assertTrue(lastForm.get().contains("actor_token=AGENT-B"), lastForm.get());
+
+        actor.set("AGENT-A");
+        obo.get("alice", "s").orElseThrow();
+        assertEquals(2, calls.get(), "the first actor's token stays cached under its own key");
     }
 }

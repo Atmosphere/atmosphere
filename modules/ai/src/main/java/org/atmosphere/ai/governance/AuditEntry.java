@@ -29,6 +29,7 @@ import java.util.Map;
  * {@link #contextSnapshot} is a redaction-safe projection of the
  * {@link PolicyContext} at evaluate-time: phase, a preview of the message
  * (truncated to 200 chars), model, user/session/agent/conversation ids,
+ * a SHA-256 of the system prompt (never the prompt itself),
  * and every metadata entry whose value is a string, boolean, or primitive
  * number. Complex metadata values are coerced to their {@code toString()}
  * shape or elided to avoid serialization surprises in the admin surface.

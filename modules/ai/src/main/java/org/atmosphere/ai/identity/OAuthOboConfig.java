@@ -17,6 +17,7 @@ package org.atmosphere.ai.identity;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.function.Supplier;
 
 /**
  * Configuration for {@link OAuthOnBehalfOfCredentialStore} — an RFC 8693 OAuth
@@ -39,6 +40,13 @@ import java.time.Duration;
  * @param httpTimeout        per-exchange HTTP timeout
  * @param clockSkew          refresh a cached token this long before it expires
  * @param maxCachedTokens    bound on the exchanged-token cache (Backpressure)
+ * @param actorToken         source of the agent's own token, sent as the RFC 8693
+ *                           {@code actor_token} so the issued token names the agent
+ *                           acting for the user (its {@code act} claim); called on
+ *                           every exchange, so it may hand out a short-lived token.
+ *                           {@code null} sends no actor token
+ * @param actorTokenType     {@code actor_token_type} sent with the actor token
+ *                           (default: access token); ignored without one
  */
 public record OAuthOboConfig(
         URI tokenEndpoint,
@@ -51,7 +59,9 @@ public record OAuthOboConfig(
         String defaultAudience,
         Duration httpTimeout,
         Duration clockSkew,
-        int maxCachedTokens) {
+        int maxCachedTokens,
+        Supplier<String> actorToken,
+        String actorTokenType) {
 
     /** RFC 8693 token-exchange grant type. */
     public static final String GRANT_TYPE = "urn:ietf:params:oauth:grant-type:token-exchange";
@@ -74,6 +84,19 @@ public record OAuthOboConfig(
         if (maxCachedTokens <= 0) {
             maxCachedTokens = 1000;
         }
+        actorTokenType = actorTokenType != null && !actorTokenType.isBlank()
+                ? actorTokenType : ACCESS_TOKEN_TYPE;
+    }
+
+    /** A configuration that sends no actor token. */
+    public OAuthOboConfig(URI tokenEndpoint, String clientId, String clientSecret,
+                          String subjectTokenKey, String subjectTokenType,
+                          String requestedTokenType, String defaultScope,
+                          String defaultAudience, Duration httpTimeout, Duration clockSkew,
+                          int maxCachedTokens) {
+        this(tokenEndpoint, clientId, clientSecret, subjectTokenKey, subjectTokenType,
+                requestedTokenType, defaultScope, defaultAudience, httpTimeout, clockSkew,
+                maxCachedTokens, null, null);
     }
 
     public static Builder builder(URI tokenEndpoint, String clientId, String clientSecret) {
@@ -92,6 +115,8 @@ public record OAuthOboConfig(
         private Duration httpTimeout;
         private Duration clockSkew;
         private int maxCachedTokens;
+        private Supplier<String> actorToken;
+        private String actorTokenType;
 
         private Builder(URI tokenEndpoint, String clientId, String clientSecret) {
             this.tokenEndpoint = tokenEndpoint;
@@ -139,10 +164,25 @@ public record OAuthOboConfig(
             return this;
         }
 
+        /**
+         * Send the agent's own token as the {@code actor_token}. The source is
+         * called on every exchange; when it yields no token the exchange is not
+         * made (fail-closed), so the agent never acts as the bare user.
+         */
+        public Builder actorToken(Supplier<String> source) {
+            this.actorToken = source;
+            return this;
+        }
+
+        public Builder actorTokenType(String type) {
+            this.actorTokenType = type;
+            return this;
+        }
+
         public OAuthOboConfig build() {
             return new OAuthOboConfig(tokenEndpoint, clientId, clientSecret, subjectTokenKey,
                     subjectTokenType, requestedTokenType, defaultScope, defaultAudience,
-                    httpTimeout, clockSkew, maxCachedTokens);
+                    httpTimeout, clockSkew, maxCachedTokens, actorToken, actorTokenType);
         }
     }
 }

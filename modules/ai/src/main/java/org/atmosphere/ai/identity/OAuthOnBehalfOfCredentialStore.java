@@ -40,7 +40,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * delegated-credential half — it exchanges a user's stored <em>subject token</em>
  * for a short-lived <em>access token</em> scoped to a downstream tool/resource,
  * so an agent calls external APIs <strong>as the user</strong> rather than with
- * a shared service credential.
+ * a shared service credential. With {@link OAuthOboConfig#actorToken()} set, the
+ * exchange also sends the agent's own token as the {@code actor_token}, so the
+ * issued token records the agent acting for the user, and exchanged tokens are
+ * cached per actor.
  *
  * <h2>How it works</h2>
  * <ol>
@@ -55,7 +58,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * </ol>
  *
  * <h2>Security posture (fail-closed)</h2>
- * No subject token for the user, an exchange HTTP error, or an unparseable
+ * No subject token for the user, a configured actor token source that yields
+ * no token, an exchange HTTP error, or an unparseable
  * response all yield {@link Optional#empty()} — the tool then runs without a
  * credential and the permission gate denies it, rather than the agent falling
  * back to a broader credential. Tokens are never logged (only
@@ -95,7 +99,20 @@ public final class OAuthOnBehalfOfCredentialStore implements CredentialStore {
     @Override
     public Optional<String> get(String userId, String scope) {
         var requestedScope = scope == null || scope.isBlank() ? config.defaultScope() : scope;
-        var cacheKey = userId + "::" + (requestedScope == null ? "" : requestedScope);
+        String actorToken = null;
+        if (config.actorToken() != null) {
+            var actor = actorToken();
+            if (actor.isEmpty()) {
+                // Fail-closed: an exchange without the actor token would issue a
+                // token naming the user alone, hiding that an agent acts.
+                return Optional.empty();
+            }
+            actorToken = actor.get();
+        }
+        // Keyed by actor too: a token issued for one actor is never served to another.
+        var cacheKey = userId + "::"
+                + (actorToken == null ? "" : AgentFingerprint.sha256(actorToken)) + "::"
+                + (requestedScope == null ? "" : requestedScope);
 
         var cached = cache.get(cacheKey);
         if (cached != null && cached.isFresh(config.clockSkew())) {
@@ -109,7 +126,7 @@ public final class OAuthOnBehalfOfCredentialStore implements CredentialStore {
             return Optional.empty();
         }
 
-        var exchanged = exchange(subject.get(), requestedScope);
+        var exchanged = exchange(subject.get(), requestedScope, actorToken);
         exchanged.ifPresent(token -> cacheToken(cacheKey, token));
         return exchanged.map(CachedToken::accessToken);
     }
@@ -148,7 +165,22 @@ public final class OAuthOnBehalfOfCredentialStore implements CredentialStore {
         return "oauth-obo";
     }
 
-    private Optional<CachedToken> exchange(String subjectToken, String scope) {
+    private Optional<String> actorToken() {
+        try {
+            var token = config.actorToken().get();
+            if (token == null || token.isBlank()) {
+                logger.warn("OBO actor token source yielded no token; not exchanging");
+                return Optional.empty();
+            }
+            return Optional.of(token);
+        } catch (RuntimeException e) {
+            logger.warn("OBO actor token source failed; not exchanging: {}",
+                    e.getClass().getName());
+            return Optional.empty();
+        }
+    }
+
+    private Optional<CachedToken> exchange(String subjectToken, String scope, String actorToken) {
         var form = new StringBuilder()
                 .append("grant_type=").append(enc(OAuthOboConfig.GRANT_TYPE))
                 .append("&subject_token=").append(enc(subjectToken))
@@ -161,6 +193,11 @@ public final class OAuthOnBehalfOfCredentialStore implements CredentialStore {
         }
         if (config.defaultAudience() != null && !config.defaultAudience().isBlank()) {
             form.append("&audience=").append(enc(config.defaultAudience()));
+        }
+        if (actorToken != null) {
+            // RFC 8693 section 2.1: actor_token_type is required whenever actor_token is sent.
+            form.append("&actor_token=").append(enc(actorToken))
+                    .append("&actor_token_type=").append(enc(config.actorTokenType()));
         }
 
         var basic = Base64.getEncoder().encodeToString(

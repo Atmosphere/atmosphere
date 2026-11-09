@@ -20,9 +20,11 @@ import org.atmosphere.ai.cost.CostAccountantHolder;
 import org.atmosphere.ai.cost.CostAccountingSession;
 import org.atmosphere.ai.devinspector.DevInspectorRecorder;
 import org.atmosphere.ai.devinspector.DevInspectorRecorderHolder;
+import org.atmosphere.ai.identity.AgentFingerprint;
 import org.atmosphere.ai.lineage.LineageCapturingSession;
 import org.atmosphere.ai.lineage.LineageRecorder;
 import org.atmosphere.ai.lineage.LineageRecorderHolder;
+import org.atmosphere.ai.tool.ToolDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -150,6 +152,22 @@ final class DispatchDecorators {
             List<String> layers) {
     }
 
+    /**
+     * The configuration serving this dispatch, from the request it dispatches:
+     * its system prompt and offered tools, the resolved runtime and the
+     * requested model ({@link Spec#inspectorModel()}, the request's model when
+     * it names one). Computed here so both dispatch paths stamp the same
+     * fingerprint on their lineage entries (Mode Parity, Invariant #7).
+     */
+    static AgentFingerprint fingerprint(Spec spec) {
+        var request = spec.originatingRequest();
+        var toolNames = request == null || request.tools() == null
+                ? List.<String>of()
+                : request.tools().stream().map(ToolDefinition::name).toList();
+        return AgentFingerprint.of(spec.runtimeName(), spec.inspectorModel(),
+                request != null ? request.systemPrompt() : null, toolNames);
+    }
+
     /** Compose the shared decorator layers over {@code base} per the spec. */
     static Composed compose(StreamingSession base, Spec spec) {
         var target = base;
@@ -165,7 +183,7 @@ final class DispatchDecorators {
         if (lineageRecorder != LineageRecorder.NOOP) {
             target = new LineageCapturingSession(target, lineageRecorder,
                     spec.lineageUserId(), spec.lineageAgentId(),
-                    spec.lineageConversationId(), spec.message());
+                    spec.lineageConversationId(), spec.message(), fingerprint(spec));
             layers.add("lineage");
         }
 

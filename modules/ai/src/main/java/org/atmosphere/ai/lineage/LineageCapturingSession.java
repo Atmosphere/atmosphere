@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.DelegatingStreamingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
+import org.atmosphere.ai.identity.AgentFingerprint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * fires first. Subsequent terminal callbacks just forward without
  * re-recording — closes Correctness Invariant #2 (Terminal Path
  * Completeness) for the lineage layer.</p>
+ *
+ * <p>When built with an {@link AgentFingerprint}, the entry's attributes carry
+ * its {@code ai.agent.*} keys, so the turn's tool calls are attributable to the
+ * runtime, model, system-prompt version and tool set that produced them. Those
+ * keys are reserved: metadata the runtime sends under those names is not
+ * recorded, including a name the fingerprint leaves empty.</p>
  */
 public final class LineageCapturingSession extends DelegatingStreamingSession {
 
@@ -65,6 +72,8 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
     private final List<String> ragSources = new ArrayList<>();
     private final Map<String, Instant> pendingToolStarts = new LinkedHashMap<>();
     private final Map<String, String> attributes = new LinkedHashMap<>();
+    private final Map<String, String> fingerprintAttributes;
+    private final boolean fingerprinted;
     private final AtomicBoolean recorded = new AtomicBoolean();
 
     private volatile TokenUsage capturedTokens;
@@ -73,7 +82,20 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
     public LineageCapturingSession(StreamingSession delegate, LineageRecorder recorder,
                                    String userId, String agentId, String conversationId,
                                    String userPrompt) {
+        this(delegate, recorder, userId, agentId, conversationId, userPrompt, null);
+    }
+
+    /**
+     * @param fingerprint the configuration that serves the turn, recorded under
+     *                    the entry's {@code ai.agent.*} attributes; {@code null}
+     *                    records none
+     */
+    public LineageCapturingSession(StreamingSession delegate, LineageRecorder recorder,
+                                   String userId, String agentId, String conversationId,
+                                   String userPrompt, AgentFingerprint fingerprint) {
         super(delegate);
+        this.fingerprinted = fingerprint != null;
+        this.fingerprintAttributes = fingerprint == null ? Map.of() : fingerprint.asAttributes();
         this.recorder = recorder == null ? LineageRecorder.NOOP : recorder;
         this.requestId = "lin_" + UUID.randomUUID();
         this.userId = userId == null ? "" : userId;
@@ -111,7 +133,8 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
                 default -> {
                     // Capture any other ai.* metadata as audit attributes — string-coerced
                     // so the LineageEntry never holds caller-supplied object refs.
-                    if (key.startsWith("ai.") || key.startsWith("rag.")) {
+                    if ((key.startsWith("ai.") || key.startsWith("rag."))
+                            && !(fingerprinted && AgentFingerprint.isAttribute(key))) {
                         attributes.put(key, value.toString());
                     }
                 }
@@ -167,6 +190,15 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
         }
     }
 
+    private Map<String, String> entryAttributes() {
+        if (!fingerprinted) {
+            return Map.copyOf(attributes);
+        }
+        var merged = new LinkedHashMap<String, String>(attributes);
+        merged.putAll(fingerprintAttributes);
+        return Map.copyOf(merged);
+    }
+
     private void recordIfFirst(String terminalReason) {
         if (!recorded.compareAndSet(false, true)) {
             return;
@@ -180,7 +212,7 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
                     Optional.ofNullable(capturedTokens),
                     Optional.ofNullable(capturedCost),
                     terminalReason,
-                    Map.copyOf(attributes));
+                    entryAttributes());
             recorder.record(entry);
         } catch (RuntimeException e) {
             // Lineage capture is best-effort — never block the prompt's

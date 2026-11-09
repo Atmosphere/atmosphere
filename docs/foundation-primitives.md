@@ -58,6 +58,29 @@ pluggable — `InMemoryCredentialStore` for tests, `AtmosphereEncryptedCredentia
 Read-only session share tokens for giving others view-only access to
 a conversation.
 
+`OAuthOnBehalfOfCredentialStore` exchanges a user's stored subject token for
+a short-lived, scoped access token (RFC 8693 token exchange), so a tool calls
+a downstream API as the user rather than with a shared credential; it fails
+closed. Set `OAuthOboConfig.Builder.actorToken(...)` and the exchange also
+sends the agent's own token as the `actor_token` (with `actor_token_type`), so
+the issued token records the agent acting for the user. Exchanged tokens are
+then cached per actor, and an actor source that yields no token means no
+exchange.
+
+`AgentFingerprint` names the configuration that served a turn: the runtime,
+the requested model, a SHA-256 of the stable system prompt (a trailing
+grounded-facts block removed, so it stays the same from turn to turn) and a
+SHA-256 of the offered tool names. Lineage capture is opt-in (the application
+installs a recorder with `LineageRecorderHolder.install(...)`); once it is on,
+every lineage entry, on both dispatch paths, carries the fingerprint under the
+`ai.agent.runtime`, `ai.agent.model`, `ai.agent.system_prompt_sha256` and
+`ai.agent.tool_set_sha256` attributes, so a turn's tool calls are attributable
+to the exact agent configuration that made them; a runtime cannot overwrite
+those keys through its metadata. Governance decisions record the same prompt
+hash under `system_prompt_sha256` in their context snapshot, which reaches
+`/api/admin/governance/decisions` and the Kafka and Postgres audit sinks.
+Neither record contains the prompt itself.
+
 ### `ToolExtensibilityPoint` — `org.atmosphere.ai.extensibility`
 
 How agents acquire new capabilities at runtime. `ToolIndex` scores tool

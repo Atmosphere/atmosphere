@@ -213,6 +213,21 @@ public interface FactResolver {
         }
 
         /**
+         * The stable part of a system prompt: {@code systemPrompt} without a
+         * trailing grounded-facts block produced by
+         * {@link #appendToSystemPrompt(String)}, trailing whitespace stripped.
+         * Never {@code null}; an absent prompt yields the empty string.
+         */
+        public static String stablePrefix(String systemPrompt) {
+            if (systemPrompt == null || systemPrompt.isBlank()) {
+                return "";
+            }
+            int idx = indexOfTrailingFactBlock(systemPrompt);
+            var stable = idx < 0 ? systemPrompt : systemPrompt.substring(0, idx);
+            return stable.stripTrailing();
+        }
+
+        /**
          * Index of a trailing grounded-facts block, or {@code -1}. The block
          * must start at a line boundary and every line after the header must
          * be a {@code "- key: value"} fact line — guaranteed for framework

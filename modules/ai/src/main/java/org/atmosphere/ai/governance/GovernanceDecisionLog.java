@@ -16,6 +16,7 @@
 package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.identity.AgentFingerprint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,12 @@ public final class GovernanceDecisionLog {
 
     /** Default ring-buffer size when {@link #install(int)} isn't called. */
     public static final int DEFAULT_CAPACITY = 500;
+
+    /**
+     * Snapshot key for {@link AgentFingerprint#systemPromptSha256(String)} of
+     * the evaluated request's system prompt; absent when it has none.
+     */
+    public static final String SYSTEM_PROMPT_SHA256_KEY = "system_prompt_sha256";
 
     private static final GovernanceDecisionLog NOOP = new GovernanceDecisionLog(0);
     private static volatile GovernanceDecisionLog installed = NOOP;
@@ -193,7 +200,8 @@ public final class GovernanceDecisionLog {
      * Build a redaction-safe {@link AuditEntry#contextSnapshot()} from a
      * {@link PolicyContext}. Message text is truncated to
      * {@link #MESSAGE_SNAPSHOT_MAX_CHARS}; metadata values that aren't
-     * string / boolean / number are coerced via {@code toString()}.
+     * string / boolean / number are coerced via {@code toString()}. The system
+     * prompt is recorded only as its hash, under {@link #SYSTEM_PROMPT_SHA256_KEY}.
      */
     public static Map<String, Object> snapshotContext(PolicyContext context) {
         if (context == null) {
@@ -210,6 +218,11 @@ public final class GovernanceDecisionLog {
             putIfNotNull(snapshot, "session_id", request.sessionId());
             putIfNotNull(snapshot, "agent_id", request.agentId());
             putIfNotNull(snapshot, "conversation_id", request.conversationId());
+            // A version of the prompt the policy evaluated, never the prompt
+            // itself: decisions stay attributable to the agent configuration
+            // without the snapshot exposing its instructions.
+            putIfNotNull(snapshot, SYSTEM_PROMPT_SHA256_KEY,
+                    AgentFingerprint.systemPromptSha256(request.systemPrompt()));
             if (request.metadata() != null) {
                 for (var entry : request.metadata().entrySet()) {
                     if (entry.getKey() == null) continue;
