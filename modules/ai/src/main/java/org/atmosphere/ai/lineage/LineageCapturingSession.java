@@ -149,12 +149,28 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
      * @param event an event of the turn
      */
     public void observeToolEvent(AiEvent event) {
+        observeToolEvent(event, Instant.now());
+    }
+
+    /**
+     * As {@link #observeToolEvent(AiEvent)}, for an event emitted at {@code at}
+     * (one the decorated session kept until this layer existed).
+     *
+     * @param event an event of the turn
+     * @param at    when it was emitted
+     */
+    public void observeToolEvent(AiEvent event, Instant at) {
         if (event == null || recorded.get()) {
             return;
         }
         synchronized (toolCalls) {
-            observe(event);
+            observe(event, at != null ? at : Instant.now());
         }
+    }
+
+    /** @return whether this layer already recorded its entry; later events are not recorded */
+    public boolean isRecorded() {
+        return recorded.get();
     }
 
     @Override
@@ -202,15 +218,15 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
         super.error(t);
     }
 
-    private void observe(AiEvent event) {
+    private void observe(AiEvent event, Instant at) {
         switch (event) {
             case AiEvent.ToolStart start ->
-                    pendingToolStarts.put(start.toolName(), Instant.now());
+                    pendingToolStarts.put(start.toolName(), at);
             case AiEvent.ToolResult result -> {
                 var startedToolAt = pendingToolStarts.remove(result.toolName());
                 toolCalls.add(new LineageEntry.ToolCall(
                         result.toolName(),
-                        startedToolAt != null ? startedToolAt : Instant.now(),
+                        startedToolAt != null ? startedToolAt : at,
                         result.result() == null ? "" : result.result().toString()));
             }
             case AiEvent.ToolError failure -> {
@@ -219,7 +235,7 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
                 var startedToolAt = pendingToolStarts.remove(failure.toolName());
                 toolCalls.add(new LineageEntry.ToolCall(
                         failure.toolName(),
-                        startedToolAt != null ? startedToolAt : Instant.now(),
+                        startedToolAt != null ? startedToolAt : at,
                         failure.error() == null ? "" : failure.error()));
             }
             default -> {

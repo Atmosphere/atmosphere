@@ -250,19 +250,31 @@ public class AiStreamingSession implements StreamingSession {
      */
     static final int MAX_PENDING_LINEAGE_TOOL_EVENTS = 256;
 
-    /** Guards {@link #turnLineage} and {@link #pendingLineageToolEvents}. */
+    /** Guards {@link #turnLineage}, {@link #pendingLineageToolEvents} and {@link #lineageAttachments}. */
     private final Object lineageLock = new Object();
 
-    /** The lineage layer of the turn's model call, once it is composed. */
+    /**
+     * The lineage layer of the model call in progress, once it is composed;
+     * dropped once that layer recorded its entry, so the events after it wait
+     * for the next {@code stream()}'s layer.
+     */
     private org.atmosphere.ai.lineage.LineageCapturingSession turnLineage;
 
+    /** How many lineage layers {@code stream()} attached to this session. */
+    private int lineageAttachments;
+
     /**
-     * Tool events the {@code @Prompt} method emitted before its model call
-     * composed the lineage layer (a coordinator's fleet calls); handed to that
-     * layer when it is composed. Kept only while a lineage recorder is installed.
+     * Tool events the {@code @Prompt} method emitted while no lineage layer was
+     * attached (a coordinator's fleet calls before its synthesis call), each
+     * with the moment it was emitted; handed to the next layer when it is
+     * composed. Kept only while a lineage recorder is installed.
      */
-    private final List<AiEvent> pendingLineageToolEvents = new java.util.ArrayList<>();
+    private final List<PendingToolEvent> pendingLineageToolEvents = new java.util.ArrayList<>();
     private boolean pendingLineageOverflowLogged;
+
+    /** A tool event kept for the next lineage layer, with the moment it was emitted. */
+    private record PendingToolEvent(AiEvent event, java.time.Instant at) {
+    }
 
     /**
      * Endpoint-scoped over-fetch + rerank retrieval policy resolved from
@@ -1499,6 +1511,19 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void stream(String message, List<Content> inputParts) {
+        int attachedBefore;
+        synchronized (lineageLock) {
+            attachedBefore = lineageAttachments;
+        }
+        try {
+            streamTurn(message, inputParts);
+        } finally {
+            discardUnattachedLineageEvents(attachedBefore);
+        }
+    }
+
+    /** The body of {@link #stream(String, List)}: admission, then the model call. */
+    private void streamTurn(String message, List<Content> inputParts) {
         if (isTurnCancelled()) {
             // The turn was cancelled while its @Prompt method still ran (a
             // coordinator between delegations): no model call starts for it.
@@ -2513,6 +2538,11 @@ public class AiStreamingSession implements StreamingSession {
             return;
         }
         synchronized (lineageLock) {
+            if (turnLineage != null && turnLineage.isRecorded()) {
+                // That model call's entry is written: this event belongs to
+                // whatever the @Prompt method dispatches next.
+                turnLineage = null;
+            }
             if (turnLineage != null) {
                 turnLineage.observeToolEvent(event);
                 return;
@@ -2522,7 +2552,7 @@ public class AiStreamingSession implements StreamingSession {
                 return;
             }
             if (pendingLineageToolEvents.size() < MAX_PENDING_LINEAGE_TOOL_EVENTS) {
-                pendingLineageToolEvents.add(event);
+                pendingLineageToolEvents.add(new PendingToolEvent(event, java.time.Instant.now()));
             } else if (!pendingLineageOverflowLogged) {
                 pendingLineageOverflowLogged = true;
                 logger.warn("Session {} emitted more than {} tool events before its model call; "
@@ -2539,11 +2569,29 @@ public class AiStreamingSession implements StreamingSession {
         }
         synchronized (lineageLock) {
             turnLineage = lineage;
+            lineageAttachments++;
             for (var pending : pendingLineageToolEvents) {
-                lineage.observeToolEvent(pending);
+                lineage.observeToolEvent(pending.event(), pending.at());
             }
             pendingLineageToolEvents.clear();
             pendingLineageOverflowLogged = false;
+        }
+    }
+
+    /**
+     * Drop the kept tool events when a {@code stream()} ended without attaching
+     * a lineage layer (the turn was cancelled, refused or denied before its
+     * model call): they belong to that turn, which records no entry, and must
+     * not be replayed as the next turn's.
+     *
+     * @param attachedBefore {@link #lineageAttachments} when that call began
+     */
+    private void discardUnattachedLineageEvents(int attachedBefore) {
+        synchronized (lineageLock) {
+            if (lineageAttachments == attachedBefore) {
+                pendingLineageToolEvents.clear();
+                pendingLineageOverflowLogged = false;
+            }
         }
     }
 

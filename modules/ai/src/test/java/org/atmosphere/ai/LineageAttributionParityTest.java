@@ -28,8 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A turn's lineage entry names the agent that served it and every tool call
@@ -102,6 +104,76 @@ class LineageAttributionParityTest {
                 onlyEntry(recorder).toolCalls().stream().map(LineageEntry.ToolCall::name).toList());
     }
 
+    @Test
+    void eachModelCallOfAPromptRecordsTheToolCallsThatPrecededIt() {
+        var recorder = new InMemoryLineageRecorder();
+        LineageRecorderHolder.install(recorder);
+        var session = webSession(runtime(s -> {
+            s.emit(new AiEvent.ToolStart("lookup", Map.of()));
+            s.emit(new AiEvent.ToolResult("lookup", "ok"));
+            s.complete();
+        }), null, List.of());
+
+        // A @Prompt that plans with one model call, dispatches the fleet, then
+        // synthesizes with a second model call on the same session.
+        session.emit(new AiEvent.ToolStart("verify_plan", Map.of()));
+        session.emit(new AiEvent.ToolResult("verify_plan", "VERIFIED"));
+        session.stream("plan");
+        session.emit(new AiEvent.ToolStart("financial_model", Map.of()));
+        session.emit(new AiEvent.ToolResult("financial_model", "model"));
+        session.stream("synthesize");
+
+        var entries = recorder.recent(10);
+        assertEquals(2, entries.size(), "each model call records its entry");
+        var names = entries.stream().map(e -> e.userPrompt() + "=" + e.toolCalls().stream()
+                .map(LineageEntry.ToolCall::name).toList()).collect(Collectors.toSet());
+        assertEquals(Set.of("plan=[verify_plan, lookup]", "synthesize=[financial_model, lookup]"), names);
+    }
+
+    @Test
+    void theToolCallsOfADeniedTurnAreNotRecordedOnTheNextOne() {
+        var recorder = new InMemoryLineageRecorder();
+        LineageRecorderHolder.install(recorder);
+        AiGuardrail refuseForbidden = new AiGuardrail() {
+            @Override
+            public GuardrailResult inspectRequest(AiRequest request) {
+                return request.message().contains("forbidden")
+                        ? GuardrailResult.block("not allowed") : GuardrailResult.pass();
+            }
+        };
+        var session = webSession(runtime(StreamingSession::complete), null, List.of(refuseForbidden));
+
+        session.emit(new AiEvent.ToolStart("denied_fleet_call", Map.of()));
+        session.emit(new AiEvent.ToolResult("denied_fleet_call", "done"));
+        session.stream("forbidden request");
+        session.emit(new AiEvent.ToolStart("allowed_fleet_call", Map.of()));
+        session.emit(new AiEvent.ToolResult("allowed_fleet_call", "done"));
+        session.stream("allowed request");
+
+        var entry = onlyEntry(recorder);
+        assertEquals("allowed request", entry.userPrompt());
+        assertEquals(List.of("allowed_fleet_call"),
+                entry.toolCalls().stream().map(LineageEntry.ToolCall::name).toList());
+    }
+
+    @Test
+    void aToolCallMadeBeforeTheModelCallKeepsTheTimeItWasMade() throws InterruptedException {
+        var recorder = new InMemoryLineageRecorder();
+        LineageRecorderHolder.install(recorder);
+        var session = webSession(runtime(StreamingSession::complete), null, List.of());
+
+        session.emit(new AiEvent.ToolStart("web_search", Map.of()));
+        session.emit(new AiEvent.ToolResult("web_search", "results"));
+        Thread.sleep(20);
+        session.stream("write the briefing");
+
+        var entry = onlyEntry(recorder);
+        var call = entry.toolCalls().get(0);
+        assertTrue(call.invokedAt().isBefore(entry.timestamp()),
+                "the call (" + call.invokedAt() + ") was made before the model call began ("
+                        + entry.timestamp() + ")");
+    }
+
     private static LineageEntry onlyEntry(InMemoryLineageRecorder recorder) {
         var entries = recorder.recent(10);
         assertEquals(1, entries.size(), "one turn records one lineage entry");
@@ -109,6 +181,11 @@ class LineageAttributionParityTest {
     }
 
     private static AiStreamingSession webSession(AgentRuntime runtime, String requestAgentId) {
+        return webSession(runtime, requestAgentId, List.of());
+    }
+
+    private static AiStreamingSession webSession(AgentRuntime runtime, String requestAgentId,
+                                                 List<AiGuardrail> guardrails) {
         var request = AtmosphereRequestImpl.newInstance();
         if (requestAgentId != null) {
             request.setAttribute("ai.agentId", requestAgentId);
@@ -126,7 +203,7 @@ class LineageAttributionParityTest {
                                     ? 0 : null;
                 });
         return new AiStreamingSession(new CollectingSession("web-1"), runtime, "sys", "m",
-                List.of(), resource);
+                List.of(), resource, null, null, guardrails, List.of(), AiMetrics.NOOP, null);
     }
 
     private static AgentRuntime runtime(Consumer<StreamingSession> driver) {
