@@ -265,9 +265,18 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
             synchronized (toolCalls) {
                 calls = List.copyOf(toolCalls);
             }
+            // The entry's timestamp is when the prompt started. A tool call the
+            // prompt made before this layer was built (replayed with the time
+            // it was emitted) started the prompt earlier than the layer did.
+            var promptStartedAt = startedAt;
+            for (var call : calls) {
+                if (call.invokedAt() != null && call.invokedAt().isBefore(promptStartedAt)) {
+                    promptStartedAt = call.invokedAt();
+                }
+            }
             var entry = new LineageEntry(
                     requestId, userId, agentId, conversationId, sessionId(),
-                    startedAt, userPrompt,
+                    promptStartedAt, userPrompt,
                     calls,
                     List.copyOf(ragSources),
                     Optional.ofNullable(capturedTokens),

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -165,13 +167,20 @@ class LineageAttributionParityTest {
         session.emit(new AiEvent.ToolStart("web_search", Map.of()));
         session.emit(new AiEvent.ToolResult("web_search", "results"));
         Thread.sleep(20);
+        var modelCallBegan = Instant.now();
         session.stream("write the briefing");
 
         var entry = onlyEntry(recorder);
         var call = entry.toolCalls().get(0);
-        assertTrue(call.invokedAt().isBefore(entry.timestamp()),
+        assertTrue(call.invokedAt().isBefore(modelCallBegan),
                 "the call (" + call.invokedAt() + ") was made before the model call began ("
-                        + entry.timestamp() + ")");
+                        + modelCallBegan + ")");
+        // The entry is stamped with the prompt's start, so no call of the
+        // prompt precedes it: a coordinator's pre-stream fleet calls used to
+        // be recorded before the entry's own timestamp.
+        assertFalse(call.invokedAt().isBefore(entry.timestamp()),
+                "the entry (" + entry.timestamp() + ") starts no later than its first call ("
+                        + call.invokedAt() + ")");
     }
 
     private static LineageEntry onlyEntry(InMemoryLineageRecorder recorder) {
