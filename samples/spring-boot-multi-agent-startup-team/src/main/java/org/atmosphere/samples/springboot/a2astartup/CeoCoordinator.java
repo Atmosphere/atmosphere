@@ -315,6 +315,11 @@ public class CeoCoordinator {
         // --- Step 3b: Conditional routing — choose synthesis path based on finance result ---
         // fleet.route() evaluates conditions in order, first match wins.
         // Every routing decision is recorded in the CoordinationJournal.
+        // Its own card: the route may dispatch the writer a second time, and
+        // a result with no start of its own showed as one card while lineage
+        // recorded two calls.
+        session.emit(new AiEvent.ToolStart("route_synthesis",
+                Map.<String, Object>of("title", message)));
         var synthesisInput = fleet.route(results.get("finance-agent"), route -> route
                 .when(r -> r.success() && r.text().contains("GO"),
                         f -> f.agent("writer-agent").call("write_report", writerArgs))
@@ -326,7 +331,7 @@ public class CeoCoordinator {
                 .otherwise(f -> report)
         );
         var finalReport = synthesisInput.success() ? synthesisInput : report;
-        session.emit(new AiEvent.ToolResult("write_report", finalReport.text()));
+        session.emit(new AiEvent.ToolResult("route_synthesis", finalReport.text()));
 
         // --- Step 3c: Result evaluation (when configured) ---
         // fleet.evaluate(result, call) runs ResultEvaluator SPIs (async, non-blocking, journaled).

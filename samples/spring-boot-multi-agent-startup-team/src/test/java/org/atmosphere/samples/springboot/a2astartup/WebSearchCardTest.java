@@ -95,6 +95,29 @@ class WebSearchCardTest {
         assertEquals(hits, result.result());
     }
 
+    @Test
+    void everyCardOpensOnceAndEndsOnce() {
+        // The Console opens a card on ToolStart and lineage records a call per
+        // terminal event, so a second ToolResult for one start showed as one
+        // card while lineage recorded two calls (write_report, 2026-11-10).
+        var events = runPrompt(new AgentResult("research-agent", "web_search",
+                "hits", Map.of(), Duration.ofMillis(5), true));
+        var open = new java.util.HashMap<String, Integer>();
+        for (var event : events) {
+            switch (event) {
+                case AiEvent.ToolStart start -> open.merge(start.toolName(), 1, Integer::sum);
+                case AiEvent.ToolResult result -> assertEquals(Integer.valueOf(1),
+                        open.remove(result.toolName()),
+                        "a result for a card that is not open: " + result.toolName() + " in " + events);
+                case AiEvent.ToolError error -> assertEquals(Integer.valueOf(1),
+                        open.remove(error.toolName()),
+                        "an error for a card that is not open: " + error.toolName() + " in " + events);
+                default -> { }
+            }
+        }
+        assertTrue(open.isEmpty(), "cards left open: " + open);
+    }
+
     /** Drives the real {@code @Prompt} with a stub fleet and records every emitted event. */
     private static List<AiEvent> runPrompt(AgentResult research) {
         var fleet = mock(AgentFleet.class);
