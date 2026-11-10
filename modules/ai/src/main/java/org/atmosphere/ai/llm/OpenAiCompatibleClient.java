@@ -593,6 +593,12 @@ public class OpenAiCompatibleClient implements LlmClient {
         // stream is fully consumed). Fires once per round — the caller's tool
         // loop runs the same wiring on every follow-up round, so observability
         // consumers see one onModelStart/onModelEnd pair per LLM call.
+        // The usage is reported here, once per round, and not per chunk:
+        // Gemini repeats a cumulative usage on every chunk, so a per-chunk
+        // report would count the round's tokens (and cost) several times.
+        if (capturedUsage[0] != null) {
+            session.usage(capturedUsage[0]);
+        }
         modelScope.complete(capturedUsage[0]);
 
         // Commit the recorded round (two-phase) once the SSE stream is fully
@@ -1009,6 +1015,22 @@ public class OpenAiCompatibleClient implements LlmClient {
 
         try {
             var node = MAPPER.readTree(data);
+
+            // Usage and model are read before the choices check: with
+            // stream_options.include_usage, OpenAI and Ollama send the usage
+            // in a final chunk whose choices array is empty, and Gemini puts
+            // a cumulative usage on every chunk. The usage is only captured
+            // here, the last one winning; the round reports it once when its
+            // stream ends.
+            var usageNode = node.get("usage");
+            if (usageNode != null && !usageNode.isNull() && usageHolder != null) {
+                var captured = parseChatCompletionsUsage(usageNode);
+                if (captured != null) {
+                    usageHolder[0] = captured;
+                }
+            }
+            forwardModel(node.get("model"), session, forwardedModel);
+
             var choices = node.get("choices");
             if (choices == null || choices.isEmpty()) {
                 return;
@@ -1079,20 +1101,6 @@ public class OpenAiCompatibleClient implements LlmClient {
                     logger.debug("Stream finished: reason={}", reason);
                 }
             }
-
-            // Forward usage metadata if present, capturing it for the
-            // per-round AgentLifecycleListener.onModelEnd fire so observability
-            // consumers see the same TokenUsage record the wire protocol carries.
-            var usageNode = node.get("usage");
-            if (usageNode != null && !usageNode.isNull()) {
-                var captured = forwardUsageMetadata(usageNode, session);
-                if (captured != null && usageHolder != null) {
-                    usageHolder[0] = captured;
-                }
-            }
-
-            // Forward model metadata
-            forwardModel(node.get("model"), session, forwardedModel);
         } catch (JacksonException e) {
             logger.warn("Failed to parse SSE data: {}", data, e);
         }
@@ -1117,13 +1125,12 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     /**
      * Build a {@link org.atmosphere.ai.TokenUsage} from a chat-completions
-     * {@code usage} JSON node, emit it on the streaming session, and return
-     * it so the caller can also feed the per-round
-     * {@code AgentLifecycleListener.onModelEnd} fire. Returns {@code null}
-     * when the node has no counted tokens.
+     * {@code usage} JSON node. The round reports it on the streaming session
+     * and to {@code AgentLifecycleListener.onModelEnd} once its stream ends.
+     * Returns {@code null} when the node has no counted tokens.
      */
-    private static org.atmosphere.ai.TokenUsage forwardUsageMetadata(
-            tools.jackson.databind.JsonNode usageNode, StreamingSession session) {
+    private static org.atmosphere.ai.TokenUsage parseChatCompletionsUsage(
+            tools.jackson.databind.JsonNode usageNode) {
         long input = usageNode.has("prompt_tokens") ? usageNode.get("prompt_tokens").asLong() : 0L;
         long output = usageNode.has("completion_tokens") ? usageNode.get("completion_tokens").asLong() : 0L;
         long total = usageNode.has("total_tokens") ? usageNode.get("total_tokens").asLong() : input + output;
@@ -1135,11 +1142,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
         }
         var usage = org.atmosphere.ai.TokenUsage.fromCounts(input, output, cachedInput, total);
-        if (usage.hasCounts()) {
-            session.usage(usage);
-            return usage;
-        }
-        return null;
+        return usage.hasCounts() ? usage : null;
     }
 
     private String buildRequestBody(ChatCompletionRequest request) throws JacksonException {
@@ -1171,6 +1174,10 @@ public class OpenAiCompatibleClient implements LlmClient {
         body.put("messages", serialized);
 
         body.put("stream", true);
+        // Ask for the token usage of the streamed call: OpenAI, Gemini's
+        // OpenAI-compatible endpoint and Ollama send no usage in a stream
+        // without it. All three accept the field (HTTP 200).
+        body.put("stream_options", Map.of("include_usage", true));
         // Temperature: a framework-level GenerationParams override wins when
         // set; otherwise emit the per-request value exactly as before so the
         // unset path stays byte-identical.
@@ -1725,11 +1732,11 @@ public class OpenAiCompatibleClient implements LlmClient {
                         if (responseNode.has("id")) {
                             capturedResponseId[0] = responseNode.get("id").stringValue();
                         }
-                        // Forward usage metadata, capturing it for the
-                        // per-round AgentLifecycleListener.onModelEnd fire.
+                        // Capture the usage; the round reports it once when
+                        // its stream ends, as on the Chat Completions path.
                         var usageNode = responseNode.get("usage");
                         if (usageNode != null && !usageNode.isNull()) {
-                            var captured = forwardResponsesApiUsage(usageNode, session);
+                            var captured = parseResponsesApiUsage(usageNode);
                             if (captured != null && usageHolder != null) {
                                 usageHolder[0] = captured;
                             }
@@ -1746,15 +1753,13 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     /**
-     * Responses-API equivalent of {@link #forwardUsageMetadata}: emits the
-     * usage on the streaming session and returns it so the round can also
-     * fire {@code AgentLifecycleListener.onModelEnd}. The Responses API
+     * Responses-API equivalent of {@link #parseChatCompletionsUsage}. The Responses API
      * reports usage in a slightly different structure
      * ({@code input_tokens} / {@code output_tokens}) than Chat Completions.
      * Returns {@code null} when no counted tokens are present.
      */
-    private static org.atmosphere.ai.TokenUsage forwardResponsesApiUsage(
-            tools.jackson.databind.JsonNode usageNode, StreamingSession session) {
+    private static org.atmosphere.ai.TokenUsage parseResponsesApiUsage(
+            tools.jackson.databind.JsonNode usageNode) {
         long input = usageNode.has("input_tokens") ? usageNode.get("input_tokens").asLong() : 0L;
         long output = usageNode.has("output_tokens") ? usageNode.get("output_tokens").asLong() : 0L;
         long cachedInput = 0L;
@@ -1765,11 +1770,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
         }
         var usage = org.atmosphere.ai.TokenUsage.fromCounts(input, output, cachedInput, null);
-        if (usage.hasCounts()) {
-            session.usage(usage);
-            return usage;
-        }
-        return null;
+        return usage.hasCounts() ? usage : null;
     }
 
     /**
