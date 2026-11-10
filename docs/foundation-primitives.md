@@ -87,7 +87,9 @@ unless `capture-content=true` (logged at WARN). `enabled=false` turns lineage
 off. `GET /api/admin/ai/lineage` serves the buffered entries, behind the same
 default-deny content-read gate as `/governance/decisions`, because entries carry
 user and conversation ids; `GET /api/admin/ai/lineage/status` reports which
-recorder is installed. The in-memory recorder does not survive a restart, and
+recorder is installed. The Console shows the entries in a Lineage tab when that
+status reports the in-memory recorder; like the Decisions tab, it needs the admin
+token unless the content-read gate is turned off. The in-memory recorder does not survive a restart, and
 no persistent `LineageRecorder` ships yet. Governance decisions record the same prompt
 hash under `system_prompt_sha256` in their context snapshot, which reaches
 `/api/admin/governance/decisions` and the Kafka and Postgres audit sinks.

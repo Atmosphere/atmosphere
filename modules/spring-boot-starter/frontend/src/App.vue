@@ -13,6 +13,8 @@ import Checkpoints from './components/Checkpoints.vue'
 import Rooms from './components/Rooms.vue'
 import Observability from './components/Observability.vue'
 import Tape from './components/Tape.vue'
+import Lineage from './components/Lineage.vue'
+import { servesEntries, type LineageStatus } from './lib/lineage'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
 import { clearPickedRoom, restorePickedRoom, savePickedRoom } from './lib/pickedRoom'
@@ -20,7 +22,7 @@ import type { FleetAgent, FleetInfo } from './lib/fleet'
 import type { ConsoleTransportName } from './transports'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'tape' | 'apps' | 'rooms' | 'observability' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'tape' | 'apps' | 'rooms' | 'observability' | 'policies' | 'decisions' | 'owasp' | 'commitments' | 'lineage'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -67,6 +69,9 @@ const mcpEndpoint = ref<string | null>(null)
 const mcpSandboxOrigin = ref<string | null>(null)
 const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
+// The lineage recorder as the server reports it; the Lineage tab shows only
+// when it is the in-memory one, the recorder /api/admin/ai/lineage reads back.
+const lineageStatus = ref<LineageStatus | null>(null)
 const agentsAvailable = ref(false)
 const workspaceAvailable = ref(false)
 const interactionsAvailable = ref(false)
@@ -94,6 +99,22 @@ async function probeGovernance() {
       ? data.policyCount : null
   } catch {
     // /api/admin/governance/summary not wired — hide the governance tabs.
+  }
+}
+
+async function probeLineage() {
+  // /api/admin/ai/lineage/status is mapped wherever the admin plane is (it
+  // answers {recorder: none} without atmosphere-ai) and carries no recorded
+  // content, so it is read without credentials, like the governance summary.
+  try {
+    const res = await fetch('/api/admin/ai/lineage/status', {
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    if (servesEntries(data)) lineageStatus.value = data
+  } catch {
+    // Lineage status not wired — hide the Lineage tab.
   }
 }
 
@@ -210,6 +231,9 @@ const tabs = computed(() => {
     list.push({ id: 'commitments', label: 'Commitments' })
     list.push({ id: 'owasp', label: 'OWASP' })
   }
+  if (lineageStatus.value) {
+    list.push({ id: 'lineage', label: 'Lineage' })
+  }
   return list
 })
 
@@ -310,7 +334,7 @@ onMounted(async () => {
     // Console info not available — use defaults
   }
   if (!adminDeclaredAbsent) {
-    await Promise.all([probeGovernance(), probeAgents()])
+    await Promise.all([probeGovernance(), probeAgents(), probeLineage()])
   }
   // harness block ⇒ atmosphere-ai (and the workspace endpoint class) is on
   // the classpath; agents probe OK ⇒ the AtmosphereAdmin bean is live. Both
@@ -410,6 +434,8 @@ onMounted(async () => {
                              :active="activeTab === 'commitments'" />
       <GovernanceOwasp v-if="ready" v-show="activeTab === 'owasp'"
                        :active="activeTab === 'owasp'" />
+      <Lineage v-if="ready && lineageStatus" v-show="activeTab === 'lineage'"
+               :active="activeTab === 'lineage'" :status="lineageStatus" />
     </main>
   </div>
 </template>
