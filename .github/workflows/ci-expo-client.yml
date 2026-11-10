@@ -54,3 +54,15 @@ jobs:
     - name: Type check
       working-directory: samples/spring-boot-ai-classroom/expo-client
       run: bunx tsc --noEmit
+
+    # bun installs the file:-linked atmosphere.js as a copy carrying its own
+    # devDependencies, React among them; a second React in the bundle breaks
+    # every hook at runtime ("Invalid hook call"). Bundle as Metro does for the
+    # device and assert a single react and react-native copy.
+    - name: Bundle and assert a single React
+      working-directory: samples/spring-boot-ai-classroom/expo-client
+      env:
+        CI: "1"
+      run: |
+        bunx expo export --platform ios --source-maps --output-dir "$RUNNER_TEMP/expo-export"
+        node scripts/check-single-react.mjs "$RUNNER_TEMP/expo-export"

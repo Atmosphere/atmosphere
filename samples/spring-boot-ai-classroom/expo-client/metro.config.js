@@ -31,6 +31,22 @@ config.resolver.blockList = [
   new RegExp(escapeRegExp(path.resolve(atmosphereRoot, 'node_modules/react-markdown/')) + '.*'),
 ];
 
+// React and React Native must be a single copy in the bundle, or hooks fail with
+// "Invalid hook call". bun installs a file: dependency as a copy carrying its own
+// devDependencies, so node_modules/atmosphere.js/node_modules/react exists (19.3.x
+// against the app's pinned 19.2.3) and the blockList above, which names the repo
+// path, does not cover it. Resolve both packages, and their subpaths, from the
+// app root wherever the importer sits, so no nested copy can be picked.
+const singletons = new Set(['react', 'react-native']);
+const appOrigin = path.join(__dirname, 'package.json');
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const packageName = moduleName.split('/')[0];
+  if (singletons.has(packageName)) {
+    return context.resolveRequest({ ...context, originModulePath: appOrigin }, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 // Enable package exports (subpath like "atmosphere.js/react-native")
 config.resolver.unstable_enablePackageExports = true;
 
