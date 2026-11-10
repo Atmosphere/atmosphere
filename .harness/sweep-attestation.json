@@ -1,22 +1,26 @@
 {
-  "sha": "00ac7fb403c28d4be52aed92dd129a2cd3a83838",
-  "version": "4.0.76-SNAPSHOT",
-  "date": "2026-10-21",
+  "sha": "d4992b9c73214f5b913c35d3ddea03b43e8a58b0",
+  "version": "4.0.77-SNAPSHOT",
+  "date": "2026-11-10",
   "verdict": "clean",
   "ledgers": [
-    "sample-sweep-2026-10-20-retest-4076r13-R13",
-    "sample-sweep-2026-10-20-retest-4076r13-S13",
-    "sample-sweep-2026-10-20-retest-4076r12-R",
-    "sample-sweep-2026-10-20-retest-4076r12-S12",
-    "sample-sweep-2026-10-20-retest-4076r11-B",
-    "sample-sweep-2026-10-20-retest-4076r11-C",
-    "sample-sweep-2026-10-20-retest-4076r11-P",
-    "sample-sweep-2026-10-20-retest-4076r11-R"
+    "sample-sweep-2026-11-10-laneA",
+    "sample-sweep-2026-11-10-laneB",
+    "sample-sweep-2026-11-10-headless",
+    "sample-sweep-2026-11-10-expo-cli",
+    "sample-sweep-2026-11-10-retest-R1",
+    "sample-sweep-2026-11-10-retest-R2",
+    "sample-sweep-2026-11-10-retest-expo",
+    "sample-sweep-2026-11-10-retest-R3"
   ],
   "skipped": [
-    "timeout bubble on Koog, Semantic Kernel, AgentScope, Spring AI Alibaba, Embabel: driven on built-in, LangChain4j and Spring AI only; the timeout path is runtime-agnostic",
-    "Expo client: last driven in round 11 lane P (after 48bbd14802, the last atmosphere.js/Expo change); not re-driven in rounds 12-13",
-    "CrewAI: sidecar not installed (known tool loop)",
-    "known log-level items deferred to 4.0.77 by the maintainer: provider call outlives a timed-out turn (late ERROR + stack on built-in and Spring AI), two WARN lines per timeout, provider timeout can win the race, ai-tools cost log on overlapping turns"
+    "re-test subset driven on 151ea13db9, not d4992b9c73: the delta (LineageCapturingSession entry timestamp, startup-team CeoCoordinator) is covered by LineageAttributionParityTest, WebSearchCardTest and the R3 startup-team re-drive on d4992b9c73",
+    "samples outside the blast-radius subset were driven on the first pass (6aa98650d6) only: durable-sessions, spring-ai-advisors, channels-chat, coding-agent, otel-chat, a2a-agent, mcp-server, passivation-agent, reattach-harness, team-rooms, ms-governance-chat, guarded-email-agent, quarkus-ai-chat",
+    "browser-agent: no COHERE_API_KEY (paid keys off-limits), graceful degradation verified only",
+    "channels-chat, dentist-agent: external messaging channels need tokens; web channel only",
+    "Expo offline banner: needs host network loss (forbidden); covered by atmosphere.js unit tests",
+    "Expo background/foreground: simulator keeps sockets open; real-device reconnect not covered",
+    "CLI: shipped 4.0.76 channels checked; SDKMAN public API still serves 4.0.38 as default (external, unresolved)",
+    "rag-chat VectorStore path: no embedding model in local Ollama; keyword knowledge-base path only"
   ]
 }
