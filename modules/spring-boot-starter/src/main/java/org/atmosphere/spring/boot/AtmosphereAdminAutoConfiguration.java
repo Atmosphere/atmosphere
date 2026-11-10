@@ -288,16 +288,19 @@ public class AtmosphereAdminAutoConfiguration {
             // (Correctness Invariant #6). Demos that want the console
             // Workspace tab without a token opt out explicitly with
             // atmosphere.admin.workspace-read-auth-required=false.
-            if (principal == null && isReadMethod(httpReq)
-                    && (isReadAuthRequired() || isSensitiveWorkspaceRead(httpReq)
-                            || isSensitiveContentRead(httpReq))) {
+            var gate = principal == null && isReadMethod(httpReq) ? deniedBy(httpReq) : null;
+            if (gate != null) {
                 var httpRes = (HttpServletResponse) response;
                 httpRes.setStatus(401);
                 httpRes.setContentType("application/json");
+                // Name the gate that refused this read: the hint used to name
+                // the general read gate even when it was off and a content or
+                // workspace gate had refused, which sent operators to a flag
+                // that changed nothing.
                 httpRes.getWriter().write(
                         "{\"error\":\"Admin read operations require authentication\","
-                        + "\"hint\":\"Send X-Atmosphere-Auth header or disable "
-                        + "atmosphere.admin.http-read-auth-required\"}");
+                        + "\"hint\":\"Send X-Atmosphere-Auth header or set "
+                        + gate + "=false\"}");
                 httpRes.getWriter().flush();
                 return;
             }
@@ -306,6 +309,23 @@ public class AtmosphereAdminAutoConfiguration {
                 return;
             }
             chain.doFilter(request, response);
+        }
+
+        /**
+         * The property of the read gate that refuses an anonymous read of
+         * {@code req}, or {@code null} when no gate refuses it.
+         */
+        private String deniedBy(HttpServletRequest req) {
+            if (isReadAuthRequired()) {
+                return "atmosphere.admin.http-read-auth-required";
+            }
+            if (isSensitiveWorkspaceRead(req)) {
+                return "atmosphere.admin.workspace-read-auth-required";
+            }
+            if (isSensitiveContentRead(req)) {
+                return "atmosphere.admin.content-read-auth-required";
+            }
+            return null;
         }
 
         private boolean isReadAuthRequired() {

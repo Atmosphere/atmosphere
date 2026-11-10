@@ -28,6 +28,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.security.Principal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -313,6 +314,41 @@ class AdminApiAuthFilterReadGateTest {
                     "governance metadata must stay open by default: " + path);
             verify(chain, times(1)).doFilter(any(), any());
         }
+    }
+
+    @Test
+    void theRefusalHintNamesTheGateThatRefused() throws Exception {
+        // The hint named http-read-auth-required on every 401, so an operator
+        // refused by the content or workspace gate (with the general gate
+        // already off) was told to flip a flag that changed nothing.
+        var contentRes = new MockHttpServletResponse();
+        new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), new MockEnvironment())
+                .doFilter(new MockHttpServletRequest("GET", "/api/admin/ai/lineage"),
+                        contentRes, Mockito.mock(FilterChain.class));
+        assertEquals(401, contentRes.getStatus());
+        assertTrue(contentRes.getContentAsString()
+                        .contains("atmosphere.admin.content-read-auth-required=false"),
+                contentRes.getContentAsString());
+
+        var workspaceRes = new MockHttpServletResponse();
+        new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), new MockEnvironment())
+                .doFilter(new MockHttpServletRequest("GET", "/api/admin/agents/coding-agent/plan"),
+                        workspaceRes, Mockito.mock(FilterChain.class));
+        assertTrue(workspaceRes.getContentAsString()
+                        .contains("atmosphere.admin.workspace-read-auth-required=false"),
+                workspaceRes.getContentAsString());
+
+        var generalRes = new MockHttpServletResponse();
+        new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(),
+                new MockEnvironment().withProperty("atmosphere.admin.http-read-auth-required", "true"))
+                .doFilter(new MockHttpServletRequest("GET", "/api/admin/broadcasters"),
+                        generalRes, Mockito.mock(FilterChain.class));
+        assertTrue(generalRes.getContentAsString()
+                        .contains("atmosphere.admin.http-read-auth-required=false"),
+                generalRes.getContentAsString());
     }
 
     @Test
