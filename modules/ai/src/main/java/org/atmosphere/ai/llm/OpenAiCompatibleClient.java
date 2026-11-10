@@ -561,13 +561,21 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
         } catch (java.io.IOException e) {
+            // The tokens received before the stream ended were consumed:
+            // report them once, before the terminal call, and close this
+            // round's model-call scope.
+            if (capturedUsage[0] != null) {
+                session.usage(capturedUsage[0]);
+            }
             if (cancelled.get() || session.isTurnCancelled()) {
                 // Expected: the caller closed the InputStream to interrupt us.
-                // Re-throw so the outer catch in streamChatCompletion can
-                // distinguish cancel from a real failure and complete the
-                // session cleanly.
+                // The call ends as on the polled cancel break above. Re-throw
+                // so the outer catch in streamChatCompletion can distinguish
+                // cancel from a real failure and complete the session cleanly.
+                modelScope.complete(capturedUsage[0]);
                 throw e;
             }
+            modelScope.fail(e);
             logger.error("Error reading SSE stream", e);
             if (!session.isClosed()) {
                 session.error(e);
@@ -1174,9 +1182,10 @@ public class OpenAiCompatibleClient implements LlmClient {
         body.put("messages", serialized);
 
         body.put("stream", true);
-        // Ask for the token usage of the streamed call: OpenAI, Gemini's
-        // OpenAI-compatible endpoint and Ollama send no usage in a stream
-        // without it. All three accept the field (HTTP 200).
+        // Ask for the token usage of the streamed call: without it OpenAI,
+        // Gemini's OpenAI-compatible endpoint and Ollama send no usage in a
+        // stream. Endpoints known to accept the field: OpenAI, Gemini
+        // OpenAI-compat, Ollama and LiteLLM (the documented targets).
         body.put("stream_options", Map.of("include_usage", true));
         // Temperature: a framework-level GenerationParams override wins when
         // set; otherwise emit the per-request value exactly as before so the
