@@ -61,8 +61,9 @@ import org.slf4j.LoggerFactory;
                 + "Answer the user's question using only the retrieved context. If the context "
                 + "does not contain the answer, say so plainly.")
 @AgentScope(
-        purpose = "Answer questions about the Atmosphere Framework — its transports, "
-                + "AI module, agents, and getting started — using the documentation knowledge base.",
+        purpose = "Answer questions about the Atmosphere Framework, a Java software framework "
+                + "for real-time and AI applications — its transports, AI module, agents, and "
+                + "getting started — using the documentation knowledge base.",
         forbiddenTopics = {"medical", "legal", "financial advice"},
         tier = AgentScope.Tier.RULE_BASED)
 public class RagChatEndpoint {
