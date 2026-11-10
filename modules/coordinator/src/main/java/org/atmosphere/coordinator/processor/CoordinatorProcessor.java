@@ -425,6 +425,9 @@ public class CoordinatorProcessor implements Processor<Object> {
                 // identically on the A2A / AG-UI / channel paths
                 // (Correctness Invariant #7, Mode Parity).
                 pipeline.setToolInjectables(injectables);
+                // Its turns' lineage names the coordinator, as the web path's
+                // do through AgentHandler#setAgentName (Mode Parity #7).
+                pipeline.setLineageAgentId(coordinatorName);
             } else {
                 logger.warn("Coordinator '{}': no AgentRuntime on classpath — "
                         + "session.stream() will buffer text instead of invoking LLM",

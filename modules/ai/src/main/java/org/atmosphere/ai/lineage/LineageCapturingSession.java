@@ -55,6 +55,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * runtime, model, system-prompt version and tool set that produced them. Those
  * keys are reserved: metadata the runtime sends under those names is not
  * recorded, including a name the fingerprint leaves empty.</p>
+ *
+ * <p>Built with {@code observeEmittedToolEvents} {@code false}, the session
+ * does not read the tool events emitted through it: the session it decorates
+ * sees every event of the turn, including those emitted on it directly by
+ * application code, and hands them to {@link #observeToolEvent(AiEvent)}
+ * instead, so each one is recorded once.</p>
  */
 public final class LineageCapturingSession extends DelegatingStreamingSession {
 
@@ -74,6 +80,7 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
     private final Map<String, String> attributes = new LinkedHashMap<>();
     private final Map<String, String> fingerprintAttributes;
     private final boolean fingerprinted;
+    private final boolean observeEmittedToolEvents;
     private final AtomicBoolean recorded = new AtomicBoolean();
 
     private volatile TokenUsage capturedTokens;
@@ -93,7 +100,23 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
     public LineageCapturingSession(StreamingSession delegate, LineageRecorder recorder,
                                    String userId, String agentId, String conversationId,
                                    String userPrompt, AgentFingerprint fingerprint) {
+        this(delegate, recorder, userId, agentId, conversationId, userPrompt, fingerprint, true);
+    }
+
+    /**
+     * @param fingerprint              the configuration that serves the turn,
+     *                                 recorded under the entry's {@code ai.agent.*}
+     *                                 attributes; {@code null} records none
+     * @param observeEmittedToolEvents {@code false} when the decorated session
+     *                                 hands the turn's tool events to
+     *                                 {@link #observeToolEvent(AiEvent)} itself
+     */
+    public LineageCapturingSession(StreamingSession delegate, LineageRecorder recorder,
+                                   String userId, String agentId, String conversationId,
+                                   String userPrompt, AgentFingerprint fingerprint,
+                                   boolean observeEmittedToolEvents) {
         super(delegate);
+        this.observeEmittedToolEvents = observeEmittedToolEvents;
         this.fingerprinted = fingerprint != null;
         this.fingerprintAttributes = fingerprint == null ? Map.of() : fingerprint.asAttributes();
         this.recorder = recorder == null ? LineageRecorder.NOOP : recorder;
@@ -112,8 +135,26 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void emit(AiEvent event) {
-        observe(event);
+        if (observeEmittedToolEvents) {
+            observeToolEvent(event);
+        }
         super.emit(event);
+    }
+
+    /**
+     * Record a tool event of the turn: a {@code ToolStart} opens a call, a
+     * {@code ToolResult} or {@code ToolError} ends it. Other events are
+     * ignored, and so is anything after the entry was recorded.
+     *
+     * @param event an event of the turn
+     */
+    public void observeToolEvent(AiEvent event) {
+        if (event == null || recorded.get()) {
+            return;
+        }
+        synchronized (toolCalls) {
+            observe(event);
+        }
     }
 
     @Override
@@ -204,10 +245,14 @@ public final class LineageCapturingSession extends DelegatingStreamingSession {
             return;
         }
         try {
+            List<LineageEntry.ToolCall> calls;
+            synchronized (toolCalls) {
+                calls = List.copyOf(toolCalls);
+            }
             var entry = new LineageEntry(
                     requestId, userId, agentId, conversationId, sessionId(),
                     startedAt, userPrompt,
-                    List.copyOf(toolCalls),
+                    calls,
                     List.copyOf(ragSources),
                     Optional.ofNullable(capturedTokens),
                     Optional.ofNullable(capturedCost),

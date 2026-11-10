@@ -240,6 +240,30 @@ public class AiStreamingSession implements StreamingSession {
     /** Endpoint-scoped cap on tools injected per turn; 0 injects every tool. */
     private volatile int endpointMaxToolsPerRequest;
 
+    /** The agent a lineage entry names when the request carries no agent id. */
+    private volatile String lineageAgentId;
+
+    /**
+     * Most tool events kept for a turn's lineage entry before its model call
+     * composes the lineage layer; a {@code @Prompt} method emitting more than
+     * this before calling {@code stream()} has the rest left out of the entry.
+     */
+    static final int MAX_PENDING_LINEAGE_TOOL_EVENTS = 256;
+
+    /** Guards {@link #turnLineage} and {@link #pendingLineageToolEvents}. */
+    private final Object lineageLock = new Object();
+
+    /** The lineage layer of the turn's model call, once it is composed. */
+    private org.atmosphere.ai.lineage.LineageCapturingSession turnLineage;
+
+    /**
+     * Tool events the {@code @Prompt} method emitted before its model call
+     * composed the lineage layer (a coordinator's fleet calls); handed to that
+     * layer when it is composed. Kept only while a lineage recorder is installed.
+     */
+    private final List<AiEvent> pendingLineageToolEvents = new java.util.ArrayList<>();
+    private boolean pendingLineageOverflowLogged;
+
     /**
      * Endpoint-scoped over-fetch + rerank retrieval policy resolved from
      * {@code org.atmosphere.ai.rag.*} by the endpoint processor. The
@@ -1138,6 +1162,19 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Name the agent this endpoint serves on the lineage entries of its turns
+     * when the request carries no {@code ai.agentId} of its own, as
+     * {@link AiPipeline#setLineageAgentId(String)} does on the pipeline path
+     * (Mode Parity, Invariant #7). Only the lineage record reads it.
+     *
+     * @param agentId the {@code @Agent} / {@code @Coordinator} name; {@code null}
+     *                or blank names none
+     */
+    public void setLineageAgentId(String agentId) {
+        this.lineageAgentId = agentId == null || agentId.isBlank() ? null : agentId;
+    }
+
+    /**
      * Install the endpoint-scoped {@link org.atmosphere.ai.intent.IntentRouting}:
      * every admitted turn is routed to a deterministic handler, the LLM, or the
      * human route before dispatch — the same step {@link AiPipeline} runs. An
@@ -1780,7 +1817,7 @@ public class AiStreamingSession implements StreamingSession {
         // not enforce a budget at all.
         var composed = DispatchDecorators.compose(this, new DispatchDecorators.Spec(
                 memory, resource.uuid(), message,
-                userId, agentId, conversationId,
+                userId, agentId != null ? agentId : lineageAgentId, conversationId,
                 metrics, model, runtime != null ? runtime.name() : "unknown",
                 request.model() != null ? request.model() : model,
                 AiBudget.from(request.metadata()),
@@ -1790,6 +1827,7 @@ public class AiStreamingSession implements StreamingSession {
                 request,
                 ConfidenceRouting.from(request.metadata())));
         StreamingSession target = composed.target();
+        attachTurnLineage(composed.lineage());
         var structuredSchemaText = composed.structuredSchemaText();
         if (structuredSchemaText != null) {
             // appendStableText keeps a trailing grounded-facts block the
@@ -2458,7 +2496,55 @@ public class AiStreamingSession implements StreamingSession {
                 && (endCancelledCall() || afterOpenTurnEnded("terminal event"))) {
             return;
         }
+        observeLineageToolEvent(event);
         delegate.emit(event);
+    }
+
+    /**
+     * Hand a tool event to the turn's lineage layer. Every event of the turn
+     * reaches this session once: those the runtime emits through the composed
+     * chain, and those the {@code @Prompt} method emits on the session
+     * directly, before or after it calls {@code stream()}, which never cross
+     * the chain. One emitted before the chain exists is kept until it does.
+     */
+    private void observeLineageToolEvent(AiEvent event) {
+        if (!(event instanceof AiEvent.ToolStart || event instanceof AiEvent.ToolResult
+                || event instanceof AiEvent.ToolError)) {
+            return;
+        }
+        synchronized (lineageLock) {
+            if (turnLineage != null) {
+                turnLineage.observeToolEvent(event);
+                return;
+            }
+            if (org.atmosphere.ai.lineage.LineageRecorderHolder.get()
+                    == org.atmosphere.ai.lineage.LineageRecorder.NOOP) {
+                return;
+            }
+            if (pendingLineageToolEvents.size() < MAX_PENDING_LINEAGE_TOOL_EVENTS) {
+                pendingLineageToolEvents.add(event);
+            } else if (!pendingLineageOverflowLogged) {
+                pendingLineageOverflowLogged = true;
+                logger.warn("Session {} emitted more than {} tool events before its model call; "
+                        + "the rest are left out of its lineage entry",
+                        sessionId(), MAX_PENDING_LINEAGE_TOOL_EVENTS);
+            }
+        }
+    }
+
+    /** Make {@code lineage} the turn's lineage layer and replay the events kept for it. */
+    private void attachTurnLineage(org.atmosphere.ai.lineage.LineageCapturingSession lineage) {
+        if (lineage == null) {
+            return;
+        }
+        synchronized (lineageLock) {
+            turnLineage = lineage;
+            for (var pending : pendingLineageToolEvents) {
+                lineage.observeToolEvent(pending);
+            }
+            pendingLineageToolEvents.clear();
+            pendingLineageOverflowLogged = false;
+        }
     }
 
     @Override

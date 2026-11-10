@@ -143,6 +143,11 @@ public class AiPipeline {
      */
     private volatile int maxToolsPerRequest;
     /**
+     * The agent a lineage entry names when the request carries no agent id of
+     * its own: the {@code @Agent} / {@code @Coordinator} this pipeline serves.
+     */
+    private volatile String lineageAgentId;
+    /**
      * Metadata key emitted on both cache hit ({@code true}) and cache miss
      * ({@code false}) when the pipeline's cache gate fires. Mirrors the
      * naming convention of {@code ai.tokens.input}/{@code ai.tokens.output}
@@ -418,6 +423,20 @@ public class AiPipeline {
      */
     public void setMaxToolsPerRequest(int maxToolsPerRequest) {
         this.maxToolsPerRequest = Math.max(0, maxToolsPerRequest);
+    }
+
+    /**
+     * Name the agent this pipeline serves on the lineage entries of its turns,
+     * as the web path does for the same agent, so a turn is attributed to it
+     * whichever path dispatched it (Mode Parity, Invariant #7). Only the
+     * lineage record reads it: the request and the runtime's execution context
+     * keep the agent id the caller supplied.
+     *
+     * @param agentId the {@code @Agent} / {@code @Coordinator} name; {@code null}
+     *                or blank names none
+     */
+    public void setLineageAgentId(String agentId) {
+        this.lineageAgentId = agentId == null || agentId.isBlank() ? null : agentId;
     }
 
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
@@ -861,7 +880,9 @@ public class AiPipeline {
         // channel traffic never accrued cost or lineage audit rows.
         var composed = DispatchDecorators.compose(session, new DispatchDecorators.Spec(
                 memory, clientId, message,
-                null, null, clientId,
+                request.userId(),
+                request.agentId() != null ? request.agentId() : lineageAgentId,
+                clientId,
                 metrics, model, runtime != null ? runtime.name() : "unknown",
                 request.model() != null ? request.model() : model,
                 AiBudget.from(baseMetadata),

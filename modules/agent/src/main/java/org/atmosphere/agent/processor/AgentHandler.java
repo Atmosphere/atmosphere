@@ -291,11 +291,14 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Set the agent name for session tracking. Called by the processor
-     * after construction.
+     * Set the agent name for session tracking and for the lineage entries of
+     * the agent's turns. Called by the processor after construction.
      */
     public void setAgentName(String agentName) {
         this.agentName = agentName;
+        if (aiDelegate != null) {
+            aiDelegate.setLineageAgentId(agentName);
+        }
     }
 
     // visible for testing

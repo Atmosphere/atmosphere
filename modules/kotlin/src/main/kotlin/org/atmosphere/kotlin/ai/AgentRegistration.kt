@@ -121,6 +121,9 @@ fun AtmosphereFramework.registerAgent(spec: AgentSpec): KotlinAgent {
         metrics,
         null
     )
+    // The turns' lineage names the agent on both the web and pipeline paths (Mode Parity #7).
+    handler.setLineageAgentId(spec.name)
+    pipeline.setLineageAgentId(spec.name)
 
     logger.info(
         "Kotlin DSL agent '{}' registered at {} (runtime: {}, tools: {}, memory: {})",

@@ -469,8 +469,11 @@ public class AgentProcessor implements Processor<Object> {
             extended.addAll(policies);
             policies = List.copyOf(extended);
         }
-        return new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
+        var pipeline = new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
                 toolRegistry, List.of(), policies, List.of(), metrics, null);
+        // Its turns' lineage names this agent, as the web path's do (Mode Parity #7).
+        pipeline.setLineageAgentId(agentName);
+        return pipeline;
     }
 
     /**

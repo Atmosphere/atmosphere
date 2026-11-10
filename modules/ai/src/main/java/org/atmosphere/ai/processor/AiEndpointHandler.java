@@ -486,6 +486,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /** Endpoint-scoped per-turn tool cap from {@code @AiEndpoint.maxToolsPerRequest()}. */
     private volatile int maxToolsPerRequest;
 
+    /** The agent this endpoint serves, named on its turns' lineage entries. */
+    private volatile String lineageAgentId;
+
     /**
      * Endpoint-scoped RAG over-fetch + rerank policy resolved by the processor
      * from {@code org.atmosphere.ai.rag.*}; {@code null} keeps the legacy
@@ -547,6 +550,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     public void setMaxToolsPerRequest(int maxToolsPerRequest) {
         this.maxToolsPerRequest = Math.max(0, maxToolsPerRequest);
+    }
+
+    /**
+     * Name the {@code @Agent} / {@code @Coordinator} this endpoint serves on
+     * the lineage entries of its turns (see
+     * {@link AiStreamingSession#setLineageAgentId(String)}).
+     */
+    public void setLineageAgentId(String agentId) {
+        this.lineageAgentId = agentId;
     }
 
     public void setRagRetrieval(org.atmosphere.ai.RagRetrieval ragRetrieval) {
@@ -1642,6 +1654,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         if (maxToolsPerRequest > 0) {
             session.setMaxToolsPerRequest(maxToolsPerRequest);
+        }
+        if (lineageAgentId != null) {
+            session.setLineageAgentId(lineageAgentId);
         }
         if (ragRetrieval != null) {
             session.setRagRetrieval(ragRetrieval);

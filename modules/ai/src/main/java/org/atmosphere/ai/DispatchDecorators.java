@@ -90,8 +90,9 @@ final class DispatchDecorators {
      * @param memory            conversation memory, or {@code null}
      * @param memoryClientId    the client/resource id the memory capture keys on
      * @param message           the user message (memory + dev inspector)
-     * @param lineageUserId     lineage principal, or {@code null} (pipeline)
-     * @param lineageAgentId    lineage agent id, or {@code null} (pipeline)
+     * @param lineageUserId     lineage principal (the request's user id), or {@code null}
+     * @param lineageAgentId    lineage agent id: the request's, else the served
+     *                          {@code @Agent} / {@code @Coordinator}'s name; or {@code null}
      * @param lineageConversationId lineage conversation key (clientId on the pipeline)
      * @param metrics           the metrics sink ({@link AiMetrics#NOOP} skips)
      * @param metricsModel      the model tag for the metrics layer
@@ -143,13 +144,18 @@ final class DispatchDecorators {
      * @param layers             the applied layer names, innermost first — built
      *                           from the actual wraps (runtime truth) and pinned
      *                           by the parity test
+     * @param lineage            the lineage layer, or {@code null} when none was
+     *                           applied; over an {@link AiStreamingSession} the
+     *                           caller MUST hand it the turn's tool events
+     *                           ({@link LineageCapturingSession#observeToolEvent})
      */
     record Composed(
             StreamingSession target,
             BudgetCapturingSession budgetSession,
             String structuredSchemaText,
             String confidenceCueText,
-            List<String> layers) {
+            List<String> layers,
+            LineageCapturingSession lineage) {
     }
 
     /**
@@ -179,11 +185,19 @@ final class DispatchDecorators {
             layers.add("memory");
         }
 
+        LineageCapturingSession lineage = null;
         var lineageRecorder = LineageRecorderHolder.get();
         if (lineageRecorder != LineageRecorder.NOOP) {
-            target = new LineageCapturingSession(target, lineageRecorder,
+            // An AiStreamingSession sees every event of its turn, those the
+            // @Prompt method emits on it directly (a coordinator's fleet calls,
+            // before and after stream() is called) as well as those emitted
+            // through this chain, so it feeds the lineage layer the tool events
+            // itself; observing them here too would record each twice.
+            lineage = new LineageCapturingSession(target, lineageRecorder,
                     spec.lineageUserId(), spec.lineageAgentId(),
-                    spec.lineageConversationId(), spec.message(), fingerprint(spec));
+                    spec.lineageConversationId(), spec.message(), fingerprint(spec),
+                    !(base instanceof AiStreamingSession));
+            target = lineage;
             layers.add("lineage");
         }
 
@@ -246,6 +260,6 @@ final class DispatchDecorators {
         }
 
         return new Composed(target, budgetSession, structuredSchemaText,
-                confidenceCueText, List.copyOf(layers));
+                confidenceCueText, List.copyOf(layers), lineage);
     }
 }
