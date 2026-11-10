@@ -91,4 +91,21 @@ public class AtmosphereResponseImplTest {
 
         assertEquals(Collections.emptyList(), response.getHeaders("header 3"));
     }
+
+    @Test
+    public void statusMessageFollowsTheStatusWhenNoneWasNamed() {
+        // A handler refusing with setStatus(403) used to keep the default
+        // reason phrase "OK", so the log line and a written status line read
+        // "403 OK".
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder().build();
+        assertEquals("OK", response.getStatusMessage());
+        response.setStatus(403);
+        assertEquals("Forbidden", response.getStatusMessage());
+        response.setStatus(599);
+        assertEquals("", response.getStatusMessage());
+
+        AtmosphereResponse named = new AtmosphereResponseImpl.Builder()
+                .status(500).statusMessage("Server Error").build();
+        assertEquals("Server Error", named.getStatusMessage());
+    }
 }

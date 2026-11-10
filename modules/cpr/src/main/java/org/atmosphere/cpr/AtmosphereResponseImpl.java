@@ -70,7 +70,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private List<Cookie> cookies;
     private final Map<String, String> headers;
     private int status = 200;
-    private String statusMessage = "OK";
+    // null until a caller names a reason phrase: getStatusMessage() then
+    // derives it from the status, so a 403 no longer reads "403 OK".
+    private String statusMessage;
     private String charSet = "UTF-8";
     private long contentLength = -1;
     private String contentType = "text/html";
@@ -130,7 +132,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     public final static class Builder implements AtmosphereResponse.Builder {
         private AsyncIOWriter asyncIOWriter;
         private int status = 200;
-        private String statusMessage = "OK";
+        private String statusMessage;
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
@@ -362,7 +364,48 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public String getStatusMessage() {
-        return statusMessage;
+        return statusMessage != null ? statusMessage : reasonPhrase(status);
+    }
+
+    /**
+     * The standard reason phrase for {@code status}, or an empty string for a
+     * status without one (HTTP/1.1 allows an empty reason phrase).
+     */
+    static String reasonPhrase(int status) {
+        return switch (status) {
+            case 100 -> "Continue";
+            case 101 -> "Switching Protocols";
+            case 200 -> "OK";
+            case 201 -> "Created";
+            case 202 -> "Accepted";
+            case 204 -> "No Content";
+            case 206 -> "Partial Content";
+            case 301 -> "Moved Permanently";
+            case 302 -> "Found";
+            case 303 -> "See Other";
+            case 304 -> "Not Modified";
+            case 307 -> "Temporary Redirect";
+            case 308 -> "Permanent Redirect";
+            case 400 -> "Bad Request";
+            case 401 -> "Unauthorized";
+            case 403 -> "Forbidden";
+            case 404 -> "Not Found";
+            case 405 -> "Method Not Allowed";
+            case 406 -> "Not Acceptable";
+            case 408 -> "Request Timeout";
+            case 409 -> "Conflict";
+            case 410 -> "Gone";
+            case 413 -> "Content Too Large";
+            case 415 -> "Unsupported Media Type";
+            case 422 -> "Unprocessable Content";
+            case 429 -> "Too Many Requests";
+            case 500 -> "Internal Server Error";
+            case 501 -> "Not Implemented";
+            case 502 -> "Bad Gateway";
+            case 503 -> "Service Unavailable";
+            case 504 -> "Gateway Timeout";
+            default -> "";
+        };
     }
 
     @Override
