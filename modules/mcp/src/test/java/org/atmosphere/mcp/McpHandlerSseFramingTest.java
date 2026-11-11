@@ -57,9 +57,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * An MCP client that sends {@code Accept: text/event-stream} alone selects
@@ -214,6 +220,49 @@ class McpHandlerSseFramingTest {
         var sent = frames.toString(StandardCharsets.UTF_8);
         var node = mapper.readTree(sent);
         assertEquals(6, node.get("id").intValue(), "unframed JSON-RPC on the socket: " + sent);
+    }
+
+    /**
+     * A WebSocket becomes the stream of the session its initialize created:
+     * a server-initiated request reaches the socket, and closing the socket
+     * fails the request instead of leaving its tool to wait out a timeout.
+     */
+    @Test
+    void aWebSocketCarriesItsSessionsServerRequestsAndClosingItFailsThem() throws Exception {
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("GET")
+                .pathInfo("/mcp")
+                .inputStream(new ByteArrayInputStream(new byte[0]))
+                .build();
+        request.header(HeaderConfig.X_ATMOSPHERE_TRANSPORT, "websocket");
+        var frames = new ByteArrayOutputStream();
+        var response = new AtmosphereResponseImpl.Builder()
+                .request(request)
+                .writeHeader(false)
+                .asyncIOWriter(new CapturingSocket(frames))
+                .build();
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("""
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",
+                 "capabilities":{"elicitation":{}},"clientInfo":{"name":"ws","version":"1"}}}"""));
+        var session = (McpSession) request.getAttribute(McpSession.ATTRIBUTE_KEY);
+        assertNotNull(session, "initialize created the session");
+        frames.reset();
+
+        var answer = handler.protocolHandler().elicit(session, "Go?", Map.of());
+        var sent = frames.toString(StandardCharsets.UTF_8);
+        assertEquals("elicitation/create", mapper.readTree(sent).path("method").asString(),
+                "the request is written on the socket, not queued: " + sent);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).isClosedByClient(true));
+        var failure = assertThrows(ExecutionException.class, () -> answer.get(1, TimeUnit.SECONDS));
+        assertInstanceOf(McpSession.McpSessionClosedException.class, failure.getCause());
+        assertTrue(session.isClosed(), "a session a WebSocket created ends with it");
     }
 
     private static final class CapturingSocket extends AsyncIOWriterAdapter {

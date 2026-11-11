@@ -120,6 +120,79 @@ public class McpWebSocketIntegrationTest {
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
+    /**
+     * A tool that elicits over a WebSocket session gets the client's answer.
+     * Only a Streamable HTTP GET used to attach a stream to a session, so the
+     * elicitation/create a tool issued for a WebSocket client stayed queued
+     * and the tool timed out waiting for an answer the client never saw.
+     */
+    @Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+    @Test
+    public void testWebSocketToolElicitsAndGetsTheAnswer() throws Exception {
+        var received = new CopyOnWriteArrayList<String>();
+        var openLatch = new CountDownLatch(1);
+        var responseLatch = new CountDownLatch(1);
+        var ws = httpClient.newWebSocketBuilder()
+                .buildAsync(buildWsUri("/mcp"), new JsonRpcListener(received, openLatch, responseLatch))
+                .join();
+        assertTrue(openLatch.await(5, TimeUnit.SECONDS), "WebSocket should connect");
+
+        ws.sendText("""
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+                  "protocolVersion":"2025-06-18",
+                  "capabilities":{"elicitation":{}},
+                  "clientInfo":{"name":"ws-elicit","version":"1.0.0"}
+                }}""", true).join();
+        assertTrue(responseLatch.await(5, TimeUnit.SECONDS), "initialize answered: " + received);
+        ws.sendText("""
+                {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}""", true).join();
+
+        ws.sendText("""
+                {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{
+                  "name":"confirm","arguments":{"question":"Go?"}
+                }}""", true).join();
+
+        var elicitation = awaitMessage(received, "elicitation/create", null, 8_000);
+        assertNotNull(elicitation, "the elicitation reaches the WebSocket client: " + received);
+        var request = MAPPER.readTree(elicitation);
+        assertEquals("Go?", request.path("params").path("message").asString());
+
+        ws.sendText(MAPPER.writeValueAsString(java.util.Map.of(
+                "jsonrpc", "2.0",
+                "id", MAPPER.treeToValue(request.get("id"), Object.class),
+                "result", java.util.Map.of("action", "accept",
+                        "content", java.util.Map.of("ok", true)))), true).join();
+
+        var toolResponse = awaitMessage(received, null, 2, 8_000);
+        assertNotNull(toolResponse, "the tool answers after the elicitation: " + received);
+        var result = MAPPER.readTree(toolResponse).path("result");
+        assertFalse(result.path("isError").asBoolean(), toolResponse);
+        assertEquals("action=accept ok=true",
+                result.path("content").get(0).path("text").asString(), toolResponse);
+
+        ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
+    }
+
+    /** The first message with {@code method}, or the response with {@code id}, within {@code millis}. */
+    private static String awaitMessage(java.util.List<String> received, String method, Integer id,
+                                       long millis) throws Exception {
+        var deadline = System.currentTimeMillis() + millis;
+        while (System.currentTimeMillis() < deadline) {
+            for (var msg : received) {
+                var node = MAPPER.readTree(msg);
+                if (method != null && method.equals(node.path("method").asString(null))) {
+                    return msg;
+                }
+                if (id != null && !node.has("method") && node.path("id").isNumber()
+                        && node.path("id").asInt() == id) {
+                    return msg;
+                }
+            }
+            Thread.sleep(50);
+        }
+        return null;
+    }
+
     @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
     @Test
     public void testWebSocketToolsList() throws Exception {

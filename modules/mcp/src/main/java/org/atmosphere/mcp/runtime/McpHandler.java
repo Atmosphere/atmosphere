@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -68,6 +69,14 @@ public final class McpHandler implements AtmosphereHandler {
 
     private final McpProtocolHandler protocolHandler;
     private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
+    /**
+     * The session each open WebSocket is the stream of, by resource uuid.
+     * Bounded by the open connections: an entry is removed when its socket
+     * closes.
+     */
+    private final Map<String, WebSocketStream> webSocketStreams = new ConcurrentHashMap<>();
+    /** Tool calls one WebSocket may have running at once; past this a call is refused. */
+    static final int MAX_WEBSOCKET_TOOL_CALLS = 16;
     private final long sessionTtlMs;
     private final int maxSessions;
     private final ScheduledExecutorService cleaner;
@@ -290,6 +299,10 @@ public final class McpHandler implements AtmosphereHandler {
             return;
         }
 
+        if (callToolOffTheSocketThread(resource, sb.toString())) {
+            return;
+        }
+
         var jsonResponse = protocolHandler.handleMessage(resource, sb.toString());
 
         // After handleMessage, check if a new session was created (initialize)
@@ -317,6 +330,7 @@ public final class McpHandler implements AtmosphereHandler {
         if (jsonResponse == null) {
             // Notification (no id) — respond with 202 Accepted
             response.setStatus(202);
+            attachWebSocketStream(resource, session);
             return;
         }
 
@@ -330,9 +344,19 @@ public final class McpHandler implements AtmosphereHandler {
             // Plain JSON
             response.setStatus(200);
             response.setContentType(APPLICATION_JSON);
-            response.getWriter().write(jsonResponse);
-            response.getWriter().flush();
+            McpSession.StreamSink writer = message -> {
+                response.getWriter().write(message);
+                response.getWriter().flush();
+            };
+            if (session != null && webSocketStreams.containsKey(resource.uuid())) {
+                // One socket carries this answer and the requests tool threads
+                // write on the session's stream: do not let them interleave.
+                session.writeSerialized(writer, jsonResponse);
+            } else {
+                writer.send(jsonResponse);
+            }
         }
+        attachWebSocketStream(resource, session);
     }
 
     /**
@@ -424,7 +448,10 @@ public final class McpHandler implements AtmosphereHandler {
         // was disconnected are replayed on it, and server-initiated requests
         // issued from now on are written to it as they are issued.
         if (session != null) {
-            McpSession.StreamSink sink = message -> SseEvents.write(response, SseEvents.message(message));
+            // A WebSocket upgrade that names its session carries frames, not SSE events.
+            McpSession.StreamSink sink = isWebSocket(resource)
+                    ? message -> SseEvents.deliver(resource, message)
+                    : message -> SseEvents.write(response, SseEvents.message(message));
             request.setAttribute(STREAM_SINK_ATTRIBUTE, sink);
             session.attachStream(sink);
             logger.debug("GET stream attached to MCP session {}", sessionId);
@@ -470,6 +497,7 @@ public final class McpHandler implements AtmosphereHandler {
             if (stream != null) {
                 stream.session().detachStream(stream.sink());
             }
+            detachWebSocketStream(resource);
             return;
         }
 
@@ -478,9 +506,8 @@ public final class McpHandler implements AtmosphereHandler {
         var message = event.getMessage();
         if (message instanceof String text) {
             // Incoming WebSocket message
-            var response = protocolHandler.handleMessage(resource, text);
-            if (response != null) {
-                SseEvents.deliver(resource, response);
+            if (!callToolOffTheSocketThread(resource, text)) {
+                respond(resource, protocolHandler.handleMessage(resource, text));
             }
         } else if (message instanceof List<?> list) {
             // Broadcast — write each message
@@ -502,6 +529,10 @@ public final class McpHandler implements AtmosphereHandler {
     private record SessionStream(McpSession session, McpSession.StreamSink sink) {
     }
 
+    /** A WebSocket that is its session's stream, with the tool calls it has running. */
+    private record WebSocketStream(McpSession session, McpSession.StreamSink sink, Semaphore toolCalls) {
+    }
+
     /** The session and sink a GET stream was attached with, or {@code null} for any other resource. */
     private static SessionStream sessionStream(AtmosphereResource resource) {
         var request = resource.getRequest();
@@ -517,10 +548,147 @@ public final class McpHandler implements AtmosphereHandler {
      * Called directly for WebSocket messages (bypasses onStateChange for request-response).
      */
     public void processMessage(AtmosphereResource resource, String message) throws IOException {
-        var response = protocolHandler.handleMessage(resource, message);
-        if (response != null) {
-            SseEvents.deliver(resource, response);
+        if (!callToolOffTheSocketThread(resource, message)) {
+            respond(resource, protocolHandler.handleMessage(resource, message));
         }
+    }
+
+    /**
+     * Run a {@code tools/call} that arrived on a WebSocket on its own virtual
+     * thread, and write its answer on the socket when it returns. The
+     * container hands a connection's frames to the handler one at a time, so
+     * a tool that waits for the client (an elicitation, a sampling request, a
+     * roots listing) on the frame's thread would also hold back the frame
+     * carrying the client's answer, and wait out its timeout. Streamable HTTP
+     * needs none of this: every POST has its own thread.
+     *
+     * <p>Only once the socket is its session's stream, and at most
+     * {@link #MAX_WEBSOCKET_TOOL_CALLS} at a time per socket; a call past that
+     * is refused with a JSON-RPC error (Invariant #3). Answers may therefore
+     * arrive out of request order, which JSON-RPC allows: each carries its
+     * request's id.</p>
+     *
+     * @return whether the message was taken; {@code false} leaves it to the caller
+     */
+    private boolean callToolOffTheSocketThread(AtmosphereResource resource, String message)
+            throws IOException {
+        var stream = isWebSocket(resource) ? webSocketStreams.get(resource.uuid()) : null;
+        if (stream == null) {
+            return false;
+        }
+        JsonNode node;
+        try {
+            node = MAPPER.readTree(message);
+        } catch (RuntimeException e) {
+            // Malformed: the protocol handler answers it with PARSE_ERROR.
+            return false;
+        }
+        if (!node.isObject() || !McpMethod.TOOLS_CALL.equals(node.path("method").asString(null))
+                || !node.hasNonNull("id")) {
+            return false;
+        }
+        var session = stream.session();
+        if (!stream.toolCalls().tryAcquire()) {
+            session.writeSerialized(stream.sink(), MAPPER.writeValueAsString(Map.of(
+                    "jsonrpc", "2.0",
+                    "id", MAPPER.treeToValue(node.get("id"), Object.class),
+                    "error", Map.of("code", -32000, "message",
+                            "Too many tool calls in flight on this connection (max "
+                                    + MAX_WEBSOCKET_TOOL_CALLS + ")"))));
+            return true;
+        }
+        try {
+            Thread.ofVirtual().name("mcp-ws-tool-" + session.sessionId()).start(() -> {
+                try {
+                    var answer = protocolHandler.handleMessage(resource, message);
+                    if (answer != null) {
+                        session.sendOrQueue(answer);
+                    }
+                } catch (RuntimeException e) {
+                    logger.warn("MCP tool call on WebSocket {} failed: {}", resource.uuid(), e.toString());
+                    logger.debug("MCP tool call failure", e);
+                } finally {
+                    stream.toolCalls().release();
+                }
+            });
+        } catch (RuntimeException e) {
+            stream.toolCalls().release();
+            throw e;
+        }
+        return true;
+    }
+
+    /**
+     * Write the answer to a message {@link #onStateChange} or
+     * {@link #processMessage} received on a WebSocket, under the session's
+     * stream lock once the socket is the session's stream, then attach it.
+     */
+    private void respond(AtmosphereResource resource, String response) throws IOException {
+        var session = resource.getRequest() != null
+                && resource.getRequest().getAttribute(McpSession.ATTRIBUTE_KEY) instanceof McpSession s
+                ? s : null;
+        if (response != null) {
+            McpSession.StreamSink writer = message -> SseEvents.deliver(resource, message);
+            if (session != null && webSocketStreams.containsKey(resource.uuid())) {
+                session.writeSerialized(writer, response);
+            } else {
+                writer.send(response);
+            }
+        }
+        attachWebSocketStream(resource, session);
+    }
+
+    /**
+     * Make a WebSocket the stream of the session it carries, once. Only a
+     * Streamable HTTP GET used to attach a stream, so a server-initiated
+     * request ({@code elicitation/create}, {@code sampling/createMessage},
+     * {@code roots/list}) issued for a WebSocket client stayed queued and its
+     * tool timed out. The connection is full duplex, so it carries the
+     * server's requests as well as its answers; messages queued for the
+     * session before this are written now, in order. Called after the answer
+     * to the message that created the session is written, so
+     * {@code initialize}'s answer comes first.
+     */
+    private void attachWebSocketStream(AtmosphereResource resource, McpSession session) {
+        if (session == null || session.isClosed() || !isWebSocket(resource)
+                || resource.getRequest().getAttribute(STREAM_SINK_ATTRIBUTE) != null) {
+            // A WebSocket upgrade that named its session is attached by handleGet.
+            return;
+        }
+        var attached = new boolean[1];
+        webSocketStreams.computeIfAbsent(resource.uuid(), uuid -> {
+            attached[0] = true;
+            return new WebSocketStream(session, message -> SseEvents.deliver(resource, message),
+                    new Semaphore(MAX_WEBSOCKET_TOOL_CALLS));
+        });
+        if (attached[0]) {
+            session.attachStream(webSocketStreams.get(resource.uuid()).sink());
+            logger.debug("WebSocket {} attached as the stream of MCP session {}",
+                    resource.uuid(), session.sessionId());
+        }
+    }
+
+    /**
+     * End the session a closing WebSocket created. No later connection can
+     * name it (a WebSocket client sends no {@code Mcp-Session-Id}), so it is
+     * removed and closed now: its pending server requests fail instead of
+     * waiting out each tool's timeout (Invariant #2), and it gives back its
+     * slot under {@code maxSessions} instead of holding it until expiry.
+     */
+    private void detachWebSocketStream(AtmosphereResource resource) {
+        var stream = webSocketStreams.remove(resource.uuid());
+        if (stream == null) {
+            return;
+        }
+        var session = stream.session();
+        sessions.remove(session.sessionId(), session);
+        var cancelled = session.close();
+        logger.debug("MCP session {} closed with its WebSocket {} ({} pending server request(s) cancelled)",
+                session.sessionId(), resource.uuid(), cancelled);
+    }
+
+    private static boolean isWebSocket(AtmosphereResource resource) {
+        return resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET;
     }
 
     /**
@@ -542,6 +710,7 @@ public final class McpHandler implements AtmosphereHandler {
                 session.close();
             }
         }
+        webSocketStreams.clear();
         logger.debug("McpHandler destroyed");
     }
 
