@@ -1,7 +1,7 @@
 {
-  "sha": "d4992b9c73214f5b913c35d3ddea03b43e8a58b0",
+  "sha": "512f14b59a02c4a4640235f2556bb92074cb5bb8",
   "version": "4.0.77-SNAPSHOT",
-  "date": "2026-11-10",
+  "date": "2026-11-11",
   "verdict": "clean",
   "ledgers": [
     "sample-sweep-2026-11-10-laneA",
@@ -11,10 +11,11 @@
     "sample-sweep-2026-11-10-retest-R1",
     "sample-sweep-2026-11-10-retest-R2",
     "sample-sweep-2026-11-10-retest-expo",
-    "sample-sweep-2026-11-10-retest-R3"
+    "sample-sweep-2026-11-10-retest-R3",
+    "sample-sweep-2026-11-11-retest-R4"
   ],
   "skipped": [
-    "re-test subset driven on 151ea13db9, not d4992b9c73: the delta (LineageCapturingSession entry timestamp, startup-team CeoCoordinator) is covered by LineageAttributionParityTest, WebSearchCardTest and the R3 startup-team re-drive on d4992b9c73",
+    "re-test subset driven on 151ea13db9; d4992b9c73's delta (lineage entry timestamp, startup-team CeoCoordinator) re-driven in R3; 512f14b59a's delta (modules/mcp WebSocket stream + off-thread tools/call) re-driven in R4 on spring-boot-mcp-server (WS + Streamable HTTP); @Agent/@Coordinator MCP endpoints on other samples not re-driven over MCP (same McpHandler, covered by McpWebSocketIntegrationTest and the MCP Conformance CI lane)",
     "samples outside the blast-radius subset were driven on the first pass (6aa98650d6) only: durable-sessions, spring-ai-advisors, channels-chat, coding-agent, otel-chat, a2a-agent, mcp-server, passivation-agent, reattach-harness, team-rooms, ms-governance-chat, guarded-email-agent, quarkus-ai-chat",
     "browser-agent: no COHERE_API_KEY (paid keys off-limits), graceful degradation verified only",
     "channels-chat, dentist-agent: external messaging channels need tokens; web channel only",
