@@ -26,6 +26,11 @@ on:
         required: true
         type: boolean
         default: false
+      publish_sdkman:
+        description: 'Publish the CLI to SDKMAN. Leave FALSE until cli/sdkman/publish.sh moves to the SDKMAN State API (state.sdkman.io): the old vendors.sdkman.io API answers 201/202 but no longer publishes anything.'
+        required: true
+        type: boolean
+        default: false
       skip_sweep_gate:
         description: 'Emergency only: publish although the sample sweep does not cover this commit. The GitHub release notes say so.'
         required: true
@@ -877,7 +882,10 @@ jobs:
   publish-sdkman:
     name: Publish CLI to SDKMAN
     needs: [github-release]
-    if: inputs.dry_run == false
+    # Off unless asked: the Consumer-Key vendor API this script calls was
+    # superseded by the State API, and it still answers success while
+    # state.sdkman.io keeps serving 4.0.38, so a green job here proved nothing.
+    if: inputs.dry_run == false && inputs.publish_sdkman
     runs-on: ubuntu-latest
     permissions:
       contents: read

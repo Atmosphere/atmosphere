@@ -36,7 +36,6 @@ reads it; a file nothing reads does not belong here.
 | `private-handle-allowlist.txt` | `validate-no-private-handle.sh` | pre-push; CI (`doc-gates.yml`) |
 | `facts.json` | `validate-facts-registry.sh`, `.claude/workflows/doc-drift-audit.js` | pre-push; CI (`doc-gates.yml`) |
 | `drift-log.md` | `validate-drift-log.sh` (structure only) | pre-push, when the log or its validator changes; CI (`doc-gates.yml`) |
-| `crewai-e2e-success.png` | cited by `CHANGELOG.md` only | nothing; removed at the next release cut together with that citation |
 | `skillcard-scan-report.json` | gitignored output of `scan-skillcards.sh`, not an input | — |
 
 "pre-push" means `scripts/pre-push-validate.sh`, which runs a gate only

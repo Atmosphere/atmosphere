@@ -1803,8 +1803,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `atmosphere new my-app --template ai-chat --runtime crewai`
   scaffolds with the dependency wired and the sidecar setup
   documented inline.
-- End-to-end validation captured at
-  `.harness/crewai-e2e-success.png`: chrome-devtools drove
+- End-to-end validation: chrome-devtools drove
   `/atmosphere/console/` against a real Ollama-backed crew; the
   browser rendered 25 tokens at 46.8 tok/s through the full chain
   `WebSocket → @AiEndpoint(runtime=crewai) → HttpSseSidecarClient →
