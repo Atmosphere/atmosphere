@@ -144,8 +144,16 @@ if [ "$PATCH" -gt 0 ]; then
   # scratch file cannot fail a release. Release history (CHANGELOG, MIGRATION)
   # and the agent workspaces (.harness/, .claude/) name past versions by design.
   # The boundary regex keeps 4.0.7 from matching 4.0.70 or 14.0.7.
+  # A minimum-version statement ("needs a server X.Y.Z or later") stays true
+  # after the release, so it is removed from a line before the line is judged:
+  # a line that also names the old version some other way is still reported.
+  MIN_RE="${PREV_VERSION//./\\.} (or|and) (later|newer)"
   STALE=$(git ls-files -z -- '*.md' ':!:*CHANGELOG*' ':!:*MIGRATION*' ':!:.harness/**' ':!:.claude/**' \
-            | xargs -0 grep -nE -- "$PREV_RE" 2>/dev/null || true)
+            | xargs -0 grep -nE -- "$PREV_RE" 2>/dev/null \
+            | while IFS= read -r hit; do
+                text="${hit#*:*:}"
+                printf '%s\n' "$text" | sed -E "s/${MIN_RE}//g" | grep -qE -- "$PREV_RE" && printf '%s\n' "$hit"
+              done || true)
   if [ -z "$STALE" ]; then
     pass "No references to previous version ${PREV_VERSION} in docs"
   else
