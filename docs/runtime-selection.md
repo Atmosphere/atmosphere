@@ -18,7 +18,7 @@ Walk these questions in order; stop at the first match.
 
 1. **Are you new to Atmosphere AI and just need it to work?**
    → **Built-in (`atmosphere-ai`)**. Zero extra deps, OpenAI-compatible
-   client out of the box, one of two runtimes (with Cohere)
+   client out of the box, and, with Anthropic and Cohere, one of the runtimes
    that emit `TOOL_CALL_DELTA` for token-streaming tool-call argument deltas. Use
    `--model` / `LLM_API_KEY` to point at OpenAI / Gemini / Ollama / any
    compatible endpoint.
@@ -115,7 +115,7 @@ ordered from "most-general / most-portable" at the top to
 | Semantic Kernel | Microsoft / .NET ecosystem parity on JVM | You don't need SK plugins/planners | Token-by-token; **buffered** on a turn with tools (SK 1.5 runs its tool loop only on the non-streaming call) | ✅ | ✅ |
 | AgentScope | Qwen-native ReAct, Alibaba Cloud AI Studio | You want anything other than Qwen | Token-by-token | ✅ | — |
 | Spring AI Alibaba | DashScope / `ReactAgent` graph on Spring Boot 3 | You're on Spring Boot 4 | **Buffered** (one chunk + complete) | ✅ | ✅ |
-| Anthropic | Native Anthropic Messages API without a third-party SDK | You need audio input | Token-by-token | ✅ | — |
+| Anthropic | Native Anthropic Messages API without a third-party SDK | You need audio input | Token-by-token | ✅ + `TOOL_CALL_DELTA` | — |
 | Cohere | Native Cohere v2 Chat API | You need audio input | Token-by-token | ✅ + `TOOL_CALL_DELTA` | — |
 | CrewAI | Python CrewAI orchestration from JVM apps | You cannot run the sidecar process | Token-by-token or full-result frame | ✅ + `AGENT_ORCHESTRATION` | — |
 

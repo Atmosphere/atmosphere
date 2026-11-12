@@ -8,7 +8,3 @@
 #
 # Dated point-in-time audits under docs/audits/ are skipped wholesale by the
 # validator (like the drift-log), so they do NOT need entries here.
-
-# docs/runtime-selection.md: the two runtimes shipping an OpenAI-compatible
-# client + TOOL_CALL_DELTA out of the box (Built-in + Cohere), not the global total.
-one of two runtimes (with Cohere)

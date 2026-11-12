@@ -3022,7 +3022,7 @@ TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATIO
 | `AgentScopeAgentRuntime`     | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | —   | yes | yes | —   | yes | yes | yes |
 | `SpringAiAlibabaAgentRuntime`| 100 | yes¹| yes | yes | yes | —   | yes | yes | yes | yes | yes | —   | yes | yes | —   | yes | yes | yes |
 | `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
-| `AnthropicAgentRuntime`      | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
+| `AnthropicAgentRuntime`      | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
 | `CohereAgentRuntime`         | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | yes | yes | yes | yes |
 | `CrewAiAgentRuntime`³        |  50 | yes | yes | yes | yes | yes | —   | yes | —   | —   | —   | —   | yes | yes | —   | —   | —   | —   |
 
@@ -3093,7 +3093,7 @@ declares it. The flags above are runtime truth, not roadmap intent.
 | Portable `@AiTool` execution with HITL approval | All twelve runtimes — every adapter ships a tool bridge that routes through `ToolExecutionHelper.executeWithApproval` (CrewAI via the loopback `ToolCallbackServer` against its Python sidecar) | — |
 | Token-by-token UI deltas | Built-in, Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel, AgentScope, Anthropic, Cohere, CrewAI | Spring AI Alibaba, whose `ReactAgent.call()` is buffered |
 | Embeddings through Atmosphere's `EmbeddingRuntime` SPI | Built-in, Spring AI, LangChain4j, Embabel, Semantic Kernel, Koog, Spring AI Alibaba | ADK, AgentScope (no embedding-runtime impl yet) |
-| Tool-call argument deltas before consolidated `ToolStart` | Built-in, Cohere | Framework adapters whose upstream APIs expose consolidated tool calls only |
+| Tool-call argument deltas before consolidated `ToolStart` | Built-in, Anthropic, Cohere | Framework adapters whose upstream APIs expose consolidated tool calls only |
 
 When a feature is missing, keep the adapter on the classpath only for the
 capabilities it declares and compose the missing piece through Atmosphere's
@@ -3268,14 +3268,17 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   autoconfigure classes (e.g. `RestClientAutoConfiguration`) that don't exist
   in Spring Boot 4 — the CLI overlay must be applied with `-Pspring-boot3`,
   same situation as Embabel.
-- **`TOOL_CALL_DELTA`** is declared by `BuiltInAgentRuntime` and
-  `CohereAgentRuntime`. Built-in's `OpenAiCompatibleClient` forwards every
+- **`TOOL_CALL_DELTA`** is declared by `BuiltInAgentRuntime`,
+  `AnthropicAgentRuntime` and `CohereAgentRuntime`. Built-in's
+  `OpenAiCompatibleClient` forwards every
   `delta.tool_calls[].function.arguments` fragment through
   `session.toolCallDelta(acc.id(), argChunk)` on both the chat-completions and
   responses-API streaming paths (see the chat-completions tool-loop path and
-  the responses-API stream handler in `OpenAiCompatibleClient.java`), and
-  Cohere's `CohereChatClient` emits the same frames via
-  `session.toolCallDelta(acc.id, chunk)` from `handleToolCallDelta`, so browser
+  the responses-API stream handler in `OpenAiCompatibleClient.java`),
+  Anthropic's `AnthropicMessagesClient` forwards each `input_json_delta`
+  fragment's `partial_json` via `session.toolCallDelta(acc.id(), chunk)` from
+  `handleContentBlockDelta`, and Cohere's `CohereChatClient` emits the same
+  frames via `session.toolCallDelta(acc.id, chunk)` from `handleToolCallDelta`, so browser
   UIs receive `ai.toolCall.delta.*` metadata frames before the consolidated
   `AiEvent.ToolStart` fires. The remaining tool-capable framework bridges
   (Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel) honor the

@@ -1,6 +1,6 @@
 # Atmosphere Quarkus Extension
 
-A Quarkus extension that integrates Atmosphere with Quarkus 3.21+. Provides build-time annotation scanning via Jandex, Arc CDI integration, and build-time registration of the classes Atmosphere loads by name so they survive ahead-of-time compilation -- see [Native Image](#native-image) for exactly what CI proves there, and what it does not.
+A Quarkus extension that integrates Atmosphere with Quarkus 3.39.5+, the version it is built and tested against. Provides build-time annotation scanning via Jandex, Arc CDI integration, and build-time registration of the classes Atmosphere loads by name so they survive ahead-of-time compilation -- see [Native Image](#native-image) for exactly what CI proves there, and what it does not.
 
 ## Maven Coordinates
 
@@ -345,4 +345,4 @@ See <https://atmosphere.github.io/docs/integrations/quarkus/> for complete docum
 ## Requirements
 
 - Java 21+
-- Quarkus 3.21+
+- Quarkus 3.39.5+ (the version the extension is built and tested against; earlier versions are not tested)
