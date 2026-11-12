@@ -6,7 +6,7 @@
 
 set -e
 
-VERSION="4.0.76"
+VERSION="4.0.77"
 INSTALL_DIR="${ATMOSPHERE_INSTALL_DIR:-/usr/local/bin}"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
 

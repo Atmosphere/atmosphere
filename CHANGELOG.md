@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.77] - 2026-11-12
+
+### Added
+
+- show recorded lineage in a Lineage tab when the in-memory recorder is installed
+- record lineage by default, without prompt or tool-result text, and serve it from the admin
+- pack the stdio bridge as a native-image .mcpb bundle for Claude Desktop
+- attribute turns to the agent configuration and name the agent in token exchange
+- verify doc-drift findings with a zero-context goldfish reviewer
+
+### Fixed
+
+- the preflight no longer reads a minimum-version statement as a stale version
+- carry server-initiated requests on a WebSocket and run its tool calls off the frame thread
+- give startup-team's routed synthesis its own tool card
+- stamp a lineage entry with its prompt's start, not after its replayed tool calls
+- keep each stream() call's tool calls on its own lineage entry
+- report streamed usage and close the model call when the SSE read ends early
+- attribute lineage to the served agent and its @Prompt tool calls
+- report streamed Chat Completions token usage once per round
+- Expo client resolves react from its own root, never a nested copy
+- declare rag-chat's software domain so questions naming Java stay in scope
+- name the read gate that refused an anonymous admin read in the 401 hint
+- derive the reason phrase from the status so a refused request no longer reads 403 OK
+- keep protobuf-java at compile scope so the gRPC fixtures boot from e2e-lib
+- find native-image.cmd on Windows and keep the conformance fixture on JDK 21
+- move minimatch to 11.0.5, vitest to 4.1.12 and the Expo client's markdown-it to 14.3.3
+- filter ListTasks on statusTimestampAfter
+- generate a context for a blank contextId, keep the message's on streaming sends
+- move OpenTelemetry to 1.67.0, Guava to 33.8.0-jre and snappy-java to 1.1.10.12
+- extend webhook target checks to IPv6 transition forms and special-use IPv4
+- keep a failure thrown after the session ended from reading as an empty generate result
+- relay server push, errors, auth and session end in the stdio bridge
+- write server-initiated requests to the session's open GET stream
+- drop the nonexistent no-beta allowlist path from both regexes
+
+### Changed
+
+- drop the CrewAI screenshot and gate the SDKMAN job until the State API move
+- attest the pre-4.0.77 sample sweep at 512f14b59a
+- attest the pre-4.0.77 sample sweep at d4992b9c73
+- build macOS, Linux and Windows .mcpb bundles and attach them to the GitHub release
+- drive an Atmosphere agent with the official A2A Java SDK 1.5.0 JSON-RPC client
+- pin Playwright jobs to ubuntu-24.04 since ubuntu-latest moved to 26.04
+- cover GET-stream drop and replay; drop now-passing conformance entries
+- prove the drift-log freeze bites and list doc-gates.yml as each gate's CI run
+- prove each doc gate fails on an injected violation and passes when clean
+- run the doc and consistency gates on every push to main and every PR
+- list each gate input with the validator that reads it and where it runs
+- remove the unwired URL checker and move two stale one-off docs to the vault
+- freeze the drift-log, reject later sections and drop its Stop hook
+- bump dompurify to 3.4.17 in the Console frontend
+- bump jetty, surefire, jsoup, postgresql, vite, vitest 5 and tsup 9
+
 ## [4.0.76] - 2026-10-22
 
 ### Added
