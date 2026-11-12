@@ -3238,12 +3238,12 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `SYSTEM_PROMPT` is threaded as a `Msg` with `MsgRole.SYSTEM` in the
   `assembleMessages` list, `CONVERSATION_MEMORY` is honored because the same
   list carries `context.history()`, and `TOKEN_USAGE` is captured from
-  `Msg.getChatUsage()` on the terminal `event.isLast()` event. `TOOL_CALLING` is
-  intentionally not declared in this first cut — bridging AgentScope's
-  `Toolkit` into Atmosphere's `ToolDefinition` surface is a follow-up; declaring
-  it without that bridge would violate Correctness Invariant #5. `VISION` /
-  `AUDIO` / `MULTI_MODAL` / `PROMPT_CACHING` similarly await translation
-  surfaces. `PER_REQUEST_RETRY` is honored via the inherited
+  `Msg.getChatUsage()` on the terminal `event.isLast()` event. `TOOL_CALLING`
+  and `TOOL_APPROVAL` ride `AgentScopeToolBridge`, which routes every `@AiTool`
+  call through `ToolExecutionHelper.executeWithApproval`, and `VISION` /
+  `AUDIO` / `MULTI_MODAL` map Atmosphere content parts to AgentScope
+  `ContentBlock`s. `PROMPT_CACHING` stays undeclared: AgentScope's `Model`
+  interface exposes no portable cache-key primitive as of 1.0.12. `PER_REQUEST_RETRY` is honored via the inherited
   `AbstractAgentRuntime.executeWithOuterRetry` wrapper. Cancellation rides
   `Disposable.dispose()` + `agent.interrupt()`.
 - **Spring AI Alibaba** is buffered (see footnote ¹ above). `SYSTEM_PROMPT` is
@@ -3278,7 +3278,7 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   Anthropic's `AnthropicMessagesClient` forwards each `input_json_delta`
   fragment's `partial_json` via `session.toolCallDelta(acc.id(), chunk)` from
   `handleContentBlockDelta`, and Cohere's `CohereChatClient` emits the same
-  frames via `session.toolCallDelta(acc.id, chunk)` from `handleToolCallDelta`, so browser
+  frames via `session.toolCallDelta(acc.id(), chunk)` from `handleToolCallDelta`, so browser
   UIs receive `ai.toolCall.delta.*` metadata frames before the consolidated
   `AiEvent.ToolStart` fires. The remaining tool-capable framework bridges
   (Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel) honor the

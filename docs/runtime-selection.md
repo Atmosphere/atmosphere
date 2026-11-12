@@ -86,7 +86,8 @@ Walk these questions in order; stop at the first match.
 
 10. **Do you need a native Anthropic Messages API client without a third-party SDK?**
     -> **Anthropic (`atmosphere-anthropic`)**. Direct HTTP+SSE client with
-    tool calling, structured output, token usage, and per-request retry.
+    tool calling, structured output, token usage, prompt caching, tool-call
+    argument deltas, and per-request retry.
 
 11. **Do you need a native Cohere v2 Chat client?**
     -> **Cohere (`atmosphere-cohere`)**. Direct `POST /v2/chat` client with

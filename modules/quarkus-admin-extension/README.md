@@ -54,7 +54,7 @@ A subset of the Spring Boot admin module's surface (37 endpoints here vs. 63 in 
 
 ## Requirements
 
-- Quarkus 3.21+
+- Quarkus 3.39.5+, the version it is built and tested against
 - `atmosphere-quarkus-extension` (transitive)
 - `atmosphere-admin` (transitive)
 - A Quarkus REST implementation (`quarkus-rest-jackson` recommended)

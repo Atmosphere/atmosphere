@@ -82,7 +82,7 @@ quarkus.atmosphere.packages=com.example
 ## Requirements
 
 - Java 21+
-- Quarkus 3.21+ (tested against 3.39.5)
+- Quarkus 3.39.5+, the version it is built and tested against
 - `quarkus-langchain4j` 1.9.x (Quarkiverse)
 - `atmosphere-quarkus-extension` (a separate dependency: it serves the Atmosphere
   mapping and produces the application's `AiEnvironment`)
