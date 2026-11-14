@@ -326,7 +326,7 @@ On Quarkus, the extension runs Atmosphere on the Undertow servlet by default; `q
 
 ## Commercial Support
 
-Production support tiers, compliance attestation, Microsoft Agent Governance Toolkit interop, plan-and-verify adoption, A2A v1.0.0 alignment, and legacy Atmosphere 2.x / 3.x long-term support are available from [Async-IO](https://async-io.live/#support). Book a 30-minute architecture call: [async-io.live/contact](https://async-io.live/contact/).
+Production support tiers, compliance attestation, Microsoft Agent Governance Toolkit interop, plan-and-verify adoption, A2A v1.0.0 alignment, and legacy Atmosphere 2.x / 3.x long-term support are available from [Async-IO](https://async-io.live/atmosphere/#support). Book a 30-minute architecture call: [async-io.live/contact](https://async-io.live/contact/).
 
 ## Companion Projects
 
