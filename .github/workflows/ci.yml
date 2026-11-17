@@ -1,4 +1,4 @@
-name: "CI: Core (JDK 21/26)"
+name: "CI: Core (JDK 21/27)"
 
 on:
   workflow_dispatch:
@@ -134,7 +134,9 @@ jobs:
         include:
           - java-version: 21
             distribution: temurin
-          - java-version: 26
+          # JDK 26 is out of support: the OpenJDK advisory of 2026-11-17 (which
+          # fixes CVE-2026-114938) covers 17, 21, 25 and 27, not 26.
+          - java-version: 27
             distribution: oracle
       fail-fast: false
 
@@ -148,7 +150,7 @@ jobs:
         distribution: ${{ matrix.distribution }}
         # Supply-chain hardening: GPG-verify the JDK archive (setup-java >= v5.5.0).
         # Only Temurin/Microsoft support signature verification, so gate on the
-        # matrix distribution — the Oracle JDK 26 leg must NOT set this.
+        # matrix distribution — the Oracle JDK 27 leg must NOT set this.
         verify-signature: ${{ matrix.distribution == 'temurin' }}
         cache: 'maven'
 
