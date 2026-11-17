@@ -255,6 +255,15 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         super.configure(settings);
     }
 
+    /**
+     * How long a streaming model call may send nothing before the turn is
+     * ended, read from this runtime's application
+     * ({@value org.atmosphere.ai.AiConfig#STREAM_IDLE_TIMEOUT_PROPERTY}).
+     */
+    java.time.Duration streamIdleTimeout() {
+        return environment().resolveStreamIdleTimeout();
+    }
+
     @Override
     protected void doExecute(StreamingChatModel streamingModel,
                             AgentExecutionContext context, StreamingSession session) {
@@ -443,18 +452,47 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 context.model() != null ? context.model() : name(),
                 messages.size(), toolSpecs.size());
 
-        var handler = new CancelAwareStreamingHandler(
-                new ToolAwareStreamingResponseHandler(
-                        session, streamingModel, messages, toolSpecs, toolMap,
-                        context.approvalStrategy(), context.listeners(), cancelled,
-                        context.approvalPolicy(),
-                        org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context), done),
-                cancelled, done, modelScope);
-        streamingModel.chat(chatRequestBuilder.build(), handler);
+        // LangChain4j's HTTP client bounds a call only until the response headers
+        // arrive: the watchdog ends a turn whose stream then goes silent, and
+        // aborts that stream (Correctness Invariant #2).
+        var watchdog = new StreamIdleWatchdog(streamIdleTimeout(), done);
+        var rounds = new ToolAwareStreamingResponseHandler(
+                session, streamingModel, messages, toolSpecs, toolMap,
+                context.approvalStrategy(), context.listeners(), cancelled,
+                context.approvalPolicy(),
+                org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context), done);
+        rounds.trackRoundsWith(watchdog::track);
+        var handler = new CancelAwareStreamingHandler(rounds, cancelled, done, modelScope);
+        watchdog.start(timeout -> {
+            // The timeout ends the turn only if nothing else did. The session is
+            // ended before the done future, as on the stream's own error path:
+            // a blocking execute() woken by the future reads the session's error.
+            if (done.isDone()) {
+                return;
+            }
+            cancelled.set(true);
+            if (!session.isClosed()) {
+                session.error(timeout);
+            }
+            handler.failModelCall(timeout);
+            done.completeExceptionally(timeout);
+        });
+        try {
+            streamingModel.chat(chatRequestBuilder.build(), watchdog.track(handler));
+        } catch (RuntimeException e) {
+            // Thrown on this thread (request validation): no stream to watch,
+            // and the turn is over, so the watchdog must end with it.
+            watchdog.stop();
+            done.completeExceptionally(e);
+            throw e;
+        }
 
         return new org.atmosphere.ai.ExecutionHandle() {
             @Override public void cancel() {
                 cancelled.set(true);
+                // Close the stream's connection: the cancelled flag alone left
+                // LangChain4j reading a stalled stream until the provider ended it.
+                watchdog.abortStream();
                 // Resolve the future as cancelled so doExecute()'s
                 // handle.whenDone().get() unblocks immediately. The LC4j
                 // handler's CancelAwareStreamingHandler drops remaining
@@ -563,6 +601,9 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         private final java.util.concurrent.atomic.AtomicBoolean cancelled;
         private final java.util.concurrent.CompletableFuture<Void> done;
         private final org.atmosphere.ai.ModelCallScope modelScope;
+        /** The scope fires one end or error event: the stream's terminal or the idle timeout, whichever is first. */
+        private final java.util.concurrent.atomic.AtomicBoolean modelCallEnded =
+                new java.util.concurrent.atomic.AtomicBoolean();
 
         CancelAwareStreamingHandler(
                 dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner,
@@ -602,7 +643,9 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                                 lcUsage.totalTokenCount() != null
                                         ? lcUsage.totalTokenCount().longValue() : null);
                     }
-                    modelScope.complete(atmoUsage);
+                    if (modelCallEnded.compareAndSet(false, true)) {
+                        modelScope.complete(atmoUsage);
+                    }
                 }
             } finally {
                 // A round that dispatched a follow-up tool round leaves the turn
@@ -611,6 +654,13 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                         && tools.followUpDispatched())) {
                     done.complete(null);
                 }
+            }
+        }
+
+        /** Reports the first round's model call as failed, unless it already ended. */
+        void failModelCall(Throwable error) {
+            if (modelCallEnded.compareAndSet(false, true)) {
+                modelScope.fail(error);
             }
         }
 
@@ -630,7 +680,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                     // so consumers (audit appenders, AiEventForwardingListener) see
                     // the failure even when downstream session.error() handling
                     // varies between transport-level and model-level errors.
-                    modelScope.fail(error);
+                    failModelCall(error);
                 } else {
                     logger.trace("Dropping post-cancel LC4j error", error);
                 }

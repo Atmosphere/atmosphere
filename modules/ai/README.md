@@ -772,11 +772,34 @@ Atmosphere sends an API key to:
   with its builder's `allowCleartextApiKey(true)`. The TypeSafe decision model applies the same
   loopback rule with no opt-in.
 
+### Stream idle timeout
+
+`atmosphere.ai.stream.idle-timeout` (env `LLM_STREAM_IDLE_TIMEOUT`, default `5m`; also
+`500ms`, `90s`, ISO-8601 `PT5M` or a bare number of seconds; `0` turns it off) is how long a
+streaming model call may send nothing before its turn ends with a `TimeoutException` and
+the stream is aborted. The clock runs only while a model call is in flight: a tool running or
+an approval pending between rounds is not idle time, and every event of the stream (text,
+thinking and tool-call deltas) counts as activity. The default leaves room for a reasoning
+model that sends nothing while it thinks. Each application reads its own value
+([Knob precedence](#knob-precedence)).
+
+Where it is honoured (Runtime Truth):
+
+- **LangChain4j** (`LangChain4jAgentRuntime`), its chat path, every tool round included.
+  LangChain4j's JDK HTTP client bounds a call only until the response headers arrive, so a
+  provider that stopped sending after its first chunks used to hold the turn, its connection
+  and a thread forever. The stream is aborted through LangChain4j's `StreamingHandle`, which
+  closes the connection. A provider that sends no event at all after the response headers
+  hands over no handle: the turn still ends, but that connection is left to the provider.
+- **Not** the LangChain4j `AiServices` path (`LangChain4jAiServices`), and no other runtime:
+  there the bound of a stalled stream is the HTTP client's own and, for an `@AiEndpoint`
+  turn, the idle sweep of streaming sessions (`atmosphere.ai.session-ttl-ms`, 30 minutes).
+
 ### Knob precedence
 
 The `atmosphere.ai.*` knobs `AiConfig` reads — `temperature`, `max-tokens`, `top-p`, `stop`,
 `embedding-model`, `prompt-cache-key`, `logprobs`, `native-structured-output`, `planning`,
-`filesystem`, `runtime`, `reattach.grace`, `allow-cleartext-api-key`; the authoritative list is `AiConfig.knobProperties()` — are resolved in this
+`filesystem`, `runtime`, `reattach.grace`, `stream.idle-timeout`, `allow-cleartext-api-key`; the authoritative list is `AiConfig.knobProperties()` — are resolved in this
 order, first non-blank value wins:
 
 1. the JVM system property (`-Datmosphere.ai.temperature=0.2`);

@@ -896,6 +896,15 @@ public final class AiEnvironment implements AutoCloseable {
         return AiConfig.reattachGrace(hostValues());
     }
 
+    /**
+     * @return how long a streaming model call may send nothing before its turn
+     *         is ended ({@value AiConfig#STREAM_IDLE_TIMEOUT_PROPERTY});
+     *         {@link Duration#ZERO} when the bound is off
+     */
+    public Duration resolveStreamIdleTimeout() {
+        return AiConfig.streamIdleTimeout(hostValues());
+    }
+
     // -- Settings --
 
     /**

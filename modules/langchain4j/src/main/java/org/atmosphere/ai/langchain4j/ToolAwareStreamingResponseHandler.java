@@ -89,6 +89,10 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     private final CompletableFuture<Void> turnDone;
     private volatile boolean followUpDispatched;
 
+    /** Wraps each follow-up round's handler before it is sent; identity when none was set. */
+    private java.util.function.UnaryOperator<StreamingChatResponseHandler> roundTracker =
+            java.util.function.UnaryOperator.identity();
+
     ToolAwareStreamingResponseHandler(
             StreamingSession session,
             StreamingChatModel model,
@@ -160,6 +164,16 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
      */
     boolean followUpDispatched() {
         return followUpDispatched;
+    }
+
+    /**
+     * Wraps the handler of every follow-up round this handler and its
+     * successors send, so a turn's stream idle bound covers all its rounds.
+     *
+     * @param tracker applied to a round's handler just before the round is sent
+     */
+    void trackRoundsWith(java.util.function.UnaryOperator<StreamingChatResponseHandler> tracker) {
+        this.roundTracker = tracker;
     }
 
     @Override
@@ -256,8 +270,9 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
                     session, model, updatedMessages, toolSpecifications, toolMap,
                     approvalStrategy, listeners, cancelled, toolRound + 1, approvalPolicy,
                     loopPolicy, turnDone);
+            nextHandler.trackRoundsWith(roundTracker);
             followUpDispatched = true;
-            model.chat(followUpRequest, nextHandler);
+            model.chat(followUpRequest, roundTracker.apply(nextHandler));
         } else {
             // No tool calls — deliver the final text response
             if (aiMessage.text() != null) {
@@ -271,7 +286,11 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     @Override
     public void onError(Throwable error) {
         try {
-            if (!session.isClosed()) {
+            // A cancelled turn aborts its stream, and LangChain4j then reports an
+            // error of its own: the turn was ended by the cancel, not by it.
+            if (cancelled.get()) {
+                logger.trace("Dropping the LangChain4j error of a cancelled tool round", error);
+            } else if (!session.isClosed()) {
                 session.error(error);
             }
         } finally {

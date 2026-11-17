@@ -266,6 +266,26 @@ public final class AiConfig {
     /** Default reattach grace. See {@link #REATTACH_GRACE_PROPERTY}. */
     public static final java.time.Duration DEFAULT_REATTACH_GRACE = java.time.Duration.ofSeconds(30);
 
+    /**
+     * Sysprop for how long a streaming model call may send nothing before the
+     * turn is ended with a {@link java.util.concurrent.TimeoutException} and the
+     * stream is aborted. It counts only while a model call is in flight: a tool
+     * running or an approval pending between rounds is not idle time. Env:
+     * {@link #STREAM_IDLE_TIMEOUT_ENV}. Accepts the spellings of
+     * {@link #REATTACH_GRACE_PROPERTY}; {@code 0} turns the bound off. Default
+     * {@link #DEFAULT_STREAM_IDLE_TIMEOUT}: long enough for a reasoning model
+     * that sends nothing while it thinks.
+     *
+     * <p>Honoured by the LangChain4j runtime's chat path, whose HTTP client
+     * bounds a call only until the response headers arrive; see the
+     * {@code atmosphere-ai} README for the runtimes that honour it.</p>
+     */
+    public static final String STREAM_IDLE_TIMEOUT_PROPERTY = "atmosphere.ai.stream.idle-timeout";
+    /** Env var for the stream idle timeout. See {@link #STREAM_IDLE_TIMEOUT_PROPERTY}. */
+    public static final String STREAM_IDLE_TIMEOUT_ENV = "LLM_STREAM_IDLE_TIMEOUT";
+    /** Default stream idle timeout. See {@link #STREAM_IDLE_TIMEOUT_PROPERTY}. */
+    public static final java.time.Duration DEFAULT_STREAM_IDLE_TIMEOUT = java.time.Duration.ofMinutes(5);
+
     // -- Well-known endpoints --
 
     public static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -906,6 +926,7 @@ public final class AiConfig {
             new Knob(STOP_PROPERTY, STOP_ENV),
             new Knob(RUNTIME_PROPERTY, RUNTIME_ENV),
             new Knob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV),
+            new Knob(STREAM_IDLE_TIMEOUT_PROPERTY, STREAM_IDLE_TIMEOUT_ENV),
             new Knob(org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY,
                     org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_ENV));
 
@@ -1307,6 +1328,20 @@ public final class AiConfig {
             logger.warn("Ignoring malformed reattach grace '{}' (expected e.g. 30s, 500ms, PT30S "
                     + "or a number of seconds); using {}", raw, DEFAULT_REATTACH_GRACE);
             return DEFAULT_REATTACH_GRACE;
+        }
+        return parsed;
+    }
+
+    static java.time.Duration streamIdleTimeout(java.util.Map<String, String> host) {
+        var raw = rawKnob(STREAM_IDLE_TIMEOUT_PROPERTY, STREAM_IDLE_TIMEOUT_ENV, host);
+        if (raw == null) {
+            return DEFAULT_STREAM_IDLE_TIMEOUT;
+        }
+        var parsed = parseDuration(raw);
+        if (parsed == null || parsed.isNegative()) {
+            logger.warn("Ignoring malformed stream idle timeout '{}' (expected e.g. 5m, 90s, PT5M "
+                    + "or a number of seconds); using {}", raw, DEFAULT_STREAM_IDLE_TIMEOUT);
+            return DEFAULT_STREAM_IDLE_TIMEOUT;
         }
         return parsed;
     }

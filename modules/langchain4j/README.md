@@ -111,6 +111,19 @@ endpoints are unaffected, and a keyless call (local mode with no key) goes to an
 rule is shared by every runtime: see
 [API keys over plain http](../ai/README.md#api-keys-over-plain-http).
 
+### A stream that goes silent
+
+LangChain4j's JDK HTTP client applies its `timeout` only until the response headers arrive:
+a provider that stops sending in the middle of a stream is never timed out by it. This
+runtime ends such a turn once its stream has sent nothing for
+`atmosphere.ai.stream.idle-timeout` (env `LLM_STREAM_IDLE_TIMEOUT`, default `5m`, `0` turns
+it off), with a `TimeoutException`, and aborts the stream, which closes its connection; a
+cancel closes it too. Both need the stream to have sent at least one event: a provider
+that sends nothing after the response headers hands over no handle to abort, and its
+connection is left to it. Tools and approvals between rounds do not count as idle time. The
+`AiServices` path (below) is not covered. See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).
+
 ## Key Classes
 
 | Class | Purpose |
