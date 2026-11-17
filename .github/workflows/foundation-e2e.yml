@@ -70,11 +70,26 @@ jobs:
             -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat,samples/spring-boot-ai-classroom,samples/spring-boot-channels-chat,samples/spring-boot-rag-chat,modules/checkpoint-temporal \
             -am -q
 
+      # Keyed on the lockfile: a Playwright bump changes it, and so the
+      # browser build the cache holds.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
       - name: Install Playwright deps
         working-directory: e2e
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          # On a cache hit only the system packages are installed; the browser
+          # build is already in ~/.cache/ms-playwright.
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Type-check Playwright specs
         working-directory: e2e

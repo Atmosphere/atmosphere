@@ -172,6 +172,18 @@ jobs:
       # metadata frames, which the console renders under the turn. The PREFER is
       # asserted on the decisions API for the spec's own conversation, and the console
       # panel must carry the advisor's release-bot text — absent when the loop is off.
+      # One browser install serves both Playwright projects only while both
+      # lockfiles resolve the same playwright-core: fail fast if one is bumped alone.
+      - name: Both Playwright projects resolve the same version
+        run: |
+          it=$(node -p "require('./modules/integration-tests/package-lock.json').packages['node_modules/playwright-core'].version")
+          e2e=$(node -p "require('./e2e/package-lock.json').packages['node_modules/playwright-core'].version")
+          if [ "$it" != "$e2e" ]; then
+            echo "::error::modules/integration-tests resolves playwright-core $it, e2e resolves $e2e: align both lockfiles, or install browsers for each project again"
+            exit 1
+          fi
+          echo "playwright-core $it in both projects"
+
       # A second, fresh conversation with an unrelated prompt must render no panel,
       # pinning that one conversation's guidance never reaches another.
       # Whether the model's answer names release-bot is only annotated, never asserted.
@@ -181,9 +193,8 @@ jobs:
         working-directory: e2e
         run: |
           npm ci
-          # e2e/ may pin a different @playwright/test than integration-tests, so
-          # install its own chromium build (cached; no-op if already present).
-          npx playwright install chromium
+          # Same Playwright version as modules/integration-tests (checked above):
+          # the chromium build installed for it serves these specs too.
 
       - name: Start spring-boot-ai-chat (Ollama)
         env:

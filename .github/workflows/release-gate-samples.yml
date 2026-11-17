@@ -113,10 +113,9 @@ jobs:
       uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
-        # BOTH lockfiles: modules/integration-tests and e2e resolve DIFFERENT
-        # Playwright versions (1.58.x vs 1.59.x) with different bundled browser
-        # builds — keying on only one silently serves a stale browser set to the
-        # other project's specs ("Executable doesn't exist at ...-<build>").
+        # BOTH lockfiles: modules/integration-tests and e2e must resolve the same
+        # Playwright version (checked below); keying on both invalidates the cache
+        # when either moves.
         key: playwright-${{ runner.os }}-${{ hashFiles('modules/integration-tests/package-lock.json', 'e2e/package-lock.json') }}
 
     - name: Install npm dependencies
@@ -124,14 +123,26 @@ jobs:
         (cd modules/integration-tests && npm ci)
         (cd e2e && npm ci)
 
+    # One browser install serves both Playwright projects only while both
+    # lockfiles resolve the same playwright-core: fail fast if one is bumped alone.
+    - name: Both Playwright projects resolve the same version
+      run: |
+        it=$(node -p "require('./modules/integration-tests/package-lock.json').packages['node_modules/playwright-core'].version")
+        e2e=$(node -p "require('./e2e/package-lock.json').packages['node_modules/playwright-core'].version")
+        if [ "$it" != "$e2e" ]; then
+          echo "::error::modules/integration-tests resolves playwright-core $it, e2e resolves $e2e: align both lockfiles, or install browsers for each project again"
+          exit 1
+        fi
+        echo "playwright-core $it in both projects"
+
     - name: Install Playwright browsers
       run: |
-        # Two Playwright projects live in this repo with DIFFERENT resolved
-        # versions: modules/integration-tests (~1.58) runs the pw:boot specs,
-        # e2e (~1.59) runs the fnd: foundation specs (run_fnd cd's into e2e/).
-        # Each version needs ITS OWN browser build, so install for BOTH dirs
-        # (shared ~/.cache/ms-playwright, idempotent). Install the headless shell
-        # explicitly — 1.59 uses chromium-headless-shell for headless runs.
+        # Two Playwright projects live in this repo: modules/integration-tests
+        # runs the pw:boot specs, e2e runs the fnd: foundation specs (run_fnd
+        # cd's into e2e/). Both resolve the same version (checked above), so one
+        # install serves both from the shared ~/.cache/ms-playwright. Install the
+        # headless shell explicitly — 1.59 uses chromium-headless-shell for
+        # headless runs.
         # Hardened like e2e.yml: bounded attempts, timeout turns a stalled
         # mirror into exit 124 so the retry advances.
         # A timed-out attempt kills npx but not the root apt-get it sudo'd,
@@ -152,7 +163,6 @@ jobs:
             sleep "${attempt}0"
           done
         }
-        install_browsers modules/integration-tests
         install_browsers e2e
 
     - name: Run release gate shard
