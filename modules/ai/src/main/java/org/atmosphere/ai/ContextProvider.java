@@ -34,14 +34,22 @@ import java.util.List;
  * Guardrails (pre) → Rate Limit → RAG (ContextProvider) → [LLM call] → ...
  * </pre>
  *
- * <p>Example:</p>
+ * <p>Example, over a Spring AI {@code VectorStore}. Spring AI searches with a
+ * {@code SearchRequest} (there is no {@code similaritySearch(String, int)}) and
+ * returns its own {@code Document} type, mapped here onto this interface's
+ * {@link Document}. {@code atmosphere-rag} ships this provider as
+ * {@code SpringAiVectorStoreContextProvider}:</p>
  * <pre>{@code
  * public class ProductDocsProvider implements ContextProvider {
  *     private final VectorStore store;
  *
  *     @Override
  *     public List<Document> retrieve(String query, int maxResults) {
- *         return store.similaritySearch(query, maxResults);
+ *         var request = SearchRequest.builder().query(query).topK(maxResults).build();
+ *         return store.similaritySearch(request).stream()
+ *                 .map(doc -> new Document(doc.getText(), doc.getId(),
+ *                         doc.getScore() != null ? doc.getScore() : 0.0))
+ *                 .toList();
  *     }
  * }
  * }</pre>
