@@ -1,2 +1,2 @@
-org.springframework.boot.env.EnvironmentPostProcessor=\
+org.springframework.boot.EnvironmentPostProcessor=\
   org.atmosphere.spring.boot.LlmReadingPostProcessorStandIn

@@ -714,6 +714,11 @@ on the runtime; within each list, the first non-blank value wins.
      `atmosphere.ai.mode` / `model` / `api-key` / `base-url` onto the matching `llm.*` when that is
      unset or blank. It runs after `application.yml` / `application.properties` are loaded and
      before the adapters' own post-processors, and writes only to the application's `Environment`.
+     The Spring Boot 4 starter registers it as Spring Boot 4's
+     `org.springframework.boot.EnvironmentPostProcessor`, the only post-processor type Spring Boot
+     4.2 loads. The Spring AI, Spring AI Alibaba and Embabel adapters register their own `llm.*`
+     mappings the same way, and on Spring Boot 3 run them from an `ApplicationListener` that does
+     nothing on Spring Boot 4.
      `OPENAI_API_KEY` / `GEMINI_API_KEY`, where an adapter reads them, come after it, as for the
      built-in runtime;
   4. the adapter's default: local mode selects the local Ollama endpoint, otherwise the model

@@ -17,9 +17,9 @@ package org.atmosphere.spring.boot;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
@@ -56,12 +56,14 @@ import java.util.Map;
  * {@code application.yml} is loaded, and before the adapters' own
  * {@link EnvironmentPostProcessor}s, which declare no order (lowest precedence)
  * and read {@code llm.*} when they run.</p>
+ *
+ * <p>Registered under the {@code org.springframework.boot.EnvironmentPostProcessor}
+ * key of {@code META-INF/spring.factories}, the only one Spring Boot 4.2 reads;
+ * Spring Boot 4.0 and 4.1 read it too. The {@code org.springframework.boot.env}
+ * type this class implemented before is gone from Spring Boot 4.2, so the Spring
+ * Boot 3 starter keeps its own copy of the class on that type. A second run on
+ * one environment changes nothing: the property source is added once.</p>
  */
-// EnvironmentPostProcessor (org.springframework.boot.env) is deprecated for
-// removal in Spring Boot 4.0. It is the type the adapters' post-processors
-// implement and the one both Spring Boot 3 and 4 load, which is what keeps
-// this class identical in the Spring Boot 3 starter.
-@SuppressWarnings({"deprecation", "removal"})
 public class AtmosphereAiLlmPropertyBridge implements EnvironmentPostProcessor, Ordered {
 
     /** The name of the property source holding the mapped {@code llm.*} values. */
@@ -80,6 +82,9 @@ public class AtmosphereAiLlmPropertyBridge implements EnvironmentPostProcessor, 
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+        if (environment.getPropertySources().contains(SOURCE_NAME)) {
+            return;
+        }
         var binder = Binder.get(environment);
         Map<String, Object> mapped = new LinkedHashMap<>();
         for (var setting : SETTINGS) {

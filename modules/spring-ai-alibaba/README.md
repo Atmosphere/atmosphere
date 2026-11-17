@@ -91,7 +91,7 @@ With an Atmosphere Spring Boot starter, `atmosphere.ai.mode` / `model` / `api-ke
 Spring AI's OpenAI auto-configuration (the 1.x line the Alibaba agent framework pins)
 builds the `ChatModel` from `spring.ai.openai.*`. `AtmosphereSpringAiAlibabaEnvironmentPostProcessor`
 maps the `llm.*` / `LLM_*` settings onto those properties, each only when you have
-not set the `spring.ai.openai.*` property yourself:
+not set the `spring.ai.openai.*` property yourself. Registered as Spring Boot 4's `org.springframework.boot.EnvironmentPostProcessor` (the only post-processor type Spring Boot 4.2 loads); on Spring Boot 3, `AtmosphereSpringAiAlibabaBoot3EnvironmentListener` runs the same mapping.
 
 | `spring.ai.openai.*` property | Mapped from (first non-blank wins) |
 |---|---|

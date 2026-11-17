@@ -147,6 +147,23 @@
                 <netty.version>4.1.137.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
+            <build>
+                <plugins>
+                    <!-- LlmEndpointDefaults implements Spring Boot 4's
+                         org.springframework.boot.EnvironmentPostProcessor, which
+                         Spring Boot 3 does not have; LlmEndpointDefaultsBoot3Listener
+                         applies the same defaults there. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>org/atmosphere/samples/springboot/aitools/LlmEndpointDefaults.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

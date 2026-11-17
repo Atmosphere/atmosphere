@@ -69,6 +69,7 @@ jobs:
           - spring-boot-passivation-agent
           - spring-boot-one-dep-agent
           - spring-boot-reattach-harness
+          - spring-boot-ai-tools
         spring-boot-version: [4]
         include:
           # Run Spring Boot samples with SB3 as well
@@ -80,6 +81,10 @@ jobs:
             spring-boot-version: 3
           # Its tests pin application.yml to keys the spring-boot3 starter binds
           - sample: spring-boot-reattach-harness
+            spring-boot-version: 3
+          # LlmEndpointDefaults is a Spring Boot 4 post-processor; on Spring Boot 3
+          # the sample leaves it out and LlmEndpointDefaultsBoot3Listener runs instead
+          - sample: spring-boot-ai-tools
             spring-boot-version: 3
         exclude:
           # Non-Spring-Boot samples don't need the SB version axis

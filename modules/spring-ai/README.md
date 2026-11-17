@@ -56,6 +56,7 @@ precedence (a `spring.ai.openai.*` value you set always wins): the key from `llm
 model named is not OpenAI's; the model from `llm.model` / `LLM_MODEL`. In local mode
 with no key, both send the placeholder key `not-needed-for-local`. Spring AI 2.0 hands
 the base URL to the OpenAI SDK verbatim, so it keeps its `/v1`.
+Registered as Spring Boot 4's `org.springframework.boot.EnvironmentPostProcessor` (the only post-processor type Spring Boot 4.2 loads); on Spring Boot 3, `AtmosphereSpringAiBoot3EnvironmentListener` runs the same mapping.
 
 Endpoint resolution is the built-in runtime's (`AiConfig.resolveBaseUrl`):
 

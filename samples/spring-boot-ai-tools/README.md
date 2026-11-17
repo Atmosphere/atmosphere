@@ -158,8 +158,9 @@ The sample's own code references no AI framework: `LlmConfig` only bridges the
 client from the same properties. That is what lets
 `atmosphere new my-app --template ai-tools --runtime spring-ai --force` strip
 the LangChain4j dependencies and still compile. When `llm.base-url` is blank,
-`LlmEndpointDefaults` (an `EnvironmentPostProcessor` registered in
-`META-INF/spring.factories`) fills it with the endpoint `AiConfig` derives from
+`LlmEndpointDefaults` (a Spring Boot 4 `EnvironmentPostProcessor` registered in
+`META-INF/spring.factories`; built with `-Pspring-boot3`, `LlmEndpointDefaultsBoot3Listener`
+does the same on Spring Boot 3) fills it with the endpoint `AiConfig` derives from
 `llm.mode` and `llm.model` — Ollama for `LLM_MODE=local`, OpenAI for a `gpt-*`
 model, Gemini otherwise — so a `GEMINI_API_KEY` reaches Gemini whichever adapter
 is present. An explicit `LLM_BASE_URL` always wins. `application.yml` gives

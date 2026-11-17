@@ -1,2 +1,4 @@
-org.springframework.boot.env.EnvironmentPostProcessor=\
+org.springframework.boot.EnvironmentPostProcessor=\
   org.atmosphere.samples.springboot.aitools.LlmEndpointDefaults
+org.springframework.context.ApplicationListener=\
+  org.atmosphere.samples.springboot.aitools.LlmEndpointDefaultsBoot3Listener

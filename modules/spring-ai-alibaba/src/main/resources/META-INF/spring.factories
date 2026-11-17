@@ -1,2 +1,4 @@
-org.springframework.boot.env.EnvironmentPostProcessor=\
+org.springframework.boot.EnvironmentPostProcessor=\
   org.atmosphere.ai.spring.alibaba.AtmosphereSpringAiAlibabaEnvironmentPostProcessor
+org.springframework.context.ApplicationListener=\
+  org.atmosphere.ai.spring.alibaba.AtmosphereSpringAiAlibabaBoot3EnvironmentListener

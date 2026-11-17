@@ -16,14 +16,10 @@
 package org.atmosphere.samples.springboot.aitools;
 
 import org.atmosphere.ai.AiConfig;
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.MapPropertySource;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Fills a blank {@code llm.mode} and {@code llm.model} with
@@ -56,57 +52,24 @@ import java.util.Map;
  * {@code atmosphere.ai.mode=local} derived the Gemini endpoint and a local run
  * was sent to Google. It still runs before the adapters' own post-processors,
  * which declare no order and read {@code llm.*}. It acts only when the
- * property is blank, so an explicit {@code LLM_BASE_URL} always wins.
- * Registered in {@code META-INF/spring.factories}.</p>
+ * property is blank, so an explicit {@code LLM_BASE_URL} always wins.</p>
+ *
+ * <p>Registered under the {@code org.springframework.boot.EnvironmentPostProcessor}
+ * key of {@code META-INF/spring.factories}, the only one Spring Boot 4.2 reads.
+ * Spring Boot 3 has neither that type nor that key: built with
+ * {@code -Pspring-boot3}, the sample leaves this class out and
+ * {@link LlmEndpointDefaultsBoot3Listener} applies the same defaults.</p>
  */
-// org.springframework.boot.env.EnvironmentPostProcessor is deprecated in Spring
-// Boot 4, which moved it to org.springframework.boot; the old type and its
-// spring.factories key are the ones both Boot 3 (this sample's spring-boot3
-// profile) and Boot 4 load, as the framework's own post-processors do.
-@SuppressWarnings({"deprecation", "removal"})
 public class LlmEndpointDefaults implements EnvironmentPostProcessor, Ordered {
-
-    static final String SOURCE_NAME = "ai-tools-llm-endpoint-defaults";
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        Map<String, Object> defaults = new LinkedHashMap<>();
-        var mode = valueOr(environment, "llm.mode", AiConfig.DEFAULT_MODE, defaults);
-        var model = valueOr(environment, "llm.model", AiConfig.DEFAULT_MODEL, defaults);
-        if (isBlank(environment.getProperty("llm.base-url"))) {
-            defaults.put("llm.base-url", AiConfig.resolveBaseUrl(mode, null, model));
-        }
-        if (!defaults.isEmpty()) {
-            // First, not last: application.yml declares these as empty strings,
-            // which would shadow a lower-precedence source. Only blank values
-            // are put here, so nothing a user set is overridden.
-            environment.getPropertySources().addFirst(new MapPropertySource(SOURCE_NAME, defaults));
-        }
+        LlmEndpointDefaultsSupport.apply(environment);
     }
 
-    private static String valueOr(ConfigurableEnvironment environment, String key, String fallback,
-                                  Map<String, Object> defaults) {
-        var value = environment.getProperty(key);
-        if (isBlank(value)) {
-            defaults.put(key, fallback);
-            return fallback;
-        }
-        return value.trim();
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
-
-    /**
-     * After {@code AtmosphereAiLlmPropertyBridge} ({@code LOWEST_PRECEDENCE - 10}),
-     * before a post-processor with no order ({@code LOWEST_PRECEDENCE}). A literal:
-     * the bridge's constant is package-private in {@code org.atmosphere.spring.boot}.
-     */
-    static final int ORDER = Ordered.LOWEST_PRECEDENCE - 5;
-
+    /** See {@link LlmEndpointDefaultsSupport#ORDER}. */
     @Override
     public int getOrder() {
-        return ORDER;
+        return LlmEndpointDefaultsSupport.ORDER;
     }
 }

@@ -67,7 +67,7 @@ class AtmosphereSpringAiAlibabaLocalModeTest {
 
         assertEquals("http://localhost:11434", env.getProperty("spring.ai.openai.base-url"),
                 "Spring AI 1.x appends /v1/chat/completions: the base URL must not carry /v1");
-        assertEquals(AtmosphereSpringAiAlibabaEnvironmentPostProcessor.LOCAL_PLACEHOLDER_API_KEY,
+        assertEquals(SpringAiAlibabaLlmBridge.LOCAL_PLACEHOLDER_API_KEY,
                 env.getProperty("spring.ai.openai.api-key"));
     }
 
@@ -137,11 +137,11 @@ class AtmosphereSpringAiAlibabaLocalModeTest {
     @Test
     void springAi1BaseUrlStripsOnlyOneTrailingV1() {
         assertEquals("http://localhost:11434",
-                AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl(" http://localhost:11434/ "));
+                SpringAiAlibabaLlmBridge.springAi1BaseUrl(" http://localhost:11434/ "));
         assertEquals("http://h/v1",
-                AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl("http://h/v1/v1"));
+                SpringAiAlibabaLlmBridge.springAi1BaseUrl("http://h/v1/v1"));
         assertEquals("http://h/api/v10",
-                AtmosphereSpringAiAlibabaEnvironmentPostProcessor.springAi1BaseUrl("http://h/api/v10"));
+                SpringAiAlibabaLlmBridge.springAi1BaseUrl("http://h/api/v10"));
     }
 
     /**
@@ -205,7 +205,7 @@ class AtmosphereSpringAiAlibabaLocalModeTest {
 
         new AtmosphereSpringAiAlibabaEnvironmentPostProcessor().postProcessEnvironment(env, null);
 
-        assertFalse(env.getPropertySources().contains(AtmosphereSpringAiAlibabaEnvironmentPostProcessor.SOURCE_NAME),
+        assertFalse(env.getPropertySources().contains(SpringAiAlibabaLlmBridge.SOURCE_NAME),
                 "remote mode with nothing configured must not invent an endpoint or a key");
     }
 

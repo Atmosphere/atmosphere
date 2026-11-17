@@ -49,6 +49,7 @@
         <module>rag</module>
         <module>spring-boot-starter</module>
         <module>spring-boot3-starter</module>
+        <module>spring-boot3-adapter-tests</module>
         <module>agent</module>
         <module>coordinator</module>
         <module>spring-boot-ai-starter</module>

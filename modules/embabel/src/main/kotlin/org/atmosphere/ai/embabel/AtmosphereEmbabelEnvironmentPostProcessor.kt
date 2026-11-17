@@ -15,13 +15,9 @@
  */
 package org.atmosphere.ai.embabel
 
-import org.atmosphere.ai.AiConfig
-import org.atmosphere.ai.llm.CleartextApiKeyPolicy
-import org.slf4j.LoggerFactory
+import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.env.EnvironmentPostProcessor
 import org.springframework.core.env.ConfigurableEnvironment
-import org.springframework.core.env.MapPropertySource
 
 /**
  * Bridges Atmosphere's `llm.*` property convention into the `embabel.*`
@@ -61,90 +57,24 @@ import org.springframework.core.env.MapPropertySource
  * goes over plain {@code http} only to a loopback host: with any other
  * {@code http} host the application fails to start (logged at {@code ERROR})
  * unless it sets {@code atmosphere.ai.allow-cleartext-api-key=true}
- * ([CleartextApiKeyPolicy]). The placeholder is no secret and goes anywhere.</p>
+ * (`CleartextApiKeyPolicy`). The placeholder is no secret and goes anywhere.</p>
+ *
+ * <p>Registered under the `org.springframework.boot.EnvironmentPostProcessor`
+ * key of `META-INF/spring.factories`, the only one Spring Boot 4.2 reads;
+ * Spring Boot 4.0 and 4.1 read it too. Spring Boot 3 has neither that type nor
+ * that key: there [AtmosphereEmbabelBoot3EnvironmentListener] runs the same
+ * mapping.</p>
  */
 class AtmosphereEmbabelEnvironmentPostProcessor : EnvironmentPostProcessor {
 
-    private val logger = LoggerFactory.getLogger(AtmosphereEmbabelEnvironmentPostProcessor::class.java)
-
     override fun postProcessEnvironment(env: ConfigurableEnvironment, app: SpringApplication) {
-        val mapped = mutableMapOf<String, Any>()
-
-        val apiKey = firstNonBlank(
-            env.getProperty("llm.api-key"),
-            env.getProperty("LLM_API_KEY"),
-            env.getProperty("GEMINI_API_KEY"),
-            env.getProperty("OPENAI_API_KEY")
-        )
-        // Embabel's *ModelsConfig classes throw at construction when
-        // api-key is null/blank, so set a placeholder when we're missing
-        // a real key. The application is expected to short-circuit to
-        // demo mode before the placeholder is sent over the wire.
-        val resolvedKey = apiKey ?: "demo-placeholder"
-        if (env.getProperty("embabel.agent.platform.models.gemini.api-key").isNullOrBlank()) {
-            mapped["embabel.agent.platform.models.gemini.api-key"] = resolvedKey
-        }
-        if (env.getProperty("embabel.agent.platform.models.openai.api-key").isNullOrBlank()) {
-            mapped["embabel.agent.platform.models.openai.api-key"] = resolvedKey
-        }
-
-        val model = firstNonBlank(
-            env.getProperty("llm.model"),
-            env.getProperty("LLM_MODEL")
-        )
-        if (model != null && env.getProperty("embabel.models.default-llm").isNullOrBlank()) {
-            mapped["embabel.models.default-llm"] = model
-        }
-
-        val local = "local".equals(
-            firstNonBlank(env.getProperty("llm.mode"), env.getProperty("LLM_MODE"))?.trim(),
-            ignoreCase = true
-        )
-        // An explicit base URL wins over the mode, as for every other runtime.
-        val endpoint = firstNonBlank(env.getProperty("llm.base-url"), env.getProperty("LLM_BASE_URL"))?.trim()
-            ?: if (local) AiConfig.OLLAMA_ENDPOINT else null
-        if (endpoint != null) {
-            if (env.getProperty("$CUSTOM_PREFIX.base-url").isNullOrBlank()) {
-                mapped["$CUSTOM_PREFIX.base-url"] = endpoint
-            }
-            // The custom starter refuses to build without a key; a local backend ignores it.
-            if (env.getProperty("$CUSTOM_PREFIX.api-key").isNullOrBlank()) {
-                mapped["$CUSTOM_PREFIX.api-key"] = resolvedKey
-            }
-            if (model != null && env.getProperty("$CUSTOM_PREFIX.models").isNullOrBlank()) {
-                mapped["$CUSTOM_PREFIX.models"] = model
-            }
-            if (mapped.containsKey("$CUSTOM_PREFIX.base-url") || mapped.containsKey("$CUSTOM_PREFIX.api-key")) {
-                // Atmosphere picks the endpoint or routes the key to it: a real
-                // key goes over plain http only to a loopback host, unless the
-                // application opts in. Thrown here, the application fails to
-                // start. The placeholder (no llm.api-key) is no secret.
-                val effectiveKey = firstNonBlank(env.getProperty("$CUSTOM_PREFIX.api-key"),
-                    if (mapped.containsKey("$CUSTOM_PREFIX.api-key")) apiKey else null)
-                val effectiveUrl = firstNonBlank(env.getProperty("$CUSTOM_PREFIX.base-url"), endpoint)
-                CleartextApiKeyPolicy.requireAllowed(logger, "Embabel (openai-custom)", effectiveUrl, effectiveKey,
-                    CleartextApiKeyPolicy.optedIn(env.getProperty(CleartextApiKeyPolicy.ALLOW_PROPERTY)))
-            }
-        }
-
-        if (mapped.isNotEmpty()) {
-            env.propertySources.addLast(MapPropertySource(SOURCE_NAME, mapped))
-            logger.info(
-                "Bridged llm.* → embabel.* defaults: keys={}, model={}, openai-custom endpoint={}",
-                if (apiKey != null) "real" else "placeholder",
-                model ?: "(embabel default)",
-                endpoint ?: "(none)"
-            )
-        }
+        EmbabelLlmBridge.apply(env)
     }
 
-    private fun firstNonBlank(vararg values: String?): String? =
-        values.firstOrNull { !it.isNullOrBlank() }
-
     companion object {
-        const val SOURCE_NAME = "atmosphere-embabel-llm-bridge"
+        const val SOURCE_NAME = EmbabelLlmBridge.SOURCE_NAME
 
         /** The properties of Embabel's `embabel-agent-starter-openai-custom` (1.5.0). */
-        const val CUSTOM_PREFIX = "embabel.agent.platform.models.openai.custom"
+        const val CUSTOM_PREFIX = EmbabelLlmBridge.CUSTOM_PREFIX
     }
 }

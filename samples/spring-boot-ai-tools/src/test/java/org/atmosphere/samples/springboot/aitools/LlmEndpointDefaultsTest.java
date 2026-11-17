@@ -15,17 +15,13 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
-import org.apache.commons.logging.LogFactory;
 import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.SpringApplication;
-import org.springframework.core.annotation.AnnotationAwareOrderComparator;
-import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
-import org.springframework.core.io.support.SpringFactoriesLoader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -34,12 +30,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The sample's sources must not depend on one AI framework ({@code atmosphere
@@ -51,8 +49,10 @@ class LlmEndpointDefaultsTest {
 
     private static StandardEnvironment environment(Map<String, Object> yml) {
         var env = new StandardEnvironment();
+        // An LLM_* variable exported by the shell running the build must not decide the outcome.
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
         env.getPropertySources().addLast(new MapPropertySource("application.yml", new HashMap<>(yml)));
-        new LlmEndpointDefaults().postProcessEnvironment(env, null);
+        LlmEndpointDefaultsSupport.apply(env);
         return env;
     }
 
@@ -100,60 +100,72 @@ class LlmEndpointDefaultsTest {
         var env = environment(Map.of("llm.mode", "remote", "llm.model", "gemini-2.5-flash",
                 "llm.base-url", "https://llm.example.test/v1"));
         assertEquals("https://llm.example.test/v1", env.getProperty("llm.base-url"));
-        assertNull(env.getPropertySources().get(LlmEndpointDefaults.SOURCE_NAME),
+        assertNull(env.getPropertySources().get(LlmEndpointDefaultsSupport.SOURCE_NAME),
                 "nothing is added when the user set the endpoint");
     }
 
     @Test
-    void theDefaultsAreRegisteredWithSpringBoot() throws IOException {
+    void theDefaultsAreRegisteredForEverySpringBootLine() throws IOException {
         // Each jar ships its own spring.factories; read them one by one, since a
-        // merged Properties view keeps only the last file's value for the key.
-        var registered = new ArrayList<String>();
+        // merged Properties view keeps only the last file's value for a key.
+        // Spring Boot 4 reads the first key, Spring Boot 3 only the second.
+        // Names, not class literals: LlmEndpointDefaults is not compiled on Spring Boot 3.
+        var postProcessors = new ArrayList<String>();
+        var listeners = new ArrayList<String>();
         var files = getClass().getClassLoader().getResources("META-INF/spring.factories");
         while (files.hasMoreElements()) {
             var factories = PropertiesLoaderUtils.loadProperties(new UrlResource(files.nextElement()));
-            // The key Spring Boot 3 and 4 both read (the type moved packages in Boot 4).
-            registered.add(factories.getProperty("org.springframework.boot.env.EnvironmentPostProcessor", ""));
+            postProcessors.add(factories.getProperty("org.springframework.boot.EnvironmentPostProcessor", ""));
+            listeners.add(factories.getProperty("org.springframework.context.ApplicationListener", ""));
         }
-        assertTrue(registered.stream().anyMatch(v -> v.contains(LlmEndpointDefaults.class.getName())),
-                "LlmEndpointDefaults is not registered in META-INF/spring.factories: " + registered);
+        assertTrue(postProcessors.stream().anyMatch(
+                        v -> v.contains("org.atmosphere.samples.springboot.aitools.LlmEndpointDefaults")),
+                "LlmEndpointDefaults is not registered for Spring Boot 4: " + postProcessors);
+        assertTrue(listeners.stream().anyMatch(v -> v.contains(LlmEndpointDefaultsBoot3Listener.class.getName())),
+                "LlmEndpointDefaultsBoot3Listener is not registered for Spring Boot 3: " + listeners);
     }
 
     @Test
-    void atmosphereAiSettingsReachTheEndpointBeforeItIsDerived() throws Exception {
-        // LLM_MODE= and LLM_MODEL= exported blank, atmosphere.ai.mode=local: the
-        // starter's AtmosphereAiLlmPropertyBridge maps atmosphere.ai.* onto the
-        // blank llm.*, and the endpoint must be derived from that, not from the
-        // blank llm.* (which resolves to Gemini: a local run sent to Google).
-        // The post-processors are loaded and ordered the way Spring Boot does,
-        // under the key both Boot 3 and Boot 4 read; the type is looked up by
-        // name, as it is deprecated in Boot 4.
-        var type = Class.forName("org.springframework.boot.env.EnvironmentPostProcessor");
-        var wanted = Set.of("org.atmosphere.spring.boot.AtmosphereAiLlmPropertyBridge",
-                LlmEndpointDefaults.class.getName());
-        var processors = new ArrayList<Object>(SpringFactoriesLoader
-                .forDefaultResourceLocation(getClass().getClassLoader())
-                .load(type, null, SpringFactoriesLoader.FailureHandler.logging(
-                        LogFactory.getLog(getClass())))
-                .stream()
-                .filter(p -> wanted.contains(p.getClass().getName()))
-                .toList());
-        assertEquals(wanted.size(), processors.size(), "registered: " + processors);
-        AnnotationAwareOrderComparator.sort(processors);
+    void theListenerAppliesTheDefaultsOnlyWithoutSpringBoot4sPostProcessorType() {
+        // The event is mocked: its bootstrap context type moved packages between
+        // Spring Boot 3 and 4, and this test compiles on both.
+        var withPostProcessorType = environment();
+        new LlmEndpointDefaultsBoot3Listener(true).onApplicationEvent(prepared(withPostProcessorType));
+        assertNull(withPostProcessorType.getPropertySources().get(LlmEndpointDefaultsSupport.SOURCE_NAME),
+                "with Spring Boot 4's post-processor type present the listener must do nothing");
 
+        var withoutPostProcessorType = environment();
+        new LlmEndpointDefaultsBoot3Listener(false).onApplicationEvent(prepared(withoutPostProcessorType));
+        assertEquals(AiConfig.DEFAULT_MODEL, withoutPostProcessorType.getProperty("llm.model"));
+    }
+
+    @Test
+    void aSecondRunLeavesTheFirstRunsPropertySourceAlone() {
+        // The post-processor and the listener could both run on one environment.
+        // The second run finds the first one's source by name and changes nothing,
+        // although llm.model and llm.base-url are still blank here.
+        var env = environment();
+        var first = new MapPropertySource(LlmEndpointDefaultsSupport.SOURCE_NAME,
+                new HashMap<>(Map.of("llm.mode", "local")));
+        env.getPropertySources().addFirst(first);
+        LlmEndpointDefaultsSupport.apply(env);
+        assertSame(first, env.getPropertySources().get(LlmEndpointDefaultsSupport.SOURCE_NAME));
+        assertEquals("local", env.getProperty("llm.mode"));
+        assertEquals("", env.getProperty("llm.base-url"), "nothing is added by the second run");
+    }
+
+    private static StandardEnvironment environment() {
         var env = new StandardEnvironment();
+        env.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
         env.getPropertySources().addLast(new MapPropertySource("application.yml", new HashMap<>(Map.of(
-                "llm.mode", "", "llm.model", "", "llm.base-url", "",
-                "atmosphere.ai.mode", "local", "atmosphere.ai.model", "qwen2.5:7b"))));
-        var postProcess = type.getMethod("postProcessEnvironment",
-                ConfigurableEnvironment.class, SpringApplication.class);
-        for (var processor : processors) {
-            postProcess.invoke(processor, env, null);
-        }
+                "llm.mode", "", "llm.model", "", "llm.base-url", ""))));
+        return env;
+    }
 
-        var baseUrl = env.getProperty("llm.base-url");
-        assertEquals(AiConfig.resolveBaseUrl("local", null, "qwen2.5:7b"), baseUrl);
-        assertTrue(baseUrl.contains("11434"), baseUrl);
+    private static ApplicationEnvironmentPreparedEvent prepared(StandardEnvironment env) {
+        var event = mock(ApplicationEnvironmentPreparedEvent.class);
+        when(event.getEnvironment()).thenReturn(env);
+        return event;
     }
 
     @Test

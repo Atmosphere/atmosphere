@@ -43,7 +43,7 @@ With an Atmosphere Spring Boot starter, `atmosphere.ai.mode` / `model` / `api-ke
 
 Embabel builds its LLM clients from its own Spring Boot starters, not Atmosphere.
 `AtmosphereEmbabelEnvironmentPostProcessor` maps the shared settings onto the
-`embabel.*` properties those starters read, each only when you have not set it yourself:
+`embabel.*` properties those starters read, each only when you have not set it yourself. Registered as Spring Boot 4's `org.springframework.boot.EnvironmentPostProcessor` (the only post-processor type Spring Boot 4.2 loads); on Spring Boot 3, `AtmosphereEmbabelBoot3EnvironmentListener` runs the same mapping.
 
 | `embabel.*` property | Mapped from (first non-blank wins) |
 |---|---|

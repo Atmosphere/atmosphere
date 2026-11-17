@@ -1,0 +1,75 @@
+name: "CI: Spring Boot next"
+
+# Builds and tests the modules that register a Spring Boot EnvironmentPostProcessor
+# against the next Spring Boot line, which the root pom does not pin yet.
+# Spring Boot 4.2 removed org.springframework.boot.env.EnvironmentPostProcessor and
+# no longer reads its spring.factories key: a post-processor still registered that
+# way compiles on 4.1 and silently never runs on 4.2. Each module's *BootTest boots
+# a real SpringApplication and asserts the post-processor's property source.
+# Move SPRING_BOOT_NEXT to 4.2.0 when it ships on Maven Central. The root pom pins
+# micrometer.version over Spring Boot's managed one, so the lane moves it to the
+# version the next line manages (Spring Boot 4.2's observation auto-configuration
+# calls Micrometer API that older lines lack).
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'modules/spring-boot-starter/**'
+      - 'modules/spring-ai/**'
+      - 'modules/spring-ai-alibaba/**'
+      - 'modules/embabel/**'
+      - 'modules/ai/**'
+      - 'samples/spring-boot-ai-tools/**'
+      - 'pom.xml'
+      - 'modules/pom.xml'
+      - '.mvn/**'
+      - '.github/workflows/spring-boot-next.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'modules/spring-boot-starter/**'
+      - 'modules/spring-ai/**'
+      - 'modules/spring-ai-alibaba/**'
+      - 'modules/embabel/**'
+      - 'modules/ai/**'
+      - 'samples/spring-boot-ai-tools/**'
+      - 'pom.xml'
+      - 'modules/pom.xml'
+      - '.mvn/**'
+      - '.github/workflows/spring-boot-next.yml'
+  workflow_dispatch:
+
+env:
+  SPRING_BOOT_NEXT: 4.2.0-RC2
+  MICROMETER_NEXT: 1.18.0-RC2
+
+jobs:
+  spring-boot-next:
+    name: Spring Boot 4.2 (post-processor modules)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v6
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
+        cache: 'maven'
+
+    # Upstream modules (cpr, ai, ...) are compiled against the next line but not
+    # tested here: ci.yml tests them. Only the post-processor modules run tests.
+    - name: Install upstream modules against Spring Boot ${{ env.SPRING_BOOT_NEXT }}
+      run: >-
+        ./mvnw -B install -DskipTests -Dgpg.skip=true
+        -Dspring-boot.version=${SPRING_BOOT_NEXT} -Dmicrometer.version=${MICROMETER_NEXT}
+        -pl modules/spring-boot-starter,modules/spring-ai,modules/spring-ai-alibaba,modules/embabel,samples/spring-boot-ai-tools
+        -am
+
+    - name: Test the post-processor modules against Spring Boot ${{ env.SPRING_BOOT_NEXT }}
+      run: >-
+        ./mvnw -B verify -Dgpg.skip=true -Dgroups='!flaky'
+        -Dspring-boot.version=${SPRING_BOOT_NEXT} -Dmicrometer.version=${MICROMETER_NEXT}
+        -pl modules/spring-boot-starter,modules/spring-ai,modules/spring-ai-alibaba,modules/embabel,samples/spring-boot-ai-tools

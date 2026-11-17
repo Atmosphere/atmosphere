@@ -80,7 +80,7 @@ jobs:
           -DskipCentralPublishing=true \
           -Dmaven.deploy.skip=false \
           -Pfastinstall \
-          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-otel-chat,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!modules/embabel,!modules/integration-tests' \
+          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-otel-chat,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!modules/embabel,!modules/integration-tests,!modules/spring-boot3-adapter-tests' \
           -DaltDeploymentRepository=github::https://maven.pkg.github.com/Atmosphere/atmosphere
       env:
         GITHUB_ACTOR: ${{ github.actor }}
@@ -94,7 +94,7 @@ jobs:
           -DskipCentralPublishing=true \
           -Dmaven.deploy.skip=false \
           -Pdeploy-snapshot \
-          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-otel-chat,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!modules/embabel,!modules/integration-tests'
+          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-otel-chat,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!modules/embabel,!modules/integration-tests,!modules/spring-boot3-adapter-tests'
       env:
         OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
         OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}

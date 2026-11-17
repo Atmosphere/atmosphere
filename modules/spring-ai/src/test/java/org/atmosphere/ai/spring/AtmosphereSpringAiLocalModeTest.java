@@ -276,7 +276,7 @@ class AtmosphereSpringAiLocalModeTest {
 
         new AtmosphereSpringAiEnvironmentPostProcessor().postProcessEnvironment(env, null);
 
-        assertFalse(env.getPropertySources().contains(AtmosphereSpringAiEnvironmentPostProcessor.SOURCE_NAME),
+        assertFalse(env.getPropertySources().contains(SpringAiLlmBridge.SOURCE_NAME),
                 "remote mode with nothing configured must not invent an endpoint or a key");
     }
 

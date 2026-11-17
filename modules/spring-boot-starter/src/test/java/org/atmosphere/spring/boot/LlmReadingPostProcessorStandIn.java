@@ -15,8 +15,8 @@
  */
 package org.atmosphere.spring.boot;
 
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
@@ -29,9 +29,6 @@ import java.util.Map;
  * {@code llm.*} when it runs. It records what it read under
  * {@value #SAW_PREFIX}{@code *}, and only in a test that sets {@value #ENABLED}.
  */
-// The adapters implement the org.springframework.boot.env type, deprecated for
-// removal in Spring Boot 4.0; the stand-in must be loaded the same way.
-@SuppressWarnings({"deprecation", "removal"})
 public class LlmReadingPostProcessorStandIn implements EnvironmentPostProcessor {
 
     static final String ENABLED = "test.llm-reading-stand-in.enabled";

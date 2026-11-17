@@ -15,17 +15,9 @@
  */
 package org.atmosphere.ai.spring;
 
-import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.MapPropertySource;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Bridges Atmosphere's {@code llm.*} property convention into the
@@ -67,111 +59,18 @@ import java.util.Map;
  * {@code http} only to a loopback host: with any other {@code http} host the
  * application fails to start (logged at {@code ERROR}) unless it sets
  * {@value org.atmosphere.ai.llm.CleartextApiKeyPolicy#ALLOW_PROPERTY}{@code =true}
- * ({@link CleartextApiKeyPolicy}).</p>
+ * ({@code CleartextApiKeyPolicy}).</p>
+ *
+ * <p>Registered under the {@code org.springframework.boot.EnvironmentPostProcessor}
+ * key of {@code META-INF/spring.factories}, the only one Spring Boot 4.2 reads;
+ * Spring Boot 4.0 and 4.1 read it too. Spring Boot 3 has neither that type nor
+ * that key: there {@link AtmosphereSpringAiBoot3EnvironmentListener} runs the
+ * same mapping.</p>
  */
-// EnvironmentPostProcessor is deprecated for removal in Spring Boot 4.0 but
-// is still the only documented hook for mutating the Environment before
-// auto-configurations are evaluated. The Kotlin Embabel sibling carries the
-// same dependency. Track Spring Boot's replacement (likely a new
-// AbstractEnvironmentDeducer / ConfigDataLoader extension point) and migrate
-// when one stabilises.
-@SuppressWarnings({"deprecation", "removal"})
 public class AtmosphereSpringAiEnvironmentPostProcessor implements EnvironmentPostProcessor {
-
-    static final String SOURCE_NAME = "atmosphere-spring-ai-llm-bridge";
-
-    private static final Logger logger =
-            LoggerFactory.getLogger(AtmosphereSpringAiEnvironmentPostProcessor.class);
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment env, SpringApplication app) {
-        Map<String, Object> mapped = new HashMap<>();
-        // Trimmed and case-insensitive, as AiConfig and the auto-configured clients read it.
-        var mode = firstNonBlank(env.getProperty("llm.mode"), env.getProperty("LLM_MODE"));
-        var local = mode != null && "local".equalsIgnoreCase(mode.trim());
-
-        var apiKey = firstNonBlank(
-                env.getProperty("llm.api-key"),
-                env.getProperty("LLM_API_KEY"),
-                env.getProperty("OPENAI_API_KEY"),
-                env.getProperty("GEMINI_API_KEY"));
-        if (apiKey == null && local) {
-            // A local backend ignores the credential; Spring AI's OpenAI
-            // auto-configurations refuse to build without one.
-            apiKey = AtmosphereSpringAiAutoConfiguration.LOCAL_PLACEHOLDER_API_KEY;
-        }
-        if (apiKey != null && isBlank(env.getProperty("spring.ai.openai.api-key"))) {
-            mapped.put("spring.ai.openai.api-key", apiKey);
-        }
-
-        var baseUrl = firstNonBlank(
-                env.getProperty("llm.base-url"),
-                env.getProperty("LLM_BASE_URL"));
-        if (baseUrl == null && local) {
-            // llm.mode=local means the local Ollama endpoint, as for the
-            // built-in runtime; without this Spring AI's own OpenAI beans (the
-            // EmbeddingModel Atmosphere binds included) call api.openai.com.
-            // Spring AI 2.0 hands the URL to the OpenAI SDK verbatim, /v1 included.
-            baseUrl = AiConfig.OLLAMA_ENDPOINT;
-        }
-        if (baseUrl == null && !local) {
-            // A blank base URL follows the model, as for the built-in runtime
-            // (AiConfig.resolveBaseUrl): Spring AI's own default is OpenAI, so
-            // a Gemini model and key went to api.openai.com. OpenAI keeps
-            // Spring AI's default; with no model named nothing is mapped.
-            var namedModel = firstNonBlank(
-                    env.getProperty("llm.model"),
-                    env.getProperty("LLM_MODEL"),
-                    env.getProperty("spring.ai.openai.chat.options.model"));
-            if (namedModel != null) {
-                var derived = AiConfig.resolveBaseUrl(null, null, namedModel);
-                if (!AiConfig.OPENAI_ENDPOINT.equals(derived)) {
-                    baseUrl = derived;
-                }
-            }
-        }
-        if (baseUrl != null && isBlank(env.getProperty("spring.ai.openai.base-url"))) {
-            mapped.put("spring.ai.openai.base-url", baseUrl);
-        }
-
-        var model = firstNonBlank(
-                env.getProperty("llm.model"),
-                env.getProperty("LLM_MODEL"));
-        if (model != null && isBlank(env.getProperty("spring.ai.openai.chat.options.model"))) {
-            mapped.put("spring.ai.openai.chat.options.model", model);
-        }
-
-        if (mapped.containsKey("spring.ai.openai.api-key") || mapped.containsKey("spring.ai.openai.base-url")) {
-            // Atmosphere routes the key or picks the endpoint: a real key goes
-            // over plain http only to a loopback host, unless the application
-            // opts in. Thrown here, the application fails to start.
-            // The chat client reads spring.ai.openai.chat.* over the shared keys.
-            var effectiveKey = firstNonBlank(env.getProperty("spring.ai.openai.chat.api-key"),
-                    env.getProperty("spring.ai.openai.api-key"),
-                    (String) mapped.get("spring.ai.openai.api-key"));
-            var effectiveUrl = firstNonBlank(env.getProperty("spring.ai.openai.chat.base-url"),
-                    env.getProperty("spring.ai.openai.base-url"),
-                    (String) mapped.get("spring.ai.openai.base-url"));
-            CleartextApiKeyPolicy.requireAllowed(logger, "Spring AI", effectiveUrl, effectiveKey,
-                    CleartextApiKeyPolicy.optedIn(env.getProperty(CleartextApiKeyPolicy.ALLOW_PROPERTY)));
-        }
-
-        if (!mapped.isEmpty()) {
-            env.getPropertySources().addLast(new MapPropertySource(SOURCE_NAME, mapped));
-            logger.info("Bridged llm.* → spring.ai.openai.* defaults ({} keys)", mapped.size());
-        }
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String v : values) {
-            if (v != null && !v.isBlank()) {
-                return v;
-            }
-        }
-        return null;
-    }
-
-    private static boolean isBlank(String s) {
-        return s == null || s.isBlank();
+        SpringAiLlmBridge.apply(env);
     }
 }
