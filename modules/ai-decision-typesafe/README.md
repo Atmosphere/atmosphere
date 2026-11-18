@@ -16,7 +16,7 @@ documentation. Here is the split:
 | Behaviour | Verified against | When |
 |-----------|------------------|------|
 | Request body for noul, choice and score (`state`, `model`, `questions.<id>.{type, instructions, criteria}`) | The request examples in `docs.typesafe.ai/api.md`, copied into `src/test/resources/fixtures/request-*.json` with one edit: `model` is the pinned `jev-1.13.0` (the adapter's default) where `api.md` sends the moving alias `jev-latest` | Docs fetched 2026-10-01 |
-| Answer shapes: noul (`noul`), choice (`choice`, `probabilities`, `confidence`), score (`score`, `legend`, `probabilities`, `confidence`), `usage` (the object is required; `api.md` does not mark `input_tokens` or `output_tokens` required, and the SDK response schema in `docs.typesafe.ai/llms-full.txt` types each as `integer` or `null`, default `null`) | The response examples in `api.md`, copied into `fixtures/response-*.json` | Docs fetched 2026-10-01 |
+| Answer shapes: noul (`noul`), choice (`choice`, `probabilities`, `confidence`), score (`score`, `legend`, `probabilities`, `confidence`), `usage` (`api.md` calls the object required, but the official Java SDK `typesafe-java-sdk` 0.4.0 models it as nullable and so does this adapter; `api.md` does not mark `input_tokens` or `output_tokens` required, and the SDK response schema in `docs.typesafe.ai/llms-full.txt` types each as `integer` or `null`, default `null`) | The response examples in `api.md`, copied into `fixtures/response-*.json` | Docs fetched 2026-10-01 |
 | `GET /v1/models` shape (`{"models":[{"name","description","release_date"}]}`) | The field list in `docs.typesafe.ai/models.md`, which also says the list "currently lists the aliases" and that versioned IDs such as `jev-1.13.0` are accepted "whether or not they appear in the list". `fixtures/models.json` is in that shape and lists the two aliases; its descriptions and dates are made up | Docs fetched 2026-10-01 |
 | **401** for an invalid key (on both `/v1/models` and `/v1/systemone`), with the body `{"detail":{"error_type":"authentication_error","message":...}}` and an `x-typesafe-request-id` header | **Live**: `TypesafeLiveTest#theRealApiRejectsAnInvalidKey` against `api.typesafe.ai` (`-Dtypesafe.live=true`), plus `curl` | 2026-10-01 |
 | **403** when no key is sent, same envelope | **Live**, with `curl` | 2026-10-01 |
@@ -169,8 +169,11 @@ quality.
 
 **Strict decoding.** These cases are `UNPARSEABLE`:
 - a field `api.md` marks required is missing or has the wrong JSON type. For the
-  whole reply that is `model` (a non-blank string), `answers` and the `usage`
-  object, and every question fails. For one answer it is `type` and that type's
+  whole reply that is `model` (a non-blank string) and `answers`, and every question
+  fails. A `usage` that is missing or `null` is not an error: the official Java SDK
+  (`org.springaicommunity:typesafe-java-sdk` 0.4.0) models it as nullable, so the
+  answers are kept and the result reports no usage; a `usage` that is present but not
+  an object fails every question. For one answer it is `type` and that type's
   fields: `noul`; `choice`, `probabilities`, `confidence`; `score`, `legend`,
   `probabilities`, `confidence`. Only that question fails;
 - a `usage.input_tokens` or `usage.output_tokens` that is present but not a

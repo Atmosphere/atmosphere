@@ -80,8 +80,8 @@ class TypesafeLiveTest {
             var noul = assertInstanceOf(Answer.Noul.class, result.answers().get("english"),
                     String.valueOf(result.answers().get("english")));
             assertTrue(noul.probabilityTrue().isPresent());
-            // The usage object is required, but its counts may be missing or null
-            // (api.md does not mark them required): then the result reports no usage.
+            // The usage object, or its counts, may be missing or null (the official SDK
+            // models both as nullable): then the result reports no usage.
             result.usage().ifPresent(usage -> {
                 assertTrue(usage.input() >= 0, "input tokens " + usage.input());
                 assertTrue(usage.output() >= 0, "output tokens " + usage.output());

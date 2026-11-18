@@ -167,8 +167,13 @@ final class TypesafeWire {
         }
         var modelId = model.stringValue();
         var usageNode = root.get("usage");
-        if (usageNode == null || !usageNode.isObject()) {
-            return failAll(request, Answer.Failed.Reason.UNPARSEABLE, "response has no 'usage' object");
+        if (usageNode == null || usageNode.isNull()) {
+            // No counts reported: the official SDK (typesafe-java-sdk 0.4.0) reads a
+            // missing or null usage the same way, so the answers are kept.
+            return new Reply(modelId, decodeAnswers(request, answers), Optional.empty());
+        }
+        if (!usageNode.isObject()) {
+            return failAll(request, Answer.Failed.Reason.UNPARSEABLE, "response 'usage' is not an object");
         }
         var input = tokenCount(usageNode, "input_tokens");
         var output = tokenCount(usageNode, "output_tokens");
@@ -191,12 +196,16 @@ final class TypesafeWire {
             // rather than a TokenUsage that claims zero tokens for the missing side.
             usage = Optional.empty();
         }
+        return new Reply(modelId, decodeAnswers(request, answers), usage);
+    }
+
+    private static Map<String, Answer> decodeAnswers(DecisionRequest request, JsonNode answers) {
         var decoded = new LinkedHashMap<String, Answer>();
         for (var entry : request.questions().entrySet()) {
             var id = entry.getKey();
             decoded.put(id, decodeAnswer(id, entry.getValue(), answers.get(id)));
         }
-        return new Reply(modelId, decoded, usage);
+        return decoded;
     }
 
     private static Reply failAll(DecisionRequest request, Answer.Failed.Reason reason, String detail) {

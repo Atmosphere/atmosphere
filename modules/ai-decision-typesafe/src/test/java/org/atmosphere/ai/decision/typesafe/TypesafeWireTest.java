@@ -145,7 +145,7 @@ class TypesafeWireTest {
     }
 
     @Test
-    void aReplyWithoutModelOrUsageFailsEveryQuestion() {
+    void aReplyWithoutModelOrWithAMalformedUsageFailsEveryQuestion() {
         var request = DecisionRequest.of("s", "q", NOUL);
         var answers = "\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.9}}";
         var usage = "\"usage\":{\"input_tokens\":3,\"output_tokens\":1}";
@@ -153,8 +153,6 @@ class TypesafeWireTest {
                 "{" + answers + "," + usage + "}",
                 "{\"model\":7," + answers + "," + usage + "}",
                 "{\"model\":\" \"," + answers + "," + usage + "}",
-                "{\"model\":\"jev-1.13.0\"," + answers + "}",
-                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":null}",
                 "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":[3,1]}",
                 "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":-3,\"output_tokens\":1}}",
                 "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":3,\"output_tokens\":1.5}}",
@@ -172,6 +170,23 @@ class TypesafeWireTest {
         assertInstanceOf(Answer.Noul.class, ok.answers().get("q"));
         assertEquals("jev-1.13.0", ok.model());
         assertEquals(4, ok.usage().orElseThrow().total());
+    }
+
+    @Test
+    void aReplyWithNoUsageKeepsTheAnswersAndReportsNoUsage() {
+        // The official SDK (typesafe-java-sdk 0.4.0, SystemOneResponse) models usage
+        // as nullable and reads a missing or null one as no counts reported.
+        var request = DecisionRequest.of("s", "q", NOUL);
+        var answers = "\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.9}}";
+        for (var body : List.of(
+                "{\"model\":\"jev-1.13.0\"," + answers + "}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":null}")) {
+            var reply = TypesafeWire.decodeReply(request, body.getBytes(StandardCharsets.UTF_8));
+            var noul = assertInstanceOf(Answer.Noul.class, reply.answers().get("q"), body);
+            assertTrue(noul.value());
+            assertEquals("jev-1.13.0", reply.model());
+            assertTrue(reply.usage().isEmpty(), "no usage reported: " + body);
+        }
     }
 
     @Test
