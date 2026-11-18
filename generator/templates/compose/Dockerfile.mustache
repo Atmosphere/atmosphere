@@ -6,4 +6,8 @@ COPY target/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# -XX:-UseBASE64Intrinsics: until the base image carries the JDK update of the
+# 2026-11-17 OpenJDK advisory (CVE-2026-114938, HotSpot compiler; JDK 17, 21, 25
+# and 27), turn off the intrinsic the researchers' write-up reports the bug in.
+# Accepted by every HotSpot JDK on x86-64 and ARM; drop it once patched.
+ENTRYPOINT ["java", "-XX:-UseBASE64Intrinsics", "-jar", "app.jar"]

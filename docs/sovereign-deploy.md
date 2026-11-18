@@ -148,6 +148,19 @@ while overriding another specifically.
       `CANCELLATION`. Confirm your endpoint honors connection close on
       mid-stream cancel; some self-hosted servers keep generating
       after the client disconnects.
+- [ ] **JDK patched for CVE-2026-114938** — the
+      [OpenJDK advisory of 2026-11-17](https://openjdk.org/groups/vulnerability/advisories/2026-11-17)
+      fixes a HotSpot compiler bug (CVSS 3.1 8.1, network-reachable, no
+      authentication) in JDK 17, 21, 25 and 27; JDK 26 gets no fix. Run the update
+      your vendor ships for it. Until then, start the JVM with
+      `-XX:-UseBASE64Intrinsics`: the researchers' write-up
+      ([Java4Shell](https://calif.io/java4shell/)) reports the bug in the
+      x86-64 Base64 decoder intrinsic, which that flag turns off. The advisory itself
+      names only the component (`hotspot/compiler`). The flag is accepted on x86-64
+      and ARM; the write-up's other suggestion, `-XX:UseAVX=2`, stops an ARM JVM from
+      starting. Atmosphere decodes untrusted Base64 on several paths (multi-modal
+      prompt input, the MCP stateless session token, A2A agent-card signatures), so
+      an unpatched x86-64 deployment is exposed.
 
 ## Related reading
 
