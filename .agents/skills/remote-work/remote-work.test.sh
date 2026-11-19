@@ -115,6 +115,15 @@ EOF
 guard "a local override tightens the threshold" "$repo" "cargo test" 2 "max 0.5" RW_LOAD=8
 rm -f "$repo/.claude/remote-work.local.json"
 
+echo "  off switches"
+guard "REMOTE_WORK=off allows a forced command" "$repo" "cargo clippy" 0 "" REMOTE_WORK=off
+guard "REMOTE_WORK=off allows a busy permitted command" "$repo" "cargo test" 0 "" REMOTE_WORK=off RW_LOAD=16
+guard "any other REMOTE_WORK value keeps the guard on" "$repo" "cargo clippy" 2 "runs in a cloud session" REMOTE_WORK=on
+printf '{"enabled": false}\n' >"$repo/.claude/remote-work.local.json"
+guard "enabled false in the local file allows a forced command" "$repo" "cargo clippy" 0 ""
+rm -f "$repo/.claude/remote-work.local.json"
+guard "removing the local file turns the guard back on" "$repo" "cargo clippy" 2 "runs in a cloud session"
+
 echo "  no policy, no enforcement"
 bare="$(mktemp -d "$ROOT/bare-XXXXXX")"; git -C "$bare" init -q
 guard "a repo with no policy is not enforced" "$bare" "cargo clippy" 0 ""

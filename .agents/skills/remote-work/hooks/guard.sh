@@ -12,6 +12,10 @@
 
 set -uo pipefail
 
+# The off switches: REMOTE_WORK=off in the environment (every repo, set in a shell profile or for
+# one session), or "enabled": false in the repo's git-ignored .claude/remote-work.local.json (one
+# repo, one developer). Off means the guard allows everything locally; prepare still works when asked.
+case "${REMOTE_WORK:-}" in off|0|false|no) exit 0 ;; esac
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && exit 0
 [ -n "${CLAUDE_CODE_REMOTE_SESSION_ID:-}" ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
@@ -26,6 +30,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 policy=$(rw_policy "$root") || exit 0
+[ "$(printf '%s' "$policy" | jq -r 'if .enabled == false then "off" else "on" end')" = "on" ] || exit 0
 
 bare=$(rw_bare "$cmd")
 printf '%s' "$bare" | grep -Eq '(^|[;&|(])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*REMOTE_WORK_LOCAL=1[[:space:]]' && exit 0
@@ -45,6 +50,7 @@ hint() {
   .claude/skills/remote-work/remote-work.sh prepare --cmd "<the command>"
   then RemoteTrigger create with the body it prints, and read the verdict with get_run_log.
   Policy: .claude/remote-work.json. Only when the project maintainer asked for a local run: REMOTE_WORK_LOCAL=1 <command>
+  Off for everything: REMOTE_WORK=off in the environment, or {"enabled": false} in .claude/remote-work.local.json
 EOF
 }
 

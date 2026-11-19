@@ -26,6 +26,7 @@ them byte-identical to their source (`SOURCE` names the commit they were copied 
   `pressure.swap_used_gb` (GB: macOS grows swap on demand, so a percentage is meaningless).
 - `.claude/remote-work.local.json` (git-ignored) overrides the policy for one developer.
 - `REMOTE_WORK_LOCAL=1 <command>` is the escape hatch, only when the project maintainer asked for a local run.
+- **Off switches** (the guard then allows everything locally; `prepare` still works when asked): `REMOTE_WORK=off` in the environment, for every repo (a shell profile, or `REMOTE_WORK=off claude` for one session), or `{"enabled": false}` in the git-ignored `.claude/remote-work.local.json`, for one repo and one developer. Delete the file or unset the variable to turn it back on.
 - The policy's `examples` are its tests: `.agents/skills/remote-work/remote-work.test.sh "$PWD"`
   classifies each one. Add an example with every pattern you change.
 - **Not covered:** builds a script runs for you. The pre-commit hook compiles the touched modules

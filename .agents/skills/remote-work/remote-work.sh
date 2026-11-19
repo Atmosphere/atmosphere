@@ -24,6 +24,7 @@
 #                    reactor in a subdirectory); the patch still applies at the root
 #   patch_command, sent_command   a repo script that defines the patch and keeps the sent
 #                    ledger (a gate that trusts a verdict needs both); absent, the built-in patch
+#   patch_exclude    globs of machine-local files the patch must not carry (a worktree's config)
 #   describe, fallback, clean_keep, model   prompt wording, the size fallback, kept dir, model
 #
 #   remote-work.sh prepare [--cmd "<command>" | --task "<instructions>"] [--commit "<message>"]
@@ -61,26 +62,45 @@ load_policy() {
 }
 cfg() { printf '%s' "$POLICY" | jq -r --arg k "$1" '.remote[$k] // empty'; }
 
-sources() {
+# The attached repositories, one JSON source object per line. A policy entry is "owner/repo", or
+# {"repo": "owner/repo", "sparse": ["path"]} to attach a large repo the build fetches by itself
+# (the attach is what lets the proxy authenticate it) without the sandbox cloning all of it.
+sources_json() {
     load_policy
     local owner
     owner=$(cfg cargo_git_owner)
     {
-        printf '%s' "$POLICY" | jq -r '.remote.sources // [] | .[]'
+        printf '%s' "$POLICY" | jq -c '.remote.sources // [] | .[]
+            | if type == "string" then {git_repository: {url: ("https://github.com/" + .)}}
+              else {git_repository: ({url: ("https://github.com/" + .repo)}
+                    + (if .sparse then {sparse_checkout_paths: .sparse} else {} end))} end'
         if [ -n "$owner" ] && [ -f Cargo.lock ]; then
-            rg -o "source = \"git\\+https://github\\.com/${owner}/([^/?#\".]+)" -r "${owner}/\$1" Cargo.lock || true
+            rg -o "source = \"git\\+https://github\\.com/${owner}/([^/?#\".]+)" -r "${owner}/\$1" Cargo.lock \
+                | jq -R -c '{git_repository: {url: ("https://github.com/" + .)}}' || true
         fi
     } | awk 'NF && !seen[$0]++'
 }
 
+sources() { sources_json | jq -r '.git_repository.url | sub("^https://github.com/"; "")'; }
+
 # The patch when the repo defines none: tracked changes against <base> plus every untracked file,
 # each git step checked (a silently short patch would apply cleanly and check the wrong tree).
 builtin_patch() {
-    local base="$1" f status list
-    git diff --binary "$base" || die "git diff against $base failed"
+    local base="$1" f status list pathspec=() x skip excludes=()
+    # remote.patch_exclude: machine-local files the patch must not carry (a worktree's own config),
+    # so a commit run cannot put them into the repository either.
+    while IFS= read -r x; do [ -n "$x" ] && excludes+=("$x"); done < <(printf '%s' "$POLICY" | jq -r '.remote.patch_exclude // [] | .[]')
+    for x in "${excludes[@]}"; do pathspec+=(":(exclude)$x"); done
+    git diff --binary "$base" -- . "${pathspec[@]}" || die "git diff against $base failed"
     list=$(mktemp)
     git ls-files --others --exclude-standard -z >"$list" || { rm -f "$list"; die "git ls-files failed"; }
     while IFS= read -r -d '' f; do
+        skip=""
+        for x in "${excludes[@]}"; do
+            # shellcheck disable=SC2254 # an exclude entry is a glob on purpose
+            case "$f" in $x) skip=1 ;; esac
+        done
+        [ -z "$skip" ] || continue
         status=0
         git diff --no-index --binary /dev/null "$f" || status=$?
         [ "$status" -le 1 ] || { rm -f "$list"; die "git diff --no-index failed on $f (exit $status)"; }
@@ -357,7 +377,7 @@ PROMPT
     local runat
     runat=$(date -u -v+150S +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '+150 seconds' +%Y-%m-%dT%H:%M:%SZ)
     out="${out:-$(git rev-parse --absolute-git-dir)/remote-work-body.json}"
-    sources | jq -R '{git_repository: {url: ("https://github.com/" + .)}}' | jq -s \
+    sources_json | jq -s \
         --arg name "remote-work $repo $(git rev-parse --abbrev-ref HEAD) $(date -u +%H%M%S)" \
         --arg runat "$runat" --arg env "$env_id" --arg model "$model" \
         --arg prompt "$prompt" --argjson tools "$tools" --arg uuid "$(uuidgen | tr 'A-Z' 'a-z')" '{
@@ -413,7 +433,7 @@ case "${1:-}" in
         exit 0
         ;;
     export) shift
-        # A repo outside dravr cannot read this skill's source, so it carries a copy: the scripts
+        # A repo that cannot read this skill's source carries a copy: the scripts
         # byte-identical, SKILL.md and the policy its own. SOURCE says which commit it copied.
         dest="${1:?usage: export <dir>}"
         [ -d "$dest" ] || die "no directory $dest"
