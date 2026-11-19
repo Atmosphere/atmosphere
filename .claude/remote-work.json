@@ -1,0 +1,177 @@
+{
+  "$comment": "Which work runs in a Claude Code on the web session instead of on this machine. Read by the remote-work skill (.agents/skills/remote-work, a copy of the shared remote-work skill: keep the scripts identical, change only this file). An entry names a command by 'match' (words at a command position) or 'pattern' (an extended regex matched anywhere), and 'unless' cancels it. Overrides for one developer go in .claude/remote-work.local.json (git-ignored), deep-merged over this file.",
+  "pressure": {
+    "$comment": "A permitted entry with remote_when_busy goes remote while either threshold is crossed: 1-minute load per core, or swap in use in GB (macOS grows swap on demand, so a percentage is meaningless).",
+    "load_per_core": 1.5,
+    "swap_used_gb": 12
+  },
+  "forced": [
+    {
+      "name": "a full-reactor ./mvnw build",
+      "pattern": "(^|[;&|(])[[:space:]]*(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|env|time|nice|timeout[[:space:]]+[0-9]+[smh]?)[[:space:]]+)*(\\./mvnw|mvn)([[:space:]]+[^[:space:];&|]+)*[[:space:]]+(install|verify|test|package)([[:space:];&|)]|$)",
+      "unless": "(^|[[:space:]])(-pl|--projects|-f|--file)([[:space:]=]|$)",
+      "why": "a full-reactor build of 37 modules is heavy; scope it with -pl to run it here"
+    }
+  ],
+  "permitted": [
+    {
+      "name": "a ./mvnw build",
+      "pattern": "(^|[;&|(])[[:space:]]*(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|env|time|nice|timeout[[:space:]]+[0-9]+[smh]?)[[:space:]]+)*(\\./mvnw|mvn)([[:space:]]+[^[:space:];&|]+)*[[:space:]]+(compile|install|verify|test|package)([[:space:];&|)]|$)",
+      "remote_when_busy": true
+    }
+  ],
+  "prohibited": [
+    {
+      "pattern": "(\\./mvnw|mvn)[^;&|]*[[:space:]](deploy|release:[a-z-]+|jreleaser:[a-z-]+|gpg:[a-z-]+)([[:space:]]|$)|(^|[[:space:];&|(])jreleaser([[:space:]]|$)",
+      "why": "outward-facing: publishes artifacts or a release"
+    },
+    {
+      "pattern": "(spring-boot:run|quarkus:dev|jetty:run|exec:java|exec:exec|wildfly:run)",
+      "why": "runs a server, which needs this machine's ports and a browser"
+    },
+    {
+      "pattern": "(^|[/[:space:]])e2e/|playwright|chrome-devtools",
+      "why": "e2e and browser runs need the local stack and a browser"
+    },
+    {
+      "pattern": "(^|[/[:space:]])\\.claude/skills/(release|release-sample-sweep)/",
+      "why": "the release and its sample sweep stay where the project maintainer runs them"
+    },
+    {
+      "match": "git push",
+      "why": "outward-facing: a remote runner never publishes"
+    },
+    {
+      "pattern": "(^|[[:space:];&|(])gh[[:space:]]+(release|workflow|pr|issue|api)",
+      "why": "outward-facing GitHub action"
+    },
+    {
+      "pattern": "carnet\\.sh",
+      "why": "outward-facing: writes the tracker"
+    },
+    {
+      "pattern": "\\.envrc|direnv|\\.env([[:space:]]|$)|settings\\.xml|GPG_|MAVEN_GPG|SONATYPE|_SECRET|_TOKEN=|gpg[[:space:]]",
+      "why": "touches secrets, which would travel into a cloud session"
+    }
+  ],
+  "unlisted": "local",
+  "remote": {
+    "$comment": "How a run is built (remote-work.sh prepare). The repo is public and Maven Central is reachable from the sandbox, so the repo alone is attached.",
+    "environment_id": "env_011CUqEHwx4ZdYwEJWC8g7pi",
+    "model": "claude-sonnet-5-5",
+    "describe": "the Atmosphere framework (Java 21, a 37-module Maven reactor, Kotlin in modules/koog and modules/embabel; javac runs with -Werror and Spotless checks every build)",
+    "sources": [
+      "Atmosphere/atmosphere"
+    ],
+    "bootstrap": [
+      "git config core.hooksPath .githooks",
+      "java -version 2>&1 | head -1 && ./mvnw -v | head -1"
+    ],
+    "default_command": "./mvnw -B -ntp install -DskipTests",
+    "default_label": "reactor",
+    "fallback": "push a branch and read CI",
+    "clean_keep": "target"
+  },
+  "examples": [
+    {
+      "cmd": "./mvnw install",
+      "class": "forced",
+      "sendable": true
+    },
+    {
+      "cmd": "./mvnw -B -ntp install -DskipTests",
+      "class": "forced",
+      "sendable": true
+    },
+    {
+      "cmd": "./mvnw verify",
+      "class": "forced"
+    },
+    {
+      "cmd": "./mvnw clean test",
+      "class": "forced"
+    },
+    {
+      "cmd": "./mvnw test -Dtest=BroadcasterTest",
+      "class": "forced"
+    },
+    {
+      "cmd": "mvn -q package",
+      "class": "forced"
+    },
+    {
+      "cmd": "./mvnw install -Pfastinstall",
+      "class": "forced"
+    },
+    {
+      "cmd": "./mvnw test -pl modules/cpr -Dtest=BroadcasterTest",
+      "class": "permitted",
+      "sendable": true
+    },
+    {
+      "cmd": "./mvnw install -pl modules/cpr -DskipTests",
+      "class": "permitted"
+    },
+    {
+      "cmd": "./mvnw -f modules/cpr/pom.xml test",
+      "class": "permitted"
+    },
+    {
+      "cmd": "./mvnw compile",
+      "class": "permitted"
+    },
+    {
+      "cmd": "./mvnw compile -pl modules/cpr",
+      "class": "permitted",
+      "sendable": true
+    },
+    {
+      "cmd": "./mvnw spotless:apply",
+      "class": "unlisted",
+      "sendable": false
+    },
+    {
+      "cmd": "./mvnw -B deploy -DskipTests",
+      "class": "prohibited",
+      "sendable": false
+    },
+    {
+      "cmd": "./mvnw release:prepare",
+      "class": "prohibited"
+    },
+    {
+      "cmd": "jreleaser full-release",
+      "class": "prohibited"
+    },
+    {
+      "cmd": "./mvnw -pl samples/spring-boot-chat spring-boot:run",
+      "class": "prohibited",
+      "sendable": false
+    },
+    {
+      "cmd": "./mvnw quarkus:dev -pl samples/quarkus-chat",
+      "class": "prohibited"
+    },
+    {
+      "cmd": "npx playwright test",
+      "class": "prohibited"
+    },
+    {
+      "cmd": "git push origin main",
+      "class": "prohibited",
+      "sendable": false
+    },
+    {
+      "cmd": "gh release create atmosphere-4.0.78",
+      "class": "prohibited"
+    },
+    {
+      "cmd": "./mvnw -s ~/.m2/settings.xml deploy",
+      "class": "prohibited"
+    },
+    {
+      "cmd": "echo cargo clippy",
+      "class": "unlisted"
+    }
+  ]
+}

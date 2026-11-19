@@ -58,3 +58,6 @@ samples/*/src/main/resources/certs/
 # Python bytecode from running scripts/*.py directly
 __pycache__/
 *.pyc
+
+# Per-developer overrides of .claude/remote-work.json
+.claude/remote-work.local.json

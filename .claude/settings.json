@@ -37,6 +37,16 @@
             "command": "[ -f \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/auto-claim.sh\" ] || exit 0; bash \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/auto-claim.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.agents/skills/remote-work/hooks/guard.sh\" ] || exit 0; bash \"$CLAUDE_PROJECT_DIR/.agents/skills/remote-work/hooks/guard.sh\""
+          }
+        ]
       }
     ],
     "SessionEnd": [
