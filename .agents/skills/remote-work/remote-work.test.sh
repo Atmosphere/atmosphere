@@ -131,6 +131,8 @@ jq 'del(.remote.environment_id)' "$noenv/.claude/remote-work.json" > "$noenv/p.j
 guard "a forced command runs locally while no environment is configured" "$noenv" "cargo clippy" 0 ""
 printf '{"remote": {"environment_id": "env_mine"}}\n' >"$noenv/.claude/remote-work.local.json"
 guard "an environment in the local file turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session"
+rm -f "$noenv/.claude/remote-work.local.json"
+guard "REMOTE_WORK_ENV from the account's settings turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session" REMOTE_WORK_ENV=env_account
 
 echo "  no policy, no enforcement"
 bare="$(mktemp -d "$ROOT/bare-XXXXXX")"; git -C "$bare" init -q

@@ -33,7 +33,7 @@ policy=$(rw_policy "$root") || exit 0
 [ "$(printf '%s' "$policy" | jq -r 'if .enabled == false then "off" else "on" end')" = "on" ] || exit 0
 # No cloud environment for this developer's account yet (it lives in their git-ignored local file):
 # nothing could run the command remotely, so refusing it locally would leave them with neither.
-[ -n "$(printf '%s' "$policy" | jq -r '.remote.environment_id // empty')" ] || exit 0
+[ -n "${REMOTE_WORK_ENV:-}" ] || [ -n "$(printf '%s' "$policy" | jq -r '.remote.environment_id // empty')" ] || exit 0
 
 bare=$(rw_bare "$cmd")
 printf '%s' "$bare" | grep -Eq '(^|[;&|(])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*REMOTE_WORK_LOCAL=1[[:space:]]' && exit 0

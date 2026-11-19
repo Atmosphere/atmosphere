@@ -217,10 +217,13 @@ prepare() {
     fi
 
     local env_id model default label
-    env_id=$(cfg environment_id)
+    # REMOTE_WORK_ENV wins: a cloud environment belongs to one claude.ai account, and one checkout is
+    # used by sessions of several accounts, so each account sets it in its own Claude Code user
+    # settings ("env": {"REMOTE_WORK_ENV": "env_..."}). The policy's value is the fallback.
+    env_id=${REMOTE_WORK_ENV:-$(cfg environment_id)}
     # An environment belongs to one claude.ai account, so a shared policy may leave it to each
     # developer's git-ignored .claude/remote-work.local.json.
-    [ -n "$env_id" ] || die "no remote.environment_id: create a cloud environment at claude.ai/code under the account this session runs as, then put {\"remote\": {\"environment_id\": \"env_...\"}} in .claude/remote-work.local.json (git-ignored)"
+    [ -n "$env_id" ] || die "no cloud environment: find this account's with /schedule (or create one at claude.ai/code), then set \"env\": {\"REMOTE_WORK_ENV\": \"env_...\"} in this account's Claude Code user settings (or remote.environment_id in the git-ignored .claude/remote-work.local.json)"
     model=$(cfg model)
     model=${model:-claude-sonnet-5-5}
     default=$(cfg default_command)
