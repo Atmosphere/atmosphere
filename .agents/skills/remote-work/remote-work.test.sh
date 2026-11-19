@@ -37,7 +37,8 @@ fixture() {
     { "match": "cargo run", "why": "needs the local stack" },
     { "pattern": "\\.envrc", "why": "touches secrets" }
   ],
-  "unlisted": "local"
+  "unlisted": "local",
+  "remote": { "environment_id": "env_fixture" }
 }
 EOF
     printf '%s\n' "$dir"
@@ -123,6 +124,13 @@ printf '{"enabled": false}\n' >"$repo/.claude/remote-work.local.json"
 guard "enabled false in the local file allows a forced command" "$repo" "cargo clippy" 0 ""
 rm -f "$repo/.claude/remote-work.local.json"
 guard "removing the local file turns the guard back on" "$repo" "cargo clippy" 2 "runs in a cloud session"
+
+echo "  no environment, no refusal"
+noenv="$(fixture)"
+jq 'del(.remote.environment_id)' "$noenv/.claude/remote-work.json" > "$noenv/p.json" && mv "$noenv/p.json" "$noenv/.claude/remote-work.json"
+guard "a forced command runs locally while no environment is configured" "$noenv" "cargo clippy" 0 ""
+printf '{"remote": {"environment_id": "env_mine"}}\n' >"$noenv/.claude/remote-work.local.json"
+guard "an environment in the local file turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session"
 
 echo "  no policy, no enforcement"
 bare="$(mktemp -d "$ROOT/bare-XXXXXX")"; git -C "$bare" init -q

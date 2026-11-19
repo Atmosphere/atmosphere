@@ -218,7 +218,9 @@ prepare() {
 
     local env_id model default label
     env_id=$(cfg environment_id)
-    [ -n "$env_id" ] || die "the policy's remote.environment_id is not set"
+    # An environment belongs to one claude.ai account, so a shared policy may leave it to each
+    # developer's git-ignored .claude/remote-work.local.json.
+    [ -n "$env_id" ] || die "no remote.environment_id: create a cloud environment at claude.ai/code under the account this session runs as, then put {\"remote\": {\"environment_id\": \"env_...\"}} in .claude/remote-work.local.json (git-ignored)"
     model=$(cfg model)
     model=${model:-claude-sonnet-5-5}
     default=$(cfg default_command)
