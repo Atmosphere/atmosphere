@@ -55,6 +55,17 @@
     }
   ],
   "unlisted": "local",
+  "sessions": {
+    "$comment": "What a cloud session is for. Read by agents, not by the scripts. The change is written here; a cloud session only builds it.",
+    "remote_role": "verify",
+    "rules": [
+      "A cloud session builds and tests the patch that `prepare` sends, then answers with a VERDICT. It does not write the change, commit or push.",
+      "The change is written in the local session. The module compiles that the pre-commit hook runs stay local; a full-reactor build goes remote through `prepare`.",
+      "Pushes go from this machine after a `VERDICT: CLEAN` on the same patch. CI on the pushed SHA is the final word.",
+      "Every routine carries `clear_mcp_connections: true` and the repo as its only source: no claude.ai connector travels into a cloud session.",
+      "A cloud session that writes, commits and pushes needs the project maintainer's explicit order for that piece of work, naming its feature branch. It pushes to that branch only, never to main, runs with `clear_mcp_connections: true`, and does not release, deploy or write the tracker."
+    ]
+  },
   "remote": {
     "$comment": "How a run is built (remote-work.sh prepare). The repo is public and Maven Central is reachable from the sandbox, so the repo alone is attached.",
     "environment_id": "env_011CUqEHwx4ZdYwEJWC8g7pi",
