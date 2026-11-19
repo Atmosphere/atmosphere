@@ -76,16 +76,13 @@
     ],
     "bootstrap": [
       "git config core.hooksPath .githooks",
+      "git submodule update --init --recursive",
       "java -version 2>&1 | head -1 && ./mvnw -v | head -1"
     ],
     "default_command": "./mvnw -B -ntp install -DskipTests",
     "default_label": "reactor",
     "fallback": "push a branch and read CI",
-    "clean_keep": "target",
-    "commit": {
-      "$comment": "A run may commit its result, pushed only to refs/remote-work/<id> (never a branch, never main, no CI); remote-work.sh land recreates it here, signed, then deletes the ref.",
-      "allowed": true
-    }
+    "clean_keep": "target"
   },
   "examples": [
     {

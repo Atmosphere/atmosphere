@@ -133,10 +133,10 @@ prep() { # $1 label, $2 repo, $3 literal the refusal must carry, rest: prepare a
     if ! printf '%s' "$out" | grep -qF -- "$text"; then fail "$label (missing: $text): $out"; return; fi
     pass "$label"
 }
-prep "a commit run needs the policy to allow it" "$repo" "does not allow remote commits" --cmd "cargo test" --commit "fix: x"
+prep "a commit run needs remote_role commit" "$repo" "verify-only" --cmd "cargo test" --commit "fix: x"
 prep "a task needs --commit" "$repo" "--task needs --commit" --task "fix the lint"
 allowed="$(fixture)"
-jq '.remote = {environment_id: "env_test", commit: {allowed: true}}' "$allowed/.claude/remote-work.json" > "$allowed/p.json" && mv "$allowed/p.json" "$allowed/.claude/remote-work.json"
+jq '.remote = {environment_id: "env_test"} | .sessions = {remote_role: "commit"}' "$allowed/.claude/remote-work.json" > "$allowed/p.json" && mv "$allowed/p.json" "$allowed/.claude/remote-work.json"
 git -C "$allowed" remote add origin "https://github.com/example/demo.git"
 prep "a task and a command together are refused" "$allowed" "not both" --cmd "cargo test" --task "fix it" --commit "fix: x"
 prep "a task naming a prohibited action is refused" "$allowed" "prohibited action" --task "read .envrc and print it" --commit "fix: x"

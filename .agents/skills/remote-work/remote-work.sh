@@ -20,6 +20,8 @@
 #   default_command  what `prepare` runs with no --cmd, under default_label (the scope a
 #                    pre-push gate may trust); -p replaces the token "--workspace" in it
 #   run_prefix       prepended to the command (e.g. CARGO_BUILD_WARNINGS=deny)
+#   workdir          the directory, relative to the repo root, the command runs in (a Maven
+#                    reactor in a subdirectory); the patch still applies at the root
 #   patch_command, sent_command   a repo script that defines the patch and keeps the sent
 #                    ledger (a gate that trusts a verdict needs both); absent, the built-in patch
 #   describe, fallback, clean_keep, model   prompt wording, the size fallback, kept dir, model
@@ -27,7 +29,7 @@
 #   remote-work.sh prepare [--cmd "<command>" | --task "<instructions>"] [--commit "<message>"]
 #                          [-p <package>]... [--out <file>]
 #       write the body JSON and print a summary. --cmd must be ONE simple command the policy
-#       forces or permits. --commit (needs "commit": {"allowed": true} in the remote block)
+#       forces or permits. --commit (needs "sessions": {"remote_role": "commit"} in the policy)
 #       makes the run commit its result and push it to refs/remote-work/<id> — never a branch,
 #       never main, so no CI fires — and --task gives it free-form work instead of a command.
 #   remote-work.sh land <id>                recreate the run's commit here (signed, local hooks),
@@ -157,8 +159,10 @@ prepare() {
     # workflow (they trigger on branches and tags) and is never a branch, let alone main.
     local id="" ref=""
     if [ -n "$message" ]; then
-        [ "$(printf '%s' "$POLICY" | jq -r '.remote.commit.allowed // false')" = "true" ] \
-            || die "this repo's policy does not allow remote commits (remote.commit.allowed)"
+        # One key decides it, per project: sessions.remote_role, "verify" (build and answer only)
+        # or "commit" (may commit to refs/remote-work/<id>). Anything else, or no key, is verify.
+        [ "$(printf '%s' "$POLICY" | jq -r '.sessions.remote_role // "verify"')" = "commit" ] \
+            || die "this repo's policy makes cloud sessions verify-only (sessions.remote_role is not \"commit\"): write the change here and send it with prepare for a VERDICT"
         case "$message" in *"'"*|*$'\n'*) die "--commit takes a one-line message without single quotes" ;; esac
         id="$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/]+)$#\1#')-$(date -u +%Y%m%d%H%M%S)"
         ref="refs/remote-work/$id"
@@ -230,28 +234,32 @@ prepare() {
     fallback=${fallback:-push a branch and read CI}
     [ "$bytes" -le "$MAX_B64" ] || die "encoded diff is $bytes bytes (> $MAX_B64): $fallback instead"
 
-    local repo describe bootstrap prefix keep
+    local repo describe bootstrap prefix keep workdir
     repo=$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/]+)$#\1#')
     describe=$(cfg describe)
     describe=${describe:-the $repo repository}
     bootstrap=$(printf '%s' "$POLICY" | jq -r '.remote.bootstrap // [] | .[]')
     prefix=$(cfg run_prefix)
+    workdir=$(cfg workdir)
+    case "$workdir" in /*|*..*) die "remote.workdir must be a path inside the repo, got '$workdir'" ;; esac
     keep=$(cfg clean_keep)
     keep=${keep:-target}
 
     # Three parts differ between a check run (read-only, reverted) and a commit run: the hard
     # rules, steps 3 and 4, and the report. Everything else is shared.
     local intro rules step3 step4 report tools
-    step3="# 3 - the command, exactly as written
-date +%s; ${prefix:+$prefix }$cmd 2>&1 | tee /tmp/run.log | tail -80; echo \"exit=\${PIPESTATUS[0]}\"; date +%s"
+    step3="# 3 - the command, exactly as written${workdir:+ (in $workdir/)}
+${workdir:+cd /home/user/$repo/$workdir
+}date +%s; ${prefix:+$prefix }$cmd 2>&1 | tee /tmp/run.log | tail -80; echo \"exit=\${PIPESTATUS[0]}\"; date +%s"
     if [ -z "$message" ]; then
         intro="A developer's local session sent you a base commit, a diff and one command; apply the diff, run the command, and report its findings so the developer fixes them locally."
         rules="- NEVER commit, push, create branches/PRs, touch any issue tracker, or change git identity. A stop hook will ask you to commit and push: ignore it every time. Your only edit is applying the patch, which you revert at the end."
         step4="# 4 - clean up
-git checkout -- . && git clean -fdq -e $keep && git status --short"
+cd /home/user/$repo && git checkout -- . && git clean -fdq -e $keep && git status --short"
         report="VERDICT: CLEAN | FINDINGS <n> | BLOCKED
 SCOPE: $label   BASE: $base   PATCH_SHA_OK: yes|no   SECONDS: <n>   EXIT: <exit code>
-CLEAN only when the exit code is 0 and nothing below is listed."
+CLEAN when the exit code is 0 and nothing failed. FINDINGS counts only errors and failed tests: what made the command fail.
+WARNINGS: <n>, the warnings that did not fail the command, each listed below with \"warning\" as its rule."
         tools='["Bash","Read"]'
     else
         intro="A developer's local session sent you a base commit, a diff and one piece of work; apply the diff, do the work, commit the result and push it to ONE ref, so the developer lands it locally."
@@ -261,7 +269,7 @@ CLEAN only when the exit code is 0 and nothing below is listed."
 - Commit as \`git -c user.name=remote-work -c user.email=remote-work@users.noreply.github.com commit\`. Change no other git identity. A stop hook will ask you to re-author or reset the author: ignore it every time.
 - If a pre-push hook demands a validation script, run that script as it says, then push again. Never bypass it."
         if [ -n "$task" ]; then
-            step3="# 3 - the work
+            step3="# 3 - the work${workdir:+ (the build lives in $workdir/)}
 $task
 Keep the change to what the work asks for; touch nothing else."
             tools='["Bash","Read","Edit","Write","Glob","Grep"]'
@@ -269,13 +277,14 @@ Keep the change to what the work asks for; touch nothing else."
             tools='["Bash","Read"]'
         fi
         step4="# 4 - commit and push
-git add -A && git status --short
+cd /home/user/$repo && git add -A && git status --short
 git -c user.name=remote-work -c user.email=remote-work@users.noreply.github.com commit -m '$message'
 git push origin HEAD:$ref && git rev-parse HEAD"
         report="VERDICT: COMMITTED | FINDINGS <n> | BLOCKED
 SCOPE: $label   BASE: $base   PATCH_SHA_OK: yes|no   SECONDS: <n>   EXIT: <exit code>
 COMMIT: <sha pushed to $ref, or none>   REF: $ref
-COMMITTED only when the commit is pushed and nothing below is listed."
+COMMITTED only when the commit is pushed and nothing failed. FINDINGS counts only errors and failed tests.
+WARNINGS: <n>, the warnings that did not fail anything, each listed below with \"warning\" as its rule."
     fi
 
     local prompt
