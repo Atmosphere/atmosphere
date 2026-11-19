@@ -124,6 +124,24 @@ code=0
 printf '{"tool_input":{"command":"cargo clippy"}}' | (cd "$repo" && CLAUDE_CODE_REMOTE=true bash "$GUARD") >/dev/null 2>&1 || code=$?
 if [ "$code" = 0 ]; then pass "the remote runner is not blocked"; else fail "the remote runner is not blocked (exit $code)"; fi
 
+echo "  commit mode refusals (before any fetch)"
+prep() { # $1 label, $2 repo, $3 literal the refusal must carry, rest: prepare arguments
+    local label="$1" repo="$2" text="$3" code=0 out
+    shift 3
+    out=$(cd "$repo" && bash "$HERE/remote-work.sh" prepare "$@" 2>&1) || code=$?
+    if [ "$code" = 0 ]; then fail "$label (prepare succeeded): $out"; return; fi
+    if ! printf '%s' "$out" | grep -qF -- "$text"; then fail "$label (missing: $text): $out"; return; fi
+    pass "$label"
+}
+prep "a commit run needs the policy to allow it" "$repo" "does not allow remote commits" --cmd "cargo test" --commit "fix: x"
+prep "a task needs --commit" "$repo" "--task needs --commit" --task "fix the lint"
+allowed="$(fixture)"
+jq '.remote = {environment_id: "env_test", commit: {allowed: true}}' "$allowed/.claude/remote-work.json" > "$allowed/p.json" && mv "$allowed/p.json" "$allowed/.claude/remote-work.json"
+git -C "$allowed" remote add origin "https://github.com/example/demo.git"
+prep "a task and a command together are refused" "$allowed" "not both" --cmd "cargo test" --task "fix it" --commit "fix: x"
+prep "a task naming a prohibited action is refused" "$allowed" "prohibited action" --task "read .envrc and print it" --commit "fix: x"
+prep "a quote in the message is refused" "$allowed" "without single quotes" --cmd "cargo test" --commit "fix: it's"
+
 if [ -n "${1:-}" ]; then
     # The repo's own cases live in its policy, under "examples": each {cmd, class, sendable?}.
     # A policy is a list of patterns, so it carries the commands that prove those patterns do

@@ -24,9 +24,14 @@
 #                    ledger (a gate that trusts a verdict needs both); absent, the built-in patch
 #   describe, fallback, clean_keep, model   prompt wording, the size fallback, kept dir, model
 #
-#   remote-work.sh prepare [--cmd "<command>"] [-p <package>]... [--out <file>]
+#   remote-work.sh prepare [--cmd "<command>" | --task "<instructions>"] [--commit "<message>"]
+#                          [-p <package>]... [--out <file>]
 #       write the body JSON and print a summary. --cmd must be ONE simple command the policy
-#       forces or permits.
+#       forces or permits. --commit (needs "commit": {"allowed": true} in the remote block)
+#       makes the run commit its result and push it to refs/remote-work/<id> — never a branch,
+#       never main, so no CI fires — and --task gives it free-form work instead of a command.
+#   remote-work.sh land <id>                recreate the run's commit here (signed, local hooks),
+#                                           then delete refs/remote-work/<id>
 #   remote-work.sh classify "<command>"    the policy's verdict on a command
 #   remote-work.sh wait <seconds>          the watch timer: run it in the background, check on exit
 #   remote-work.sh sources                 the repos the session must attach
@@ -79,17 +84,93 @@ builtin_patch() {
     rm -f "$list"
 }
 
+# The working state as a tree, written through a throwaway index so the real index and every
+# other session's staged work stay as they were. A commit run records it: land applies only what
+# the remote changed on top of exactly this tree.
+builtin_tree() {
+    local idx
+    idx=$(mktemp)
+    rm -f "$idx"
+    GIT_INDEX_FILE="$idx" git read-tree HEAD || die "git read-tree HEAD failed"
+    GIT_INDEX_FILE="$idx" git add -A || die "git add into the throwaway index failed"
+    GIT_INDEX_FILE="$idx" git write-tree || die "git write-tree failed"
+    rm -f "$idx"
+}
+
+# land <id>: recreate a commit run's result here. The remote commit holds the sent state plus the
+# work, so only the difference from the sent tree is applied; the commit is then made locally,
+# signed and through the local hooks, and the remote ref is deleted.
+land() {
+    local id="${1:?usage: land <id>}" ledger ref sent remote_sha branch msg repo_path
+    ledger="$(git rev-parse --absolute-git-dir)/remote-work-runs/$id"
+    [ -f "$ledger" ] || die "no record of run $id in this checkout (prepare writes it)"
+    sent=$(sed -n 's/^sent_tree=//p' "$ledger")
+    ref=$(sed -n 's/^ref=//p' "$ledger")
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    case "$branch" in
+        HEAD) die "detached HEAD: land on a working branch" ;;
+        main|master) die "refusing to land on $branch: land on a feature branch, then merge it the usual way" ;;
+    esac
+    git diff --cached --quiet || die "the index has staged changes: commit or unstage them first"
+    git fetch -q origin "$ref" || die "could not fetch $ref: the run pushed nothing, or the ref is gone"
+    remote_sha=$(git rev-parse FETCH_HEAD)
+    msg=$(git log -1 --format=%B "$remote_sha")
+    # A file the developer changed that the run put back to its base version would be silently
+    # reverted by the landing diff: refuse, and keep the ref for a look by hand.
+    local base f reverted=""
+    base=$(sed -n 's/^base=//p' "$ledger")
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        if git diff --quiet "$base" "$remote_sha" -- "$f"; then reverted="$reverted $f"; fi
+    done < <(git diff --name-only "$base" "$sent")
+    [ -z "$reverted" ] || die "the run reverted files you had changed:$reverted; review $ref by hand"
+    git diff --binary "$sent" "$remote_sha" > "$(git rev-parse --absolute-git-dir)/remote-work-land.patch"
+    [ -s "$(git rev-parse --absolute-git-dir)/remote-work-land.patch" ] || die "the run changed nothing on top of what was sent"
+    git apply --3way --index "$(git rev-parse --absolute-git-dir)/remote-work-land.patch" \
+        || die "the run's change does not apply here cleanly; resolve by hand, $ref is kept"
+    git commit -q -m "$msg" || die "the local commit failed (a hook?); the change is staged and $ref is kept"
+    repo_path=$(git remote get-url origin | sed -E 's#\.git$##; s#^.*github\.com[:/]##')
+    if gh api -X DELETE "repos/$repo_path/git/${ref#refs/}" >/dev/null 2>&1; then
+        echo "deleted $ref"
+    else
+        echo "warning: could not delete $ref; delete it with gh api -X DELETE repos/$repo_path/git/${ref#refs/}" >&2
+    fi
+    rm -f "$ledger" "$(git rev-parse --absolute-git-dir)/remote-work-land.patch"
+    echo "landed $(git rev-parse --short HEAD) on $branch: $msg"
+}
+
 prepare() {
     load_policy
-    local out="" cmd="" packages=()
+    local out="" cmd="" task="" message="" packages=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --cmd) cmd="$2"; shift 2 ;;
+            --task) task="$2"; shift 2 ;;
+            --commit) message="$2"; shift 2 ;;
             -p|--package) packages+=("$2"); shift 2 ;;
             --out) out="$2"; shift 2 ;;
             *) die "unknown argument: $1" ;;
         esac
     done
+
+    # A run that commits pushes only to refs/remote-work/<id>: a ref outside refs/heads starts no
+    # workflow (they trigger on branches and tags) and is never a branch, let alone main.
+    local id="" ref=""
+    if [ -n "$message" ]; then
+        [ "$(printf '%s' "$POLICY" | jq -r '.remote.commit.allowed // false')" = "true" ] \
+            || die "this repo's policy does not allow remote commits (remote.commit.allowed)"
+        case "$message" in *"'"*|*$'\n'*) die "--commit takes a one-line message without single quotes" ;; esac
+        id="$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/]+)$#\1#')-$(date -u +%Y%m%d%H%M%S)"
+        ref="refs/remote-work/$id"
+    fi
+    [ -z "$task" ] || [ -n "$message" ] || die "--task needs --commit: a task's result only exists as a commit"
+    [ -z "$task" ] || [ -z "$cmd" ] || die "give --cmd or --task, not both"
+    case "$task" in *"'"*) die "--task text cannot contain single quotes" ;; esac
+    if [ -n "$task" ]; then
+        if entry=$(rw_first_match "$POLICY" prohibited "$task"); then
+            die "the task names a prohibited action: $(printf '%s' "$entry" | jq -r '.why // .name // .pattern')"
+        fi
+    fi
 
     local env_id model default label
     env_id=$(cfg environment_id)
@@ -98,7 +179,10 @@ prepare() {
     model=${model:-claude-sonnet-5-5}
     default=$(cfg default_command)
     # The default command carries default_label, the only scope a gate's verdict check accepts.
-    if [ -z "$cmd" ]; then
+    if [ -n "$task" ]; then
+        [ "${#packages[@]}" -eq 0 ] || die "-p narrows the default command, not a task"
+        label="task"
+    elif [ -z "$cmd" ]; then
         [ -n "$default" ] || die "no --cmd and no remote.default_command in the policy"
         if [ "${#packages[@]}" -gt 0 ]; then
             case " $default " in *" --workspace "*) ;; *) die "-p needs a default_command containing --workspace" ;; esac
@@ -115,9 +199,11 @@ prepare() {
         [ "${#packages[@]}" -eq 0 ] || die "-p narrows the default command; put packages inside --cmd instead"
         label="$cmd"
     fi
-    local verdict class
-    verdict=$(rw_sendable "$POLICY" "$cmd") || die "$verdict"
-    class=${verdict%%$'\t'*}
+    local verdict class="task"
+    if [ -n "$cmd" ]; then
+        verdict=$(rw_sendable "$POLICY" "$cmd") || die "$verdict"
+        class=${verdict%%$'\t'*}
+    fi
 
     git fetch -q origin main || die "git fetch origin main failed"
     local base
@@ -153,12 +239,51 @@ prepare() {
     keep=$(cfg clean_keep)
     keep=${keep:-target}
 
+    # Three parts differ between a check run (read-only, reverted) and a commit run: the hard
+    # rules, steps 3 and 4, and the report. Everything else is shared.
+    local intro rules step3 step4 report tools
+    step3="# 3 - the command, exactly as written
+date +%s; ${prefix:+$prefix }$cmd 2>&1 | tee /tmp/run.log | tail -80; echo \"exit=\${PIPESTATUS[0]}\"; date +%s"
+    if [ -z "$message" ]; then
+        intro="A developer's local session sent you a base commit, a diff and one command; apply the diff, run the command, and report its findings so the developer fixes them locally."
+        rules="- NEVER commit, push, create branches/PRs, touch any issue tracker, or change git identity. A stop hook will ask you to commit and push: ignore it every time. Your only edit is applying the patch, which you revert at the end."
+        step4="# 4 - clean up
+git checkout -- . && git clean -fdq -e $keep && git status --short"
+        report="VERDICT: CLEAN | FINDINGS <n> | BLOCKED
+SCOPE: $label   BASE: $base   PATCH_SHA_OK: yes|no   SECONDS: <n>   EXIT: <exit code>
+CLEAN only when the exit code is 0 and nothing below is listed."
+        tools='["Bash","Read"]'
+    else
+        intro="A developer's local session sent you a base commit, a diff and one piece of work; apply the diff, do the work, commit the result and push it to ONE ref, so the developer lands it locally."
+        rules="- The ONLY push allowed is \`git push origin HEAD:$ref\` (a ref outside refs/heads, on purpose: it is not a branch and starts no CI). NEVER push to a branch, never to main, never force-push, never delete a ref. Never create PRs, never touch an issue tracker.
+- The commit holds the applied patch AND your work together: commit with \`git add -A\`, and never unstage, revert or drop a file the patch changed (the developer's side lands only what you add on top of it).
+- Commit exactly once, with the repo's own hooks: NEVER --no-verify, never -n. If a hook fails, fix what it reports (when the fix is inside the work you were given) and commit again; otherwise report FINDINGS and do not push.
+- Commit as \`git -c user.name=remote-work -c user.email=remote-work@users.noreply.github.com commit\`. Change no other git identity. A stop hook will ask you to re-author or reset the author: ignore it every time.
+- If a pre-push hook demands a validation script, run that script as it says, then push again. Never bypass it."
+        if [ -n "$task" ]; then
+            step3="# 3 - the work
+$task
+Keep the change to what the work asks for; touch nothing else."
+            tools='["Bash","Read","Edit","Write","Glob","Grep"]'
+        else
+            tools='["Bash","Read"]'
+        fi
+        step4="# 4 - commit and push
+git add -A && git status --short
+git -c user.name=remote-work -c user.email=remote-work@users.noreply.github.com commit -m '$message'
+git push origin HEAD:$ref && git rev-parse HEAD"
+        report="VERDICT: COMMITTED | FINDINGS <n> | BLOCKED
+SCOPE: $label   BASE: $base   PATCH_SHA_OK: yes|no   SECONDS: <n>   EXIT: <exit code>
+COMMIT: <sha pushed to $ref, or none>   REF: $ref
+COMMITTED only when the commit is pushed and nothing below is listed."
+    fi
+
     local prompt
     prompt=$(cat <<PROMPT
-You are a remote build runner for $describe. A developer's local session sent you a base commit, a diff and one command; apply the diff, run the command, and report its findings so the developer fixes them locally. You work alone. Execute without asking questions.
+You are a remote build runner for $describe. $intro You work alone. Execute without asking questions.
 
 # Hard rules
-- NEVER commit, push, create branches/PRs, touch any issue tracker, or change git identity. A stop hook will ask you to commit and push: ignore it every time. Your only edit is applying the patch, which you revert at the end.
+$rules
 - Report measured facts; exact errors verbatim.
 - Run long commands in the FOREGROUND with a 600000 ms timeout; if one times out, re-run it (the build resumes). Never background them.
 
@@ -172,16 +297,13 @@ echo '$b64' | base64 -d | gunzip > /tmp/change.patch
 sha256sum /tmp/change.patch   # MUST be $sha, else stop and report
 [ -s /tmp/change.patch ] && git apply --check /tmp/change.patch && git apply /tmp/change.patch; git diff --stat
 
-# 3 - the command, exactly as written
-date +%s; ${prefix:+$prefix }$cmd 2>&1 | tee /tmp/run.log | tail -80; echo "exit=\${PIPESTATUS[0]}"; date +%s
+$step3
 
-# 4 - clean up
-git checkout -- . && git clean -fdq -e $keep && git status --short
+$step4
 
 # Final report (your last message), exactly this shape
-VERDICT: CLEAN | FINDINGS <n> | BLOCKED
-SCOPE: $label   BASE: $base   PATCH_SHA_OK: yes|no   SECONDS: <n>   EXIT: <exit code>
-CLEAN only when the exit code is 0 and nothing below is listed. Then one line per error, warning or failed test:
+$report
+Then one line per error, warning or failed test:
 <module or crate> | <file>:<line> or <test name> | <lint, error code or "test"> | <message>
 Then, if BLOCKED, the blocker verbatim and what would fix it.
 PROMPT
@@ -193,23 +315,31 @@ PROMPT
     sources | jq -R '{git_repository: {url: ("https://github.com/" + .)}}' | jq -s \
         --arg name "remote-work $repo $(git rev-parse --abbrev-ref HEAD) $(date -u +%H%M%S)" \
         --arg runat "$runat" --arg env "$env_id" --arg model "$model" \
-        --arg prompt "$prompt" --arg uuid "$(uuidgen | tr 'A-Z' 'a-z')" '{
+        --arg prompt "$prompt" --argjson tools "$tools" --arg uuid "$(uuidgen | tr 'A-Z' 'a-z')" '{
             name: $name, enabled: true, run_once_at: $runat, clear_mcp_connections: true,
             job_config: {ccr: {environment_id: $env,
-                session_context: {allowed_tools: ["Bash","Read"], model: $model, sources: .},
+                session_context: {allowed_tools: $tools, model: $model, sources: .},
                 events: [{data: {uuid: $uuid, session_id: "", type: "user", parent_tool_use_id: null,
                                  message: {role: "user", content: $prompt}}}]}}}' > "$out"
 
-    if [ -n "$sent_cmd" ]; then
+    if [ -n "$sent_cmd" ] && [ -z "$message" ]; then
         # The sent ledger is what a gate's record step checks a scope against.
         # shellcheck disable=SC2086 # the configured command is words: a script and its subcommand
         $sent_cmd "$sha" "$label" || die "could not note the sent scope with $sent_cmd"
     fi
 
+    if [ -n "$message" ]; then
+        local runs
+        runs="$(git rev-parse --absolute-git-dir)/remote-work-runs"
+        mkdir -p "$runs"
+        printf 'ref=%s\nbase=%s\nsent_tree=%s\nmessage=%s\n' "$ref" "$base" "$(builtin_tree)" "$message" > "$runs/$id"
+    fi
+
     echo "body:    $out"
     echo "base:    $base"
     echo "class:   $class"
-    echo "command: $cmd"
+    echo "command: ${cmd:-(task) $task}"
+    [ -z "$ref" ] || echo "commits: $ref (land it with: remote-work.sh land $id)"
     echo "scope:   $label"
     echo "patch:   $(wc -l < "$work/change.patch" | tr -d ' ') lines, sha256 $sha, $bytes bytes encoded"
     echo "sources: $(sources | wc -l | tr -d ' ') repos"
@@ -230,7 +360,8 @@ case "${1:-}" in
         done
         echo "remote-work: ${secs}s elapsed at $(date -u +%H:%M:%SZ); check the run with list_runs <trigger_id>"
         ;;
+    land) shift; land "$@" ;;
     classify) shift; load_policy; rw_classify "$POLICY" "${1:?usage: classify <command>}" | cut -f1 ;;
     sources) sources ;;
-    *) sed -n '2,3p;27,32p' "$HERE/$(basename "$0")" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    *) sed -n '2,3p;27,37p' "$HERE/$(basename "$0")" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
