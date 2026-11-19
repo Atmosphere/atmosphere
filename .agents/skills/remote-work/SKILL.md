@@ -9,7 +9,7 @@ user-invocable: true
 
 **The project maintainer's directive (2026-11-19):** a full-reactor Maven build of this repo runs
 in a cloud session, not locally. The scripts here are a copy of the shared remote-work skill: keep
-them byte-identical to their source, and change only `.claude/remote-work.json`.
+them byte-identical to their source (`SOURCE` names the commit they were copied from), and change only `.claude/remote-work.json`.
 
 ## The policy: `.claude/remote-work.json`
 

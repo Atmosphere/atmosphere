@@ -37,6 +37,8 @@
 #   remote-work.sh classify "<command>"    the policy's verdict on a command
 #   remote-work.sh wait <seconds>          the watch timer: run it in the background, check on exit
 #   remote-work.sh sources                 the repos the session must attach
+#   remote-work.sh export <dir>            copy the scripts into a repo that has no access to this
+#                                          skill's source, and record the source commit in <dir>/SOURCE
 
 set -euo pipefail
 
@@ -143,12 +145,13 @@ land() {
 
 prepare() {
     load_policy
-    local out="" cmd="" task="" message="" packages=()
+    local out="" cmd="" task="" message="" branch="" packages=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --cmd) cmd="$2"; shift 2 ;;
             --task) task="$2"; shift 2 ;;
             --commit) message="$2"; shift 2 ;;
+            --branch) branch="$2"; shift 2 ;;
             -p|--package) packages+=("$2"); shift 2 ;;
             --out) out="$2"; shift 2 ;;
             *) die "unknown argument: $1" ;;
@@ -157,15 +160,32 @@ prepare() {
 
     # A run that commits pushes only to refs/remote-work/<id>: a ref outside refs/heads starts no
     # workflow (they trigger on branches and tags) and is never a branch, let alone main.
-    local id="" ref=""
+    # One key decides it, per project: sessions.remote_role. "verify" builds and answers only;
+    # "commit" may commit to refs/remote-work/<id>, which land brings here; "pr" pushes a new
+    # feature branch and opens its pull request, for a repo whose changes land by review on GitHub.
+    # Anything else, or no key, is verify.
+    local id="" ref="" role
+    role=$(printf '%s' "$POLICY" | jq -r '.sessions.remote_role // "verify"')
+    [ -z "$branch" ] || [ -n "$message" ] || die "--branch goes with --commit"
     if [ -n "$message" ]; then
-        # One key decides it, per project: sessions.remote_role, "verify" (build and answer only)
-        # or "commit" (may commit to refs/remote-work/<id>). Anything else, or no key, is verify.
-        [ "$(printf '%s' "$POLICY" | jq -r '.sessions.remote_role // "verify"')" = "commit" ] \
-            || die "this repo's policy makes cloud sessions verify-only (sessions.remote_role is not \"commit\"): write the change here and send it with prepare for a VERDICT"
+        case "$role" in
+            commit|pr) ;;
+            *) die "this repo's policy makes cloud sessions verify-only (sessions.remote_role is \"$role\"): write the change here and send it with prepare for a VERDICT" ;;
+        esac
         case "$message" in *"'"*|*$'\n'*) die "--commit takes a one-line message without single quotes" ;; esac
         id="$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/]+)$#\1#')-$(date -u +%Y%m%d%H%M%S)"
-        ref="refs/remote-work/$id"
+        if [ "$role" = "pr" ]; then
+            [ -n "$branch" ] || die "this repo delivers a run as a pull request: give --branch <type>/<summary>"
+            case "$branch" in
+                main|master|HEAD|*..*|-*|*/|/*|*' '*) die "--branch '$branch' is not a feature branch name" ;;
+                */*) ;;
+                *) die "--branch '$branch' needs the <type>/<summary> shape" ;;
+            esac
+            ref="refs/heads/$branch"
+        else
+            [ -z "$branch" ] || die "this repo lands commit runs locally (remote_role commit): --branch is for remote_role pr"
+            ref="refs/remote-work/$id"
+        fi
     fi
     [ -z "$task" ] || [ -n "$message" ] || die "--task needs --commit: a task's result only exists as a commit"
     [ -z "$task" ] || [ -z "$cmd" ] || die "give --cmd or --task, not both"
@@ -263,7 +283,12 @@ WARNINGS: <n>, the warnings that did not fail the command, each listed below wit
         tools='["Bash","Read"]'
     else
         intro="A developer's local session sent you a base commit, a diff and one piece of work; apply the diff, do the work, commit the result and push it to ONE ref, so the developer lands it locally."
-        rules="- The ONLY push allowed is \`git push origin HEAD:$ref\` (a ref outside refs/heads, on purpose: it is not a branch and starts no CI). NEVER push to a branch, never to main, never force-push, never delete a ref. Never create PRs, never touch an issue tracker.
+        if [ "$role" = "pr" ]; then
+            rules="- The ONLY push allowed is \`git push origin HEAD:$ref\`, a NEW branch: if it already exists on origin, stop and report BLOCKED. Never push to main or any other branch, never force-push, never delete a ref. Then open ONE pull request for it into main, and never merge, approve or close one. Never touch an issue tracker."
+        else
+            rules="- The ONLY push allowed is \`git push origin HEAD:$ref\` (a ref outside refs/heads, on purpose: it is not a branch and starts no CI). NEVER push to a branch, never to main, never force-push, never delete a ref. Never create PRs, never touch an issue tracker."
+        fi
+        rules="$rules
 - The commit holds the applied patch AND your work together: commit with \`git add -A\`, and never unstage, revert or drop a file the patch changed (the developer's side lands only what you add on top of it).
 - Commit exactly once, with the repo's own hooks: NEVER --no-verify, never -n. If a hook fails, fix what it reports (when the fix is inside the work you were given) and commit again; otherwise report FINDINGS and do not push.
 - Commit as \`git -c user.name=remote-work -c user.email=remote-work@users.noreply.github.com commit\`. Change no other git identity. A stop hook will ask you to re-author or reset the author: ignore it every time.
@@ -280,9 +305,20 @@ Keep the change to what the work asks for; touch nothing else."
 cd /home/user/$repo && git add -A && git status --short
 git -c user.name=remote-work -c user.email=remote-work@users.noreply.github.com commit -m '$message'
 git push origin HEAD:$ref && git rev-parse HEAD"
+        if [ "$role" = "pr" ]; then
+            local repo_path pr_how
+            repo_path=$(git remote get-url origin | sed -E 's#\.git$##; s#^.*github\.com[:/]##')
+            pr_how=$(cfg pr_instructions)
+            pr_how=${pr_how:-Write a body that says what changed and why, and how it was checked.}
+            step4="$step4
+
+# 5 - the pull request, through REST (gh pr is GraphQL, which this sandbox's proxy refuses)
+Write the body to /tmp/pr-body.md. $pr_how
+gh api repos/$repo_path/pulls -f head=$branch -f base=main -f title='$message' -F body=@/tmp/pr-body.md --jq .html_url"
+        fi
         report="VERDICT: COMMITTED | FINDINGS <n> | BLOCKED
 SCOPE: $label   BASE: $base   PATCH_SHA_OK: yes|no   SECONDS: <n>   EXIT: <exit code>
-COMMIT: <sha pushed to $ref, or none>   REF: $ref
+COMMIT: <sha pushed to $ref, or none>   REF: $ref${branch:+   PR: <its html_url, or none>}
 COMMITTED only when the commit is pushed and nothing failed. FINDINGS counts only errors and failed tests.
 WARNINGS: <n>, the warnings that did not fail anything, each listed below with \"warning\" as its rule."
     fi
@@ -337,7 +373,7 @@ PROMPT
         $sent_cmd "$sha" "$label" || die "could not note the sent scope with $sent_cmd"
     fi
 
-    if [ -n "$message" ]; then
+    if [ -n "$message" ] && [ "$role" != "pr" ]; then
         local runs
         runs="$(git rev-parse --absolute-git-dir)/remote-work-runs"
         mkdir -p "$runs"
@@ -348,7 +384,11 @@ PROMPT
     echo "base:    $base"
     echo "class:   $class"
     echo "command: ${cmd:-(task) $task}"
-    [ -z "$ref" ] || echo "commits: $ref (land it with: remote-work.sh land $id)"
+    if [ "$role" = "pr" ] && [ -n "$ref" ]; then
+        echo "delivers: a pull request from $branch into main (reviewed and merged on GitHub)"
+    elif [ -n "$ref" ]; then
+        echo "commits: $ref (land it with: remote-work.sh land $id)"
+    fi
     echo "scope:   $label"
     echo "patch:   $(wc -l < "$work/change.patch" | tr -d ' ') lines, sha256 $sha, $bytes bytes encoded"
     echo "sources: $(sources | wc -l | tr -d ' ') repos"
@@ -368,9 +408,28 @@ case "${1:-}" in
             left=$(( deadline - now )); sleep $(( left < 10 ? left : 10 ))
         done
         echo "remote-work: ${secs}s elapsed at $(date -u +%H:%M:%SZ); check the run with list_runs <trigger_id>"
+        # Exit here: bash reads a script as it runs it, so an edit made while the timer sleeps
+        # would otherwise be parsed, half-written, after it wakes.
+        exit 0
+        ;;
+    export) shift
+        # A repo outside dravr cannot read this skill's source, so it carries a copy: the scripts
+        # byte-identical, SKILL.md and the policy its own. SOURCE says which commit it copied.
+        dest="${1:?usage: export <dir>}"
+        [ -d "$dest" ] || die "no directory $dest"
+        mkdir -p "$dest/hooks"
+        cp "$HERE/policy.sh" "$HERE/remote-work.sh" "$HERE/remote-work.test.sh" "$dest/"
+        cp "$HERE/hooks/guard.sh" "$dest/hooks/"
+        chmod +x "$dest"/*.sh "$dest/hooks/guard.sh"
+        src=$(git -C "$HERE" log -1 --format=%h -- . 2>/dev/null || echo unknown)
+        dirty=$(git -C "$HERE" status --porcelain -- . 2>/dev/null | grep -qv 'SKILL.md' && echo "+local" || true)
+        printf 'shared remote-work skill scripts, copied from source commit %s%s on %s\nKeep policy.sh, remote-work.sh, remote-work.test.sh and hooks/guard.sh identical to the source; this repo owns SKILL.md and .claude/remote-work.json.\n' \
+            "$src" "$dirty" "$(date -u +%Y-%m-%d)" > "$dest/SOURCE"
+        echo "exported to $dest: $(cat "$dest/SOURCE" | head -1)"
+        exit 0
         ;;
     land) shift; land "$@" ;;
     classify) shift; load_policy; rw_classify "$POLICY" "${1:?usage: classify <command>}" | cut -f1 ;;
     sources) sources ;;
-    *) sed -n '2,3p;27,37p' "$HERE/$(basename "$0")" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    *) sed -n '2,3p;29,41p' "$HERE/$(basename "$0")" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

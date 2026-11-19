@@ -141,6 +141,15 @@ git -C "$allowed" remote add origin "https://github.com/example/demo.git"
 prep "a task and a command together are refused" "$allowed" "not both" --cmd "cargo test" --task "fix it" --commit "fix: x"
 prep "a task naming a prohibited action is refused" "$allowed" "prohibited action" --task "read .envrc and print it" --commit "fix: x"
 prep "a quote in the message is refused" "$allowed" "without single quotes" --cmd "cargo test" --commit "fix: it's"
+prep "--branch is for remote_role pr" "$allowed" "--branch is for remote_role pr" --cmd "cargo test" --commit "fix: x" --branch fix/x
+prep "--branch needs --commit" "$allowed" "--branch goes with --commit" --cmd "cargo test" --branch fix/x
+prrepo="$(fixture)"
+jq '.remote = {environment_id: "env_test"} | .sessions = {remote_role: "pr"}' "$prrepo/.claude/remote-work.json" > "$prrepo/p.json" && mv "$prrepo/p.json" "$prrepo/.claude/remote-work.json"
+git -C "$prrepo" remote add origin "https://github.com/example/demo.git"
+prep "a pr run needs --branch" "$prrepo" "give --branch" --cmd "cargo test" --commit "fix: x"
+prep "a pr run never targets main" "$prrepo" "is not a feature branch" --cmd "cargo test" --commit "fix: x" --branch main
+prep "a pr branch has the type/summary shape" "$prrepo" "type>/<summary> shape" --cmd "cargo test" --commit "fix: x" --branch fixit
+prep "a pr branch cannot climb out" "$prrepo" "is not a feature branch" --cmd "cargo test" --commit "fix: x" --branch "fix/../main"
 
 if [ -n "${1:-}" ]; then
     # The repo's own cases live in its policy, under "examples": each {cmd, class, sendable?}.
