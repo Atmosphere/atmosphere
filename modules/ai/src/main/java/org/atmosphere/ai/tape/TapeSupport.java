@@ -180,6 +180,32 @@ public final class TapeSupport {
     }
 
     /**
+     * {@link #recordCompletedDispatch(String, String, String, String, String, String, boolean)}
+     * with the run's terminal status given as is, for a caller that knows how
+     * the dispatch ended (an A2A task that failed, was rejected or was
+     * cancelled without its handler throwing). An {@link TapeStatus#OPEN}
+     * status is not terminal and is recorded as {@link TapeStatus#ERROR}.
+     *
+     * @param taskId      the dispatch's task id (becomes the tape id)
+     * @param endpoint    the skill / endpoint name
+     * @param parentRunId the dispatching coordinator's run id
+     * @param userId      owning principal, or {@code null}
+     * @param inputText   the request text, or {@code null}
+     * @param outputText  the result text, or {@code null}
+     * @param status      the run's terminal status
+     */
+    public static void recordCompletedDispatch(String taskId, String endpoint, String parentRunId,
+                                               String userId, String inputText, String outputText,
+                                               TapeStatus status) {
+        Objects.requireNonNull(status, "status");
+        var recorder = HOLDER.get();
+        if (recorder != null && !recorder.isClosed()) {
+            recorder.recordCompletedRun(taskId, endpoint, parentRunId, userId, inputText,
+                    outputText, status.terminal() ? status : TapeStatus.ERROR);
+        }
+    }
+
+    /**
      * Disconnect signal from the endpoint handler: cancel-marks every open
      * run of the resource (reconnects get a new uuid, so this is safe), after
      * the writer drains the steps already queued for those runs. No-op when

@@ -861,7 +861,24 @@ public final class A2aProtocolHandler {
             return;
         }
         org.atmosphere.ai.tape.TapeSupport.recordCompletedDispatch(taskCtx.taskId(), skill.id(),
-                parentRunId, null, inputText, taskResultText(taskCtx), ok);
+                parentRunId, null, inputText, taskResultText(taskCtx), tapeStatus(taskCtx, ok));
+    }
+
+    /**
+     * The tape status of a finished raw skill run: the task's own terminal
+     * state wins, since a skill can fail, reject or cancel its task through
+     * {@link TaskContext} without throwing (Correctness Invariant #5 — the
+     * tape records what happened, not "the handler returned"). A task the
+     * skill left non-terminal is taped from whether the handler threw.
+     */
+    static org.atmosphere.ai.tape.TapeStatus tapeStatus(TaskContext taskCtx, boolean ok) {
+        return switch (taskCtx.state()) {
+            case COMPLETED -> org.atmosphere.ai.tape.TapeStatus.COMPLETED;
+            case FAILED, REJECTED -> org.atmosphere.ai.tape.TapeStatus.ERROR;
+            case CANCELED -> org.atmosphere.ai.tape.TapeStatus.CANCELLED;
+            default -> ok ? org.atmosphere.ai.tape.TapeStatus.COMPLETED
+                    : org.atmosphere.ai.tape.TapeStatus.ERROR;
+        };
     }
 
     private String firstMessageText(JsonNode params) {

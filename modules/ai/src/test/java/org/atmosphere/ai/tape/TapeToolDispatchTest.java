@@ -81,4 +81,22 @@ class TapeToolDispatchTest {
             recorder.close();
         }
     }
+    @Test
+    void theStatusOverloadTapesTheGivenTerminalAndAnOpenStatusAsAnError() {
+        var store = new InMemoryTapeStore();
+        var recorder = TapeSupport.install(store);
+        try {
+            TapeSupport.recordCompletedDispatch("task-c", "search", "ceo-1", null,
+                    "q", "stopped", TapeStatus.CANCELLED);
+            TapeSupport.recordCompletedDispatch("task-o", "search", "ceo-1", null,
+                    "q", null, TapeStatus.OPEN);
+        } finally {
+            TapeSupport.uninstall(recorder);
+        }
+        var byTape = store.listRuns(new TapeQuery(null, null, 10)).stream()
+                .collect(java.util.stream.Collectors.toMap(TapeRun::tapeId, TapeRun::status));
+        assertEquals(TapeStatus.CANCELLED, byTape.get("task-c"));
+        assertEquals(TapeStatus.ERROR, byTape.get("task-o"),
+                "OPEN is not terminal: a finished dispatch given it is taped as an error");
+    }
 }
