@@ -25,10 +25,14 @@
 #   patch_command, sent_command   a repo script that defines the patch and keeps the sent
 #                    ledger (a gate that trusts a verdict needs both); absent, the built-in patch
 #   patch_exclude    globs of machine-local files the patch must not carry (a worktree's config)
-#   describe, fallback, clean_keep, model   prompt wording, the size fallback, kept dir, model
+#   describe, fallback, clean_keep   prompt wording, the size fallback, the kept dir
+#   model            the model of a verify run, which only builds and reports (default claude-haiku-5-5)
+#   task_model       the model of a run that commits (--commit, --task), which changes code and
+#                    follows the push rules (default claude-sonnet-5-5). --model, then
+#                    REMOTE_WORK_MODEL, override both for one run
 #
 #   remote-work.sh prepare [--cmd "<command>" | --task "<instructions>"] [--commit "<message>"]
-#                          [--branch <type>/<summary>] [-p <package>]... [--out <file>]
+#                          [--branch <type>/<summary>] [-p <package>]... [--model <id>] [--out <file>]
 #       write the body JSON and print a summary. --cmd must be ONE simple command the policy
 #       forces or permits. --commit (needs "sessions": {"remote_role": "commit"} or "pr" in the
 #       policy) makes the run commit its result: role commit pushes it to refs/remote-work/<id>,
@@ -210,7 +214,7 @@ land() {
 
 prepare() {
     load_policy
-    local out="" cmd="" task="" message="" branch="" packages=()
+    local out="" cmd="" task="" message="" branch="" model_arg="" packages=()
     while [ $# -gt 0 ]; do
         case "$1" in
             --cmd) cmd="$2"; shift 2 ;;
@@ -218,6 +222,7 @@ prepare() {
             --commit) message="$2"; shift 2 ;;
             --branch) branch="$2"; shift 2 ;;
             -p|--package) packages+=("$2"); shift 2 ;;
+            --model) model_arg="$2"; shift 2 ;;
             --out) out="$2"; shift 2 ;;
             *) die "unknown argument: $1" ;;
         esac
@@ -279,8 +284,15 @@ prepare() {
     env_id=$(rw_env "$POLICY")
     account=$(rw_account)
     [ -n "$env_id" ] || die "no cloud environment for ${account:-this account}: find its id with /schedule (or create one at claude.ai/code), then add \"${account:-<email>}\": \"env_...\" to ${REMOTE_WORK_ENVIRONMENTS:-~/.config/remote-work/environments.json}"
-    model=$(cfg model)
-    model=${model:-claude-sonnet-5-5}
+    # A verify run only builds and reports, so the small model does it; a run that commits changes
+    # code and must keep the push rules, so it gets the stronger one. --model, then
+    # REMOTE_WORK_MODEL, override either for one run.
+    if [ -n "$model_arg" ]; then model=$model_arg
+    elif [ -n "${REMOTE_WORK_MODEL:-}" ]; then model=$REMOTE_WORK_MODEL
+    elif [ -n "$message" ]; then model=$(cfg task_model); model=${model:-claude-sonnet-5-5}
+    else model=$(cfg model); model=${model:-claude-haiku-5-5}
+    fi
+    case "$model" in ''|*[!A-Za-z0-9._-]*) die "model '$model' is not a model id" ;; esac
     default=$(cfg default_command)
     # The default command carries default_label, the only scope a gate's verdict check accepts.
     if [ -n "$task" ]; then

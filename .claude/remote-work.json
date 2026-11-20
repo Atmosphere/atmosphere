@@ -68,7 +68,6 @@
   },
   "remote": {
     "$comment": "How a run is built (remote-work.sh prepare). The repo is public and Maven Central is reachable from the sandbox, so the repo alone is attached. There is no environment_id here: a cloud environment belongs to one claude.ai account, so each developer puts theirs in .claude/remote-work.local.json; until then the guard refuses nothing.",
-    "model": "claude-sonnet-5-5",
     "describe": "the Atmosphere framework (Java 21, a 37-module Maven reactor, Kotlin in modules/koog and modules/embabel; javac runs with -Werror and Spotless checks every build)",
     "sources": [
       "Atmosphere/atmosphere"

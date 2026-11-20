@@ -12,7 +12,7 @@
 # so the result does not depend on how loaded the machine running the test is.
 set -euo pipefail
 # Every session of an account carries REMOTE_WORK_ENV; each case sets the environment it tests.
-unset REMOTE_WORK_ENV REMOTE_WORK REMOTE_WORK_LOCAL
+unset REMOTE_WORK_ENV REMOTE_WORK REMOTE_WORK_LOCAL REMOTE_WORK_MODEL
 # The suite never reads the real signed-in account or the real environments map.
 export CLAUDE_CONFIG_DIR REMOTE_WORK_ENVIRONMENTS
 CLAUDE_CONFIG_DIR="$(mktemp -d)"; REMOTE_WORK_ENVIRONMENTS="$CLAUDE_CONFIG_DIR/environments.json"
@@ -143,6 +143,8 @@ printf '{"other@example.com": "env_other"}\n' >"$REMOTE_WORK_ENVIRONMENTS"
 guard "an account with no environment in the map refuses nothing" "$noenv" "cargo clippy" 0 ""
 printf '{"other@example.com": "env_other", "dev@example.com": "env_dev"}\n' >"$REMOTE_WORK_ENVIRONMENTS"
 guard "the signed-in account's environment from the map turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session"
+out=$(printf '{"tool_input":{"command":"cargo clippy"}}' | (cd "$noenv" && REMOTE_WORK_ENV=env_stale bash -c '. "$1/policy.sh"; rw_env "{}"' _ "$HERE"))
+if [ "$out" = env_dev ]; then pass "the account's map entry wins over a stale REMOTE_WORK_ENV"; else fail "the map wins over a stale REMOTE_WORK_ENV (got '$out')"; fi
 printf '{"oauthAccount": {"emailAddress": "switched@example.com"}}\n' >"$CLAUDE_CONFIG_DIR/.claude.json"
 guard "switching the config dir to an unmapped account stands the guard down" "$noenv" "cargo clippy" 0 ""
 if out=$(cd "$noenv" && bash "$HERE/remote-work.sh" prepare --cmd "cargo test" 2>&1); then
@@ -207,12 +209,28 @@ git -C "$landing" checkout -qb feature/x
 printf 'a, the developer edit\n' >"$landing/a.txt"
 printf 'untracked\n' >"$landing/new.txt"
 base_sha=$(git -C "$landing" rev-parse HEAD)
-out=$(cd "$landing" && PATH="$stub:$PATH" REMOTE_WORK_ENV=env_account bash "$HERE/remote-work.sh" prepare --cmd "cargo test" --commit "fix: x" 2>&1) || fail "prepare a commit run ($out)"
+out=$(cd "$landing" && PATH="$stub:$PATH" CLAUDE_CONFIG_DIR="$(mktemp -d)" REMOTE_WORK_ENV=env_account bash "$HERE/remote-work.sh" prepare --cmd "cargo test" --commit "fix: x" 2>&1) || fail "prepare a commit run ($out)"
 id=$(printf '%s' "$out" | sed -n 's/.*land it with: remote-work.sh land \(.*\))$/\1/p')
 gitdir=$(git -C "$landing" rev-parse --absolute-git-dir)
 ledger="$gitdir/remote-work-runs/$id"
 body_env=$(jq -r '.job_config.ccr.environment_id' "$gitdir/remote-work-body.json")
-if [ "$body_env" = env_account ]; then pass "REMOTE_WORK_ENV wins over the policy's environment"; else fail "REMOTE_WORK_ENV wins (body has '$body_env')"; fi
+if [ "$body_env" = env_account ]; then pass "REMOTE_WORK_ENV serves an unmapped account, over the policy's environment"; else fail "REMOTE_WORK_ENV wins (body has '$body_env')"; fi
+body_model=$(jq -r '.job_config.ccr.session_context.model' "$gitdir/remote-work-body.json")
+if [ "$body_model" = claude-sonnet-5-5 ]; then pass "a commit run gets the task model"; else fail "a commit run gets the task model (got '$body_model')"; fi
+model_of() { # <extra env or -> <prepare args...> : the model the body names
+    local e="$1"; shift
+    (cd "$landing" && env ${e:+"$e"} REMOTE_WORK_ENV=env_account bash "$HERE/remote-work.sh" prepare --out "$ROOT/m.json" "$@" >/dev/null 2>&1) \
+        && jq -r '.job_config.ccr.session_context.model' "$ROOT/m.json"
+}
+eq_model() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1 (got '$3')"; fi; }
+eq_model "a verify run gets the small model by default" claude-haiku-5-5 "$(model_of "" --cmd "cargo test")"
+eq_model "--model overrides it for one run" claude-opus-5-5 "$(model_of "" --cmd "cargo test" --model claude-opus-5-5)"
+eq_model "REMOTE_WORK_MODEL overrides it for a session" claude-sonnet-5-5 "$(model_of REMOTE_WORK_MODEL=claude-sonnet-5-5 --cmd "cargo test")"
+printf '{"remote": {"model": "claude-sonnet-5-5"}}\n' >"$landing/.claude/remote-work.local.json"
+eq_model "the local file overrides the verify model" claude-sonnet-5-5 "$(model_of "" --cmd "cargo test")"
+rm -f "$landing/.claude/remote-work.local.json"
+if (cd "$landing" && REMOTE_WORK_ENV=env_account bash "$HERE/remote-work.sh" prepare --out "$ROOT/m.json" --cmd "cargo test" --model 'x;id' >/dev/null 2>&1); then
+    fail "a model id with shell syntax is refused"; else pass "a model id with shell syntax is refused"; fi
 sent=$(sed -n 's/^sent_tree=//p' "$ledger" 2>/dev/null)
 if [ -n "$id" ] && [ "$(git -C "$landing" show "$sent:a.txt" 2>/dev/null)" = "a, the developer edit" ] \
     && [ "$(git -C "$landing" show "$sent:new.txt" 2>/dev/null)" = untracked ]; then

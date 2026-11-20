@@ -140,16 +140,18 @@ rw_account() {
 
 # rw_env <policy json>: the cloud environment a run goes to. An environment belongs to one
 # claude.ai account and a config dir can switch accounts, so it is looked up from the account
-# signed in now: REMOTE_WORK_ENV (a one-off override), then this account's entry in
+# signed in now: this account's entry in
 # ${REMOTE_WORK_ENVIRONMENTS:-~/.config/remote-work/environments.json} ({"<email>": "env_..."}),
-# then the policy's remote.environment_id. Prints nothing when none applies.
+# then REMOTE_WORK_ENV (for an account with no entry), then the policy's remote.environment_id.
+# The map wins over the variable because a session keeps the variable it started with: after an
+# account switch it names the old account's environment. Prints nothing when none applies.
 rw_env() {
     local map="${REMOTE_WORK_ENVIRONMENTS:-$HOME/.config/remote-work/environments.json}" account id=""
-    if [ -n "${REMOTE_WORK_ENV:-}" ]; then printf '%s\n' "$REMOTE_WORK_ENV"; return 0; fi
     account=$(rw_account)
     if [ -n "$account" ] && [ -f "$map" ]; then
         id=$(jq -r --arg a "$account" '.[$a] // empty' "$map" 2>/dev/null || true)
     fi
+    [ -n "$id" ] || id=${REMOTE_WORK_ENV:-}
     [ -n "$id" ] || id=$(printf '%s' "$1" | jq -r '.remote.environment_id // empty')
     [ -z "$id" ] || printf '%s\n' "$id"
 }
