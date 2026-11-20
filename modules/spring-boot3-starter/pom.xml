@@ -19,7 +19,7 @@
         <!-- 3.5.15 closes spring-boot-autoconfigure CVE-2026-41001; 3.5.14 closed spring-boot-starter-actuator
              CVE-2026-22733 + spring-boot CVE-2026-40973, plus assertj-core
              CVE-2026-24400 by pulling 3.27.7. -->
-        <spring-boot.version>3.5.15</spring-boot.version>
+        <spring-boot.version>3.5.16</spring-boot.version>
         <spring-framework.version>6.2.19</spring-framework.version>
         <!-- The root POM force-pins tomcat-embed-core to its Tomcat 11 baseline;
              without this override the test classpath boots an 11.0.x core against
