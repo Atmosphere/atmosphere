@@ -11,6 +11,11 @@
 # refusal also asserts its message. Pressure is driven through RW_LOAD / RW_NCPU / RW_SWAP_GB,
 # so the result does not depend on how loaded the machine running the test is.
 set -euo pipefail
+# Every session of an account carries REMOTE_WORK_ENV; each case sets the environment it tests.
+unset REMOTE_WORK_ENV REMOTE_WORK REMOTE_WORK_LOCAL
+# The suite never reads the real signed-in account or the real environments map.
+export CLAUDE_CONFIG_DIR REMOTE_WORK_ENVIRONMENTS
+CLAUDE_CONFIG_DIR="$(mktemp -d)"; REMOTE_WORK_ENVIRONMENTS="$CLAUDE_CONFIG_DIR/environments.json"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARD="$HERE/hooks/guard.sh"
@@ -132,7 +137,19 @@ guard "a forced command runs locally while no environment is configured" "$noenv
 printf '{"remote": {"environment_id": "env_mine"}}\n' >"$noenv/.claude/remote-work.local.json"
 guard "an environment in the local file turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session"
 rm -f "$noenv/.claude/remote-work.local.json"
-guard "REMOTE_WORK_ENV from the account's settings turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session" REMOTE_WORK_ENV=env_account
+guard "REMOTE_WORK_ENV turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session" REMOTE_WORK_ENV=env_account
+printf '{"oauthAccount": {"emailAddress": "dev@example.com"}}\n' >"$CLAUDE_CONFIG_DIR/.claude.json"
+printf '{"other@example.com": "env_other"}\n' >"$REMOTE_WORK_ENVIRONMENTS"
+guard "an account with no environment in the map refuses nothing" "$noenv" "cargo clippy" 0 ""
+printf '{"other@example.com": "env_other", "dev@example.com": "env_dev"}\n' >"$REMOTE_WORK_ENVIRONMENTS"
+guard "the signed-in account's environment from the map turns the refusal on" "$noenv" "cargo clippy" 2 "runs in a cloud session"
+printf '{"oauthAccount": {"emailAddress": "switched@example.com"}}\n' >"$CLAUDE_CONFIG_DIR/.claude.json"
+guard "switching the config dir to an unmapped account stands the guard down" "$noenv" "cargo clippy" 0 ""
+if out=$(cd "$noenv" && bash "$HERE/remote-work.sh" prepare --cmd "cargo test" 2>&1); then
+    fail "prepare without an environment for the account fails"
+elif printf '%s' "$out" | grep -qF '"switched@example.com"'; then pass "prepare names the account to add to the map"
+else fail "prepare names the account to add ($out)"; fi
+printf '{"oauthAccount": {"emailAddress": "dev@example.com"}}\n' >"$CLAUDE_CONFIG_DIR/.claude.json"
 
 echo "  no policy, no enforcement"
 bare="$(mktemp -d "$ROOT/bare-XXXXXX")"; git -C "$bare" init -q
@@ -169,6 +186,115 @@ prep "a pr run needs --branch" "$prrepo" "give --branch" --cmd "cargo test" --co
 prep "a pr run never targets main" "$prrepo" "is not a feature branch" --cmd "cargo test" --commit "fix: x" --branch main
 prep "a pr branch has the type/summary shape" "$prrepo" "type>/<summary> shape" --cmd "cargo test" --commit "fix: x" --branch fixit
 prep "a pr branch cannot climb out" "$prrepo" "is not a feature branch" --cmd "cargo test" --commit "fix: x" --branch "fix/../main"
+prep "a pr branch cannot carry shell syntax" "$prrepo" "is not a feature branch" --cmd "cargo test" --commit "fix: x" --branch 'fix/x;id'
+prep "a task naming a prohibited command in prose is refused" "$allowed" "needs the local stack" --task "fix it, then cargo run --bin x to check" --commit "fix: x"
+
+echo "  a commit run, prepared and landed"
+# A local bare origin stands in for GitHub; a stub gh records the ref deletion instead of calling it.
+stub="$(mktemp -d "$ROOT/stub-XXXXXX")"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >>"%s/gh.log"\n' "$stub" >"$stub/gh"
+chmod +x "$stub/gh"
+landing="$(fixture)"
+jq '.remote = {environment_id: "env_policy"} | .sessions = {remote_role: "commit"}' "$landing/.claude/remote-work.json" > "$landing/p.json" && mv "$landing/p.json" "$landing/.claude/remote-work.json"
+git -C "$landing" config commit.gpgsign false
+git -C "$landing" config user.name t && git -C "$landing" config user.email t@example.com
+printf 'a\n' >"$landing/a.txt"; printf 'b1\nb2\nb3\n' >"$landing/b.txt"
+git -C "$landing" add -A && git -C "$landing" commit -qm base
+git init -q --bare "$ROOT/origin.git"
+git -C "$landing" remote add origin "$ROOT/origin.git"
+git -C "$landing" push -q origin HEAD:refs/heads/main
+git -C "$landing" checkout -qb feature/x
+printf 'a, the developer edit\n' >"$landing/a.txt"
+printf 'untracked\n' >"$landing/new.txt"
+base_sha=$(git -C "$landing" rev-parse HEAD)
+out=$(cd "$landing" && PATH="$stub:$PATH" REMOTE_WORK_ENV=env_account bash "$HERE/remote-work.sh" prepare --cmd "cargo test" --commit "fix: x" 2>&1) || fail "prepare a commit run ($out)"
+id=$(printf '%s' "$out" | sed -n 's/.*land it with: remote-work.sh land \(.*\))$/\1/p')
+gitdir=$(git -C "$landing" rev-parse --absolute-git-dir)
+ledger="$gitdir/remote-work-runs/$id"
+body_env=$(jq -r '.job_config.ccr.environment_id' "$gitdir/remote-work-body.json")
+if [ "$body_env" = env_account ]; then pass "REMOTE_WORK_ENV wins over the policy's environment"; else fail "REMOTE_WORK_ENV wins (body has '$body_env')"; fi
+sent=$(sed -n 's/^sent_tree=//p' "$ledger" 2>/dev/null)
+if [ -n "$id" ] && [ "$(git -C "$landing" show "$sent:a.txt" 2>/dev/null)" = "a, the developer edit" ] \
+    && [ "$(git -C "$landing" show "$sent:new.txt" 2>/dev/null)" = untracked ]; then
+    pass "the ledger's sent tree holds the edit and the untracked file"
+else fail "the ledger's sent tree holds what was sent (id '$id', tree '$sent')"; fi
+cp "$ledger" "$ROOT/ledger"
+
+# remote_commit <name> <path> <content|-> : the sent tree with one path rewritten (- deletes it),
+# committed on base and pushed to refs/remote-work/<name>; a ledger for <name> points at it.
+remote_commit() {
+    local name="$1" path="$2" content="$3" idx tree commit
+    idx="$(mktemp -u "$ROOT/idx-XXXXXX")"
+    GIT_INDEX_FILE="$idx" git -C "$landing" read-tree "$sent"
+    if [ "$content" = - ]; then
+        GIT_INDEX_FILE="$idx" git -C "$landing" rm -q --cached -- "$path"
+    else
+        GIT_INDEX_FILE="$idx" git -C "$landing" update-index --add --cacheinfo \
+            "100644,$(printf '%s' "$content" | git -C "$landing" hash-object -w --stdin),$path"
+    fi
+    tree=$(GIT_INDEX_FILE="$idx" git -C "$landing" write-tree)
+    commit=$(git -C "$landing" -c user.name=remote-work -c user.email=r@example.com commit-tree "$tree" -p "$base_sha" -m "the remote's own text")
+    git -C "$landing" push -q origin "$commit:refs/remote-work/$name"
+    sed "s#^ref=.*#ref=refs/remote-work/$name#" "$ROOT/ledger" >"$gitdir/remote-work-runs/$name"
+}
+land() { # $1 label, $2 run name, $3 expected status (0 or 1), $4 literal the output must carry
+    local code=0 out
+    out=$(cd "$landing" && PATH="$stub:$PATH" bash "$HERE/remote-work.sh" land "$2" 2>&1) || code=$?
+    if [ "$code" != "$3" ]; then fail "$1 (exit $code, expected $3): $out"; return; fi
+    if ! printf '%s' "$out" | grep -qF -- "$4"; then fail "$1 (missing: $4): $out"; return; fi
+    pass "$1"
+}
+
+remote_commit reverts a.txt "a
+"
+land "a run that puts your file back to base is refused" reverts 1 "reverted or deleted files you had changed: a.txt"
+if [ -f "$gitdir/remote-work-runs/reverts" ]; then pass "a refused land keeps the record"; else fail "a refused land keeps the record"; fi
+remote_commit deletes a.txt -
+land "a run that deletes your file is refused" deletes 1 "reverted or deleted files you had changed: a.txt"
+remote_commit good b.txt "b1
+b2 fixed by the run
+b3
+"
+remote_commit fixmine a.txt "a, the developer edit, fixed by the run
+"
+cp -r "$landing" "$ROOT/landing-copy"
+out=$(cd "$ROOT/landing-copy" && PATH="$stub:$PATH" bash "$HERE/remote-work.sh" land fixmine 2>&1) \
+    && [ "$(git -C "$ROOT/landing-copy" show HEAD:a.txt)" = "a, the developer edit, fixed by the run" ] \
+    && pass "a run that fixes a file you edited lands" || fail "a run that fixes a file you edited lands: $out"
+git -C "$landing" checkout -q main
+land "land refuses main" good 1 "refusing to land on main"
+git -C "$landing" checkout -q --detach feature/x
+land "land refuses a detached HEAD" good 1 "detached HEAD"
+git -C "$landing" checkout -q feature/x
+git -C "$landing" add new.txt
+land "land refuses a staged index" good 1 "the index has staged changes"
+git -C "$landing" reset -q
+printf 'a, edited after prepare\n' >"$landing/a.txt"
+land "a file edited since prepare is refused" good 1 "you changed files since prepare: a.txt"
+printf 'a, the developer edit\n' >"$landing/a.txt"
+land "a run's work lands on the feature branch" good 0 "landed"
+if [ "$(git -C "$landing" diff --name-only HEAD~1 HEAD | tr '\n' ' ')" = "a.txt b.txt new.txt " ] \
+    && [ "$(git -C "$landing" show HEAD:b.txt | sed -n 2p)" = "b2 fixed by the run" ] \
+    && [ "$(git -C "$landing" show HEAD:a.txt)" = "a, the developer edit" ]; then
+    pass "the landed commit is what was sent plus the run's change"
+else fail "the landed commit is what was sent plus the run's change ($(git -C "$landing" diff --stat HEAD~1 HEAD))"; fi
+if [ "$(git -C "$landing" log -1 --format=%s)" = "fix: x" ]; then pass "the landed commit carries the prepared message"
+else fail "the landed commit carries the prepared message (got '$(git -C "$landing" log -1 --format=%s)')"; fi
+if [ -z "$(git -C "$landing" status --porcelain)" ]; then pass "nothing sent is left uncommitted"
+else fail "nothing sent is left uncommitted ($(git -C "$landing" status --porcelain | tr '\n' ' '))"; fi
+if [ ! -f "$gitdir/remote-work-runs/good" ] && grep -qF -- "-X DELETE repos/" "$stub/gh.log" && grep -qF -- "/git/remote-work/good" "$stub/gh.log"; then
+    pass "a landed run drops its record and deletes its ref"
+else fail "a landed run drops its record and deletes its ref ($(cat "$stub/gh.log" 2>/dev/null))"; fi
+
+echo "  export"
+dest="$(mktemp -d "$ROOT/export-XXXXXX")"
+bash "$HERE/remote-work.sh" export "$dest" >/dev/null
+same=1
+for f in policy.sh remote-work.sh remote-work.test.sh hooks/guard.sh; do cmp -s "$HERE/$f" "$dest/$f" || same=0; done
+if [ "$same" = 1 ] && [ -x "$dest/hooks/guard.sh" ]; then pass "export copies the four scripts byte-identical and executable"
+else fail "export copies the four scripts byte-identical and executable"; fi
+if head -1 "$dest/SOURCE" | grep -q 'copied from source commit [0-9a-f]\{7,\}'; then pass "SOURCE names the source commit"
+else fail "SOURCE names the source commit ($(head -1 "$dest/SOURCE"))"; fi
 
 if [ -n "${1:-}" ]; then
     # The repo's own cases live in its policy, under "examples": each {cmd, class, sendable?}.

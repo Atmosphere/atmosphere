@@ -12,7 +12,7 @@
 # list_runs / get_run_log (see SKILL.md). The code is the same in every repo; everything
 # repo-specific is the policy's "remote" block:
 #
-#   environment_id   the claude.ai cloud environment (required)
+#   environment_id   a fallback cloud environment; each account's own comes from environments.json (policy.sh rw_env)
 #   sources          ["owner/repo", ...] attached to the session; the cloud proxy authenticates
 #                    only attached repos, so every private repo the build fetches belongs here
 #   cargo_git_owner  also attach every git+https://github.com/<owner>/* dependency in Cargo.lock
@@ -28,11 +28,12 @@
 #   describe, fallback, clean_keep, model   prompt wording, the size fallback, kept dir, model
 #
 #   remote-work.sh prepare [--cmd "<command>" | --task "<instructions>"] [--commit "<message>"]
-#                          [-p <package>]... [--out <file>]
+#                          [--branch <type>/<summary>] [-p <package>]... [--out <file>]
 #       write the body JSON and print a summary. --cmd must be ONE simple command the policy
-#       forces or permits. --commit (needs "sessions": {"remote_role": "commit"} in the policy)
-#       makes the run commit its result and push it to refs/remote-work/<id> — never a branch,
-#       never main, so no CI fires — and --task gives it free-form work instead of a command.
+#       forces or permits. --commit (needs "sessions": {"remote_role": "commit"} or "pr" in the
+#       policy) makes the run commit its result: role commit pushes it to refs/remote-work/<id>,
+#       never a branch, so no CI fires; role pr pushes the one new --branch and opens its pull
+#       request. --task gives it free-form work instead of a command.
 #   remote-work.sh land <id>                recreate the run's commit here (signed, local hooks),
 #                                           then delete refs/remote-work/<id>
 #   remote-work.sh classify "<command>"    the policy's verdict on a command
@@ -67,17 +68,20 @@ cfg() { printf '%s' "$POLICY" | jq -r --arg k "$1" '.remote[$k] // empty'; }
 # (the attach is what lets the proxy authenticate it) without the sandbox cloning all of it.
 sources_json() {
     load_policy
-    local owner
+    local owner deps="" status=0
     owner=$(cfg cargo_git_owner)
+    if [ -n "$owner" ] && [ -f Cargo.lock ]; then
+        # rg exits 1 when nothing matches; above that it failed, and a short list would leave a
+        # private dependency unattached.
+        deps=$(rg -o "source = \"git\\+https://github\\.com/${owner}/([^/?#\".]+)" -r "${owner}/\$1" Cargo.lock) || status=$?
+        [ "$status" -le 1 ] || die "rg over Cargo.lock failed (exit $status)"
+    fi
     {
         printf '%s' "$POLICY" | jq -c '.remote.sources // [] | .[]
             | if type == "string" then {git_repository: {url: ("https://github.com/" + .)}}
               else {git_repository: ({url: ("https://github.com/" + .repo)}
                     + (if .sparse then {sparse_checkout_paths: .sparse} else {} end))} end'
-        if [ -n "$owner" ] && [ -f Cargo.lock ]; then
-            rg -o "source = \"git\\+https://github\\.com/${owner}/([^/?#\".]+)" -r "${owner}/\$1" Cargo.lock \
-                | jq -R -c '{git_repository: {url: ("https://github.com/" + .)}}' || true
-        fi
+        [ -z "$deps" ] || printf '%s\n' "$deps" | jq -R -c '{git_repository: {url: ("https://github.com/" + .)}}'
     } | awk 'NF && !seen[$0]++'
 }
 
@@ -90,13 +94,14 @@ builtin_patch() {
     # remote.patch_exclude: machine-local files the patch must not carry (a worktree's own config),
     # so a commit run cannot put them into the repository either.
     while IFS= read -r x; do [ -n "$x" ] && excludes+=("$x"); done < <(printf '%s' "$POLICY" | jq -r '.remote.patch_exclude // [] | .[]')
-    for x in "${excludes[@]}"; do pathspec+=(":(exclude)$x"); done
-    git diff --binary "$base" -- . "${pathspec[@]}" || die "git diff against $base failed"
+    # ${a[@]+"${a[@]}"}: bash 3.2, macOS's /bin/bash, treats an empty array as unbound under set -u.
+    for x in ${excludes[@]+"${excludes[@]}"}; do pathspec+=(":(exclude)$x"); done
+    git diff --binary "$base" -- . ${pathspec[@]+"${pathspec[@]}"} || die "git diff against $base failed"
     list=$(mktemp)
     git ls-files --others --exclude-standard -z >"$list" || { rm -f "$list"; die "git ls-files failed"; }
     while IFS= read -r -d '' f; do
         skip=""
-        for x in "${excludes[@]}"; do
+        for x in ${excludes[@]+"${excludes[@]}"}; do
             # shellcheck disable=SC2254 # an exclude entry is a glob on purpose
             case "$f" in $x) skip=1 ;; esac
         done
@@ -108,16 +113,19 @@ builtin_patch() {
     rm -f "$list"
 }
 
-# The working state as a tree, written through a throwaway index so the real index and every
-# other session's staged work stay as they were. A commit run records it: land applies only what
-# the remote changed on top of exactly this tree.
-builtin_tree() {
-    local idx
+# sent_tree <base> <patch>: the tree the remote starts from, <base> with exactly the sent patch
+# applied (so a patch_exclude'd file stays at its base version, as it does remotely), built in a
+# throwaway index so the real index and every other session's staged work stay as they were.
+# A commit run records it: land applies only what the remote changed on top of exactly this tree.
+sent_tree() {
+    local base="$1" patch="$2" idx
     idx=$(mktemp)
     rm -f "$idx"
-    GIT_INDEX_FILE="$idx" git read-tree HEAD || die "git read-tree HEAD failed"
-    GIT_INDEX_FILE="$idx" git add -A || die "git add into the throwaway index failed"
-    GIT_INDEX_FILE="$idx" git write-tree || die "git write-tree failed"
+    GIT_INDEX_FILE="$idx" git read-tree "$base" || { rm -f "$idx"; die "git read-tree $base failed"; }
+    if [ -s "$patch" ]; then
+        GIT_INDEX_FILE="$idx" git apply --cached --binary "$patch" || { rm -f "$idx"; die "the sent patch does not apply to $base"; }
+    fi
+    GIT_INDEX_FILE="$idx" git write-tree || { rm -f "$idx"; die "git write-tree failed"; }
     rm -f "$idx"
 }
 
@@ -125,11 +133,19 @@ builtin_tree() {
 # work, so only the difference from the sent tree is applied; the commit is then made locally,
 # signed and through the local hooks, and the remote ref is deleted.
 land() {
-    local id="${1:?usage: land <id>}" ledger ref sent remote_sha branch msg repo_path
-    ledger="$(git rev-parse --absolute-git-dir)/remote-work-runs/$id"
+    local id="${1:?usage: land <id>}" gitdir ledger ref sent remote_sha branch msg repo_path
+    gitdir=$(git rev-parse --absolute-git-dir)
+    ledger="$gitdir/remote-work-runs/$id"
     [ -f "$ledger" ] || die "no record of run $id in this checkout (prepare writes it)"
     sent=$(sed -n 's/^sent_tree=//p' "$ledger")
     ref=$(sed -n 's/^ref=//p' "$ledger")
+    # The message is the one prepare was given, never the remote commit's own text.
+    msg=$(sed -n 's/^message=//p' "$ledger")
+    local base
+    base=$(sed -n 's/^base=//p' "$ledger")
+    [ -n "$ref" ] && [ -n "$msg" ] || die "the record of run $id has no ref or message"
+    git cat-file -e "${base:-missing}^{commit}" 2>/dev/null || die "the record of run $id names no base commit present here"
+    git cat-file -e "${sent:-missing}^{tree}" 2>/dev/null || die "the record of run $id names no sent tree present here"
     branch=$(git rev-parse --abbrev-ref HEAD)
     case "$branch" in
         HEAD) die "detached HEAD: land on a working branch" ;;
@@ -138,20 +154,49 @@ land() {
     git diff --cached --quiet || die "the index has staged changes: commit or unstage them first"
     git fetch -q origin "$ref" || die "could not fetch $ref: the run pushed nothing, or the ref is gone"
     remote_sha=$(git rev-parse FETCH_HEAD)
-    msg=$(git log -1 --format=%B "$remote_sha")
-    # A file the developer changed that the run put back to its base version would be silently
-    # reverted by the landing diff: refuse, and keep the ref for a look by hand.
-    local base f reverted=""
-    base=$(sed -n 's/^base=//p' "$ledger")
-    while IFS= read -r f; do
-        [ -n "$f" ] || continue
-        if git diff --quiet "$base" "$remote_sha" -- "$f"; then reverted="$reverted $f"; fi
-    done < <(git diff --name-only "$base" "$sent")
-    [ -z "$reverted" ] || die "the run reverted files you had changed:$reverted; review $ref by hand"
-    git diff --binary "$sent" "$remote_sha" > "$(git rev-parse --absolute-git-dir)/remote-work-land.patch"
-    [ -s "$(git rev-parse --absolute-git-dir)/remote-work-land.patch" ] || die "the run changed nothing on top of what was sent"
-    git apply --3way --index "$(git rev-parse --absolute-git-dir)/remote-work-land.patch" \
-        || die "the run's change does not apply here cleanly; resolve by hand, $ref is kept"
+    # A file the developer changed that the run put back to its base version, or deleted, would be
+    # silently reverted by the landing diff: refuse, and keep the ref for a look by hand. The list
+    # goes through a file and every git status is checked: a failed git here must refuse, not pass.
+    local f reverted="" changed status
+    changed=$(mktemp)
+    git diff --name-only -z "$base" "$sent" >"$changed" || { rm -f "$changed"; die "git diff $base $sent failed"; }
+    while IFS= read -r -d '' f; do
+        if git cat-file -e "$sent:$f" 2>/dev/null && ! git cat-file -e "$remote_sha:$f" 2>/dev/null; then
+            reverted="$reverted $f"; continue
+        fi
+        status=0
+        git diff --quiet "$base" "$remote_sha" -- "$f" || status=$?
+        case "$status" in
+            0) reverted="$reverted $f" ;;
+            1) ;;
+            *) rm -f "$changed"; die "git diff on $f failed (exit $status)" ;;
+        esac
+    done <"$changed"
+    rm -f "$changed"
+    [ -z "$reverted" ] || die "the run reverted or deleted files you had changed:$reverted; review $ref by hand"
+    # The landed commit is the run's commit: what was sent plus what the run changed, under the
+    # message prepare was given. Each path it touches must still hold what was sent, so nothing
+    # edited here since prepare is overwritten.
+    local paths edited=""
+    paths=$(mktemp)
+    git diff --name-only -z "$base" "$remote_sha" >"$paths" || { rm -f "$paths"; die "git diff $base $remote_sha failed"; }
+    [ -s "$paths" ] || { rm -f "$paths"; die "the run's commit changes nothing"; }
+    while IFS= read -r -d '' f; do
+        local want have
+        want=$(git rev-parse -q --verify "$sent:$f" 2>/dev/null || echo absent)
+        if [ -e "$f" ]; then have=$(git hash-object -- "$f") || { rm -f "$paths"; die "hash-object $f failed"; }
+        else have=absent; fi
+        [ "$want" = "$have" ] || edited="$edited $f"
+    done <"$paths"
+    [ -z "$edited" ] || { rm -f "$paths"; die "you changed files since prepare:$edited; commit or set them aside, $ref is kept"; }
+    while IFS= read -r -d '' f; do
+        if git cat-file -e "$remote_sha:$f" 2>/dev/null; then
+            git checkout -q "$remote_sha" -- "$f" || { rm -f "$paths"; die "could not take $f from the run"; }
+        else
+            git rm -q -- "$f" || { rm -f "$paths"; die "could not remove $f as the run did"; }
+        fi
+    done <"$paths"
+    rm -f "$paths"
     git commit -q -m "$msg" || die "the local commit failed (a hook?); the change is staged and $ref is kept"
     repo_path=$(git remote get-url origin | sed -E 's#\.git$##; s#^.*github\.com[:/]##')
     if gh api -X DELETE "repos/$repo_path/git/${ref#refs/}" >/dev/null 2>&1; then
@@ -159,7 +204,7 @@ land() {
     else
         echo "warning: could not delete $ref; delete it with gh api -X DELETE repos/$repo_path/git/${ref#refs/}" >&2
     fi
-    rm -f "$ledger" "$(git rev-parse --absolute-git-dir)/remote-work-land.patch"
+    rm -f "$ledger"
     echo "landed $(git rev-parse --short HEAD) on $branch: $msg"
 }
 
@@ -196,11 +241,13 @@ prepare() {
         id="$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/]+)$#\1#')-$(date -u +%Y%m%d%H%M%S)"
         if [ "$role" = "pr" ]; then
             [ -n "$branch" ] || die "this repo delivers a run as a pull request: give --branch <type>/<summary>"
+            # The name reaches the remote shell unquoted: letters, digits and . _ - / only.
             case "$branch" in
-                main|master|HEAD|*..*|-*|*/|/*|*' '*) die "--branch '$branch' is not a feature branch name" ;;
+                main|master|HEAD|*..*|-*|*/|/*|*[!A-Za-z0-9._/-]*) die "--branch '$branch' is not a feature branch name" ;;
                 */*) ;;
                 *) die "--branch '$branch' needs the <type>/<summary> shape" ;;
             esac
+            git check-ref-format --branch "$branch" >/dev/null 2>&1 || die "--branch '$branch' is not a feature branch name"
             ref="refs/heads/$branch"
         else
             [ -z "$branch" ] || die "this repo lands commit runs locally (remote_role commit): --branch is for remote_role pr"
@@ -214,16 +261,24 @@ prepare() {
         if entry=$(rw_first_match "$POLICY" prohibited "$task"); then
             die "the task names a prohibited action: $(printf '%s' "$entry" | jq -r '.why // .name // .pattern')"
         fi
+        # A task is prose, not a command line: a "match" entry's words count anywhere in it.
+        local words why re matches
+        matches=$(printf '%s' "$POLICY" | jq -r '.prohibited // [] | .[] | select(.match) | [.match, (.why // "")] | @tsv') \
+            || die "could not read the prohibited entries"
+        while IFS=$'\t' read -r words why; do
+            [ -n "$words" ] || continue
+            re=$(printf '%s' "$words" | sed 's/[][\.*^$+?(){}|/]/\\&/g; s/ /[[:space:]]+/g')
+            if printf '%s' "$task" | grep -Eq -- "(^|[^[:alnum:]_-])${re}([^[:alnum:]_-]|\$)"; then
+                die "the task names a prohibited action: ${why:-$words}"
+            fi
+        done <<<"$matches"
     fi
 
-    local env_id model default label
-    # REMOTE_WORK_ENV wins: a cloud environment belongs to one claude.ai account, and one checkout is
-    # used by sessions of several accounts, so each account sets it in its own Claude Code user
-    # settings ("env": {"REMOTE_WORK_ENV": "env_..."}). The policy's value is the fallback.
-    env_id=${REMOTE_WORK_ENV:-$(cfg environment_id)}
-    # An environment belongs to one claude.ai account, so a shared policy may leave it to each
-    # developer's git-ignored .claude/remote-work.local.json.
-    [ -n "$env_id" ] || die "no cloud environment: find this account's with /schedule (or create one at claude.ai/code), then set \"env\": {\"REMOTE_WORK_ENV\": \"env_...\"} in this account's Claude Code user settings (or remote.environment_id in the git-ignored .claude/remote-work.local.json)"
+    local env_id account model default label
+    # An environment belongs to one claude.ai account: rw_env looks it up for the account signed in now.
+    env_id=$(rw_env "$POLICY")
+    account=$(rw_account)
+    [ -n "$env_id" ] || die "no cloud environment for ${account:-this account}: find its id with /schedule (or create one at claude.ai/code), then add \"${account:-<email>}\": \"env_...\" to ${REMOTE_WORK_ENVIRONMENTS:-~/.config/remote-work/environments.json}"
     model=$(cfg model)
     model=${model:-claude-sonnet-5-5}
     default=$(cfg default_command)
@@ -402,7 +457,9 @@ PROMPT
         local runs
         runs="$(git rev-parse --absolute-git-dir)/remote-work-runs"
         mkdir -p "$runs"
-        printf 'ref=%s\nbase=%s\nsent_tree=%s\nmessage=%s\n' "$ref" "$base" "$(builtin_tree)" "$message" > "$runs/$id"
+        local tree
+        tree=$(sent_tree "$base" "$work/change.patch")
+        printf 'ref=%s\nbase=%s\nsent_tree=%s\nmessage=%s\n' "$ref" "$base" "$tree" "$message" > "$runs/$id"
     fi
 
     echo "body:    $out"
@@ -456,5 +513,5 @@ case "${1:-}" in
     land) shift; land "$@" ;;
     classify) shift; load_policy; rw_classify "$POLICY" "${1:?usage: classify <command>}" | cut -f1 ;;
     sources) sources ;;
-    *) sed -n '2,3p;29,41p' "$HERE/$(basename "$0")" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    *) sed -n '2,3p;30,44p' "$HERE/$(basename "$0")" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

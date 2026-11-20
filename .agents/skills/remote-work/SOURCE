@@ -1,2 +1,2 @@
-shared remote-work skill scripts, copied from source commit 7130264 on 2026-11-19
+shared remote-work skill scripts, copied from source commit dae14e1 on 2026-11-20
 Keep policy.sh, remote-work.sh, remote-work.test.sh and hooks/guard.sh identical to the source; this repo owns SKILL.md and .claude/remote-work.json.
