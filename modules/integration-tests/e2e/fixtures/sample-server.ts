@@ -662,5 +662,9 @@ export class SampleServer {
     const newServer = await startSample(this.config);
     this.proc = newServer.proc;
     this.output = newServer.output;
+    // Keep reading the new process: the copy above is the boot log only, so a
+    // spec asserting on what the restarted server logs later read a stale string.
+    this.proc.stdout?.on('data', (d) => { this.output += d.toString(); });
+    this.proc.stderr?.on('data', (d) => { this.output += d.toString(); });
   }
 }

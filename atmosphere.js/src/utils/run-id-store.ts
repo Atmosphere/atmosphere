@@ -55,15 +55,21 @@ function storage(): Storage | null {
 
 /** The storage key of `url`'s endpoint: origin and path, no query or fragment. */
 export function runIdStorageKey(url: string): string {
-  let endpoint: string;
+  return KEY_PREFIX + endpointKey(url);
+}
+
+/**
+ * The endpoint `url` names, for a per-tab storage key: its origin and path,
+ * without the query string (which can carry an auth token).
+ */
+export function endpointKey(url: string): string {
   try {
     const base = typeof location !== 'undefined' && location?.href ? location.href : undefined;
     const parsed = new URL(url, base);
-    endpoint = parsed.origin + parsed.pathname;
+    return parsed.origin + parsed.pathname;
   } catch {
-    endpoint = url.split(/[?#]/, 1)[0];
+    return url.split(/[?#]/, 1)[0];
   }
-  return KEY_PREFIX + endpoint;
 }
 
 /** The run id stored for `url`'s endpoint in this tab, or `null`. */

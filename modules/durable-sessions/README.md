@@ -12,6 +12,18 @@ Session persistence across server restarts. On reconnection, the client sends it
 </dependency>
 ```
 
+## Token delivery
+
+The server sends the session token as the `X-Atmosphere-Session-Token` response header.
+A WebSocket client cannot read the upgrade response's headers, so one that sends
+`X-Atmosphere-Session-Token-Inband=true` (header or query parameter; atmosphere.js does)
+also gets one `X-Atmosphere-Session-Token=<token>` frame once its connection is
+suspended. A client that does not ask never gets it. The client re-sends the token as
+`X-Atmosphere-Session-Token` (header or query parameter) when it reconnects; the restored
+session re-joins its rooms and broadcasters once the new connection is suspended. The
+state of the connections still open when the framework stops is saved before they are
+closed.
+
 ## Quick Start
 
 ```properties

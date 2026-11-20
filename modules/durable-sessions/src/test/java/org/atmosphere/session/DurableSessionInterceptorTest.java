@@ -118,6 +118,14 @@ public class DurableSessionInterceptorTest {
 
         assertEquals(Action.CONTINUE, action);
         verify(response).setHeader(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER, "existing-token");
+        // The broadcaster refuses a resource that is not suspended yet: the
+        // restore waits for the suspend.
+        verify(broadcaster, never()).addAtmosphereResource(resource);
+        var listeners = ArgumentCaptor.forClass(org.atmosphere.cpr.AtmosphereResourceEventListener.class);
+        verify(resource, atLeastOnce()).addEventListener(listeners.capture());
+        var event = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);
+        when(event.getResource()).thenReturn(resource);
+        listeners.getAllValues().forEach(l -> l.onSuspend(event));
         verify(broadcaster).addAtmosphereResource(resource);
     }
 

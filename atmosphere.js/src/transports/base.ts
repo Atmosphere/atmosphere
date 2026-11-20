@@ -28,6 +28,7 @@ import { AtmosphereProtocol } from '../utils/protocol';
 import { learnedHeartbeat } from '../utils/heartbeat-registry';
 import { SEND_ERROR_NAME } from '../utils/send-error';
 import { clearRunId, loadRunId, saveRunId } from '../utils/run-id-store';
+import { loadSessionToken, saveSessionToken } from '../utils/session-token-store';
 import {
   RUN_UNKNOWN_KEY,
   clearPendingPrompt,
@@ -90,6 +91,11 @@ export abstract class BaseTransport<T = unknown> {
     // A run this tab was receiving when the page went away (a reload): the
     // connect carries its id, so the server replays it and streams the rest.
     this.protocol.runId = loadRunId(request.url);
+    // The durable session this tab had on the endpoint before a reload: the
+    // connect carries its token, so the server restores its rooms and
+    // broadcasters. Every token the server assigns replaces the stored one.
+    this.protocol.sessionToken = loadSessionToken(request.url);
+    this.protocol.onSessionToken = (token) => saveSessionToken(request.url, token);
     // A prompt a page sent under its own run id before it went away, the
     // server's acknowledgement not received: sent again if the server never got it.
     this.pendingPrompt = request.clientRunId ? loadPendingPrompt(request.url) : null;

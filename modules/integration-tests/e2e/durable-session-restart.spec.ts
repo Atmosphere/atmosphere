@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { connectDurableChat, waitFor } from './helpers/durable-chat-client';
 import { existsSync, statSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { resolve as repoPath } from 'path';
 
 // The sample persists sessions to data/sessions.db relative to its own cwd
@@ -66,6 +67,41 @@ test.describe('Durable Session Restart', () => {
     expect(restored,
       'reconnecting with the token after restart must restore the same session')
       .toBe(token);
+  });
+
+  test('sweep 4.0.78: over WebSocket, a session connected at stop is restored after the restart', async () => {
+    // The packaged sample never restored a WebSocket session: the token went
+    // out only as an upgrade response header (unreadable by a WebSocket
+    // client), a session still connected at stop was saved with
+    // broadcasters=[], and every restore logged "... is not suspended ...
+    // Suspend first". The client now asks for the token in band.
+    const client = await connectDurableChat(server.baseUrl, { inband: true });
+    await waitFor(() => client.sessionToken !== undefined);
+    const token = client.sessionToken!;
+
+    // Restart with the client still connected.
+    await server.restart();
+    const sinceRestart = server.getOutput().length;
+
+    const broadcasters = execFileSync('sqlite3',
+      [SESSIONS_DB, `SELECT broadcasters FROM durable_sessions WHERE token = '${token.replace(/'/g, "''")}';`],
+      { encoding: 'utf-8' }).trim();
+    expect(broadcasters, 'the stop must save the live connection\'s broadcasters').not.toBe('');
+
+    const back = await connectDurableChat(server.baseUrl, { inband: true, sessionToken: token });
+    await waitFor(() => back.sessionToken !== undefined);
+    expect(back.sessionToken, 'the reconnect must restore the same session, not mint one').toBe(token);
+    const log = server.getOutput().slice(sinceRestart);
+    expect(log).toContain(`Restoring durable session ${token}`);
+    expect(log).not.toContain('Suspend first');
+
+    // The restored connection is a chat member again.
+    const peer = await connectDurableChat(server.baseUrl);
+    peer.ws.send(JSON.stringify({ author: 'peer', message: 'after-ws-restore' }));
+    await waitFor(() => back.messages.some((m) => m.includes('after-ws-restore')));
+    back.close();
+    peer.close();
+    client.close();
   });
 
   test('broadcast resumes after restart', async () => {

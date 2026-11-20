@@ -39,6 +39,20 @@ const RESUME_SESSION = /^[A-Za-z0-9_-]{1,64}$/;
 const RESUME_PAIR = /^([A-Za-z0-9_-]{1,64}):([0-9]{1,15})$/;
 
 /**
+ * Query parameter asking the server for the durable session token in band. A
+ * WebSocket client cannot read the upgrade response's
+ * `X-Atmosphere-Session-Token` header; a server that does not know the
+ * parameter ignores it.
+ */
+export const SESSION_TOKEN_INBAND_PARAM = 'X-Atmosphere-Session-Token-Inband';
+
+/** Prefix of the server's in-band frame carrying the durable session token. */
+export const SESSION_TOKEN_FRAME_PREFIX = 'X-Atmosphere-Session-Token=';
+
+/** A token the in-band frame may carry (the server's are UUIDs). */
+const SESSION_TOKEN = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
  * Manages the Atmosphere wire protocol: handshake, heartbeat, UUID tracking,
  * and framework header attachment.
  *
@@ -51,6 +65,12 @@ export class AtmosphereProtocol {
 
   /** Durable session token for reconnection across server restarts. */
   sessionToken: string | null = null;
+
+  /**
+   * Called with each session token the server assigns (header or in-band
+   * frame); the transport keeps a copy that survives a page reload.
+   */
+  onSessionToken: ((token: string) => void) | null = null;
 
   /** Durable run id of the in-flight run, re-sent on reconnect to resume it. */
   runId: string | null = null;
@@ -141,6 +161,11 @@ export class AtmosphereProtocol {
     const token = request.sessionToken ?? this.sessionToken;
     if (token) {
       params.push(`X-Atmosphere-Session-Token=${encodeURIComponent(token)}`);
+    }
+    // A WebSocket cannot read the upgrade response's headers: ask for the
+    // session token in band (see consumeSessionTokenFrame).
+    if (request.transport === 'websocket') {
+      params.push(`${SESSION_TOKEN_INBAND_PARAM}=true`);
     }
 
     // Send the durable run id if the transport captured one (the server
@@ -406,9 +431,47 @@ export class AtmosphereProtocol {
   extractSessionToken(getHeader: (name: string) => string | null): void {
     const token = getHeader('X-Atmosphere-Session-Token');
     if (token) {
-      this.sessionToken = token;
-      logger.debug(`Session token captured: ${token.substring(0, 8)}...`);
+      this.storeSessionToken(token);
     }
+  }
+
+  /**
+   * Take the server's in-band session token frame
+   * (`X-Atmosphere-Session-Token=<token>`, length-prefixed when
+   * `trackMessageLength` is on), which the server writes to a WebSocket client
+   * that asked for it. Returns whether `rawMessage` was that frame: the caller
+   * then drops it, so it neither reaches the application nor counts as the
+   * protocol handshake (it may arrive before the handshake).
+   */
+  consumeSessionTokenFrame(rawMessage: string, request: AtmosphereRequest): boolean {
+    let frame = rawMessage.trim();
+    if (request.trackMessageLength) {
+      const delimiter = request.messageDelimiter ?? '|';
+      const at = frame.indexOf(delimiter);
+      if (at > 0 && /^[0-9]+$/.test(frame.substring(0, at))) {
+        const length = parseInt(frame.substring(0, at), 10);
+        const body = frame.substring(at + delimiter.length);
+        if (body.length !== length) {
+          return false;
+        }
+        frame = body;
+      }
+    }
+    if (!frame.startsWith(SESSION_TOKEN_FRAME_PREFIX)) {
+      return false;
+    }
+    const token = frame.substring(SESSION_TOKEN_FRAME_PREFIX.length);
+    if (!SESSION_TOKEN.test(token)) {
+      return false;
+    }
+    this.storeSessionToken(token);
+    return true;
+  }
+
+  private storeSessionToken(token: string): void {
+    this.sessionToken = token;
+    logger.debug(`Session token captured: ${token.substring(0, 8)}...`);
+    this.onSessionToken?.(token);
   }
 
   /**

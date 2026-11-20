@@ -179,6 +179,12 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
       return;
     }
 
+    // The server's in-band durable session token: kept for the reconnect,
+    // never handed to the application.
+    if (typeof event.data === 'string' && this.protocol.consumeSessionTokenFrame(event.data, this.request)) {
+      return;
+    }
+
     const result = this.protocol.processMessage(event.data, this.request);
 
     if (result === null) {

@@ -7,11 +7,18 @@ broadcaster subscriptions on reconnection.
 ## How It Works
 
 1. **First connection** — the server creates a durable session backed by SQLite and
-   sends a session token to the client via `X-Atmosphere-Session-Token`.
+   sends the client its session token: as the `X-Atmosphere-Session-Token` response
+   header, and, to a WebSocket client that asks for it
+   (`X-Atmosphere-Session-Token-Inband=true`, which atmosphere.js sends), also in band
+   as one `X-Atmosphere-Session-Token=<token>` frame once the connection is
+   suspended. A WebSocket client cannot read the upgrade response's headers; a client
+   that does not ask never gets the frame.
 2. **Server restart** — the SQLite database persists session state (rooms,
-   broadcasters, metadata) to disk.
+   broadcasters, metadata) to disk. The state of the clients still connected when the
+   server stops is saved before the framework closes their connections.
 3. **Reconnection** — the client sends its token on reconnect. The server restores
-   the session and re-joins the client to all previous rooms.
+   the session and, once the new connection is suspended, re-joins it to its previous
+   rooms and broadcasters.
 
 ## Idle timeout and heartbeat
 
@@ -80,12 +87,21 @@ This sample bundles only the SQLite backend; the Redis path additionally require
 
 ## Client Integration
 
-In atmosphere.js, provide the session token on reconnect:
+atmosphere.js handles the token on its own, over every transport: it asks for the
+in-band token on WebSocket, keeps the token the server assigns (header or frame, never
+handed to your `message` handler), sends it on every reconnect, and keeps a copy in the
+tab's `sessionStorage` so a page reload rejoins the session too. Nothing to write:
 
 ```typescript
 const sub = await atmosphere.subscribe({
   url: '/atmosphere/chat',
   transport: 'websocket',
-  sessionToken: localStorage.getItem('atmo-session-token'),
 });
 ```
+
+Pass `sessionToken` only to choose the session yourself (it then wins over the one the
+client keeps). A raw WebSocket client opts in with
+`ws://host/atmosphere/chat?X-Atmosphere-Session-Token-Inband=true`, reads the
+`X-Atmosphere-Session-Token=<token>` frame, and reconnects with
+`X-Atmosphere-Session-Token=<token>` as a header or query parameter
+(`e2e/durable-session-restart.spec.ts` does exactly that).

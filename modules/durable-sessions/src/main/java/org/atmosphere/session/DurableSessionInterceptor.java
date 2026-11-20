@@ -17,6 +17,9 @@ package org.atmosphere.session;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereFrameworkListener;
+import org.atmosphere.cpr.AtmosphereFrameworkListenerAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -28,6 +31,7 @@ import org.atmosphere.room.RoomManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -45,6 +49,19 @@ import java.util.stream.Collectors;
  * Interceptor that saves and restores session state across server restarts.
  * Uses the {@code X-Atmosphere-Session-Token} header to identify returning clients
  * and re-join them to their previous rooms and broadcasters.
+ *
+ * <p>The token reaches the client as the {@value #SESSION_TOKEN_RESPONSE_HEADER}
+ * response header. A WebSocket client cannot read the headers of the upgrade
+ * response, so one that asks for it with {@value #SESSION_TOKEN_INBAND_PARAM}{@code =true}
+ * (atmosphere.js does) also gets the token in band, as one
+ * {@value #SESSION_TOKEN_FRAME_PREFIX}{@code <token>} frame written once the
+ * connection is suspended. A client that does not ask never gets that frame.</p>
+ *
+ * <p>A restored session re-joins its broadcasters and rooms when the new
+ * resource suspends, not while the request is inspected: a broadcaster refuses
+ * a resource that is not suspended yet. The state of the connections still open
+ * when the framework stops is saved before the framework closes them, since
+ * closing a resource first removes it from its broadcasters.</p>
  */
 public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
@@ -55,6 +72,19 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
     /** Header sent by the server with the assigned session token. */
     public static final String SESSION_TOKEN_RESPONSE_HEADER = "X-Atmosphere-Session-Token";
+
+    /**
+     * Request header or query parameter a WebSocket client sends, with the value
+     * {@code true}, to get the session token in band: it cannot read the upgrade
+     * response's {@link #SESSION_TOKEN_RESPONSE_HEADER}.
+     */
+    public static final String SESSION_TOKEN_INBAND_PARAM = "X-Atmosphere-Session-Token-Inband";
+
+    /**
+     * Prefix of the in-band frame carrying the session token: the frame is this
+     * prefix followed by the token, and nothing else.
+     */
+    public static final String SESSION_TOKEN_FRAME_PREFIX = "X-Atmosphere-Session-Token=";
 
     /**
      * Header sent by a reconnecting client that wants to reattach to a
@@ -106,6 +136,19 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     private final ConcurrentHashMap<String, SessionLock> sessionLocks = new ConcurrentHashMap<>();
     private ScheduledExecutorService scheduler;
     private AtmosphereConfig config;
+    /**
+     * Set when the framework starts to stop: the state of the open connections
+     * has been saved, and the close the framework then gives every resource
+     * (which first removes it from its broadcasters) must not overwrite it.
+     */
+    private final AtomicBoolean stopping = new AtomicBoolean();
+    /** Saves the open connections before the framework closes them; removed on {@link #destroy()}. */
+    private final AtmosphereFrameworkListener saveOnStop = new AtmosphereFrameworkListenerAdapter() {
+        @Override
+        public void onPreDestroy(AtmosphereFramework f) {
+            saveOpenConnections();
+        }
+    };
 
     public DurableSessionInterceptor(SessionStore store) {
         this(store, Duration.ofHours(24), Duration.ofMinutes(1));
@@ -139,6 +182,10 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         // Periodically clean up expired sessions
         scheduler.scheduleAtFixedRate(this::sweep,
                 saveInterval.toSeconds(), saveInterval.toSeconds(), TimeUnit.SECONDS);
+
+        if (config.framework() != null) {
+            config.framework().frameworkListener(saveOnStop);
+        }
 
         logger.info("Durable sessions enabled (ttl={}, cleanup={})", sessionTtl, saveInterval);
     }
@@ -204,12 +251,13 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                     logger.info("Restoring durable session {} for resource {} (was {})",
                             token, r.uuid(), session.resourceId());
 
-                    restoreSession(r, session);
-
                     // Update the session with the new resource ID
                     store.save(session.withResourceId(r.uuid()));
                     response.setHeader(SESSION_TOKEN_RESPONSE_HEADER, token);
                     registerSaveOnDisconnect(r, token);
+                    // Re-join once the resource is suspended: a broadcaster
+                    // refuses a resource that is not suspended yet.
+                    r.addEventListener(new OnSuspendOnce(r, session, inbandToken(r) ? token : null));
                     return Action.CONTINUE;
                 }
             } catch (Exception e) {
@@ -233,7 +281,97 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         logger.debug("Created new durable session {} for resource {}", newToken, r.uuid());
 
         registerSaveOnDisconnect(r, newToken);
+        if (inbandToken(r)) {
+            r.addEventListener(new OnSuspendOnce(r, null, newToken));
+        }
         return Action.CONTINUE;
+    }
+
+    /**
+     * Whether the token goes in band as well: a WebSocket connection that asked
+     * for it. A client that did not ask must not get a frame it would hand to the
+     * application as a message.
+     */
+    private static boolean inbandToken(AtmosphereResource r) {
+        if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+            return false;
+        }
+        var request = r.getRequest();
+        var asked = request.getHeader(SESSION_TOKEN_INBAND_PARAM);
+        if (asked == null) {
+            asked = request.getParameter(SESSION_TOKEN_INBAND_PARAM);
+        }
+        return "true".equalsIgnoreCase(asked);
+    }
+
+    /**
+     * Once the resource is suspended: re-joins a restored session's broadcasters
+     * and rooms, then writes the in-band token frame when the client asked for
+     * it. An {@link AllowInterceptor}, like {@link SaveOnDisconnect}, so the
+     * {@code SuspendTrackerInterceptor} lets the suspend callback through.
+     */
+    private final class OnSuspendOnce extends AtmosphereResourceEventListenerAdapter
+            implements AllowInterceptor {
+
+        private final AtmosphereResource resource;
+        /** The session to re-join, or {@code null} for a new one. */
+        private final DurableSession restored;
+        /** The token to write in band, or {@code null} when the client did not ask. */
+        private final String inband;
+        private final AtomicBoolean done = new AtomicBoolean();
+
+        OnSuspendOnce(AtmosphereResource resource, DurableSession restored, String inband) {
+            this.resource = resource;
+            this.restored = restored;
+            this.inband = inband;
+        }
+
+        @Override
+        public void onSuspend(AtmosphereResourceEvent event) {
+            if (!done.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                if (restored != null) {
+                    restoreSession(resource, restored);
+                }
+                if (inband != null) {
+                    writeToken(resource, inband);
+                }
+            } finally {
+                resource.removeEventListener(this);
+            }
+        }
+    }
+
+    private static void writeToken(AtmosphereResource r, String token) {
+        try {
+            var response = r.getResponse();
+            response.write(SESSION_TOKEN_FRAME_PREFIX + token);
+            response.flushBuffer();
+        } catch (IOException | RuntimeException e) {
+            logger.warn("Failed to send durable session token to resource {}", r.uuid(), e);
+        }
+    }
+
+    /**
+     * Save the state of every connection still open, before the framework closes
+     * its resources: the close removes a resource from its broadcasters first, so
+     * a save on that close would record none (Correctness Invariant #2: the stop
+     * path leaves each session as it was).
+     */
+    void saveOpenConnections() {
+        if (!stopping.compareAndSet(false, true) || config == null) {
+            return;
+        }
+        var factory = config.resourcesFactory();
+        if (factory != null) {
+            for (var entry : connections.entrySet()) {
+                factory.findResource(entry.getKey())
+                        .ifPresent(resource -> captureState(resource, entry.getValue().token()));
+            }
+        }
+        logger.debug("Saved {} open durable session(s) before stopping", connections.size());
     }
 
     /**
@@ -389,6 +527,16 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * Capture current rooms and broadcasters into the session store.
      */
     void saveCurrentState(AtmosphereResource r, String token) {
+        if (stopping.get()) {
+            // The framework is stopping and saved this connection already; the
+            // close it now gives the resource has removed it from its broadcasters.
+            logger.trace("Not saving durable session {} on the stop path", token);
+            return;
+        }
+        captureState(r, token);
+    }
+
+    private void captureState(AtmosphereResource r, String token) {
         var lock = lockSession(token);
         try {
             var session = store.restore(token);
@@ -511,6 +659,12 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public void destroy() {
+        // A framework that stops without onPreDestroy (an interceptor removed on
+        // its own) still saves its open connections, once.
+        saveOpenConnections();
+        if (config != null && config.framework() != null) {
+            config.framework().frameworkListeners().remove(saveOnStop);
+        }
         if (scheduler != null) {
             scheduler.shutdown();
             try {

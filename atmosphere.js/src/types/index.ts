@@ -116,8 +116,14 @@ export interface AtmosphereRequest {
   /**
    * Durable session token for reconnection across server restarts.
    * When set, the token is sent as {@code X-Atmosphere-Session-Token}
-   * on every request. The client stores the server-assigned token
-   * automatically after the first handshake.
+   * on every request, in place of the one the client keeps. Without it the
+   * client keeps the server-assigned token on its own: from the
+   * {@code X-Atmosphere-Session-Token} response header (long-polling,
+   * streaming, SSE) or, over WebSocket, from the in-band frame the server
+   * writes when the client asks for it ({@code X-Atmosphere-Session-Token-Inband=true},
+   * sent on every WebSocket connect). The token is re-sent on every reconnect
+   * and kept in the tab's {@code sessionStorage}, so a reload rejoins the
+   * session too.
    */
   sessionToken?: string;
   /**

@@ -25,6 +25,12 @@ export interface DurableChatConnection {
   messages: string[];
   /** Headers of the 101 upgrade response, lower-cased. */
   headers: Record<string, string>;
+  /**
+   * The durable session token the server sent in band, when the connection
+   * asked for it (`inband`): a WebSocket client cannot read the upgrade
+   * response's `X-Atmosphere-Session-Token` header.
+   */
+  sessionToken?: string;
   close: () => void;
 }
 
@@ -38,11 +44,12 @@ export interface DurableChatConnection {
  */
 export function connectDurableChat(
   baseUrl: string,
-  opts?: { sessionToken?: string; timeoutMs?: number },
+  opts?: { sessionToken?: string; timeoutMs?: number; inband?: boolean },
 ): Promise<DurableChatConnection> {
   const timeoutMs = opts?.timeoutMs ?? 15_000;
   return new Promise((resolve, reject) => {
-    const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat';
+    const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat'
+      + (opts?.inband ? '?X-Atmosphere-Session-Token-Inband=true' : '');
     const requestHeaders: Record<string, string> = {};
     if (opts?.sessionToken) {
       requestHeaders['X-Atmosphere-Session-Token'] = opts.sessionToken;
@@ -50,6 +57,7 @@ export function connectDurableChat(
     const ws = new WebSocket(wsUrl, { headers: requestHeaders });
     const messages: string[] = [];
     const headers: Record<string, string> = {};
+    const connection: Partial<DurableChatConnection> = {};
     const readyTag = `${READY_PREFIX}${randomUUID()}`;
     let ready = false;
 
@@ -75,11 +83,16 @@ export function connectDurableChat(
     ws.on('message', (data) => {
       const text = data.toString().trim();
       if (!text) return;
+      const tokenFrame = /^X-Atmosphere-Session-Token=([A-Za-z0-9_-]+)$/.exec(text);
+      if (tokenFrame) {
+        connection.sessionToken = tokenFrame[1];
+        return;
+      }
       if (text.includes(READY_PREFIX)) {
         if (!ready && text.includes(readyTag)) {
           ready = true;
           clearTimeout(deadline);
-          resolve({ ws, messages, headers, close: () => ws.close() });
+          resolve(Object.assign(connection, { ws, messages, headers, close: () => ws.close() }) as DurableChatConnection);
         }
         return;
       }
