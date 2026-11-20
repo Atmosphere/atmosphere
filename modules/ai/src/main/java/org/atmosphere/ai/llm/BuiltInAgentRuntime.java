@@ -115,6 +115,12 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
      * immediately instead of waiting for the HTTP timeout or the next SSE frame.
      * The cancelled flag is kept as a secondary safeguard for the gap between
      * tool rounds when no stream is open.
+     *
+     * <p>The flag is a {@link CancellableExchange}: the built-in
+     * {@link OpenAiCompatibleClient} registers its {@code sendAsync} future and
+     * its response body there, so a cancel (or the turn's idle bound) also
+     * releases a connection that stalls before its headers. A caller-supplied
+     * {@link LlmClient} sees an ordinary flag and the stream sink.</p>
      */
     @Override
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
@@ -124,7 +130,7 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         // flow too. Prior to this the cancel-capable path bypassed the
         // gateway — parity regression covered by RuntimeCapabilityParityTest.
         admitThroughGateway(context);
-        var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        var cancelled = new CancellableExchange();
         var inFlightStream = new java.util.concurrent.atomic.AtomicReference<java.io.Closeable>();
         var done = new java.util.concurrent.CompletableFuture<Void>();
         java.util.function.Consumer<java.io.Closeable> streamSink = inFlightStream::set;
@@ -144,7 +150,7 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         });
         return new org.atmosphere.ai.ExecutionHandle() {
             @Override public void cancel() {
-                cancelled.set(true);
+                cancelled.abort();
                 var stream = inFlightStream.getAndSet(null);
                 if (stream != null) {
                     try {

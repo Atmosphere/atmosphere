@@ -82,6 +82,33 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return runtime;
     }
 
+    /**
+     * LangChain4j's OpenAI streaming model as Atmosphere builds it
+     * ({@code createNativeClient}: an {@code AtmosphereLc4jHttpClient} under
+     * it) on a loopback socket that stalls. The client hands every exchange to
+     * its turn: each byte is activity, keep-alive comments included, and the
+     * response body is closed on cancel or timeout, before the first event too.
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        var runtime = new LangChain4jAgentRuntime();
+        runtime.configure(new org.atmosphere.ai.AiConfig.LlmSettings(null, "gpt-4o-mini", "remote",
+                server.baseUrl() + "/v1", "stall-test-key"));
+        return org.atmosphere.ai.test.StalledStreamFixture.of(runtime,
+                        tools -> new AgentExecutionContext(
+                                "Hello", "You are helpful", "gpt-4o-mini",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, List.of(), Map.of(),
+                                List.of(), null, null))
+                .releases()
+                .notReleasedBeforeHeaders("LangChain4j's handler path (HttpClient.execute(request, parser, "
+                        + "listener)) returns nothing to abort: the JDK client's sendAsync future stays inside "
+                        + "JdkHttpClient, and the body Atmosphere closes exists only once the headers arrived, "
+                        + "so a request that never gets its headers waits for LangChain4j's own HTTP timeout")
+                .withToolTurns();
+    }
+
     @Override
     protected AgentExecutionContext createTextContext() {
         return new AgentExecutionContext(

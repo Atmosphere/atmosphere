@@ -173,22 +173,35 @@ public class AtmosphereSpringAiAutoConfiguration {
         // place: a real key goes over plain http only to a loopback host.
         CleartextApiKeyPolicy.requireAllowed(logger, "Spring AI", resolvedBaseUrl, apiKey,
                 CleartextApiKeyPolicy.optedIn(allowCleartextApiKey));
-        // OpenAi SDK Kotlin builders reject null Duration/int for timeout/maxRetries;
-        // use the SDK's published defaults rather than guessing values.
         // Spring AI 2.0.0 GA added three trailing params to OpenAiSetup
         // (observation registry, meter registry, http-client customizers).
-        // Pass no-op values to preserve the M6 behaviour (no external
-        // observability wiring); customizers list is empty.
+        // Pass no-op observability values (no external wiring).
+        //
+        // The timeout: OpenAiSetup hands its Duration to the OpenAI SDK as a
+        // *request* timeout (ClientOptions.timeout(Duration) is
+        // Timeout.request(d), which the SDK's OkHttp client applies as
+        // callTimeout, with read and write falling back to it). Spring AI's
+        // DEFAULT_TIMEOUT (60 s) therefore cut every stream after 60 s,
+        // however healthy (SpringAiTransportTimeoutTest). No request timeout is
+        // set (Duration.ZERO: none); the customizer's interceptor gives each
+        // call a read timeout instead, the application's stream idle bound
+        // plus TRANSPORT_GRACE between two reads.
+        var readTimeout = transportReadTimeout(streamIdleTimeout());
+        List<org.springframework.ai.openai.http.okhttp.OpenAiHttpClientBuilderCustomizer> customizers =
+                List.of(builder -> builder.interceptor(chain -> readTimeout.isZero()
+                        ? chain.proceed(chain.request())
+                        : chain.withReadTimeout((int) Math.min(Integer.MAX_VALUE, readTimeout.toMillis()),
+                                java.util.concurrent.TimeUnit.MILLISECONDS).proceed(chain.request())));
         OpenAIClient syncClient = OpenAiSetup.setupSyncClient(
                 resolvedBaseUrl, resolvedKey, null, null, null, null, false, false, model,
-                AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
+                java.time.Duration.ZERO, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
                 null, Map.<String, String>of(),
-                ObservationRegistry.NOOP, new SimpleMeterRegistry(), List.of());
+                ObservationRegistry.NOOP, new SimpleMeterRegistry(), customizers);
         OpenAIClientAsync asyncClient = OpenAiSetup.setupAsyncClient(
                 resolvedBaseUrl, resolvedKey, null, null, null, null, false, false, model,
-                AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
+                java.time.Duration.ZERO, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
                 null, Map.<String, String>of(),
-                ObservationRegistry.NOOP, new SimpleMeterRegistry(), List.of());
+                ObservationRegistry.NOOP, new SimpleMeterRegistry(), customizers);
         var chatModel = OpenAiChatModel.builder()
                 .openAiClient(syncClient)
                 .openAiClientAsync(asyncClient)
@@ -199,6 +212,30 @@ public class AtmosphereSpringAiAutoConfiguration {
         logger.info("Spring AI ChatClient built: model={}, endpoint={}, local={}",
                 model, resolvedBaseUrl, local);
         return ChatClient.builder(chatModel).build();
+    }
+
+    /**
+     * How far past the stream idle bound the client's read timeout sits: the
+     * turn's watchdog ends a silent turn first; the read timeout is the
+     * transport's backstop, for a call no turn bounds (a blocking
+     * {@code call()}) and for a stream whose subscription was disposed (which
+     * Spring AI's {@code OpenAiChatModel} does not pass on to the SDK).
+     */
+    static final java.time.Duration TRANSPORT_GRACE = java.time.Duration.ofSeconds(10);
+
+    /** The application's stream idle bound, or the default when no environment is in the context. */
+    private java.time.Duration streamIdleTimeout() {
+        var environment = aiEnvironment();
+        return environment != null ? environment.resolveStreamIdleTimeout() : AiConfig.DEFAULT_STREAM_IDLE_TIMEOUT;
+    }
+
+    /**
+     * @param bound the stream idle bound
+     * @return the read timeout of the client's calls: the bound plus
+     *         {@link #TRANSPORT_GRACE}, or zero (none) when the bound is off
+     */
+    static java.time.Duration transportReadTimeout(java.time.Duration bound) {
+        return bound.isZero() || bound.isNegative() ? java.time.Duration.ZERO : bound.plus(TRANSPORT_GRACE);
     }
 
     static boolean isLocal(String mode) {

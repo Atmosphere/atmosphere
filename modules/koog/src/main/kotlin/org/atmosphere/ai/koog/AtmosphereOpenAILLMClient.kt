@@ -15,7 +15,6 @@
  */
 package org.atmosphere.ai.koog
 
-import ai.koog.http.client.HttpClientFactoryResolver
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.openai.base.models.OpenAIMessage
@@ -23,6 +22,7 @@ import ai.koog.prompt.executor.clients.openai.base.models.OpenAITool
 import ai.koog.prompt.executor.clients.openai.base.models.OpenAIToolChoice
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.params.LLMParams
+import io.ktor.client.HttpClient
 
 /**
  * Koog's stable [OpenAILLMClient] with the tool-call argument encoding repaired
@@ -40,11 +40,35 @@ import ai.koog.prompt.params.LLMParams
  * dispatch modes through — `getResponse` (blocking) and `executeStreaming` both
  * call `serializeProviderChatRequest` — so streaming and non-streaming carry
  * identical bytes (Correctness Invariant #7 — Mode Parity).
+ *
+ * Its transport is Atmosphere's ([AtmosphereKoogHttpClient] over a CIO Ktor
+ * `HttpClient` this client creates and [close] closes): cancelling a turn, or
+ * its stream idle bound, closes the call's connection before and after the
+ * response headers, an SSE keep-alive comment is activity for the turn's idle
+ * bound, and each call of a turn reads with the bound plus
+ * [KoogAgentRuntime.TRANSPORT_GRACE] as its socket timeout. A `PromptExecutor`
+ * or `LLMClient` the application builds itself keeps Koog's transport.
  */
-open class AtmosphereOpenAILLMClient(
+open class AtmosphereOpenAILLMClient private constructor(
     apiKey: String,
-    settings: OpenAIClientSettings = OpenAIClientSettings()
-) : OpenAILLMClient(apiKey, settings, HttpClientFactoryResolver.resolve()) {
+    settings: OpenAIClientSettings,
+    private val transport: HttpClient
+) : OpenAILLMClient(apiKey, settings, AtmosphereKoogHttpClient.Factory(transport)) {
+
+    constructor(apiKey: String, settings: OpenAIClientSettings = OpenAIClientSettings())
+        : this(apiKey, settings, AtmosphereKoogHttpClient.Factory.newTransport())
+
+    /** The job of the Ktor engine this client created: it completes once [close] closed the engine. */
+    internal fun transportJob(): kotlinx.coroutines.Job? = transport.engine.coroutineContext[kotlinx.coroutines.Job]
+
+    /** Closes Koog's client, then the Ktor client and engine this client created. */
+    override fun close() {
+        try {
+            super.close()
+        } finally {
+            transport.close()
+        }
+    }
 
     override fun serializeProviderChatRequest(
         messages: List<OpenAIMessage>,

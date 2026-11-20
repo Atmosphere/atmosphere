@@ -237,3 +237,26 @@ remaining gap:
 - Project Reactor (transitive via AgentScope)
 - Spring Boot 4.0+ (uses `spring-boot-autoconfigure` 4.x autoconfig
   imports format)
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` ends a turn whose agent sends nothing for
+`atmosphere.ai.stream.idle-timeout` (default `5m`, `0` off) with one `TimeoutException`, then
+interrupts the agent and disposes the subscription. Every agent event counts as activity.
+
+An agent Atmosphere rebuilds for the turn (a turn with tools or a native plan) calls an
+`AbortableModel` wrapping the bean's model: every chunk the model streams is activity, the
+turn's cancel (and the bound) cancels the model call in flight through `takeUntilOther` on the
+turn's abort signal, and a `PreActingEvent`/`PostActingEvent` hook pauses the clock while
+AgentScope runs a tool (keyed by the tool use's id; the model's next chunk or the turn's end closes
+a pause whose end was never reported). `AgentScopeAbortableModelTest` proves, against a stub model
+that streams one chunk and then nothing, that the turn ends once in both dispatch modes and that
+the inner model `Flux` is cancelled. For AgentScope's HTTP models that cancel closes the response:
+`JdkHttpTransport.stream` reads the body inside a `Flux.using` that closes it, behind a
+`Mono.fromCompletionStage` of the `sendAsync` future (read from agentscope-core 1.0.12's bytecode,
+not proved here against a socket).
+
+Residuals: on a shared agent bean (no tools, no plan) the model is the bean's own: the dispose
+does not reach its model call, which keeps its HTTP read open until it ends, and tools the bean
+runs natively count as idle time. See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).

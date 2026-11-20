@@ -257,3 +257,12 @@ cross-runtime view.
 - Spring AI 1.1.8 (pinned via `spring-ai-alibaba-spring-ai.version` to
   avoid clashing with Atmosphere's broader Spring AI 2.0.0 baseline
   used in `atmosphere-spring-ai`)
+
+## Stream idle timeout
+
+`ReactAgent.call` is not streamed, so the turn's `StreamIdleWatchdog`
+(`atmosphere.ai.stream.idle-timeout`, default `5m`, `0` off) bounds the whole call: past it the
+turn ends with one `TimeoutException` and the worker is interrupted. `ReactAgent.call` ignores
+the interrupt, so the call runs on, holding the application's model client and the agent's
+lock (later turns on that agent queue behind it). See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).

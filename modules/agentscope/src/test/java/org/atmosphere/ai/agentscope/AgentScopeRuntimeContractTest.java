@@ -249,6 +249,12 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 toolLoopContext("qwen-plus"), TOOL_LOOP_ANSWER);
     }
 
+    /** The bound is proven against a silent {@code ReActAgent} stub, not a socket. */
+    @Override
+    protected String streamIdleCoveredOutsideTck() {
+        return "AgentScopeIdleTimeoutTest";
+    }
+
     static class TestableAgentScopeRuntime extends AgentScopeAgentRuntime {
         TestableAgentScopeRuntime(ReActAgent agent) {
             setNativeClient(agent);

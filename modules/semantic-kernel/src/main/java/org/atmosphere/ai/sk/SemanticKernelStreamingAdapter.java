@@ -69,7 +69,13 @@ final class SemanticKernelStreamingAdapter {
         var lastUsage =
                 new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
         var answered = new java.util.concurrent.atomic.AtomicBoolean();
-        return flux.takeWhile(ignored -> !session.isClosed())
+        // Every frame is activity for the turn's idle bound, the empty ones
+        // too, counted before anything drops them; the turn's watchdog cancels
+        // the handle, which disposes this subscription, when the model goes silent.
+        var activity = org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { });
+        return flux.doOnNext(ignored -> activity.run())
+                .takeWhile(ignored -> !session.isClosed())
                 .doOnNext(frame -> {
                     if (frame != null && frame.getContent() != null && !frame.getContent().isEmpty()) {
                         answered.set(true);

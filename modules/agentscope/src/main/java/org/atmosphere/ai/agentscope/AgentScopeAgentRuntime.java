@@ -190,6 +190,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // tools into the same toolkit copy, so per-request tool rebuilds
         // never clobber the plan surface.
         var planNotebook = provisionPlanNotebook(environment(), context, session);
+        AbortableModel abortable = null;
         if (!context.tools().isEmpty() || planNotebook != null) {
             if (context.tools().isEmpty()) {
                 // Planning-only rebuild of a tool-less dispatch: the rebuild
@@ -204,9 +205,16 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                         + "(no accessor in agentscope-core). Use @AiTool tools or "
                         + "atmosphere.ai.planning=builtin if the bean's own tools are needed.");
             }
-            resolvedAgent = rebuildAgent(resolvedAgent, context, session, planNotebook);
+            // The rebuilt agent's model is this turn's alone: wrapped so the
+            // turn's cancel (and the idle bound) cancels the model call in
+            // flight, which closes its response body, and so each chunk and
+            // each native tool run reaches the turn's clock.
+            abortable = new AbortableModel(resolvedAgent.getModel(),
+                    org.atmosphere.ai.StreamIdleWatchdog.of(session));
+            resolvedAgent = rebuildAgent(resolvedAgent, context, session, planNotebook, abortable);
         }
         final ReActAgent activeAgent = resolvedAgent;
+        final AbortableModel turnModel = abortable;
 
         var msgs = new ArrayList<Msg>();
         var assembled = assembleMessages(context);
@@ -259,7 +267,13 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                         ? activeAgent.stream(msgs, StreamOptions.defaults(), stampedSchema)
                         : activeAgent.stream(msgs, StreamOptions.defaults(), context.responseType());
         var forwarder = new AgentScopeEventForwarder(session, lastUsage);
+        // Every event is activity for the turn's idle bound, counted before the
+        // forwarder decides what to show; the turn's watchdog cancels this
+        // handle (interrupt + dispose) when the agent goes silent.
+        var activity = org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { });
         Disposable subscription = eventStream
+                .doOnNext(ignored -> activity.run())
                 .subscribe(
                         forwarder::accept,
                         error -> {
@@ -280,6 +294,9 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                             done.complete(null);
                         });
 
+        if (turnModel != null) {
+            done.whenComplete((ignored, error) -> turnModel.ended());
+        }
         return new ExecutionHandle() {
             @Override
             public void cancel() {
@@ -294,6 +311,9 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                         logger.trace("ReActAgent.interrupt() threw on cancel", re);
                     }
                     subscription.dispose();
+                    if (turnModel != null) {
+                        turnModel.abort();
+                    }
                     if (!done.isDone()) {
                         done.completeExceptionally(new CancellationException("cancelled"));
                     }
@@ -360,6 +380,18 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
     static ReActAgent rebuildAgent(
             ReActAgent baseAgent, AgentExecutionContext context, StreamingSession session,
             PlanNotebook planNotebook) {
+        return rebuildAgent(baseAgent, context, session, planNotebook, null);
+    }
+
+    /**
+     * As {@link #rebuildAgent(ReActAgent, AgentExecutionContext, StreamingSession, PlanNotebook)},
+     * the rebuilt agent calling {@code turnModel} (the base agent's model,
+     * wrapped for the turn) and running its hook that pauses the turn's clock
+     * around each tool; {@code null} keeps the base agent's model.
+     */
+    static ReActAgent rebuildAgent(
+            ReActAgent baseAgent, AgentExecutionContext context, StreamingSession session,
+            PlanNotebook planNotebook, AbortableModel turnModel) {
         // A per-request ToolLoopPolicy overrides the base agent's maxIters.
         // AgentScope opens a single ModelCallScope per execute, so its internal
         // rounds never surface as onModelStart and ToolLoopGuard cannot count
@@ -375,7 +407,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         var builder = ReActAgent.builder()
                 .name(baseAgent.getClass().getSimpleName())
                 .sysPrompt(baseAgent.getSysPrompt())
-                .model(baseAgent.getModel())
+                .model(turnModel != null ? turnModel : baseAgent.getModel())
                 .memory(baseAgent.getMemory())
                 .maxIters(maxIters)
                 .generateOptions(baseAgent.getGenerateOptions());
@@ -392,6 +424,9 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // tool-error, as on every other runtime.
                 builder.hook(new RejectedToolCallHook(session));
             }
+        }
+        if (turnModel != null) {
+            builder.hook(turnModel.actingPause());
         }
         var notebook = planNotebook != null ? planNotebook : baseAgent.getPlanNotebook();
         if (notebook != null) {

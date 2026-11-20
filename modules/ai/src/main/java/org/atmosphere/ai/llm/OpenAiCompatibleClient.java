@@ -475,9 +475,10 @@ public class OpenAiCompatibleClient implements LlmClient {
 
         java.net.http.HttpResponse<java.io.InputStream> response;
         try {
-            response = sendWithRetry(requestBody, endpoint, session, request.retryPolicy());
-        } catch (RuntimeException dispatchError) {
-            // Transport-layer failures must surface to onModelError so
+            response = sendWithRetry(requestBody, endpoint, session, request.retryPolicy(), cancelled);
+        } catch (RuntimeException | java.io.IOException dispatchError) {
+            // Transport-layer failures (and an exchange the turn aborted)
+            // must surface to onModelError so
             // observability consumers can distinguish provider failures from
             // application-side errors (e.g. tool execution exceptions).
             modelScope.fail(dispatchError);
@@ -506,7 +507,8 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
             responseIdCache.remove(conversationId);
             var fallbackBody = buildRequestBody(request);
-            response = sendWithRetry(fallbackBody, baseUrl + "/chat/completions", session, request.retryPolicy());
+            response = sendWithRetry(fallbackBody, baseUrl + "/chat/completions", session, request.retryPolicy(),
+                    cancelled);
             if (response == null) {
                 return;
             }
@@ -526,7 +528,13 @@ public class OpenAiCompatibleClient implements LlmClient {
         // IOException and the loop exits immediately — no waiting for the HTTP
         // timeout or the next SSE line. The try-with-resources ensures the
         // stream is still closed on normal completion.
-        var inFlightStream = response.body();
+        // Every byte the provider sends, a keep-alive or a reasoning frame
+        // included, is activity for the turn's idle bound; and an abort of
+        // the turn's exchange closes this body, even one that came first.
+        var inFlightStream = new ActivityInputStream(response.body(), activityOf(session));
+        if (cancelled instanceof CancellableExchange exchange) {
+            exchange.registerBody(inFlightStream);
+        }
         if (streamSink != null) {
             streamSink.accept(inFlightStream);
         }
@@ -886,8 +894,9 @@ public class OpenAiCompatibleClient implements LlmClient {
     private HttpResponse<java.io.InputStream> sendWithRetry(String requestBody,
                                                              String endpoint,
                                                              StreamingSession session,
-                                                             RetryPolicy override)
-            throws InterruptedException {
+                                                             RetryPolicy override,
+                                                             java.util.concurrent.atomic.AtomicBoolean cancelled)
+            throws InterruptedException, java.io.IOException {
         var isResponsesEndpoint = endpoint.endsWith("/responses");
         HttpResponse<java.io.InputStream> response = null; // null fallback needed if all retries throw
         Exception lastException = null;
@@ -899,9 +908,10 @@ public class OpenAiCompatibleClient implements LlmClient {
         var effectivePolicy = override != null ? override : retryPolicy;
         var maxRetries = effectivePolicy.maxRetries();
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            throwIfCancelled(cancelled);
             try {
                 var httpRequest = buildHttpRequest(requestBody, endpoint);
-                response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                response = send(httpRequest, cancelled);
 
                 if (response.statusCode() == 200) {
                     return response;
@@ -919,6 +929,9 @@ public class OpenAiCompatibleClient implements LlmClient {
 
                 if (!isRetryable(response.statusCode(), effectivePolicy) || attempt == maxRetries) {
                     logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
+                    if (session.isClosed()) {
+                        return null;
+                    }
                     // Typed taxonomy: classify the status (429 → RateLimited
                     // with the Retry-After hint, 401/403 → AuthenticationFailed,
                     // 400 refined to context-length/content-filter, 5xx →
@@ -936,26 +949,29 @@ public class OpenAiCompatibleClient implements LlmClient {
                 var delay = computeRetryDelay(attempt, response, effectivePolicy);
                 logger.warn("LLM API error ({}), retrying in {}ms (attempt {}/{})",
                         response.statusCode(), delay.toMillis(), attempt + 1, maxRetries);
-                Thread.sleep(delay.toMillis());
+                backoff(delay, session, cancelled);
                 response = null; // clear before retry to avoid stale reference
             } catch (java.net.http.HttpTimeoutException e) {
                 lastException = e;
+                throwIfCancelled(cancelled);
                 if (attempt == maxRetries) {
                     break;
                 }
                 var delay = computeRetryDelay(attempt, null, effectivePolicy);
                 logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{}): {}",
                         delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
-                Thread.sleep(delay.toMillis());
+                backoff(delay, session, cancelled);
             } catch (java.io.IOException e) {
                 lastException = e;
+                // An aborted exchange is the turn's end, never retried.
+                throwIfCancelled(cancelled);
                 if (attempt == maxRetries) {
                     break;
                 }
                 var delay = computeRetryDelay(attempt, null, effectivePolicy);
                 logger.warn("LLM connection error, retrying in {}ms (attempt {}/{}): {}",
                         delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
-                Thread.sleep(delay.toMillis());
+                backoff(delay, session, cancelled);
             }
         }
 
@@ -966,6 +982,78 @@ public class OpenAiCompatibleClient implements LlmClient {
             session.error(cause);
         }
         return null;
+    }
+
+    /**
+     * Sends one request. With a {@link CancellableExchange} the request goes
+     * out through {@code sendAsync} and its future is registered before the
+     * headers arrive, so an abort while the provider has not answered yet
+     * releases the connection; any other flag keeps the blocking send.
+     */
+    private HttpResponse<java.io.InputStream> send(HttpRequest httpRequest,
+                                                   java.util.concurrent.atomic.AtomicBoolean cancelled)
+            throws java.io.IOException, InterruptedException {
+        if (!(cancelled instanceof CancellableExchange exchange)) {
+            return httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        }
+        var future = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        exchange.registerSend(() -> future.cancel(true));
+        try {
+            return future.get();
+        } catch (java.util.concurrent.CancellationException e) {
+            throw new java.io.IOException("The model call was aborted before its response arrived", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            var cause = e.getCause();
+            if (cause instanceof java.io.IOException io) {
+                throw io;
+            }
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new java.io.IOException(cause);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            throw e;
+        }
+    }
+
+    private static void throwIfCancelled(java.util.concurrent.atomic.AtomicBoolean cancelled)
+            throws java.io.IOException {
+        if (cancelled != null && cancelled.get()) {
+            throw new java.io.IOException("The turn was cancelled");
+        }
+    }
+
+    /**
+     * Waits out a retry backoff outside the turn's idle bound (the wait is not
+     * the model's silence), in slices, so a cancel during the wait ends it.
+     */
+    private static void backoff(Duration delay, StreamingSession session,
+                                java.util.concurrent.atomic.AtomicBoolean cancelled)
+            throws InterruptedException, java.io.IOException {
+        var pause = org.atmosphere.ai.StreamIdleWatchdog.pauseFor(session);
+        try {
+            var end = System.nanoTime() + delay.toNanos();
+            long remaining;
+            while ((remaining = end - System.nanoTime()) > 0) {
+                throwIfCancelled(cancelled);
+                Thread.sleep(Math.min(java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remaining) + 1,
+                        BACKOFF_SLICE_MILLIS));
+            }
+            throwIfCancelled(cancelled);
+        } finally {
+            pause.close();
+        }
+    }
+
+    /** How often a backoff looks at the turn's cancel flag. */
+    private static final long BACKOFF_SLICE_MILLIS = 100;
+
+    /** The turn's idle-bound activity feed, or a no-op when the session carries no watchdog. */
+    static Runnable activityOf(StreamingSession session) {
+        return org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(watchdog -> watchdog::activity)
+                .orElse(() -> { });
     }
 
     private static boolean isRetryable(int statusCode, RetryPolicy policy) {

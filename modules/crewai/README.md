@@ -293,3 +293,13 @@ The bridge is deliberately thin. CrewAI owns the crew graph, the LLM
 calls, and the agent reasoning. Atmosphere owns the transport, the
 session lifecycle, the cancellation primitive, and the tool execution
 boundary (via `ToolCallbackServer`).
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` ends a turn whose sidecar sends nothing for
+`atmosphere.ai.stream.idle-timeout` (default `5m`, `0` off) with one `TimeoutException`. Every
+byte the sidecar sends counts as activity. The cancel that follows (like a caller's cancel)
+sends the sidecar's `DELETE`, then closes the pending request or the event stream, so the
+connection is released. A crew thread stuck inside the Python sidecar cannot be killed from
+Java, and tools the crew runs natively in Python count as idle time (tools it calls back into
+Atmosphere are not). See [Stream idle timeout](../ai/README.md#stream-idle-timeout).

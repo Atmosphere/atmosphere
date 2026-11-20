@@ -160,6 +160,36 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
         }
     }
 
+    /**
+     * Semantic Kernel's {@code OpenAIChatCompletion} on the Azure SDK's
+     * {@code OpenAIAsyncClient} Atmosphere builds
+     * ({@link SemanticKernelOpenAiClientFactory#forEndpoint}), on a loopback
+     * socket that stalls: the turn ends once on the bound and on a cancel, the
+     * factory's {@code SemanticKernelTurnTransport.Policy} ends the HTTP
+     * exchange so the connection closes before and after the headers, and SSE
+     * keep-alive comments count as activity instead of failing the Azure SDK's
+     * parser: no residual is declared. No tool turns: a turn whose tools Semantic Kernel
+     * invokes itself uses its non-streaming call, which this streaming
+     * fixture does not answer ({@code SemanticKernelIdleTimeoutTest} and the
+     * module README cover that path).
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        var client = SemanticKernelOpenAiClientFactory.forEndpoint(server.baseUrl() + "/v1", "stall-test-key");
+        var service = com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion.builder()
+                .withOpenAIAsyncClient(client)
+                .withModelId("gpt-4o-mini")
+                .build();
+        return org.atmosphere.ai.test.StalledStreamFixture.of(new TestableSemanticKernelRuntime(service),
+                        tools -> new AgentExecutionContext(
+                                "Hello", "You are helpful", "gpt-4o-mini",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, List.of(), Map.of(),
+                                List.of(), null, null))
+                .releases();
+    }
+
     static class TestableSemanticKernelRuntime extends SemanticKernelAgentRuntime {
         TestableSemanticKernelRuntime(ChatCompletionService service) {
             setNativeClient(service);

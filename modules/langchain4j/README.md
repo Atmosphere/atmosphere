@@ -114,14 +114,38 @@ rule is shared by every runtime: see
 ### A stream that goes silent
 
 LangChain4j's JDK HTTP client applies its `timeout` only until the response headers arrive:
-a provider that stops sending in the middle of a stream is never timed out by it. This
-runtime ends such a turn once its stream has sent nothing for
+a provider that stops sending in the middle of a stream is never timed out by it. The turn's
+`StreamIdleWatchdog` ends such a turn once the model has sent nothing for
 `atmosphere.ai.stream.idle-timeout` (env `LLM_STREAM_IDLE_TIMEOUT`, default `5m`, `0` turns
-it off), with a `TimeoutException`, and aborts the stream, which closes its connection; a
-cancel closes it too. Both need the stream to have sent at least one event: a provider
-that sends nothing after the response headers hands over no handle to abort, and its
-connection is left to it. Tools and approvals between rounds do not count as idle time. The
-`AiServices` path (below) is not covered. See
+it off), with one `TimeoutException`, and cancels it; a caller's cancel does the same. Every
+stream callback (text, thinking, partial and complete tool calls, raw events) is activity, and
+the cancel aborts the stream through the `StreamingHandle` LangChain4j hands over with its
+events. Tools and approvals between rounds do not count as idle time.
+
+The `OpenAiStreamingChatModel` Atmosphere builds (`createNativeClient`, and the Spring
+auto-configuration's bean) runs on an `AtmosphereLc4jHttpClient`, a decorator of LangChain4j's
+`HttpClient` that wraps its four streaming entry points (`execute(request, listener)`,
+`execute(request, parser, listener)`, `stream(request)`, `stream(request, parser)`). Each round
+of a turn is sent with the turn bound to the calling thread for the synchronous `model.chat`
+call only; the client reads it once, when the request enters it, and closes over it (the JDK
+client parses the body on one of its own threads). So every byte the provider sends is activity,
+SSE keep-alive comments included, and the response body is registered with the turn when the
+headers arrive: the cancel closes it, before the stream's first event too. Proved on a loopback
+socket by `LangChain4jRuntimeContractTest` (the TCK's stream idle cases, both dispatch modes) and
+`LangChain4jHttpClientReleaseTest` (headers, then nothing). Residuals: on the handler path a
+request that never gets its headers is not aborted (the JDK client keeps its `sendAsync` future
+inside `JdkHttpClient`), and waits for LangChain4j's own HTTP timeout; a model the application
+builds itself has no such client, so there only the stream's callbacks count and a stream that
+handed over no `StreamingHandle` is left to the provider.
+
+On the `AiServices` path (below) the turn registers the `TokenStream`'s `*WithContext` partial,
+thinking and tool-call callbacks: each is activity and hands over the stream's
+`StreamingHandle`, which the cancel uses (the `TokenStream` has no cancel of its own). A tool
+`AiServices` runs itself runs inside a pause of the clock, from `beforeToolExecution` to
+`onToolExecuted` (keyed by the tool request's id; any later stream callback closes it), so a slow
+tool is not idle time (`LangChain4jAiServicesIdleTimeoutTest`). A `TokenStream` that does not
+implement those callbacks gets the plain `onPartialResponse`: there only its text counts and the
+call is not aborted. See
 [Stream idle timeout](../ai/README.md#stream-idle-timeout).
 
 ## Key Classes

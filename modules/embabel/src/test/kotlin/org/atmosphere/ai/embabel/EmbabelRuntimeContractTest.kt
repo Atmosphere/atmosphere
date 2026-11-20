@@ -136,6 +136,9 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
      */
     override fun expectedGenerationHonoring(): Set<GenerationParamsSupport> = emptySet()
 
+    /** The bound is proven against a silent deployed agent bound to the turn's application, not a socket. */
+    override fun streamIdleCoveredOutsideTck(): String = "EmbabelIdleTimeoutTest"
+
     /**
      * Both entries point at dedicated tests in this module that assert more
      * than the TCK's hooks could:

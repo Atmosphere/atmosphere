@@ -235,14 +235,6 @@ class EmbabelAgentRuntime : AgentRuntime {
         )
     }
 
-    /**
-     * Dispatches on the calling thread, bound to this instance's application
-     * for the whole dispatch (as `AbstractAgentRuntime.execute` does), so tool
-     * code that reads the static API on it sees this application.
-     */
-    override fun execute(context: AgentExecutionContext, session: StreamingSession) {
-        executeEnding(context, session, null)
-    }
 
     /**
      * [execute], ending [session] with the failure when the dispatch throws
@@ -254,13 +246,16 @@ class EmbabelAgentRuntime : AgentRuntime {
     private fun executeEnding(
         context: AgentExecutionContext,
         session: StreamingSession,
-        cancelled: AtomicBoolean?
+        cancelled: AtomicBoolean?,
+        admit: Boolean = true
     ) {
         try {
             // Admit through the process-wide AiGateway before issuing the native
             // Embabel dispatch — uniform per-user rate limiting and credential
             // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
-            org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+            if (admit) {
+                org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+            }
             AiEnvironment.bind(environment()).use {
                 dispatch(context, session)
             }
@@ -350,19 +345,38 @@ class EmbabelAgentRuntime : AgentRuntime {
         context: AgentExecutionContext,
         session: StreamingSession
     ): ExecutionHandle {
+        return startTurn(context, session, admit = true)
+    }
+
+    /**
+     * Starts a turn on a worker virtual thread behind one
+     * [org.atmosphere.ai.StreamIdleWatchdog], bounded by this application's
+     * `atmosphere.ai.stream.idle-timeout`: the turn writes through the
+     * watchdog's session, and a model that sends nothing for the bound ends
+     * the turn and cancels it (Correctness Invariant #2). On the deployed-agent
+     * and `generateText` paths the bound covers the whole call, which reports
+     * nothing until it returns.
+     */
+    private fun startTurn(
+        context: AgentExecutionContext,
+        session: StreamingSession,
+        admit: Boolean
+    ): ExecutionHandle {
+        val watchdog = org.atmosphere.ai.StreamIdleWatchdog.open(environment(), session, name())
+        val tracked = watchdog.session()
         val cancelled = AtomicBoolean()
         val done = CompletableFuture<Void>()
         val activeThread = AtomicReference<Thread?>()
         Thread.startVirtualThread {
             activeThread.set(Thread.currentThread())
             try {
-                executeEnding(context, session, cancelled)
+                executeEnding(context, tracked, cancelled, admit)
                 done.complete(null)
             } catch (ie: InterruptedException) {
                 // Cooperative cancel: a blocking dispatch (Reactor blockLast /
                 // Thread.sleep in the runAgentFrom planner) unwinds via
                 // interruption. Treat as clean termination, not an error.
-                if (!session.isClosed) session.complete()
+                if (!tracked.isClosed) tracked.complete()
                 done.complete(null)
             } catch (t: Throwable) {
                 // executeEnding() already ended the session with a failure it
@@ -373,17 +387,54 @@ class EmbabelAgentRuntime : AgentRuntime {
                 activeThread.set(null)
             }
         }
-        return object : ExecutionHandle {
+        val inner = object : ExecutionHandle {
             override fun cancel() {
                 if (!cancelled.compareAndSet(false, true)) return
                 activeThread.get()?.interrupt()
-                if (!session.isClosed) session.complete()
+                if (!tracked.isClosed) tracked.complete()
                 done.complete(null)
             }
 
             override fun isDone(): Boolean = done.isDone
 
             override fun whenDone(): CompletableFuture<Void> = done
+        }
+        // The turn is over when its handle settles: a run that ends without
+        // writing a terminal must not be timed out afterwards.
+        val handle = watchdog.attach(inner)
+        handle.whenDone().whenComplete { _, _ -> watchdog.close() }
+        return handle
+    }
+
+    /**
+     * Dispatches on the calling thread, bound to this instance's application
+     * for the whole dispatch (as `AbstractAgentRuntime.execute` does), so tool
+     * code that reads the static API on it sees this application.
+     */
+    override fun execute(context: AgentExecutionContext, session: StreamingSession) {
+        // A refusal is thrown to the caller, the session ended once, as before.
+        try {
+            org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+        } catch (e: RuntimeException) {
+            org.atmosphere.ai.AbstractAgentRuntime.endWithError(session, e)
+            throw e
+        }
+        // The turn then runs as executeWithHandle runs it, on a worker behind
+        // the same StreamIdleWatchdog, with an interruptible wait (Mode Parity).
+        val handle = startTurn(context, session, admit = false)
+        try {
+            handle.whenDone().get()
+        } catch (ie: InterruptedException) {
+            handle.cancel()
+            Thread.currentThread().interrupt()
+            throw java.util.concurrent.CancellationException(
+                "${name()} turn interrupted while it waited for the model").apply { initCause(ie) }
+        } catch (ee: java.util.concurrent.ExecutionException) {
+            val cause = ee.cause ?: ee
+            if (cause is Error) throw cause
+            // executeEnding ended the session with the failure (or the idle
+            // bound wrote its timeout): the turn ended there.
+            logger.debug("embabel turn ended with {}", cause.toString())
         }
     }
 
@@ -420,11 +471,15 @@ class EmbabelAgentRuntime : AgentRuntime {
                     attempt, policy.maxRetries(), delay.toMillis(), e.message
                 )
                 if (!delay.isZero && !delay.isNegative) {
+                    // The backoff is not the model's silence: the turn's idle bound waits.
+                    val pause = org.atmosphere.ai.StreamIdleWatchdog.pauseFor(session)
                     try {
                         Thread.sleep(delay.toMillis())
                     } catch (ie: InterruptedException) {
                         Thread.currentThread().interrupt()
                         throw e
+                    } finally {
+                        pause.close()
                     }
                 }
             }
@@ -761,10 +816,15 @@ class EmbabelAgentRuntime : AgentRuntime {
         }
 
         if (streamingRunner != null) {
+            // Every element is activity for the turn's idle bound, the empty
+            // ones too; the bound's cancel interrupts the worker, which
+            // disposes this subscription through blockLast().
+            val watchdog = org.atmosphere.ai.StreamIdleWatchdog.of(session).orElse(null)
             try {
                 streamingRunner
                     .withPrompt(currentMessage)
                     .generateStream()
+                    .doOnNext { watchdog?.activity() }
                     .doOnNext { chunk ->
                         if (!session.isClosed && chunk.isNotEmpty()) {
                             session.send(chunk)

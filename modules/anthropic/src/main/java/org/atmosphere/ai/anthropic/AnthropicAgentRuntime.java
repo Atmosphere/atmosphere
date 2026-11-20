@@ -320,8 +320,10 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
                 AiCapability.PROMPT_CACHING,
                 AiCapability.MODEL_ENUMERATION,
                 // CANCELLATION: doExecuteWithHandle returns a live handle whose
-                // cancel() flips a `cancelled` flag the streaming worker polls,
-                // stopping token forwarding and settling whenDone().
+                // cancel() aborts the round's CancellableExchange: the flag the
+                // streaming worker polls is set and the pending sendAsync or
+                // the response body is closed, so the connection is released
+                // and whenDone() settles; a plain cancel writes no error frame.
                 AiCapability.CANCELLATION);
     }
 }

@@ -129,6 +129,10 @@ class EvalRunnerSmokeTest {
             return null;
         }).when(client).streamChatCompletion(
                 any(ChatCompletionRequest.class), any(StreamingSession.class));
+        // A turn calls the cancel-aware overload (sync and handle alike): the
+        // interface default, which delegates to the stubbed one.
+        org.mockito.Mockito.doCallRealMethod().when(client).streamChatCompletion(
+                any(ChatCompletionRequest.class), any(StreamingSession.class), any(), any());
         return new TestableBuiltInRuntime(client);
     }
 

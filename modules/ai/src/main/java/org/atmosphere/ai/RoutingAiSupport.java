@@ -95,10 +95,7 @@ public class RoutingAiSupport implements AgentRuntime {
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
         // Build a minimal AiRequest for routing (router uses message/model for selection)
-        var routingRequest = new AiRequest(
-                context.message(), context.systemPrompt(), context.model(),
-                context.userId(), context.sessionId(), context.agentId(),
-                context.conversationId(), context.metadata(), context.history());
+        var routingRequest = routingRequest(context);
 
         var selected = router.route(routingRequest, backends, requiredCapabilities);
         if (selected.isEmpty()) {
@@ -132,6 +129,51 @@ public class RoutingAiSupport implements AgentRuntime {
         }
     }
 
+    /**
+     * Routes like {@link #execute} and returns the selected backend's own
+     * handle, so a cancel reaches the backend's native call. A backend whose
+     * {@code executeWithHandle} throws before it returns a handle is reported to
+     * the router and the turn fails over to the next backend, as in
+     * {@link #execute}.
+     */
+    @Override
+    public ExecutionHandle executeWithHandle(AgentExecutionContext context, StreamingSession session) {
+        var routingRequest = routingRequest(context);
+        var selected = router.route(routingRequest, backends, requiredCapabilities);
+        if (selected.isEmpty()) {
+            session.error(new IllegalStateException("No available AI backend for request"));
+            return ExecutionHandle.completed();
+        }
+        var backend = selected.get();
+        try {
+            return backend.executeWithHandle(context, new HealthTrackingSession(session, router, backend));
+        } catch (RuntimeException e) {
+            logger.warn("Backend {} failed, attempting failover: {}", backend.name(), e.getMessage());
+            router.reportFailure(backend, e);
+            var fallback = router.route(routingRequest, backends, requiredCapabilities);
+            if (fallback.isEmpty() || fallback.get() == backend) {
+                session.error(e);
+                return ExecutionHandle.completed();
+            }
+            var fallbackBackend = fallback.get();
+            try {
+                return fallbackBackend.executeWithHandle(context,
+                        new HealthTrackingSession(session, router, fallbackBackend));
+            } catch (RuntimeException e2) {
+                router.reportFailure(fallbackBackend, e2);
+                session.error(e2);
+                return ExecutionHandle.completed();
+            }
+        }
+    }
+
+    private static AiRequest routingRequest(AgentExecutionContext context) {
+        return new AiRequest(
+                context.message(), context.systemPrompt(), context.model(),
+                context.userId(), context.sessionId(), context.agentId(),
+                context.conversationId(), context.metadata(), context.history());
+    }
+
     @Override
     public Set<AiCapability> capabilities() {
         return backends.stream()
@@ -149,25 +191,20 @@ public class RoutingAiSupport implements AgentRuntime {
 
     /**
      * Session decorator that reports health to the router on completion or error,
-     * rather than optimistically after dispatch.
+     * rather than optimistically after dispatch. Every other call, the
+     * session's {@code injectables()} (the turn's watchdog among them) and its
+     * state, reaches the routed session unchanged.
      */
-    private static class HealthTrackingSession implements StreamingSession {
-        private final StreamingSession delegate;
+    private static final class HealthTrackingSession extends DelegatingStreamingSession {
         private final ModelRouter router;
         private final AgentRuntime backend;
 
         HealthTrackingSession(StreamingSession delegate, ModelRouter router,
                               AgentRuntime backend) {
-            this.delegate = delegate;
+            super(delegate);
             this.router = router;
             this.backend = backend;
         }
-
-        @Override public String sessionId() { return delegate.sessionId(); }
-        @Override public void send(String text) { delegate.send(text); }
-        @Override public void sendMetadata(String key, Object value) { delegate.sendMetadata(key, value); }
-        @Override public void progress(String message) { delegate.progress(message); }
-        @Override public boolean isClosed() { return delegate.isClosed(); }
 
         @Override
         public void complete() {
@@ -185,6 +222,17 @@ public class RoutingAiSupport implements AgentRuntime {
         public void error(Throwable t) {
             router.reportFailure(backend, t);
             delegate.error(t);
+        }
+
+        @Override
+        public void emit(AiEvent event) {
+            switch (event) {
+                case AiEvent.Complete c -> router.reportSuccess(backend);
+                case AiEvent.Error e -> router.reportFailure(backend,
+                        new IllegalStateException(e.message()));
+                default -> { }
+            }
+            delegate.emit(event);
         }
     }
 }

@@ -59,7 +59,26 @@ import org.springframework.core.env.PropertyResolver
  */
 @AutoConfiguration
 @ConditionalOnClass(name = ["ai.koog.prompt.executor.model.PromptExecutor"])
-open class AtmosphereKoogAutoConfiguration {
+open class AtmosphereKoogAutoConfiguration : org.springframework.beans.factory.DisposableBean {
+
+    /**
+     * The executors this configuration built. It created them, so it closes
+     * them when its context closes (Correctness Invariant #1): each closes its
+     * [AtmosphereOpenAILLMClient], which closes the Ktor client and engine it
+     * created. An executor the application set itself is never in here.
+     */
+    private val built = java.util.concurrent.CopyOnWriteArrayList<PromptExecutor>()
+
+    override fun destroy() {
+        built.forEach { executor ->
+            try {
+                executor.close()
+            } catch (e: Exception) {
+                logger.warn("Closing the Koog executor failed: {}", e.toString())
+            }
+        }
+        built.clear()
+    }
 
     companion object {
         private val logger = LoggerFactory.getLogger(AtmosphereKoogAutoConfiguration::class.java)
@@ -188,6 +207,7 @@ open class AtmosphereKoogAutoConfiguration {
             logger.info("Koog runtime configured: model '{}' via OpenAILLMClient ({})", model.id, resolvedBaseUrl)
         }
 
+        built.add(executor)
         // Offered to this context's AiEnvironment when there is one (the
         // Atmosphere starter registers it), so another context in the JVM
         // keeps its own executor and model. Offered, not bound: this executor

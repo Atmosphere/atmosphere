@@ -439,16 +439,22 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                                                   StreamingSession session) {
         var done = new java.util.concurrent.CompletableFuture<Void>();
         var worker = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        // Tool code on the worker, and anything there that reads the static
+        // API, sees this runtime's application.
+        var aiEnvironment = environment();
         Thread.startVirtualThread(() -> {
             worker.set(Thread.currentThread());
+            var binding = org.atmosphere.ai.AiEnvironment.bind(aiEnvironment);
             try {
                 doExecute(agent, context, session);
                 done.complete(null);
-            } catch (RuntimeException e) {
+            } catch (Throwable e) {
                 // doExecute fires fireModelError + session.error on its failure
-                // paths before propagating; settle whenDone with the cause.
+                // paths before propagating; settle whenDone with the cause, an
+                // Error included, so the turn never waits on a dead worker.
                 done.completeExceptionally(e);
             } finally {
+                binding.close();
                 worker.set(null);
             }
         });

@@ -121,6 +121,7 @@ class DurableRunCrashResumeCycleTest {
                 "the recorded final answer is re-emitted: " + freshSession.text());
         assertEquals(1, counter.get(), "the committed tool is replayed, NOT re-executed, on resume");
         verify(resumeHttp, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(resumeHttp, never()).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
@@ -145,6 +146,7 @@ class DurableRunCrashResumeCycleTest {
                 "the recorded final answer is re-emitted: " + freshSession.text());
         assertEquals(1, counter.get(), "the committed tool is replayed, NOT re-executed, on admin resume");
         verify(resumeHttp, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(resumeHttp, never()).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
@@ -166,6 +168,7 @@ class DurableRunCrashResumeCycleTest {
         assertFalse(freshSession.completed, "the run is not re-driven for a foreign principal");
         assertEquals(1, counter.get(), "the tool is never re-executed for a refused resume");
         verify(resumeHttp, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(resumeHttp, never()).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
     // -- helpers --
@@ -191,8 +194,9 @@ class DurableRunCrashResumeCycleTest {
         assertTrue(journal.lookupCommitted(RUN_ID, EffectKeys.llmRound(RUN_ID, 0)).isPresent()
                         && journal.lookupCommitted(RUN_ID, EffectKeys.llmRound(RUN_ID, 1)).isPresent(),
                 "both LLM rounds were committed before the crash");
+        // The runtime's exchange is cancellable, so the client sends through sendAsync.
         verify(liveHttp, org.mockito.Mockito.times(2))
-                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+                .sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
 
         // CRASH: the process dies before completeDrive — drop the in-JVM scope so
         // the resume path must reconstruct from the journal, not the live scope.
@@ -242,6 +246,10 @@ class DurableRunCrashResumeCycleTest {
         var rest = java.util.Arrays.copyOfRange(mocks, 1, mocks.length);
         doReturn(mocks[0], (Object[]) rest)
                 .when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        var futures = java.util.Arrays.stream(mocks)
+                .map(java.util.concurrent.CompletableFuture::completedFuture).toArray();
+        doReturn(futures[0], java.util.Arrays.copyOfRange(futures, 1, futures.length))
+                .when(httpClient).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         return httpClient;
     }
 
@@ -260,6 +268,8 @@ class DurableRunCrashResumeCycleTest {
                 .when(resp).body();
         doReturn(java.net.http.HttpHeaders.of(Map.of(), (a, b) -> true)).when(resp).headers();
         doReturn(resp).when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        doReturn(java.util.concurrent.CompletableFuture.completedFuture(resp))
+                .when(httpClient).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         return httpClient;
     }
 

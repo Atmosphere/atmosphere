@@ -181,6 +181,68 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 .withBackendRelease("Reactor subscription dispose()", releases);
     }
 
+    /**
+     * The {@code ChatClient} Atmosphere builds
+     * ({@link AtmosphereSpringAiAutoConfiguration#atmosphereChatClient}: Spring
+     * AI's {@code OpenAiChatModel} on the OpenAI SDK's OkHttp client) on a
+     * loopback socket that stalls. The turn ends once on the bound and on a
+     * cancel; the connection is the provider's to close (declared below).
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        warmUpSpringAi();
+        var client = new AtmosphereSpringAiAutoConfiguration().atmosphereChatClient(
+                "stall-test-key", server.baseUrl() + "/v1", "gpt-4o-mini");
+        return org.atmosphere.ai.test.StalledStreamFixture.of(new TestableSpringAiRuntime(client),
+                        tools -> streamIdleContext(tools))
+                .leftToProvider("Spring AI 2.0's OpenAiChatModel streams through a Flux.create that registers "
+                        + "no onDispose: disposing the subscription does not close the OpenAI SDK's "
+                        + "AsyncStreamResponse, so the connection stays open until the provider ends it or the "
+                        + "client's read timeout (the bound plus 10 s) fires")
+                .keepalivesNotSeen("the OpenAI SDK's SSE parser drops comment lines before Spring AI emits an "
+                        + "element, and Atmosphere registers no interceptor that counts bytes on that client")
+                .withToolTurns();
+    }
+
+    private static AgentExecutionContext streamIdleContext(List<org.atmosphere.ai.tool.ToolDefinition> tools) {
+        return new AgentExecutionContext(
+                "Hello", "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", null,
+                tools, null, null, List.of(), Map.of(),
+                List.of(), null, null);
+    }
+
+    private static volatile boolean springAiWarm;
+
+    /**
+     * The first tool-bearing request a JVM sends through Spring AI spends
+     * longer than the contract's 300 ms bound in Spring AI's own request
+     * assembly (class loading, tool schema generation) before a byte goes
+     * out: the turn's clock, which starts with the turn, would time that out.
+     * One such turn against a server that answers at once warms it up.
+     */
+    private static void warmUpSpringAi() {
+        if (springAiWarm) {
+            return;
+        }
+        try (var answering = new org.atmosphere.ai.test.StallingHttpServer(
+                org.atmosphere.ai.test.StallingHttpServer.Mode.toolCallThenText("warm_up",
+                        org.atmosphere.ai.test.StallingHttpServer.Dialect.OPENAI))) {
+            var client = new AtmosphereSpringAiAutoConfiguration().atmosphereChatClient(
+                    "warm-up-key", answering.baseUrl() + "/v1", "gpt-4o-mini");
+            var tool = org.atmosphere.ai.tool.ToolDefinition.builder("warm_up", "Warms Spring AI up")
+                    .parameter("city", "the city", "string", false)
+                    .executor(args -> "ok")
+                    .build();
+            new TestableSpringAiRuntime(client).executeWithHandle(streamIdleContext(List.of(tool)),
+                    new org.atmosphere.ai.CollectingSession()).whenDone().get(30, java.util.concurrent.TimeUnit.SECONDS);
+            springAiWarm = true;
+        } catch (Exception e) {
+            throw new IllegalStateException("Spring AI warm-up turn failed", e);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static ChatClient mockBlockingChatClient(
             java.util.concurrent.atomic.AtomicInteger releases) {

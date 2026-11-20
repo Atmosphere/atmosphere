@@ -23,6 +23,7 @@ import com.azure.core.http.HttpPipelineNextPolicy;
 import com.azure.core.http.HttpPipelineNextSyncPolicy;
 import com.azure.core.http.HttpPipelinePosition;
 import com.azure.core.http.HttpResponse;
+import com.azure.core.http.netty.NettyAsyncHttpClientBuilder;
 import com.azure.core.http.policy.HttpPipelinePolicy;
 import org.atmosphere.ai.llm.CleartextApiKeyPolicy;
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ import reactor.core.publisher.Mono;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 
 /**
  * Builds a {@link OpenAIAsyncClient} that works against any OpenAI-compatible
@@ -103,6 +105,35 @@ public final class SemanticKernelOpenAiClientFactory {
      *                                  {@code allowCleartextApiKey} is not set
      */
     public static OpenAIAsyncClient forEndpoint(String endpoint, String apiKey, boolean allowCleartextApiKey) {
+        return forEndpoint(endpoint, apiKey, allowCleartextApiKey, null);
+    }
+
+    /**
+     * Build an async client for {@code endpoint} as
+     * {@link #forEndpoint(String, String, boolean)} does, whose calls give up
+     * on a provider silent for longer than {@code streamIdleTimeout} plus
+     * {@link #TRANSPORT_GRACE}: the response and read timeouts of its HTTP
+     * client, the transport's backstop behind the turn's idle bound. A bound
+     * of zero (off) sets no timeout; {@code null} keeps the Azure SDK's
+     * default HTTP client and its 60 s timeouts.
+     *
+     * <p>Every client this factory builds carries
+     * {@link SemanticKernelTurnTransport.Policy}: a turn's cancel or idle
+     * bound ends the call's HTTP exchange, so its connection is let go, before
+     * and after the response headers; each chunk of the body is activity for
+     * the turn's idle bound; and SSE comment lines (keep-alives) are removed
+     * before the Azure SDK's parser, which rejects them.</p>
+     *
+     * @param endpoint             the OpenAI-compatible base URL; null or blank selects OpenAI
+     * @param apiKey               the API key; null or blank for a keyless server
+     * @param allowCleartextApiKey whether a key may go over plain {@code http}
+     *                             to a host that is not loopback
+     * @param streamIdleTimeout    the application's stream idle bound, or {@code null}
+     * @return the client
+     * @throws IllegalArgumentException as {@link #forEndpoint(String, String, boolean)}
+     */
+    public static OpenAIAsyncClient forEndpoint(String endpoint, String apiKey, boolean allowCleartextApiKey,
+                                                Duration streamIdleTimeout) {
         String resolved = endpoint == null || endpoint.isBlank() ? OPENAI_SENTINEL_BASE : endpoint;
         // The rule every runtime applies (CleartextApiKeyPolicy): refused with
         // an ERROR and an IllegalArgumentException, or sent with a WARN when
@@ -111,18 +142,36 @@ public final class SemanticKernelOpenAiClientFactory {
         boolean keyless = apiKey == null || apiKey.isBlank();
         var credential = new KeyCredential(keyless ? CleartextApiKeyPolicy.NO_API_KEY : apiKey);
 
-        if (isOpenAiNative(resolved)) {
-            return new OpenAIClientBuilder()
-                    .credential(credential)
-                    .endpoint(resolved)
-                    .buildAsyncClient();
-        }
-
-        return new OpenAIClientBuilder()
+        var builder = new OpenAIClientBuilder()
                 .credential(credential)
-                .endpoint(OPENAI_SENTINEL_BASE)
+                .addPolicy(new SemanticKernelTurnTransport.Policy());
+        if (streamIdleTimeout != null) {
+            var read = transportTimeout(streamIdleTimeout);
+            builder.httpClient(new NettyAsyncHttpClientBuilder()
+                    .responseTimeout(read)
+                    .readTimeout(read)
+                    .build());
+        }
+        if (isOpenAiNative(resolved)) {
+            return builder.endpoint(resolved).buildAsyncClient();
+        }
+        return builder.endpoint(OPENAI_SENTINEL_BASE)
                 .addPolicy(new RewriteUrlPolicy(resolved))
                 .buildAsyncClient();
+    }
+
+    /**
+     * How far past the stream idle bound the HTTP client's timeouts sit: the
+     * turn's watchdog ends a silent turn first.
+     */
+    static final Duration TRANSPORT_GRACE = Duration.ofSeconds(10);
+
+    /**
+     * @param bound the stream idle bound
+     * @return the bound plus {@link #TRANSPORT_GRACE}, or zero (no timeout) when the bound is off
+     */
+    static Duration transportTimeout(Duration bound) {
+        return bound.isZero() || bound.isNegative() ? Duration.ZERO : bound.plus(TRANSPORT_GRACE);
     }
 
     static boolean isOpenAiNative(String endpoint) {

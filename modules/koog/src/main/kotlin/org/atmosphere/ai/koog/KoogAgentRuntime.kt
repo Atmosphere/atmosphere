@@ -68,6 +68,13 @@ class KoogAgentRuntime : AgentRuntime {
         @Volatile
         private var promptExecutor: PromptExecutor? = null
 
+        /**
+         * How far past the stream idle bound the socket timeout of the client
+         * Atmosphere builds sits: the turn's watchdog ends a silent turn first;
+         * the socket timeout is the transport's backstop.
+         */
+        internal val TRANSPORT_GRACE: java.time.Duration = java.time.Duration.ofSeconds(10)
+
         /** The model used when nothing set or offered one. */
         private val FALLBACK_MODEL = LLModel(LLMProvider.OpenAI, "gpt-4o")
 
@@ -247,34 +254,6 @@ class KoogAgentRuntime : AgentRuntime {
         )
     }
 
-    override fun execute(context: AgentExecutionContext, session: StreamingSession) {
-        // A dispatch that throws (a gateway refusal, an executor that is not
-        // configured, a failed call whose retries are spent) ends the session
-        // with the failure, as AbstractAgentRuntime does (Correctness Invariant #2).
-        try {
-            // Admit through the process-wide AiGateway before issuing the native
-            // Koog dispatch — uniform per-user rate limiting and credential
-            // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
-            org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
-            // Install the cross-runtime ToolLoopGuard so attaching a ToolLoopPolicy
-            // produces the same wire-level cap as on AbstractAgentRuntime-based
-            // runtimes (Mode Parity). Koog also honours the policy natively via
-            // AIAgent.maxIterations × 2 inside executeWithAgent; the guard is the
-            // belt for the suspenders, ensuring the cap holds even if the native
-            // path is bypassed (e.g. executeWithExecutor).
-            val effective = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
-            // Bound to this instance's application for the whole dispatch, as
-            // AbstractAgentRuntime.execute does: tool code that reads the static
-            // API on this thread sees this application.
-            AiEnvironment.bind(environment()).use {
-                executeWithOuterRetry(effective, session)
-            }
-        } catch (e: RuntimeException) {
-            org.atmosphere.ai.AbstractAgentRuntime.endWithError(session, e)
-            throw e
-        }
-    }
-
     /**
      * Outer retry wrapper honouring [AgentExecutionContext.retryPolicy] on
      * pre-stream transient failures. Matches the base-class semantics in
@@ -295,19 +274,26 @@ class KoogAgentRuntime : AgentRuntime {
      * the `PER_REQUEST_RETRY` capability declaration is honest across
      * both implementation families.
      */
-    private fun executeWithOuterRetry(context: AgentExecutionContext, session: StreamingSession) {
+    private fun executeWithOuterRetry(
+        context: AgentExecutionContext,
+        session: StreamingSession,
+        cancelled: AtomicBoolean,
+        activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>,
+        agentCalls: java.util.concurrent.atomic.AtomicReference<CancellableAgentExecutor?>
+    ) {
         val policy = context.retryPolicy()
         if (policy == null || policy.isInheritSentinel || policy.maxRetries() <= 0) {
-            executeInternal(context, session, AtomicBoolean())
+            executeInternal(context, session, cancelled, activeJob, agentCalls)
             return
         }
         var attempt = 0
         while (true) {
             try {
-                executeInternal(context, session, AtomicBoolean())
+                executeInternal(context, session, cancelled, activeJob, agentCalls)
                 return
             } catch (e: RuntimeException) {
-                if (attempt >= policy.maxRetries() || session.hasErrored()) {
+                if (attempt >= policy.maxRetries() || session.hasErrored() || cancelled.get()
+                    || e is java.util.concurrent.CancellationException) {
                     throw e
                 }
                 val delay = policy.delayForAttempt(attempt)
@@ -315,11 +301,15 @@ class KoogAgentRuntime : AgentRuntime {
                 logger.info("koog outer-retry attempt {}/{} after {}ms (cause: {})",
                     attempt, policy.maxRetries(), delay.toMillis(), e.message)
                 if (!delay.isZero && !delay.isNegative) {
+                    // The backoff is not the model's silence: the turn's idle bound waits.
+                    val pause = org.atmosphere.ai.StreamIdleWatchdog.pauseFor(session)
                     try {
                         Thread.sleep(delay.toMillis())
                     } catch (ie: InterruptedException) {
                         Thread.currentThread().interrupt()
                         throw e
+                    } finally {
+                        pause.close()
                     }
                 }
             }
@@ -335,15 +325,30 @@ class KoogAgentRuntime : AgentRuntime {
         // cancel-capable path skipped the gateway.
         // A refusal here ends the session before it is thrown, as on #execute
         // (the worker below ends it for a failure of its own).
-        val effective = try {
+        try {
             org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
-            // Install ToolLoopGuard before dispatching — same install pattern as
-            // #execute so the cap behaviour matches across both entry points.
-            org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
         } catch (e: RuntimeException) {
             org.atmosphere.ai.AbstractAgentRuntime.endWithError(session, e)
             throw e
         }
+        // One watchdog per turn, bounded by this application's
+        // atmosphere.ai.stream.idle-timeout: the turn writes through its
+        // session, and a model that sends nothing for the bound ends the turn
+        // and cancels the handle below (Correctness Invariant #2).
+        val watchdog = org.atmosphere.ai.StreamIdleWatchdog.open(environment(), session, name())
+        val tracked = watchdog.session()
+        val effective = try {
+            // Install ToolLoopGuard before dispatching — same install pattern on
+            // both entry points, so the cap behaviour matches.
+            org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, tracked)
+        } catch (e: RuntimeException) {
+            watchdog.close()
+            org.atmosphere.ai.AbstractAgentRuntime.endWithError(tracked, e)
+            throw e
+        }
+        // The turn's lifecycle, as AbstractAgentRuntime reports it: onStart
+        // here, then onError or onCompletion once the handle settles.
+        fireLifecycle(effective) { it.onStart(effective) }
         val cancelled = AtomicBoolean()
         val done = CompletableFuture<Void>()
         val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()
@@ -354,19 +359,19 @@ class KoogAgentRuntime : AgentRuntime {
             activeThread.set(Thread.currentThread())
             val binding = AiEnvironment.bind(aiEnvironment)
             try {
-                executeInternal(effective, session, cancelled, activeJob, agentCalls)
+                executeWithOuterRetry(effective, tracked, cancelled, activeJob, agentCalls)
                 done.complete(null)
             } catch (ce: java.util.concurrent.CancellationException) {
                 // Native Job.cancel propagated out. Treat as clean termination
                 // so whenDone() resolves instead of hanging.
-                if (!session.isClosed) session.complete()
+                if (!tracked.isClosed) tracked.complete()
                 done.complete(null)
             } catch (e: Throwable) {
                 // Classified through the shared taxonomy so retry, metrics,
                 // and routing see a typed failure; no-signal errors pass
                 // through unchanged.
-                if (!session.isClosed) {
-                    session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
+                if (!tracked.isClosed && !cancelled.get()) {
+                    tracked.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
                 }
                 done.completeExceptionally(e)
             } finally {
@@ -374,7 +379,7 @@ class KoogAgentRuntime : AgentRuntime {
                 activeThread.set(null)
             }
         }
-        return object : ExecutionHandle {
+        val inner = object : ExecutionHandle {
             override fun cancel() {
                 if (!cancelled.compareAndSet(false, true)) return
                 val agentRun = agentCalls.get()
@@ -404,6 +409,72 @@ class KoogAgentRuntime : AgentRuntime {
             }
             override fun isDone(): Boolean = done.isDone
             override fun whenDone(): CompletableFuture<Void> = done
+        }
+        // The turn is over when its handle settles: a run that ends without
+        // writing a terminal must not be timed out afterwards.
+        val handle = watchdog.attach(inner)
+        // The caller's whenDone() settles after the listeners saw the outcome,
+        // with the same outcome: a timeout (the watchdog's TimeoutException) or
+        // a failure is onError, once; a failure the run wrote to the session
+        // only is onError too; anything else, a cancel included, onCompletion.
+        val settled = handle.whenDone().whenComplete { _, error ->
+            watchdog.close()
+            when {
+                error != null -> fireLifecycle(effective) { it.onError(effective, error) }
+                tracked.hasErrored() -> fireLifecycle(effective) {
+                    it.onError(effective, java.util.concurrent.CancellationException(
+                        "stream reported error via session.error(...)"))
+                }
+                else -> fireLifecycle(effective) { it.onCompletion(effective) }
+            }
+        }
+        return object : ExecutionHandle {
+            override fun cancel() = handle.cancel()
+            override fun isDone(): Boolean = settled.isDone
+            override fun whenDone(): CompletableFuture<Void> = settled
+        }
+    }
+
+    /** Calls [event] on every listener of [context]; a listener that throws is logged and skipped. */
+    private fun fireLifecycle(
+        context: AgentExecutionContext,
+        event: (org.atmosphere.ai.AgentLifecycleListener) -> Unit
+    ) {
+        for (listener in context.listeners()) {
+            try {
+                event(listener)
+            } catch (e: Exception) {
+                logger.trace("AgentLifecycleListener failed: {}", e.message, e)
+            }
+        }
+    }
+
+    /**
+     * Runs the turn as [executeWithHandle] does, on its worker virtual thread
+     * and behind the same [org.atmosphere.ai.StreamIdleWatchdog], and waits for
+     * it interruptibly (Mode Parity): an interrupt of the calling thread
+     * cancels the turn, restores the interrupt flag and throws a
+     * [java.util.concurrent.CancellationException]. A failure of the run is
+     * written to the session by the worker and thrown here too, as before;
+     * the idle bound's timeout is written to the session only.
+     */
+    override fun execute(context: AgentExecutionContext, session: StreamingSession) {
+        val handle = executeWithHandle(context, session)
+        try {
+            handle.whenDone().get()
+        } catch (ie: InterruptedException) {
+            handle.cancel()
+            Thread.currentThread().interrupt()
+            throw java.util.concurrent.CancellationException(
+                "${name()} turn interrupted while it waited for the model").apply { initCause(ie) }
+        } catch (ee: java.util.concurrent.ExecutionException) {
+            val cause = ee.cause ?: ee
+            // The worker already wrote its failure to the session; the caller
+            // still sees it thrown, as before. The idle bound's timeout is not
+            // a RuntimeException: it was written to the session, and returns.
+            if (cause is Error) throw cause
+            if (cause is RuntimeException) throw cause
+            logger.debug("koog turn ended with {}", cause.toString())
         }
     }
 
@@ -614,7 +685,7 @@ class KoogAgentRuntime : AgentRuntime {
         }
 
         try {
-            runBlocking {
+            runBlocking(turnTransport(session)) {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 if (cancelled.get() || session.isTurnCancelled) {
                     // Cancelled while the agent was being built: never start it.
@@ -773,7 +844,7 @@ class KoogAgentRuntime : AgentRuntime {
         }
 
         try {
-            runBlocking {
+            runBlocking(turnTransport(session)) {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 if (cancelled.get() || session.isTurnCancelled) {
                     // Cancelled while the agent was being built: never start it.
@@ -867,11 +938,22 @@ class KoogAgentRuntime : AgentRuntime {
             java.util.concurrent.atomic.AtomicReference()
     ) {
         val koogPrompt = buildPrompt(context)
+        // Every frame is activity for the turn's idle bound, whatever it carries.
+        val watchdog = org.atmosphere.ai.StreamIdleWatchdog.of(session).orElse(null)
+        // The model call's lifecycle, as the agent path reports each of its
+        // calls (onLLMCallStarting/Completed): one start, then one end on
+        // success or one error on a failure, the idle bound's timeout and a
+        // cancel (Correctness Invariant #7).
+        val callScope = org.atmosphere.ai.ModelCallScope.open(
+            context.listeners(), context.model() ?: name(), koogPrompt.messages.size, 0)
+        var usage: TokenUsage? = null
 
         try {
-            runBlocking {
+            runBlocking(turnTransport(session)) {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 executor.executeStreaming(koogPrompt, model).collect { frame ->
+                    watchdog?.activity()
+                    if (frame is StreamFrame.End) usage = tokenUsage(frame.metaInfo)
                     if (cancelled.get() || session.isClosed) return@collect
                     when (frame) {
                         is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
@@ -887,8 +969,11 @@ class KoogAgentRuntime : AgentRuntime {
                     }
                 }
             }
+            val timeout = watchdog?.timeout()?.orElse(null)
+            if (timeout != null) callScope.fail(timeout) else callScope.complete(usage)
             if (!session.isClosed) session.complete()
         } catch (ce: java.util.concurrent.CancellationException) {
+            callScope.fail(watchdog?.timeout()?.orElse(null) ?: ce)
             if (cancelled.get()) {
                 logger.debug("Koog streaming cancelled by caller")
                 if (!session.isClosed) session.complete()
@@ -898,12 +983,35 @@ class KoogAgentRuntime : AgentRuntime {
             }
             throw ce
         } catch (e: Exception) {
+            callScope.fail(watchdog?.timeout()?.orElse(null) ?: e)
             if (endAbandonedRun(e, cancelled, session, "Koog streaming")) return
             logger.error("Koog streaming failed", e)
             if (!session.isClosed) {
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
             }
         }
+    }
+
+    /** The usage a stream's end frame reports, or `null` when it reports none. */
+    private fun tokenUsage(meta: ai.koog.prompt.message.ResponseMetaInfo?): TokenUsage? {
+        if (meta == null) return null
+        val input = meta.inputTokensCount?.toLong() ?: 0L
+        val output = meta.outputTokensCount?.toLong() ?: 0L
+        val total = meta.totalTokensCount?.toLong() ?: (input + output)
+        val usage = TokenUsage(input, output, 0L, total, null)
+        return if (usage.hasCounts()) usage else null
+    }
+
+    /**
+     * What the transport of the client Atmosphere builds ([AtmosphereOpenAILLMClient])
+     * learns of this turn: its watchdog, fed every line the provider sends, and
+     * its calls' read timeout, this application's bound plus [TRANSPORT_GRACE]
+     * (none when the bound is off). Another client ignores it.
+     */
+    private fun turnTransport(session: StreamingSession): KoogTurnTransport {
+        val bound = environment().resolveStreamIdleTimeout()
+        val read = if (bound.isZero || bound.isNegative) java.time.Duration.ZERO else bound.plus(TRANSPORT_GRACE)
+        return KoogTurnTransport(org.atmosphere.ai.StreamIdleWatchdog.of(session).orElse(null), read)
     }
 
     /**
@@ -1255,7 +1363,11 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
     // the same dispatcher).
     val callScope =
         java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.ModelCallScope?>()
+    // Every frame and every LLM call's start and end are activity for the
+    // turn's idle bound, whatever they carry.
+    val watchdog = org.atmosphere.ai.StreamIdleWatchdog.of(session).orElse(null)
     onLLMStreamingFrameReceived { ctx ->
+        watchdog?.activity()
         if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
         when (val frame = ctx.streamFrame) {
             is StreamFrame.TextDelta -> {
@@ -1283,6 +1395,7 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
         session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
     }
     onLLMCallStarting { ctx ->
+        watchdog?.activity()
         // Open the model-call span per LLM call. Koog's tool loop issues one
         // ctx per dispatch, so callers see one start/end pair per round —
         // matching the Built-in OpenAiCompatibleClient posture (one
@@ -1297,6 +1410,7 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
         )
     }
     onLLMCallCompleted { ctx ->
+        watchdog?.activity()
         // Report typed token usage once per LLM call. The default
         // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
         // so existing Micrometer / budget consumers keep working. Koog 1.0

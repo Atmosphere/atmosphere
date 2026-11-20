@@ -170,6 +170,11 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         admitThroughGateway(context);
 
         var completion = new java.util.concurrent.CompletableFuture<Void>();
+        // Carried to the HTTP client in the subscription's Reactor context: the
+        // client Atmosphere builds ends the exchange on abort() and counts each
+        // body chunk as activity (SemanticKernelTurnTransport).
+        var turn = new SemanticKernelTurnTransport(org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { }));
         org.atmosphere.ai.ModelCallScope modelScope = null;
         reactor.core.Disposable disposable;
         try {
@@ -234,14 +239,15 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 logger.debug("SK chat (tool loop): model={}, history messages={}, tools={}",
                         context.model(), messageCount, toolCount);
                 SemanticKernelToolBridge.stopLoopOnceTurnEnded(kernel, session);
-                var call = service.getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
+                var call = service.getChatMessageContentsAsync(chatHistory, kernel, invocationContext)
+                        .contextWrite(turn.context());
                 disposable = SemanticKernelStreamingAdapter.drainToolTurn(
                         call, session, modelScope, completion, toolNames);
             } else {
                 logger.debug("SK streaming: model={}, history messages={}, tools={}",
                         context.model(), messageCount, toolCount);
                 var flux = service.getStreamingChatMessageContentsAsync(
-                        chatHistory, kernel, invocationContext);
+                        chatHistory, kernel, invocationContext).contextWrite(turn.context());
                 disposable = SemanticKernelStreamingAdapter.drainCancellable(
                         flux, session, modelScope, completion, toolNames);
             }
@@ -278,6 +284,9 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
             @Override
             public void cancel() {
                 if (cancelled.compareAndSet(false, true)) {
+                    // The Azure SDK's stream caches its source, so the dispose
+                    // alone never reaches the HTTP exchange: the abort ends it.
+                    turn.abort();
                     subscription.dispose();
                     if (!session.isClosed()) {
                         session.complete();

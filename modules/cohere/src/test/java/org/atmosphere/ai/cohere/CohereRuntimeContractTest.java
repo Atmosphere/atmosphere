@@ -195,6 +195,33 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 .withBackendRelease("SSE response body close()", streamCloses);
     }
 
+    /**
+     * The real Cohere v2 chat client on a loopback socket that stalls: the round's
+     * exchange is a {@link org.atmosphere.ai.llm.CancellableExchange}, so the
+     * stalled connection is closed when the turn ends.
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        var client = CohereChatClient.builder()
+                .baseUrl(server.baseUrl())
+                .apiKey("stall-test-key")
+                .build();
+        return org.atmosphere.ai.test.StalledStreamFixture.of(new TestableCohereRuntime(client),
+                        tools -> new AgentExecutionContext(
+                                "Hello", "You are helpful", "command-a-03-2025",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, java.util.List.of(), java.util.Map.of(),
+                                java.util.List.of(), null, null))
+                .releases()
+                .withToolTurns();
+    }
+
+    @Override
+    protected org.atmosphere.ai.test.StallingHttpServer.Dialect streamIdleDialect() {
+        return org.atmosphere.ai.test.StallingHttpServer.Dialect.COHERE;
+    }
+
     private static final String OPEN_ENDED_SSE_PREAMBLE = """
             data: {"type":"message-start","id":"msg_1"}
 

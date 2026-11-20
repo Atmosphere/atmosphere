@@ -784,6 +784,98 @@ public abstract class AbstractAgentRuntimeContractTest {
                         + " times on the cancel path; a terminal event must fire at most once.");
     }
 
+    // -- stream idle bound (atmosphere.ai.stream.idle-timeout) --
+
+    /**
+     * Subclass hook: a runtime pointed at {@code server}, for the stream idle
+     * cases. The runtime must not be attached to an environment: each case
+     * attaches one with the bound it tests. Defaults to {@code null}, which
+     * skips the cases.
+     *
+     * @param server the stalling provider the runtime's model must call
+     * @return the fixture, or {@code null} when the runtime has none
+     */
+    protected StalledStreamFixture createStalledStreamFixture(StallingHttpServer server) {
+        return null;
+    }
+
+    /**
+     * Subclass hook: the streaming wire format {@link #createStalledStreamFixture}'s
+     * runtime reads.
+     *
+     * @return the dialect the stalling server speaks; OpenAI by default
+     */
+    protected StallingHttpServer.Dialect streamIdleDialect() {
+        return StallingHttpServer.Dialect.OPENAI;
+    }
+
+    /**
+     * Subclass hook: the test class in this module that proves the stream
+     * idle bound when the runtime cannot be pointed at a
+     * {@link StallingHttpServer} (its model is a stub, not an HTTP endpoint).
+     *
+     * @return the simple or fully-qualified name of that test class, or {@code null}
+     */
+    protected String streamIdleCoveredOutsideTck() {
+        return null;
+    }
+
+    private StreamIdleContract streamIdleContract() {
+        return new StreamIdleContract(getClass().getSimpleName(), this::createStalledStreamFixture,
+                streamIdleDialect());
+    }
+
+    /** (a) A model that stops after a few chunks ends the turn with one idle timeout, in both modes. */
+    @Test
+    protected void streamIdleStallAfterChunksEndsTheTurnOnce() throws Exception {
+        streamIdleContract().stallEndsTheTurn(StallingHttpServer.Mode.stallAfterChunks(2, streamIdleDialect()));
+    }
+
+    /**
+     * (b) A model that never sends its headers ends the turn the same way, and
+     * the pending request is let go unless the fixture declares why it cannot.
+     */
+    @Test
+    protected void streamIdleStallBeforeHeadersEndsTheTurnOnce() throws Exception {
+        streamIdleContract().stallBeforeHeadersEndsTheTurnAndReleases();
+    }
+
+    /** (c) The timed-out turn lets the stalled connection go, unless the fixture declares why it cannot. */
+    @Test
+    protected void streamIdleTimeoutReleasesTheConnection() throws Exception {
+        streamIdleContract().stallReleasesTheConnection();
+    }
+
+    /** (d) A cancel during a stall settles promptly, writes no error and releases the connection. */
+    @Test
+    protected void streamIdleCancelDuringTheStallSettles() throws Exception {
+        streamIdleContract().cancelDuringTheStall();
+    }
+
+    /** (e) Keep-alives with no content for three times the bound do not time the turn out. */
+    @Test
+    protected void streamIdleKeepalivesAreActivity() throws Exception {
+        streamIdleContract().keepalivesAreActivity();
+    }
+
+    /** (f) A tool that runs for three times the bound does not time the turn out. */
+    @Test
+    protected void streamIdleSlowToolIsNotIdle() throws Exception {
+        streamIdleContract().slowToolIsNotIdle();
+    }
+
+    /** (g) An approval resolved after three times the bound does not time the turn out. */
+    @Test
+    protected void streamIdleSlowApprovalIsNotIdle() throws Exception {
+        streamIdleContract().slowApprovalIsNotIdle();
+    }
+
+    /** (h) With the bound off (knob 0) a stall is not timed out, and a cancel still releases. */
+    @Test
+    protected void streamIdleBoundOffNeverTimesOut() throws Exception {
+        streamIdleContract().boundOffNeverTimesOut();
+    }
+
     /**
      * Record which terminal shape a runtime's cancelled future took. Kept as a
      * trace so a suite run can tell "the future was cancelled outright" from
@@ -856,21 +948,15 @@ public abstract class AbstractAgentRuntimeContractTest {
             assertTrue(className != null && !className.isBlank(),
                     runtime.name() + " registration for " + entry.getKey() + " must name the "
                             + "test class that covers it.");
-            try {
-                Class.forName(className, false, getClass().getClassLoader());
-            } catch (ClassNotFoundException e) {
+            if (!resolvesInThisModule(className)) {
                 var qualified = getClass().getPackageName() + "." + className;
-                try {
-                    Class.forName(qualified, false, getClass().getClassLoader());
-                } catch (ClassNotFoundException e2) {
-                    fail(runtime.name() + " registers " + entry.getKey()
-                            + " as covered by \"" + className + "\", but no such class is on "
-                            + "this module's test classpath (tried \"" + className + "\" and \""
-                            + qualified + "\"). Name a real test class in THIS module, or "
-                            + "implement the TCK hook — coverage in another Maven module "
-                            + "cannot be cited here because nothing would break if it were "
-                            + "deleted.");
-                }
+                fail(runtime.name() + " registers " + entry.getKey()
+                        + " as covered by \"" + className + "\", but no such class is on "
+                        + "this module's test classpath (tried \"" + className + "\" and \""
+                        + qualified + "\"). Name a real test class in THIS module, or "
+                        + "implement the TCK hook — coverage in another Maven module "
+                        + "cannot be cited here because nothing would break if it were "
+                        + "deleted.");
             }
         }
 
@@ -898,6 +984,60 @@ public abstract class AbstractAgentRuntimeContractTest {
                     + "capabilitiesCoveredOutsideTck() naming the test class in this module "
                     + "that already proves it.");
         }
+    }
+
+    /**
+     * Whether {@code className}, simple (in this subclass's package) or
+     * fully-qualified, names a class on this module's test classpath, read
+     * with the subclass's own classloader.
+     */
+    private boolean resolvesInThisModule(String className) {
+        for (var candidate : List.of(className, getClass().getPackageName() + "." + className)) {
+            try {
+                Class.forName(candidate, false, getClass().getClassLoader());
+                return true;
+            } catch (ClassNotFoundException e) {
+                // Try the next spelling.
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Meta-gate for the stream idle bound
+     * ({@value org.atmosphere.ai.AiConfig#STREAM_IDLE_TIMEOUT_PROPERTY}): every
+     * runtime that declares {@link AiCapability#CANCELLATION} must have its bound
+     * exercised, because the bound ends a silent turn through that cancel. Either
+     * {@link #createStalledStreamFixture(StallingHttpServer)} returns a fixture
+     * (the stream idle cases then run against a stalling socket), or
+     * {@link #streamIdleCoveredOutsideTck()} names a test class in this module
+     * that proves it (for a runtime whose model cannot be pointed at a socket).
+     * A third-party subclass of this TCK fails here until it adopts one.
+     *
+     * <p>Kept apart from {@link #BEHAVIOURAL_HOOKS}, which maps each capability
+     * to one hook: CANCELLATION already has its own there.</p>
+     */
+    @Test
+    protected void everyRuntimePinsTheStreamIdleBound() throws Exception {
+        var runtime = createRuntime();
+        if (!runtime.capabilities().contains(AiCapability.CANCELLATION)) {
+            return;
+        }
+        try (var server = new StallingHttpServer(StallingHttpServer.Mode.answer(streamIdleDialect()))) {
+            if (createStalledStreamFixture(server) != null) {
+                return;
+            }
+        }
+        var covered = streamIdleCoveredOutsideTck();
+        assertTrue(covered != null && !covered.isBlank(),
+                runtime.name() + " declares CANCELLATION but never exercises its stream idle bound "
+                        + "(atmosphere.ai.stream.idle-timeout ends a silent turn through that cancel; "
+                        + "Correctness Invariant #2). Override createStalledStreamFixture(StallingHttpServer) "
+                        + "to point the runtime at the stalling server, or streamIdleCoveredOutsideTck() to name "
+                        + "the test class in this module that proves the bound.");
+        assertTrue(resolvesInThisModule(covered),
+                runtime.name() + " names \"" + covered + "\" in streamIdleCoveredOutsideTck(), but no such "
+                        + "class is on this module's test classpath. Name a real test class in THIS module.");
     }
 
     /**

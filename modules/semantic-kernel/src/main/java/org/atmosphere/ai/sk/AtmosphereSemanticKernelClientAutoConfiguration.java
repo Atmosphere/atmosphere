@@ -87,7 +87,8 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
             @Value("${LLM_MODE:}") String environmentMode,
             @Value("${llm.model:gpt-4o-mini}") String model,
             @Value("${" + org.atmosphere.ai.llm.CleartextApiKeyPolicy.ALLOW_PROPERTY + ":}")
-            String allowCleartextApiKey) {
+            String allowCleartextApiKey,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.AiEnvironment> environment) {
 
         // Trimmed and case-insensitive, as the gate above and AiConfig read it.
         var local = "local".equalsIgnoreCase(mode == null ? null : mode.trim())
@@ -105,7 +106,18 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
         logger.info("Auto-building SK OpenAIAsyncClient endpoint={} local={} model={}", resolvedBaseUrl, local, model);
         return SemanticKernelOpenAiClientFactory.forEndpoint(resolvedBaseUrl, apiKey,
                 // Only "true" opts in: blank, "false" or anything else keeps the refusal.
-                org.atmosphere.ai.llm.CleartextApiKeyPolicy.optedIn(allowCleartextApiKey));
+                org.atmosphere.ai.llm.CleartextApiKeyPolicy.optedIn(allowCleartextApiKey),
+                // The HTTP client's timeouts sit past this application's stream
+                // idle bound, so the bound, not the Azure SDK's 60 s default,
+                // decides how long a provider may stay silent.
+                streamIdleTimeout(environment));
+    }
+
+    /** The application's stream idle bound, or the default when no environment is in the context. */
+    private static java.time.Duration streamIdleTimeout(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.AiEnvironment> provider) {
+        var environment = provider != null ? provider.getIfAvailable() : null;
+        return environment != null ? environment.resolveStreamIdleTimeout() : AiConfig.DEFAULT_STREAM_IDLE_TIMEOUT;
     }
 
     /**

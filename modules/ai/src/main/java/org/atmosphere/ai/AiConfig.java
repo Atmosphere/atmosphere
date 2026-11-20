@@ -267,18 +267,23 @@ public final class AiConfig {
     public static final java.time.Duration DEFAULT_REATTACH_GRACE = java.time.Duration.ofSeconds(30);
 
     /**
-     * Sysprop for how long a streaming model call may send nothing before the
-     * turn is ended with a {@link java.util.concurrent.TimeoutException} and the
-     * stream is aborted. It counts only while a model call is in flight: a tool
-     * running or an approval pending between rounds is not idle time. Env:
-     * {@link #STREAM_IDLE_TIMEOUT_ENV}. Accepts the spellings of
-     * {@link #REATTACH_GRACE_PROPERTY}; {@code 0} turns the bound off. Default
-     * {@link #DEFAULT_STREAM_IDLE_TIMEOUT}: long enough for a reasoning model
-     * that sends nothing while it thinks.
+     * Sysprop for how long the model of a turn may send nothing before the turn
+     * is ended with a {@link java.util.concurrent.TimeoutException} and its model
+     * call is cancelled through the runtime's own {@link ExecutionHandle#cancel()}.
+     * Every runtime's turn has one {@link StreamIdleWatchdog}, opened from this
+     * application's {@link AiEnvironment}; its clock starts when the turn starts,
+     * so a provider that never sends its headers is bounded too. A tool running
+     * through {@link org.atmosphere.ai.tool.ToolExecutionHelper}, an approval it
+     * waits for and a retry backoff are not idle time. On a runtime whose model
+     * call reports nothing until it returns (a non-streaming call), the bound
+     * covers the whole call. Env: {@link #STREAM_IDLE_TIMEOUT_ENV}. Accepts the
+     * spellings of {@link #REATTACH_GRACE_PROPERTY}; {@code 0} turns the bound
+     * off. Default {@link #DEFAULT_STREAM_IDLE_TIMEOUT}: long enough for a
+     * reasoning model that sends nothing while it thinks.
      *
-     * <p>Honoured by the LangChain4j runtime's chat path, whose HTTP client
-     * bounds a call only until the response headers arrive; see the
-     * {@code atmosphere-ai} README for the runtimes that honour it.</p>
+     * <p>What each runtime counts as activity, and whether ending the turn
+     * also releases the provider's connection, is listed in the
+     * {@code atmosphere-ai} README ("Stream idle timeout").</p>
      */
     public static final String STREAM_IDLE_TIMEOUT_PROPERTY = "atmosphere.ai.stream.idle-timeout";
     /** Env var for the stream idle timeout. See {@link #STREAM_IDLE_TIMEOUT_PROPERTY}. */

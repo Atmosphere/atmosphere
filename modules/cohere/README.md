@@ -137,3 +137,13 @@ Per [`feedback_no_per_runtime_samples.md`](../../.claude/memory/feedback_no_per_
 If you need framework-specific extensions, document them here in a
 follow-up README section rather than carving out a dedicated sample
 directory.
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` ends a turn whose provider sends nothing for
+`atmosphere.ai.stream.idle-timeout` (default `5m`, `0` off) with one `TimeoutException`. Every
+byte read counts as activity, and the cancel that follows (like a caller's cancel) aborts the
+round's `CancellableExchange`: the pending `sendAsync` before the headers, the response body
+after them, so the connection is released. A plain cancel writes no error frame. Tools,
+approvals and retry backoffs are not idle time. See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).

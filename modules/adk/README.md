@@ -189,3 +189,32 @@ Streaming texts delivered to browsers use the same JSON format as all atmosphere
 {"type":"streaming-text","data":" world","sessionId":"abc-123","seq":2}
 {"type":"complete","sessionId":"abc-123","seq":3}
 ```
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` ends a turn whose model sends nothing for
+`atmosphere.ai.stream.idle-timeout` (default `5m`, `0` off) with one `TimeoutException`.
+
+The Gemini models of the runners Atmosphere builds (the shared one from the settings, and the
+per-request one of a turn with tools, a cache hint or a native file system) run on a genai
+`Client` over an OkHttp client the runtime owns (genai's `ClientOptions.customHttpClient`):
+
+- its read timeout is the bound plus 10 s between two reads (none when the bound is `0`);
+  genai's own `HttpOptions.timeout` was not used: it sets OkHttp's `callTimeout`, which bounds
+  the whole call and would cut a healthy answer that takes longer;
+- every byte of the response counts as activity: Atmosphere runs ADK under its default
+  `StreamingMode.NONE`, where each model call is genai's unary `generateContent` and ADK sees an
+  event only once the answer is complete;
+- the turn subscribes on a virtual thread of its own (ADK's flow blocks its subscriber on the
+  genai future, so `executeWithHandle` used to block until the model answered), and its cancel,
+  or the bound, cancels the OkHttp calls the turn opened, which closes their connections, before
+  the response headers too; a per-request runner is then closed, and its genai client with it;
+- the shared runner's client is closed with the application's environment (`closeNativeClient`).
+
+Proved against a loopback socket by `AdkRuntimeContractTest` (the TCK's stream idle cases, both
+dispatch modes) and `AdkGeminiTransportTest`. Residuals: a model call of the shared runner that
+does not start on the turn's own thread is not the turn's to cancel (its read timeout still ends
+it); a custom root agent (`AdkRootAgent`) and a `Runner` the application binds keep their own
+models and clients, which the turn only disposes; tools of a custom root agent, which do not run
+through `ToolExecutionHelper`, count as idle time. See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).

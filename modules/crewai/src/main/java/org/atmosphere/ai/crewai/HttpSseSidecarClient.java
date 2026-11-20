@@ -126,6 +126,19 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
 
     @Override
     public SidecarSession startSession(StartRequest request) {
+        return startSession(request, null, null);
+    }
+
+    /**
+     * Opens the session through {@code sendAsync}, its future registered with
+     * {@code exchange} before the headers arrive and the event stream after
+     * them, so an abort releases the connection whether the sidecar has
+     * answered or not.
+     */
+    @Override
+    public SidecarSession startSession(StartRequest request,
+                                       org.atmosphere.ai.llm.CancellableExchange exchange,
+                                       Runnable activity) {
         Objects.requireNonNull(request, "request");
         String body;
         try {
@@ -143,7 +156,7 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
                 .build();
         HttpResponse<InputStream> response;
         try {
-            response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+            response = send(httpRequest, exchange);
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -159,7 +172,37 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
                     "CrewAI sidecar returned HTTP " + response.statusCode() + ": " + snippet);
         }
         var sessionId = response.headers().firstValue(SESSION_HEADER).orElse(null);
-        return new HttpSseSession(sessionId, response.body());
+        InputStream events = activity != null
+                ? new org.atmosphere.ai.llm.ActivityInputStream(response.body(), activity)
+                : response.body();
+        if (exchange != null) {
+            // An abort that came first closes the stream on registration.
+            exchange.registerBody(events);
+        }
+        return new HttpSseSession(sessionId, events);
+    }
+
+    private HttpResponse<InputStream> send(HttpRequest httpRequest,
+                                           org.atmosphere.ai.llm.CancellableExchange exchange)
+            throws IOException, InterruptedException {
+        if (exchange == null) {
+            return httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        }
+        var future = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        exchange.registerSend(() -> future.cancel(true));
+        try {
+            return future.get();
+        } catch (java.util.concurrent.CancellationException e) {
+            throw new IOException("The CrewAI session was aborted before the sidecar answered", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            if (e.getCause() instanceof IOException io) {
+                throw io;
+            }
+            throw new IOException(e.getCause());
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            throw e;
+        }
     }
 
     @Override

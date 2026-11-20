@@ -98,7 +98,11 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         var builder = dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
                 .apiKey(apiKey)
-                .modelName(settings.model());
+                .modelName(settings.model())
+                // Each streamed exchange reports to its turn: every byte is
+                // activity, and the turn's cancel closes the connection.
+                .httpClientBuilder(AtmosphereLc4jHttpClient.builder(
+                        dev.langchain4j.http.client.HttpClientBuilderLoader.loadHttpClientBuilder()));
         // Attach any registered native ChatModelListeners so LangChain4j's own
         // observability contract is live on the model Atmosphere auto-builds —
         // this is the integration point langchain4j-opentelemetry and
@@ -258,7 +262,9 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     /**
      * How long a streaming model call may send nothing before the turn is
      * ended, read from this runtime's application
-     * ({@value org.atmosphere.ai.AiConfig#STREAM_IDLE_TIMEOUT_PROPERTY}).
+     * ({@value org.atmosphere.ai.AiConfig#STREAM_IDLE_TIMEOUT_PROPERTY}): the
+     * bound of the turn's {@link org.atmosphere.ai.StreamIdleWatchdog}, which
+     * the base dispatch opens from the same environment.
      */
     java.time.Duration streamIdleTimeout() {
         return environment().resolveStreamIdleTimeout();
@@ -453,36 +459,23 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 messages.size(), toolSpecs.size());
 
         // LangChain4j's HTTP client bounds a call only until the response headers
-        // arrive: the watchdog ends a turn whose stream then goes silent, and
-        // aborts that stream (Correctness Invariant #2).
-        var watchdog = new StreamIdleWatchdog(streamIdleTimeout(), done);
+        // arrive. The turn's watchdog (opened by the base dispatch) ends a turn
+        // whose stream then goes silent and cancels this handle, which aborts
+        // the stream through the handle the tracker keeps (Correctness
+        // Invariant #2); every stream callback is activity on its clock.
+        var tracker = new StreamActivityTracker(org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { }));
         var rounds = new ToolAwareStreamingResponseHandler(
                 session, streamingModel, messages, toolSpecs, toolMap,
                 context.approvalStrategy(), context.listeners(), cancelled,
                 context.approvalPolicy(),
                 org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context), done);
-        rounds.trackRoundsWith(watchdog::track);
+        rounds.sendRoundsWith(tracker::send);
         var handler = new CancelAwareStreamingHandler(rounds, cancelled, done, modelScope);
-        watchdog.start(timeout -> {
-            // The timeout ends the turn only if nothing else did. The session is
-            // ended before the done future, as on the stream's own error path:
-            // a blocking execute() woken by the future reads the session's error.
-            if (done.isDone()) {
-                return;
-            }
-            cancelled.set(true);
-            if (!session.isClosed()) {
-                session.error(timeout);
-            }
-            handler.failModelCall(timeout);
-            done.completeExceptionally(timeout);
-        });
         try {
-            streamingModel.chat(chatRequestBuilder.build(), watchdog.track(handler));
+            tracker.send(streamingModel, chatRequestBuilder.build(), handler);
         } catch (RuntimeException e) {
-            // Thrown on this thread (request validation): no stream to watch,
-            // and the turn is over, so the watchdog must end with it.
-            watchdog.stop();
+            // Thrown on this thread (request validation): the turn is over.
             done.completeExceptionally(e);
             throw e;
         }
@@ -490,9 +483,14 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         return new org.atmosphere.ai.ExecutionHandle() {
             @Override public void cancel() {
                 cancelled.set(true);
+                // A cancel from the idle bound ends the model call with its
+                // timeout, for the lifecycle listeners too.
+                org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                        .flatMap(org.atmosphere.ai.StreamIdleWatchdog::timeout)
+                        .ifPresent(handler::failModelCall);
                 // Close the stream's connection: the cancelled flag alone left
                 // LangChain4j reading a stalled stream until the provider ended it.
-                watchdog.abortStream();
+                tracker.abortStream();
                 // Resolve the future as cancelled so doExecute()'s
                 // handle.whenDone().get() unblocks immediately. The LC4j
                 // handler's CancelAwareStreamingHandler drops remaining
@@ -521,15 +519,17 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             LangChain4jAiServices.Invoker invoker,
             AgentExecutionContext context, StreamingSession session) {
         var done = new java.util.concurrent.CompletableFuture<Void>();
+        var stream = new AiServiceStream(org.atmosphere.ai.StreamIdleWatchdog.of(session));
         try {
             var tokenStream = invoker.invoke(context.message());
+            stream.bind(tokenStream, partial -> {
+                if (!session.isClosed() && partial != null && !partial.isEmpty()) {
+                    session.send(partial);
+                }
+            });
             tokenStream
-                    .onPartialResponse(partial -> {
-                        if (!session.isClosed() && partial != null && !partial.isEmpty()) {
-                            session.send(partial);
-                        }
-                    })
                     .onCompleteResponse(response -> {
+                        stream.ended();
                         try {
                             if (response != null && response.tokenUsage() != null) {
                                 var u = response.tokenUsage();
@@ -553,6 +553,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                         }
                     })
                     .onError(error -> {
+                        stream.ended();
                         try {
                             if (!session.isClosed()) {
                                 // Classify the raw LC4j/provider exception so
@@ -570,6 +571,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             // Pre-subscribe construction error: the invoker threw before
             // start(). Surface to session.error and resolve the handle so
             // callers don't hang on whenDone().
+            stream.ended();
             if (!session.isClosed()) {
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
             }
@@ -578,15 +580,157 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         return new org.atmosphere.ai.ExecutionHandle() {
             @Override
             public void cancel() {
-                // LC4j's TokenStream contract has no cancel hook — once
-                // start() fires, the model dispatch runs to completion
-                // asynchronously. We resolve done so callers awaiting the
-                // handle don't hang, but the underlying call continues.
+                // TokenStream itself has no cancel: the stream is aborted
+                // through the StreamingHandle its partial callbacks hand over,
+                // which closes the connection; a stream that has handed over
+                // none yet is aborted when it does.
+                stream.abort();
                 done.complete(null);
             }
             @Override public boolean isDone() { return done.isDone(); }
             @Override public java.util.concurrent.CompletableFuture<Void> whenDone() { return done; }
         };
+    }
+
+    /**
+     * The {@code AiServices} stream of one turn on the turn's
+     * {@link org.atmosphere.ai.StreamIdleWatchdog}: every partial response,
+     * thinking and tool-call callback is activity and hands over the stream's
+     * {@link dev.langchain4j.model.chat.response.StreamingHandle}, which
+     * {@link #abort} cancels. {@code AiServices} runs its tools itself, outside
+     * {@code ToolExecutionHelper}: each one runs inside a pause of the clock,
+     * opened by {@code beforeToolExecution} and closed by {@code onToolExecuted}
+     * (keyed by the tool request's id), or by any later stream callback, so a
+     * tool whose end is never reported cannot hold the clock paused.
+     *
+     * <p>The {@code *WithContext} callbacks are registered: on
+     * {@code AiServiceTokenStream} each excludes its plain twin. A
+     * {@code TokenStream} that does not implement them (their default throws
+     * {@link UnsupportedOperationException}) gets the plain
+     * {@code onPartialResponse}, and its stream counts only as activity.</p>
+     */
+    static final class AiServiceStream {
+        private final java.util.Optional<org.atmosphere.ai.StreamIdleWatchdog> watchdog;
+        private final java.util.concurrent.atomic.AtomicReference<
+                dev.langchain4j.model.chat.response.StreamingHandle> handle =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        private final java.util.Map<Object, org.atmosphere.ai.StreamIdleWatchdog.Pause> toolPauses =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        private volatile boolean aborted;
+
+        AiServiceStream(java.util.Optional<org.atmosphere.ai.StreamIdleWatchdog> watchdog) {
+            this.watchdog = watchdog;
+        }
+
+        /** Registers the stream's callbacks on {@code tokenStream}, partial text going to {@code text}. */
+        void bind(dev.langchain4j.service.TokenStream tokenStream, java.util.function.Consumer<String> text) {
+            try {
+                tokenStream.onPartialResponseWithContext((partial, ctx) -> {
+                    streamed(ctx != null ? ctx.streamingHandle() : null);
+                    text.accept(partial != null ? partial.text() : null);
+                });
+            } catch (UnsupportedOperationException e) {
+                tokenStream.onPartialResponse(partial -> {
+                    streamed(null);
+                    text.accept(partial);
+                });
+            }
+            try {
+                tokenStream.onPartialThinkingWithContext((thinking, ctx) ->
+                        streamed(ctx != null ? ctx.streamingHandle() : null));
+            } catch (UnsupportedOperationException e) {
+                // A minimal TokenStream: no thinking callback to count.
+            }
+            try {
+                tokenStream.onPartialToolCallWithContext((call, ctx) ->
+                        streamed(ctx != null ? ctx.streamingHandle() : null));
+            } catch (UnsupportedOperationException e) {
+                // A minimal TokenStream: no tool-call callback to count.
+            }
+            try {
+                tokenStream.beforeToolExecution(before -> toolStarted(key(before.request())));
+            } catch (UnsupportedOperationException e) {
+                // A minimal TokenStream reports no tool start: its tools are idle time.
+            }
+            tokenStream.onToolExecuted(execution -> toolEnded(key(execution.request())));
+        }
+
+        private static Object key(dev.langchain4j.agent.tool.ToolExecutionRequest request) {
+            if (request == null) {
+                return AiServiceStream.class;
+            }
+            return request.id() != null ? request.id() : request;
+        }
+
+        private void activity() {
+            watchdog.ifPresent(org.atmosphere.ai.StreamIdleWatchdog::activity);
+        }
+
+        /** A stream callback: the model is sending again, so no tool is running. */
+        private void streamed(dev.langchain4j.model.chat.response.StreamingHandle streamingHandle) {
+            resumeAll();
+            activity();
+            if (streamingHandle != null) {
+                handle.set(streamingHandle);
+                if (aborted) {
+                    cancel(streamingHandle);
+                }
+            }
+        }
+
+        void toolStarted(Object key) {
+            activity();
+            watchdog.ifPresent(w -> {
+                var previous = toolPauses.put(key, w.pause());
+                if (previous != null) {
+                    previous.close();
+                }
+            });
+        }
+
+        void toolEnded(Object key) {
+            var pause = toolPauses.remove(key);
+            if (pause != null) {
+                pause.close();
+            }
+            activity();
+        }
+
+        /** The stream ended: no pause it opened may outlive it. */
+        void ended() {
+            resumeAll();
+        }
+
+        private void resumeAll() {
+            for (var key : toolPauses.keySet()) {
+                var pause = toolPauses.remove(key);
+                if (pause != null) {
+                    pause.close();
+                }
+            }
+        }
+
+        /** Cancels the stream through its handle, now or when it hands one over. */
+        void abort() {
+            aborted = true;
+            resumeAll();
+            cancel(handle.get());
+        }
+
+        private static void cancel(dev.langchain4j.model.chat.response.StreamingHandle streamingHandle) {
+            if (streamingHandle != null && !streamingHandle.isCancelled()) {
+                try {
+                    streamingHandle.cancel();
+                } catch (RuntimeException e) {
+                    logger.debug("Aborting the LangChain4j AiServices stream failed", e);
+                }
+            }
+        }
+
+        /** @return how many tools hold the clock paused (tests) */
+        int pausedTools() {
+            return toolPauses.size();
+        }
     }
 
     /**

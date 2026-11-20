@@ -381,6 +381,10 @@ public class AiStreamingSession implements StreamingSession {
     /** Message of a model call the idle-session sweep cancelled. */
     public static final String CANCELLED_BY_SWEEP = RunCancelledException.Reason.SWEEP.message();
 
+    /** Serialises {@link #endCancelledCall()} with the terminal calls that consult it. */
+    private final Object cancelledCallLock = new Object();
+    /** Set once {@link #endCancelledCall()} wrote the cancelled frame: a later complete() is dropped. */
+    private volatile boolean cancelledCallEnded;
     /**
      * Why {@link #cancelInflight(RunCancelledException.Reason)} cut the
      * in-flight model call short, until the turn's terminal frame consumes it.
@@ -2365,12 +2369,18 @@ public class AiStreamingSession implements StreamingSession {
      * {@code complete} it was about to send.
      */
     private boolean endCancelledCall() {
-        var reason = cancelledReason.getAndSet(null);
-        if (reason == null) {
-            return false;
+        // One at a time: a runtime's own complete() racing the waiter that
+        // writes the cancelled frame (a cancelled handle settles at once, its
+        // model call unwinds after) waits for that frame, then is dropped.
+        synchronized (cancelledCallLock) {
+            var reason = cancelledReason.getAndSet(null);
+            if (reason == null) {
+                return cancelledCallEnded;
+            }
+            cancelledCallEnded = true;
+            error(new RunCancelledException(reason));
+            return true;
         }
-        error(new RunCancelledException(reason));
-        return true;
     }
 
     /**
@@ -2427,6 +2437,12 @@ public class AiStreamingSession implements StreamingSession {
         if (firingBeforeCompletion == Thread.currentThread()) {
             logger.warn("AiInterceptor.beforeCompletion invoked error() on its session; "
                     + "ignoring — hooks must not invoke terminal methods");
+            return;
+        }
+        if (cancelledCallEnded && !(t instanceof RunCancelledException)) {
+            // The cancelled frame already ended the call: the failure its
+            // runtime reports for the cut is not a second terminal.
+            logger.trace("Dropping an error after the cancelled frame", t);
             return;
         }
         // The hook's contract is "the turn completed", so the error terminal

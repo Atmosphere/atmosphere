@@ -212,6 +212,33 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 .withBackendRelease("SSE response body close()", streamCloses);
     }
 
+    /**
+     * The real Anthropic Messages client on a loopback socket that stalls: the round's
+     * exchange is a {@link org.atmosphere.ai.llm.CancellableExchange}, so the
+     * stalled connection is closed when the turn ends.
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        var client = AnthropicMessagesClient.builder()
+                .baseUrl(server.baseUrl())
+                .apiKey("stall-test-key")
+                .build();
+        return org.atmosphere.ai.test.StalledStreamFixture.of(new TestableAnthropicRuntime(client),
+                        tools -> new AgentExecutionContext(
+                                "Hello", "You are helpful", "claude-sonnet-4-6",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, java.util.List.of(), java.util.Map.of(),
+                                java.util.List.of(), null, null))
+                .releases()
+                .withToolTurns();
+    }
+
+    @Override
+    protected org.atmosphere.ai.test.StallingHttpServer.Dialect streamIdleDialect() {
+        return org.atmosphere.ai.test.StallingHttpServer.Dialect.ANTHROPIC;
+    }
+
     private static final String OPEN_ENDED_SSE_PREAMBLE = """
             data: {"type":"message_start","message":{"id":"msg_1"}}
 

@@ -89,9 +89,14 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     private final CompletableFuture<Void> turnDone;
     private volatile boolean followUpDispatched;
 
-    /** Wraps each follow-up round's handler before it is sent; identity when none was set. */
-    private java.util.function.UnaryOperator<StreamingChatResponseHandler> roundTracker =
-            java.util.function.UnaryOperator.identity();
+    /** Sends each follow-up round; a plain {@code model.chat} when none was set. */
+    private RoundSender roundSender = StreamingChatModel::chat;
+
+    /** Sends one round of the tool loop. */
+    @FunctionalInterface
+    interface RoundSender {
+        void send(StreamingChatModel model, ChatRequest request, StreamingChatResponseHandler handler);
+    }
 
     ToolAwareStreamingResponseHandler(
             StreamingSession session,
@@ -167,13 +172,13 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     }
 
     /**
-     * Wraps the handler of every follow-up round this handler and its
-     * successors send, so a turn's stream idle bound covers all its rounds.
+     * Sends every follow-up round this handler and its successors send through
+     * {@code sender}, so a turn's stream idle bound covers all its rounds.
      *
-     * @param tracker applied to a round's handler just before the round is sent
+     * @param sender sends a round (wrapping its handler)
      */
-    void trackRoundsWith(java.util.function.UnaryOperator<StreamingChatResponseHandler> tracker) {
-        this.roundTracker = tracker;
+    void sendRoundsWith(RoundSender sender) {
+        this.roundSender = sender;
     }
 
     @Override
@@ -270,9 +275,9 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
                     session, model, updatedMessages, toolSpecifications, toolMap,
                     approvalStrategy, listeners, cancelled, toolRound + 1, approvalPolicy,
                     loopPolicy, turnDone);
-            nextHandler.trackRoundsWith(roundTracker);
+            nextHandler.sendRoundsWith(roundSender);
             followUpDispatched = true;
-            model.chat(followUpRequest, roundTracker.apply(nextHandler));
+            roundSender.send(model, followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response
             if (aiMessage.text() != null) {

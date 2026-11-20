@@ -135,6 +135,12 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
         return Set.of();
     }
 
+    /** The bound is proven against a silent {@code ReactAgent.call} stub, not a socket. */
+    @Override
+    protected String streamIdleCoveredOutsideTck() {
+        return "SpringAiAlibabaIdleTimeoutTest";
+    }
+
     /**
      * Both entries point at dedicated tests in this module that assert more
      * than the TCK's hooks could:

@@ -156,7 +156,9 @@ class RuntimeCapabilityParityTest {
         assertEquals("gpt-4", metadataMap.get("ai.model"));
 
         // --- Verify: 2 HTTP calls (initial + re-submit with tool result) ---
-        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        // The runtime's exchange is cancellable, so the client sends through sendAsync.
+        verify(httpClient, times(2)).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(httpClient, org.mockito.Mockito.never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
@@ -239,6 +241,10 @@ class RuntimeCapabilityParityTest {
         var rest = java.util.Arrays.copyOfRange(mocks, 1, mocks.length);
         doReturn(first, (Object[]) rest)
                 .when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        var futures = java.util.Arrays.stream(mocks)
+                .map(java.util.concurrent.CompletableFuture::completedFuture).toArray();
+        doReturn(futures[0], java.util.Arrays.copyOfRange(futures, 1, futures.length))
+                .when(httpClient).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         return httpClient;
     }
 }

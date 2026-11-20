@@ -326,14 +326,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     /**
      * Cancellation-aware streaming dispatch on a virtual thread. The returned
-     * {@link ExecutionHandle#cancel()} flips a flag the native stream polls, and
-     * {@link ExecutionHandle#whenDone()} settles when the worker terminates
-     * (success or failure).
+     * {@link ExecutionHandle#cancel()} aborts the stream's
+     * {@link org.atmosphere.ai.llm.CancellableExchange}: it sets the flag the
+     * native stream polls and closes the exchange the stream registered (its
+     * pending {@code sendAsync}, its response body), so a provider that stalls
+     * before or after its headers lets the connection go. No thread is
+     * interrupted. {@link ExecutionHandle#whenDone()} settles when the worker
+     * terminates (success or failure).
      */
     protected final ExecutionHandle streamThroughGatewayWithHandle(AgentExecutionContext context,
             StreamingSession session, String defaultModel, NativeStreamCall call) {
         admitThroughGateway(context);
-        var cancelled = new AtomicBoolean();
+        var cancelled = new org.atmosphere.ai.llm.CancellableExchange();
         var done = new CompletableFuture<Void>();
         // Tool code that runs on the worker and reads the static API sees
         // this runtime's application.
@@ -351,7 +355,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             }
         });
         return new ExecutionHandle() {
-            @Override public void cancel() { cancelled.set(true); }
+            @Override public void cancel() { cancelled.abort(); }
 
             @Override public boolean isDone() { return done.isDone(); }
 
@@ -539,26 +543,38 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     private void dispatch(AgentExecutionContext context, StreamingSession session) {
         C client;
-        AgentExecutionContext effectiveContext;
+        StreamIdleWatchdog watchdog;
         try {
             client = resolveClient(context);
             session.progress(connectingProgress(context));
-            // Install the cross-runtime ToolLoopGuard before fireStart so the guard
-            // observes every onModelStart this runtime emits during the execute.
-            // No-op when no ToolLoopPolicy is attached to context.metadata().
-            effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+            watchdog = StreamIdleWatchdog.open(environment(), session, name());
         } catch (RuntimeException e) {
             endWithError(session, e);
             throw e;
         }
+        var tracked = watchdog.session();
+        AgentExecutionContext effectiveContext;
+        try {
+            // Install the cross-runtime ToolLoopGuard before fireStart so the guard
+            // observes every onModelStart this runtime emits during the execute.
+            // No-op when no ToolLoopPolicy is attached to context.metadata().
+            effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, tracked);
+        } catch (RuntimeException e) {
+            watchdog.close();
+            endWithError(tracked, e);
+            throw e;
+        }
         fireStart(effectiveContext);
         try {
-            executeWithOuterRetry(client, effectiveContext, session);
+            executeWithOuterRetry(client, effectiveContext, watchdog);
             // If the bridge drained the stream but surfaced an error out-of-band
             // via session.error(...) (Spring AI reactive, ADK async callbacks,
             // LC4j onError, Koog error frames), honour that state instead of
             // reporting completion to listeners.
-            if (session.hasErrored()) {
+            var timeout = watchdog.timeout();
+            if (timeout.isPresent()) {
+                fireError(effectiveContext, timeout.get());
+            } else if (tracked.hasErrored()) {
                 fireError(effectiveContext, new java.util.concurrent.CancellationException(
                         "stream reported error via session.error(...)"));
             } else {
@@ -566,8 +582,10 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             }
         } catch (RuntimeException e) {
             fireError(effectiveContext, e);
-            endWithError(session, e);
+            endWithError(tracked, e);
             throw e;
+        } finally {
+            watchdog.close();
         }
     }
 
@@ -619,24 +637,41 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     private ExecutionHandle dispatchWithHandle(AgentExecutionContext context, StreamingSession session) {
         C client;
-        AgentExecutionContext effectiveContext;
+        StreamIdleWatchdog watchdog;
         try {
             client = resolveClient(context);
             session.progress(connectingProgress(context));
-            // Same ToolLoopGuard install as #execute — keeps the cap behavior
-            // identical across sync and cancel-aware entry points (Mode Parity).
-            effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+            watchdog = StreamIdleWatchdog.open(environment(), session, name());
         } catch (RuntimeException e) {
             endWithError(session, e);
             throw e;
         }
+        var tracked = watchdog.session();
+        AgentExecutionContext effectiveContext;
+        try {
+            // Same ToolLoopGuard install as #execute — keeps the cap behavior
+            // identical across sync and cancel-aware entry points (Mode Parity).
+            effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, tracked);
+        } catch (RuntimeException e) {
+            watchdog.close();
+            endWithError(tracked, e);
+            throw e;
+        }
         fireStart(effectiveContext);
         try {
-            var handle = doExecuteWithHandle(client, effectiveContext, session);
+            // The watchdog's handle settles at the inner handle's end, at a
+            // fire (with the TimeoutException) or at a cancel.
+            var handle = watchdog.attach(doExecuteWithHandle(client, effectiveContext, tracked));
             // Set when the caller cancels: the failure a cancelled worker ends
             // with is the caller's to report (as cancelled), not this one's.
             var cancelRequested = new java.util.concurrent.atomic.AtomicBoolean();
-            handle.whenDone().whenComplete((ok, err) -> {
+            // The caller's whenDone() settles after the listeners saw the
+            // outcome, with the same outcome: a caller that reads them on
+            // settlement never races them.
+            var settled = handle.whenDone().whenComplete((ok, err) -> {
+                // The turn is over: a runtime that settles its handle without
+                // writing a terminal must not be timed out afterwards.
+                watchdog.close();
                 // Three outcomes map to two listener events:
                 //   1. future completed exceptionally  → fireError(err)
                 //   2. future completed normally, session errored out of band → fireError
@@ -652,9 +687,9 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                     // would otherwise leave the session open: callers read a
                     // failed whenDone() as already reported to the client.
                     if (!cancelRequested.get()) {
-                        endWithError(session, err);
+                        endWithError(tracked, err);
                     }
-                } else if (session.hasErrored()) {
+                } else if (tracked.hasErrored()) {
                     fireError(effectiveContext, new java.util.concurrent.CancellationException(
                             "stream reported error via session.error(...)"));
                 } else {
@@ -670,17 +705,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
                 @Override
                 public boolean isDone() {
-                    return handle.isDone();
+                    return settled.isDone();
                 }
 
                 @Override
                 public CompletableFuture<Void> whenDone() {
-                    return handle.whenDone();
+                    return settled;
                 }
             };
         } catch (RuntimeException e) {
+            watchdog.close();
             fireError(effectiveContext, e);
-            endWithError(session, e);
+            endWithError(tracked, e);
             throw e;
         }
     }
@@ -836,18 +872,22 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * Invariant #7, Mode Parity).</p>
      */
     private void executeWithOuterRetry(C client, AgentExecutionContext context,
-                                       StreamingSession session) {
+                                       StreamIdleWatchdog watchdog) {
         var policy = context.retryPolicy();
         if (policy == null || policy.isInheritSentinel() || policy.maxRetries() <= 0
                 || ownsPerRequestRetry()) {
-            doExecute(client, context, session);
+            runAttempt(client, context, watchdog);
             return;
         }
+        var session = watchdog.session();
         int attempt = 0;
         while (true) {
             try {
-                doExecute(client, context, session);
+                runAttempt(client, context, watchdog);
                 return;
+            } catch (java.util.concurrent.CancellationException e) {
+                // The caller interrupted the turn: never retried.
+                throw e;
             } catch (RuntimeException e) {
                 // Typed gate: a classified terminal failure (auth, context
                 // length, content filter, invalid request) is never retried
@@ -866,14 +906,157 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                         name(), attempt, policy.maxRetries(),
                         delay.toMillis(), e.getMessage());
                 if (!delay.isZero() && !delay.isNegative()) {
+                    // The backoff is not the model's silence.
+                    var pause = watchdog.pause();
                     try {
                         Thread.sleep(delay.toMillis());
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw e;
+                    } finally {
+                        pause.close();
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Runs one attempt of a synchronous turn the way {@link #executeWithHandle}
+     * runs a turn: {@link #doExecuteWithHandle} on a worker virtual thread bound
+     * to this runtime's {@link #environment()}, its handle attached to the
+     * turn's watchdog, and an interruptible wait on the calling thread. The
+     * calling thread's own thread-locals do not reach the worker.
+     *
+     * <ul>
+     *   <li>An interrupt of the calling thread cancels the attempt, restores
+     *       the interrupt flag and throws a {@link java.util.concurrent.CancellationException}.</li>
+     *   <li>A failure of the attempt is rethrown (unwrapped) while the session is
+     *       open, so the outer retry and a router's failover see a failure that
+     *       came before any terminal; once the session has ended, the failure
+     *       has already reached the client and the attempt returns.</li>
+     *   <li>A fire of the idle bound returns normally: the watchdog has
+     *       written the timeout.</li>
+     * </ul>
+     */
+    private void runAttempt(C client, AgentExecutionContext context, StreamIdleWatchdog watchdog) {
+        var attempt = new AttemptHandle();
+        var handle = watchdog.attach(attempt);
+        var aiEnvironment = environment();
+        var session = watchdog.session();
+        attempt.start(Thread.ofVirtual().name("atmosphere-" + name() + "-turn").unstarted(() -> {
+            var binding = AiEnvironment.bind(aiEnvironment);
+            try {
+                attempt.handOver(doExecuteWithHandle(client, context, session));
+            } catch (Throwable t) {
+                attempt.fail(t);
+            } finally {
+                binding.close();
+            }
+        }));
+        try {
+            handle.whenDone().get();
+        } catch (InterruptedException e) {
+            handle.cancel();
+            Thread.currentThread().interrupt();
+            var cancelled = new java.util.concurrent.CancellationException(
+                    name() + " turn interrupted while it waited for the model");
+            cancelled.initCause(e);
+            throw cancelled;
+        } catch (java.util.concurrent.ExecutionException e) {
+            if (watchdog.timedOut()) {
+                return;
+            }
+            var cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            if (session.isClosed()) {
+                lifecycleLogger.debug("{} attempt failed after its session ended", name(), cause);
+                return;
+            }
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new java.util.concurrent.CompletionException(cause);
+        }
+    }
+
+    /**
+     * The handle of one synchronous attempt: settles when the handle the
+     * worker's {@link #doExecuteWithHandle} returned settles, or exceptionally
+     * when it threw. A cancel reaches that handle, or, while the worker is
+     * still inside a {@code doExecuteWithHandle} that runs the call inline
+     * (the default, which blocks on {@link #doExecute}), interrupts the worker.
+     */
+    private static final class AttemptHandle implements ExecutionHandle {
+
+        private final CompletableFuture<Void> done = new CompletableFuture<>();
+        private final AtomicBoolean cancelled = new AtomicBoolean();
+        private ExecutionHandle inner;
+        private Thread worker;
+
+        void start(Thread thread) {
+            synchronized (this) {
+                worker = thread;
+            }
+            thread.start();
+        }
+
+        void handOver(ExecutionHandle handle) {
+            if (handle == null) {
+                handle = ExecutionHandle.completed();
+            }
+            synchronized (this) {
+                inner = handle;
+                worker = null;
+            }
+            if (cancelled.get()) {
+                handle.cancel();
+            }
+            handle.whenDone().whenComplete((ok, error) -> {
+                if (error == null) {
+                    done.complete(null);
+                } else {
+                    done.completeExceptionally(
+                            error instanceof java.util.concurrent.CompletionException && error.getCause() != null
+                                    ? error.getCause() : error);
+                }
+            });
+        }
+
+        void fail(Throwable error) {
+            synchronized (this) {
+                worker = null;
+            }
+            done.completeExceptionally(error);
+        }
+
+        @Override
+        public void cancel() {
+            if (!cancelled.compareAndSet(false, true)) {
+                return;
+            }
+            ExecutionHandle handle;
+            synchronized (this) {
+                handle = inner;
+                if (handle == null && worker != null) {
+                    worker.interrupt();
+                }
+            }
+            if (handle != null) {
+                handle.cancel();
+            }
+        }
+
+        @Override
+        public boolean isDone() {
+            return done.isDone();
+        }
+
+        @Override
+        public CompletableFuture<Void> whenDone() {
+            return done;
         }
     }
 

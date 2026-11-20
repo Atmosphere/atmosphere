@@ -74,6 +74,8 @@ public final class AdkEventAdapter {
      * function-call / function-response events emit no frame of their own.
      */
     private final java.util.Set<String> reportedTools;
+    /** The turn's idle-bound activity feed: every ADK event, whatever it carries. */
+    private final Runnable activity;
 
     private AdkEventAdapter(StreamingSession session) {
         // No-listener bridge factories: the scope fires nothing (empty
@@ -90,6 +92,8 @@ public final class AdkEventAdapter {
         this.session = session;
         this.modelScope = modelScope;
         this.reportedTools = reportedTools != null ? java.util.Set.copyOf(reportedTools) : java.util.Set.of();
+        this.activity = org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { });
     }
 
     /**
@@ -239,6 +243,7 @@ public final class AdkEventAdapter {
     }
 
     private void onEvent(Event event) {
+        activity.run();
         // Handle error events
         if (event.errorMessage().isPresent()) {
             logger.warn("ADK error event: {}", event.errorMessage().get());

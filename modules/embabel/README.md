@@ -302,3 +302,14 @@ dispatch path so the approval gate applies.
 - Embabel Agent API 1.5.0+
 - Kotlin runtime
 - **Spring Boot 4** — Embabel 1.5.0 is built on Spring Boot 4.1 / Spring AI 2.0, so this adapter runs on the default `atmosphere-spring-boot-starter` build; no `-Pspring-boot3` profile is needed. Embabel's 1.0.x line targets Spring Boot 3.5, but this adapter is neither built nor tested against it.
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` (`atmosphere.ai.stream.idle-timeout`, default `5m`, `0` off)
+is opened by this runtime in both `execute` and `executeWithHandle`; `execute` now runs the turn
+on the same worker and waits for it interruptibly. Every element of the native stream counts as
+activity. A deployed `@Agent` and the blocking `generateText` path report nothing until they
+return, so there the bound covers the whole call; they have no cancel primitive, so past the
+bound the turn ends with one `TimeoutException` and the worker is interrupted while the call
+runs on, holding the application's provider connection. See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).

@@ -120,6 +120,38 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return runtime;
     }
 
+    /**
+     * A fake sidecar on a loopback socket that stalls. The tool and approval
+     * cases do not run: the sidecar's crew runs its tools, so no tool call
+     * crosses the wire this server speaks.
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        var runtime = new SidecarClientRuntime(new HttpSseSidecarClient(new CrewAiSidecarConfig(
+                java.net.URI.create(server.baseUrl()), java.time.Duration.ofSeconds(2),
+                java.time.Duration.ofSeconds(60))));
+        return org.atmosphere.ai.test.StalledStreamFixture.of(runtime,
+                        tools -> new AgentExecutionContext(
+                                "Hello sidecar", "You are helpful", "crewai-default",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, List.of(), Map.of(),
+                                List.of(), null, null))
+                .releases();
+    }
+
+    /** A runtime given its sidecar client directly. */
+    private static final class SidecarClientRuntime extends CrewAiAgentRuntime {
+        SidecarClientRuntime(CrewAiSidecarClient client) {
+            setNativeClient(client);
+        }
+    }
+
+    @Override
+    protected org.atmosphere.ai.test.StallingHttpServer.Dialect streamIdleDialect() {
+        return org.atmosphere.ai.test.StallingHttpServer.Dialect.CREWAI;
+    }
+
     @Override
     protected AgentExecutionContext createTextContext() {
         return new AgentExecutionContext(

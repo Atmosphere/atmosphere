@@ -64,6 +64,25 @@ public interface CrewAiSidecarClient {
     SidecarSession startSession(StartRequest request);
 
     /**
+     * {@link #startSession(StartRequest)} for a turn that can be aborted: the
+     * client registers what ends its exchange with {@code exchange} (the
+     * pending request before the headers, the event stream after them), so an
+     * {@link org.atmosphere.ai.llm.CancellableExchange#abort()} releases the
+     * connection, and calls {@code activity} for every byte the sidecar sends.
+     * The default ignores both.
+     *
+     * @param request  the start request body
+     * @param exchange the turn's exchange
+     * @param activity called for every byte read from the sidecar
+     * @return an open session, as {@link #startSession(StartRequest)}
+     */
+    default SidecarSession startSession(StartRequest request,
+                                        org.atmosphere.ai.llm.CancellableExchange exchange,
+                                        Runnable activity) {
+        return startSession(request);
+    }
+
+    /**
      * Cancel an in-flight sidecar session. Idempotent — calling this on a
      * session that has already terminated is a no-op.
      *

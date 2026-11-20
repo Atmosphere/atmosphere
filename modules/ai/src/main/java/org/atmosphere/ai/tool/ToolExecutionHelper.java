@@ -16,6 +16,7 @@
 package org.atmosphere.ai.tool;
 
 import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.StreamIdleWatchdog;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalResolution;
@@ -557,6 +558,11 @@ public final class ToolExecutionHelper {
      * the wire sees an identical round. When durable runs are off (no scope, or
      * the {@link EffectJournal#NOOP} journal) this takes the byte-identical live
      * path with no memoization overhead.</p>
+     *
+     * <p>Once the call may run (its turn is neither cancelled nor ended), the
+     * turn's {@link StreamIdleWatchdog} clock is paused until it returns or
+     * throws, whatever path it takes (governance, {@code @Authorize}, approval,
+     * execution, replay).</p>
      */
     public static String executeWithApproval(String toolName, ToolDefinition tool,
                                              Map<String, Object> args,
@@ -587,6 +593,29 @@ public final class ToolExecutionHelper {
             // nothing may follow it on the wire or in the run's replay.
             return TURN_ENDED_RESULT;
         }
+        // From here the call is not the model's: a slow tool, a parked approval,
+        // governance or a replay never count as idle time for the turn's stream
+        // idle bound. The pause is keyed by the session, so tools running
+        // concurrently on other threads are covered too.
+        var idlePause = StreamIdleWatchdog.pauseFor(session);
+        try {
+            return executeAdmitted(toolName, tool, args, session, strategy, policy, injectables);
+        } finally {
+            idlePause.close();
+        }
+    }
+
+    /**
+     * The body of
+     * {@link #executeWithApproval(String, ToolDefinition, Map, StreamingSession, ApprovalStrategy, ToolApprovalPolicy, Map)}
+     * once the call may run: the durable-run memo around the live path.
+     */
+    private static String executeAdmitted(String toolName, ToolDefinition tool,
+                                          Map<String, Object> args,
+                                          StreamingSession session,
+                                          ApprovalStrategy strategy,
+                                          ToolApprovalPolicy policy,
+                                          Map<Class<?>, Object> injectables) {
         var ctx = DurableRunScopeHolder.current(session);
         if (ctx == null || ctx.journal() == EffectJournal.NOOP) {
             // Durable runs off: byte-identical live path, no memoization.

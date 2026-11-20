@@ -224,8 +224,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
 
         while (true) {
-            if (effectiveCancel.get()) {
-                session.error(new InterruptedException("Cancelled before round " + rounds));
+            if (effectiveCancel.get() || session.isTurnCancelled() || session.isClosed()) {
+                // A cancel is the caller's to report: no error frame.
                 return;
             }
             switch (ToolLoopGuard.checkRoundCap(rounds, loopPolicy, session, providerName())) {
@@ -235,7 +235,9 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                     return;
                 }
                 case COMPLETE_WITHOUT_TOOLS -> {
-                    session.complete();
+                    if (!session.isClosed()) {
+                        session.complete();
+                    }
                     return;
                 }
             }
@@ -258,7 +260,9 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
             // tool_use) blocks plus any tool_result blocks we just computed.
             working.add(buildAssistantBlocks(roundOutcome.assistantBlocks()));
             if (roundOutcome.toolUses().isEmpty()) {
-                session.complete();
+                if (!session.isClosed()) {
+                    session.complete();
+                }
                 return;
             }
             // A tool round that ended the turn (an approval that ran out with

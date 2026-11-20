@@ -135,3 +135,30 @@ across all runtimes.
 - Java 21+
 - `atmosphere-ai` (transitive)
 - Spring AI 2.0.0+
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` ends a turn whose `ChatClient` stream sends
+nothing for `atmosphere.ai.stream.idle-timeout` (default `5m`, `0` off) with one
+`TimeoutException`, then disposes the subscription. Every element counts as activity,
+before anything filters it; tools and approvals are not idle time.
+
+The transport timeout of the `ChatClient` Atmosphere builds (`atmosphereChatClient`, when the
+application declares none): Spring AI's `AbstractOpenAiOptions.DEFAULT_TIMEOUT` (60 s), which
+it used to pass to `OpenAiSetup`, reaches the OpenAI SDK as a *request* timeout
+(`Timeout.request`, OkHttp's `callTimeout`: the whole call), so every stream was cut after
+60 s however healthy (`SpringAiTransportTimeoutTest` showed it cut at 61.9 s). The client now has
+no request timeout; an OkHttp interceptor registered through the `OpenAiHttpClientBuilderCustomizer`
+gives each call a read timeout instead, the application's bound plus 10 s between two reads (none
+when the bound is `0`). `SpringAiTransportTimeoutTest` proves a 66 s healthy stream completes and
+that a silent one is cut, and its connection closed, after the bound plus 10 s.
+
+Residuals, proved against a loopback socket by `SpringAiRuntimeContractTest` (the TCK's stream
+idle cases, both dispatch modes) and declared by its fixture: Spring AI 2.0's `OpenAiChatModel`
+streams through a `Flux.create` that registers no `onDispose`, so disposing the subscription does
+not close the OpenAI SDK's stream: a turn's connection stays open after its cancel or its timeout
+until the provider ends it or the read timeout above fires. The SDK's SSE parser drops keep-alive
+comments before Spring AI emits an element, so a provider that sends only keep-alives for longer
+than the bound times the turn out. A `ChatClient` the application builds itself keeps its own
+timeouts. See
+[Stream idle timeout](../ai/README.md#stream-idle-timeout).

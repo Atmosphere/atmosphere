@@ -362,7 +362,13 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         // the CompletableFuture<Void> we complete on any terminal path (next,
         // error, complete, cancel) so consumers can await release cleanly.
         var completion = new java.util.concurrent.CompletableFuture<Void>();
-        var disposable = flux.takeWhile(ignored -> !session.isClosed())
+        // Every element is activity for the turn's idle bound, counted before
+        // anything filters it out; the turn's watchdog cancels this handle,
+        // which disposes the subscription, when the model goes silent.
+        var activity = org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { });
+        var disposable = flux.doOnNext(ignored -> activity.run())
+                .takeWhile(ignored -> !session.isClosed())
                 .doOnNext(response -> {
                     if (response.getResult() != null
                             && response.getResult().getOutput() != null) {

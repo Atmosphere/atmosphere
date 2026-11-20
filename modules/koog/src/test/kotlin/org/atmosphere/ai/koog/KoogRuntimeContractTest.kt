@@ -173,6 +173,63 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         ).withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE)
 
     /**
+     * Koog's `OpenAILLMClient` (Atmosphere's `AtmosphereOpenAILLMClient`, as
+     * the auto-configuration builds it) on a loopback socket that stalls. The
+     * runtime reads its executor from its application's environment, which the
+     * contract creates: the fixture binds it there when the runtime is attached.
+     * The turn ends once on the bound and on a cancel, and Atmosphere's
+     * transport (`AtmosphereKoogHttpClient` on a CIO engine) closes the
+     * connection before and after the headers and counts SSE keep-alive
+     * comments as activity: no residual is declared.
+     */
+    override fun createStalledStreamFixture(
+        server: org.atmosphere.ai.test.StallingHttpServer
+    ): org.atmosphere.ai.test.StalledStreamFixture {
+        val settings = ai.koog.prompt.executor.clients.openai.OpenAIClientSettings(
+            baseUrl = server.baseUrl() + "/v1",
+            chatCompletionsPath = "chat/completions"
+        )
+        val executor = ai.koog.prompt.executor.llms.MultiLLMPromptExecutor(
+            AtmosphereOpenAILLMClient("stall-test-key", settings))
+        // As the auto-configuration builds it for an OpenAI-compatible endpoint.
+        val template = ai.koog.prompt.executor.clients.openai.OpenAIModels.Chat.GPT4o
+        val model = LLModel(ai.koog.prompt.llm.LLMProvider.OpenAI, "gpt-4o-mini", template.capabilities,
+            template.contextLength, template.maxOutputTokens)
+        val inner = KoogAgentRuntime()
+        // Kotlin's `by` forwards only the abstract members: the defaults the
+        // runtime overrides are forwarded by hand.
+        val runtime = object : AgentRuntime by inner {
+            override fun attach(environment: AiEnvironment) {
+                KoogAgentRuntime.setPromptExecutor(environment, executor)
+                KoogAgentRuntime.setDefaultModel(environment, model)
+                // The fixture built the executor: it closes it with the case's environment.
+                environment.onClose { executor.close() }
+                inner.attach(environment)
+            }
+
+            override fun attachedEnvironment() = inner.attachedEnvironment()
+
+            override fun capabilities() = inner.capabilities()
+
+            override fun executeWithHandle(
+                context: AgentExecutionContext,
+                session: org.atmosphere.ai.StreamingSession
+            ) = inner.executeWithHandle(context, session)
+        }
+        return org.atmosphere.ai.test.StalledStreamFixture.of(runtime) { tools ->
+            AgentExecutionContext(
+                "Hello", "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", null,
+                tools, null, null,
+                emptyList<org.atmosphere.ai.ContextProvider>(),
+                emptyMap<String, Any>(),
+                emptyList<org.atmosphere.ai.llm.ChatMessage>(),
+                null, null
+            )
+        }.releases()
+    }
+
+    /**
      * Cancellation fixture for Koog. `executeWithHandle` runs `executeInternal`
      * on a virtual thread, records the coroutine `Job` and the worker thread,
      * and `cancel()` fires `Job.cancel()` plus a thread interrupt. This fixture

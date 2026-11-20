@@ -127,6 +127,10 @@ public class AtmosphereLangChain4jAutoConfiguration {
                 .apiKey(resolvedApiKey)
                 .baseUrl(resolvedBaseUrl)
                 .modelName(model)
+                // Each streamed exchange reports to its turn: every byte is
+                // activity, and the turn's cancel closes the connection.
+                .httpClientBuilder(AtmosphereLc4jHttpClient.builder(
+                        dev.langchain4j.http.client.HttpClientBuilderLoader.loadHttpClientBuilder()))
                 .build();
     }
 

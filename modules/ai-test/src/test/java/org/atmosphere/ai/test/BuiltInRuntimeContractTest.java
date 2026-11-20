@@ -58,6 +58,11 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         }).when(client).streamChatCompletion(
                 any(org.atmosphere.ai.llm.ChatCompletionRequest.class),
                 any(org.atmosphere.ai.StreamingSession.class));
+        // The cancel-aware overload a turn calls (sync and handle alike) is the
+        // interface default, which delegates to the stubbed one.
+        org.mockito.Mockito.doCallRealMethod().when(client).streamChatCompletion(
+                any(org.atmosphere.ai.llm.ChatCompletionRequest.class),
+                any(org.atmosphere.ai.StreamingSession.class), any(), any());
         return new TestableBuiltInRuntime(client);
     }
 
@@ -103,6 +108,27 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 .build();
         return new ToolLoopFixture(new TestableBuiltInRuntime(client),
                 toolLoopContext("gpt-4o-mini"), TOOL_LOOP_ANSWER);
+    }
+
+    /**
+     * The built-in OpenAI-compatible client on a real loopback socket: its
+     * exchange is a {@link org.atmosphere.ai.llm.CancellableExchange}, so the
+     * stalled connection is closed when the turn ends.
+     */
+    @Override
+    protected StalledStreamFixture createStalledStreamFixture(StallingHttpServer server) {
+        var client = org.atmosphere.ai.llm.OpenAiCompatibleClient.builder()
+                .baseUrl(server.baseUrl() + "/v1")
+                .apiKey("stall-test-key")
+                .build();
+        return StalledStreamFixture.of(new TestableBuiltInRuntime(client),
+                        tools -> new AgentExecutionContext(
+                                "Hello", "You are helpful", "gpt-4o-mini",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, List.of(), Map.of(),
+                                List.of(), null, null))
+                .releases()
+                .withToolTurns();
     }
 
     static class TestableBuiltInRuntime extends BuiltInAgentRuntime {

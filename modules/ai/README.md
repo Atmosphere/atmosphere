@@ -775,25 +775,59 @@ Atmosphere sends an API key to:
 ### Stream idle timeout
 
 `atmosphere.ai.stream.idle-timeout` (env `LLM_STREAM_IDLE_TIMEOUT`, default `5m`; also
-`500ms`, `90s`, ISO-8601 `PT5M` or a bare number of seconds; `0` turns it off) is how long a
-streaming model call may send nothing before its turn ends with a `TimeoutException` and
-the stream is aborted. The clock runs only while a model call is in flight: a tool running or
-an approval pending between rounds is not idle time, and every event of the stream (text,
-thinking and tool-call deltas) counts as activity. The default leaves room for a reasoning
-model that sends nothing while it thinks. Each application reads its own value
-([Knob precedence](#knob-precedence)).
+`500ms`, `90s`, ISO-8601 `PT5M` or a bare number of seconds; `0` turns it off) is how long the
+model of a turn may send nothing before the turn ends with one `TimeoutException`
+("The model sent nothing for <bound> (atmosphere.ai.stream.idle-timeout)") and its model call is
+cancelled through the runtime's own `ExecutionHandle.cancel()`. Each application reads its own
+value ([Knob precedence](#knob-precedence)). The default leaves room for a reasoning model that
+sends nothing while it thinks.
 
-Where it is honoured (Runtime Truth):
+Every runtime's turn has one `StreamIdleWatchdog` (public, `org.atmosphere.ai`):
+`AbstractAgentRuntime` opens it in both `execute` and `executeWithHandle`, and the Koog and
+Embabel runtimes open it themselves. Its clock starts with the turn, so a provider that never
+sends its response headers is bounded too. Every write the turn makes to its session is
+activity, and so is what each runtime feeds it below. A tool that runs through
+`ToolExecutionHelper`, the approval it waits for, and a retry backoff (the base outer retry, the
+built-in and SSE clients' HTTP retries, Koog's and Embabel's outer retries) run inside a pause of
+the clock: they are not idle time. The turn ends once: a timeout is the session's only terminal,
+listeners see `onError` once, and later output of the cancelled call is dropped. An `@AiTool` may
+declare the watchdog as a parameter (`StreamIdleWatchdog.of(session)` finds it through the
+session's `injectables()`).
 
-- **LangChain4j** (`LangChain4jAgentRuntime`), its chat path, every tool round included.
-  LangChain4j's JDK HTTP client bounds a call only until the response headers arrive, so a
-  provider that stopped sending after its first chunks used to hold the turn, its connection
-  and a thread forever. The stream is aborted through LangChain4j's `StreamingHandle`, which
-  closes the connection. A provider that sends no event at all after the response headers
-  hands over no handle: the turn still ends, but that connection is left to the provider.
-- **Not** the LangChain4j `AiServices` path (`LangChain4jAiServices`), and no other runtime:
-  there the bound of a stalled stream is the HTTP client's own and, for an `@AiEndpoint`
-  turn, the idle sweep of streaming sessions (`atmosphere.ai.session-ttl-ms`, 30 minutes).
+The synchronous `execute` runs each attempt the way `executeWithHandle` runs a turn: on a worker
+virtual thread bound to the runtime's application, with an interruptible wait. An interrupt of
+the calling thread cancels the model call and throws a `CancellationException`; a failure before
+any terminal is still retried by the outer retry and failed over by `RoutingAiSupport`, which now
+has a real `executeWithHandle`. Thread-locals of the calling thread no longer reach tools on a
+synchronous turn.
+
+What each runtime counts as activity, and whether the end of the turn releases the provider's
+connection (proved by the test named; "stub" means the model is a test double, not a socket):
+
+| Runtime | Activity beyond session writes | Connection released | Residual |
+|---|---|---|---|
+| Built-in | every byte read from the response body (`ActivityInputStream`: keep-alives, reasoning frames) | yes, before and after the headers: the request goes out through `sendAsync` with its future registered on a `CancellableExchange`, and the body is registered once it arrives (`BuiltInRuntimeContractTest`, real socket) | a caller-supplied `LlmClient` that is not `OpenAiCompatibleClient` gets the cancel flag and the stream sink only |
+| Anthropic, Cohere | every byte read (`ping` events included), through the shared `AbstractSseLlmClient` | yes, before and after the headers, the same way; a plain cancel no longer writes an `InterruptedException` error frame (`AnthropicRuntimeContractTest`, `CohereRuntimeContractTest`, real socket) | — |
+| CrewAI | every byte the sidecar sends | yes: a cancel sends the sidecar's `DELETE`, then closes the pending request or the event stream (`CrewAiRuntimeContractTest`, fake sidecar on a socket) | a crew thread stuck inside the Python sidecar cannot be killed from Java; tools the crew runs natively in Python count as idle time (tools it calls back into Atmosphere are paused) |
+| LangChain4j | on the model Atmosphere builds, every byte of the response (an `AtmosphereLc4jHttpClient` wraps LangChain4j's four streaming `HttpClient` entry points; keep-alives included), and every stream callback; on the `AiServices` path its `*WithContext` partial, thinking and tool-call callbacks, with a pause from `beforeToolExecution` to `onToolExecuted` | yes on the model Atmosphere builds, after the headers (the body is registered when they arrive) and through the `StreamingHandle` (`LangChain4jRuntimeContractTest`, `LangChain4jHttpClientReleaseTest`, `LangChain4jMidStreamFailureTest`, real socket); on `AiServices` the cancel goes through the stream's `StreamingHandle` (`LangChain4jAiServicesIdleTimeoutTest`, stub model) | a request that never gets its headers is not aborted (LangChain4j's handler path keeps the `sendAsync` future inside `JdkHttpClient`) and waits for LangChain4j's own HTTP timeout; a model the application builds has no such client: only its callbacks count, and a stream that handed over no handle is left to the provider; a `TokenStream` without the `*WithContext` callbacks counts only its text and is not aborted |
+| Spring AI | every element of the `ChatClient` stream, counted before anything filters it | no: the turn ends once on the bound and on a cancel, and the subscription is disposed, but the connection stays open (`SpringAiRuntimeContractTest`, real socket against the `ChatClient` Atmosphere builds) | `OpenAiChatModel` streams through a `Flux.create` with no `onDispose`, so the dispose never reaches the OpenAI SDK; on the client Atmosphere builds the read timeout (bound + 10 s, which replaced the 60 s call timeout that cut healthy streams, `SpringAiTransportTimeoutTest`) closes it; keep-alive comments are dropped by the SDK before any element |
+| Semantic Kernel | every streamed frame, empty ones included; on the client Atmosphere builds (`SemanticKernelOpenAiClientFactory`), every chunk of the response body, SSE keep-alive comments included | yes on the client Atmosphere builds, before and after the headers: the Azure SDK's stream ends in `.cache()`, so a dispose never reaches the HTTP exchange; the factory's per-call `SemanticKernelTurnTransport.Policy` reads the turn from the subscription's Reactor context and ends the exchange (and its retries) when the turn's handle is cancelled or the bound fires (`SemanticKernelRuntimeContractTest`, real socket). The auto-configured client's response and read timeouts are the bound + 10 s, not the Azure SDK's 60 s (`SemanticKernelTurnTransportTest`) | a turn whose tools Semantic Kernel invokes itself uses its non-streaming call: the bound covers each whole model call there; an `OpenAIAsyncClient` or `ChatCompletionService` the application builds itself has no such policy: its connection stays open after the turn ends, and a keep-alive comment fails the Azure SDK's SSE parser (`Invalid Json format keep-alive`) |
+| AgentScope | every agent event, before the forwarder filters it; on a rebuilt agent (tools or plan) every model chunk too, and a pause from `PreActingEvent` to `PostActingEvent` | on a rebuilt agent the model call is cancelled (`AbortableModel`, `takeUntilOther`), which for AgentScope's `JdkHttpTransport` closes the body inside its `Flux.using` (`AgentScopeAbortableModelTest`, stub model; the transport's close read from its bytecode); the agent is interrupted and the subscription disposed (`AgentScopeIdleTimeoutTest`, stub) | on a shared agent bean (no tools, no plan) the dispose does not reach its model call, which keeps its HTTP read open until it ends; tools the bean runs natively count as idle time |
+| Google ADK | every byte of the genai response (an OkHttp network interceptor on the client Atmosphere owns) and every ADK event | yes on the runners Atmosphere builds, before and after the headers: the turn subscribes on its own virtual thread and its cancel cancels the OkHttp calls it opened; a per-request runner and its genai client are then closed (`AdkRuntimeContractTest`, real socket; `AdkGeminiTransportTest`) | under `StreamingMode.NONE` each model call is unary: no text reaches the session before the answer is complete; the read timeout (bound + 10 s, not genai's `callTimeout`) is the transport's backstop; a custom root agent and a `Runner` the application binds keep their own clients, only disposed; tools of a custom root agent, which do not run through `ToolExecutionHelper`, count as idle time |
+| Spring AI Alibaba | — (its `ReactAgent.call` is not streamed: the bound covers the whole call) | the worker is interrupted (`SpringAiAlibabaIdleTimeoutTest`, stub) | `ReactAgent.call` ignores the interrupt: the call runs on, holding the application's model client, and holds the agent's lock so later turns on it queue |
+| Koog | every streamed frame, every LLM call's start and end; on the client Atmosphere builds (`AtmosphereOpenAILLMClient`), every line of the SSE response, keep-alive comments included | yes on the client Atmosphere builds, before and after the headers: its transport (`AtmosphereKoogHttpClient`, a CIO Ktor client the client creates and closes) streams with `preparePost().execute {}` on the turn's coroutine instead of Ktor's `sse {}`, which sends the request from the `HttpClient`'s own scope, so cancelling the coroutine (`Job.cancel()`, an interrupt, the bound) closes the socket (`KoogRuntimeContractTest`, real socket; `KoogTransportTest`: socket timeout bound + 10 s, ownership) | with the agent strategy the bound covers each whole model call, and its cancel (`agentRun.cancelCalls()`) is not proven on a socket; a `PromptExecutor` or `LLMClient` the application builds itself keeps Koog's transport (Apache 5 engine): its connection stays open after the turn ends and its keep-alives are not seen |
+| Embabel | every element of the native stream | the worker is interrupted, which disposes the native stream (`EmbabelIdleTimeoutTest`, stub of the deployed-agent path) | a deployed `@Agent` and the blocking `generateText` path have no cancel primitive: the bound covers the whole call, and the call runs on, holding the application's provider connection; a deployed agent's own actions are invisible to the clock |
+
+`everyRuntimePinsTheStreamIdleBound` (TCK, `atmosphere-ai-test`) fails a runtime that declares
+`CANCELLATION` until it either points a `StalledStreamFixture` at a `StallingHttpServer`
+(`createStalledStreamFixture`), which runs the stream idle cases in both dispatch modes against a
+real loopback socket, or names the test in its module that proves the bound
+(`streamIdleCoveredOutsideTck`). A fixture declares whether the turn's end releases the
+connection (`releases()`) or why not (`leftToProvider(reason)`, `notReleasedBeforeHeaders(reason)`),
+and what else it cannot do: `keepalivesNotSeen(reason)`, `unaryModelCall(reason)` (the model call is
+not streamed, so no chunk of a stalled answer reaches the session). Every fixture's lifecycle listeners
+must see `onError` exactly once on the timeout and never `onCompletion`: no residual excuses that. A declared residual is logged and that one check
+skipped, never passed silently.
 
 ### Knob precedence
 

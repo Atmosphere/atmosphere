@@ -257,3 +257,38 @@ Koog's `Flow<StreamFrame>` is bridged to Atmosphere's `StreamingSession`:
 - Koog 1.0.0+ (stable stream: agents-core, prompt-model, anthropic / bedrock / ollama / openai clients)
 - Kotlin runtime
 - kotlinx-coroutines-core
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` (`atmosphere.ai.stream.idle-timeout`, default `5m`, `0` off)
+is opened by this runtime in both `execute` and `executeWithHandle`; `execute` now runs the turn
+on the same worker, with the outer retry, and waits for it interruptibly. Every streamed frame
+and every LLM call's start and end count as activity; with the agent strategy the bound covers
+each whole model call. Past the bound the turn ends with one `TimeoutException` and is cancelled
+(`agentRun.cancelCalls()`, `Job.cancel()`, an interrupt).
+
+`AtmosphereOpenAILLMClient` (the client the auto-configuration builds) has Atmosphere's own
+transport, `AtmosphereKoogHttpClient` over a CIO Ktor `HttpClient` that the client creates and its
+`close()` closes; the auto-configuration closes the executors it built when its context closes.
+Koog's own transport streamed through Ktor's `sse {}`, which sends the request from the
+`HttpClient`'s scope rather than the caller's, so a cancel before the response headers never
+reached it, and its default engine (Apache 5) kept the connection after a cancel past the
+headers. Atmosphere's transport streams with `preparePost(...).execute {}` on the turn's coroutine,
+so the turn's cancel and its bound close the socket before and after the headers; it reads the SSE
+lines itself, so a keep-alive comment (`: keep-alive`) is activity; and each call of a turn gets
+the bound plus 10 s as its socket timeout (none when the bound is off), the transport's backstop.
+
+The executor streaming path (a turn with no tools) reports its model call to lifecycle listeners
+as the agent path does: one `onModelStart`, then `onModelEnd` with the end frame's usage, or one
+`onModelError` on a provider failure, the idle timeout or a cancel (`KoogStreamingLifecycleTest`).
+Every turn fires `onStart`, then `onError` once (the timeout, a failure) or `onCompletion`.
+
+`KoogRuntimeContractTest` runs the TCK's stream idle cases against a loopback socket through
+`AtmosphereOpenAILLMClient`, in both dispatch modes, with no residual declared: the turn ends once
+on the bound and on a cancel, the connection closes before and after the headers, keep-alives
+keep a turn alive, and listeners see `onError` once (`KoogTransportTest` covers the socket timeout
+and the ownership). What remains: with the agent strategy the bound covers each whole model call,
+and that path's cancel (`agentRun.cancelCalls()`) is not run on a socket; a `PromptExecutor` or
+`LLMClient` the application builds itself keeps Koog's transport, whose connection stays open
+after the turn ends and whose keep-alives are not seen.
+See [Stream idle timeout](../ai/README.md#stream-idle-timeout).

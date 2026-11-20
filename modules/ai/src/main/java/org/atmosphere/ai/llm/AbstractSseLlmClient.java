@@ -255,19 +255,26 @@ public abstract class AbstractSseLlmClient {
         }
         var maxRetries = retryPolicy.maxRetries();
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
-            if (cancelled.get()) {
+            if (cancelled.get() || session.isClosed()) {
                 // Cancelled before/between attempts: leave the session
                 // untouched, matching the mid-stream cancel contract.
                 return false;
             }
             HttpResponse<InputStream> response;
             try {
-                response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                response = send(httpRequest, cancelled);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
-                session.error(ie);
+                if (!cancelled.get() && !session.isClosed()) {
+                    session.error(ie);
+                }
                 return false;
             } catch (Exception e) {
+                if (cancelled.get() || session.isClosed()) {
+                    // The exchange was aborted (a cancel, the idle bound):
+                    // the turn's end, never retried, never an error frame.
+                    return false;
+                }
                 if (attempt == maxRetries) {
                     session.error(e);
                     return false;
@@ -319,12 +326,18 @@ public abstract class AbstractSseLlmClient {
                                StreamingSession session,
                                AtomicBoolean cancelled,
                                Consumer<JsonNode> onEvent) {
-        try (var body = response.body();
+        // Every byte the provider sends (a ping, a reasoning frame included) is
+        // activity for the turn's idle bound; an abort of the turn's exchange
+        // closes this body, even an abort that came first.
+        try (var body = new ActivityInputStream(response.body(), OpenAiCompatibleClient.activityOf(session));
              var reader = new BufferedReader(
                      new InputStreamReader(body, StandardCharsets.UTF_8))) {
+            if (cancelled instanceof CancellableExchange exchange) {
+                exchange.registerBody(body);
+            }
             String line;
             while ((line = reader.readLine()) != null) {
-                if (cancelled.get()) {
+                if (cancelled.get() || session.isClosed() || session.isTurnCancelled()) {
                     return false;
                 }
                 if (!line.startsWith(DATA_PREFIX)) {
@@ -345,8 +358,44 @@ public abstract class AbstractSseLlmClient {
             }
             return true;
         } catch (Exception e) {
+            if (cancelled.get() || session.isClosed() || session.isTurnCancelled()) {
+                // The read ended because the exchange was aborted.
+                return false;
+            }
             session.error(e);
             return false;
+        }
+    }
+
+    /**
+     * Sends one request. With a {@link CancellableExchange} it goes out through
+     * {@code sendAsync} with its future registered before the headers arrive,
+     * so an abort while the provider has not answered yet releases the
+     * connection; any other flag keeps the blocking send.
+     */
+    private HttpResponse<InputStream> send(HttpRequest httpRequest, AtomicBoolean cancelled)
+            throws java.io.IOException, InterruptedException {
+        if (!(cancelled instanceof CancellableExchange exchange)) {
+            return httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        }
+        var future = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        exchange.registerSend(() -> future.cancel(true));
+        try {
+            return future.get();
+        } catch (java.util.concurrent.CancellationException e) {
+            throw new java.io.IOException("The model call was aborted before its response arrived", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            var cause = e.getCause();
+            if (cause instanceof java.io.IOException io) {
+                throw io;
+            }
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new java.io.IOException(cause);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            throw e;
         }
     }
 
@@ -392,6 +441,8 @@ public abstract class AbstractSseLlmClient {
     private static boolean sleepBeforeRetry(Duration delay, StreamingSession session,
                                             AtomicBoolean cancelled) {
         var remainingMs = delay.toMillis();
+        // The backoff is not the model's silence: the turn's idle bound waits.
+        var pause = org.atmosphere.ai.StreamIdleWatchdog.pauseFor(session);
         try {
             while (remainingMs > 0) {
                 if (cancelled.get()) {
@@ -403,8 +454,12 @@ public abstract class AbstractSseLlmClient {
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            session.error(ie);
+            if (!cancelled.get() && !session.isClosed()) {
+                session.error(ie);
+            }
             return false;
+        } finally {
+            pause.close();
         }
         return !cancelled.get();
     }

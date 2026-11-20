@@ -182,3 +182,32 @@ SK's non-null `ToolCallBehavior` requirement satisfied.
 - Java 21+
 - `com.microsoft.semantic-kernel:semantickernel-api:1.5.0+`
 - `com.microsoft.semantic-kernel:semantickernel-aiservices-openai:1.5.0+` (provided scope)
+
+## Stream idle timeout
+
+The turn's `StreamIdleWatchdog` ends a turn whose model sends nothing for
+`atmosphere.ai.stream.idle-timeout` (default `5m`, `0` off) with one `TimeoutException`, then
+disposes the subscription. Every streamed frame counts as activity, the empty ones too. A turn
+whose tools Semantic Kernel invokes itself uses the non-streaming call, so there the bound
+covers each whole model call.
+
+The Azure SDK's chat stream ends in `.cache()` (`OpenAIServerSentEvents`), so disposing the
+subscription never reached the HTTP exchange: the request ran on with its connection open, and was
+even retried. Every client `SemanticKernelOpenAiClientFactory` builds carries a per-call
+`SemanticKernelTurnTransport.Policy`: the runtime puts the turn in the subscription's Reactor
+context, which does reach the pipeline, and the policy ends the exchange (its retries included)
+when the turn's handle is cancelled or the bound fires, before the response headers and after
+them, so the connection is let go. It also counts every chunk of the response body as activity,
+and removes SSE comment lines before the Azure SDK's parser, which rejected a keep-alive
+(`IllegalStateException: Invalid Json format keep-alive`) and failed the turn. The auto-configured
+client's response and read timeouts are the application's bound plus 10 s (none when the bound is
+off) instead of the Azure SDK's 60 s, the transport's backstop. The HTTP client uses reactor-netty's
+shared resources, so there is nothing of its own to close.
+
+`SemanticKernelRuntimeContractTest` runs the TCK's stream idle cases against a loopback socket,
+through `OpenAIChatCompletion` on the client the factory builds, in both dispatch modes, with no
+residual declared: the turn ends once on the bound and on a cancel, the connection closes before
+and after the headers, and keep-alives keep a turn alive (`SemanticKernelTurnTransportTest` covers
+the comment filter and the timeouts). An `OpenAIAsyncClient` the application builds itself has no
+such policy: its connection stays open after the turn ends, and a keep-alive fails its parser.
+See [Stream idle timeout](../ai/README.md#stream-idle-timeout).

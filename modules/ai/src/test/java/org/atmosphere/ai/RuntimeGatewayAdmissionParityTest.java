@@ -76,14 +76,18 @@ class RuntimeGatewayAdmissionParityTest {
                         new String[][] { { "doExecute", "doExecuteWithHandle" } }),
                 new Runtime("embabel",
                         "modules/embabel/src/main/kotlin/org/atmosphere/ai/embabel/EmbabelAgentRuntime.kt",
-                        new String[] { "executeEnding" },
+                        // execute admits on the caller thread (a refusal is thrown
+                        // there), then runs the turn through startTurn without
+                        // admitting again; executeWithHandle admits on the worker.
+                        new String[] { "executeEnding", "execute" },
                         new String[][] {
-                                { "execute", "executeEnding" },
-                                { "executeWithHandle", "executeEnding" } }),
+                                { "executeWithHandle", "startTurn" },
+                                { "startTurn", "executeEnding" } }),
                 new Runtime("koog",
                         "modules/koog/src/main/kotlin/org/atmosphere/ai/koog/KoogAgentRuntime.kt",
-                        new String[] { "execute", "executeWithHandle" },
-                        new String[0][]));
+                        // execute runs the turn through executeWithHandle (Mode Parity).
+                        new String[] { "executeWithHandle" },
+                        new String[][] { { "execute", "executeWithHandle" } }));
 
         for (var rt : runtimes) {
             var path = repoRoot.resolve(rt.path());

@@ -162,7 +162,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         ToolCallbackServer callbackServer = null;
         try {
             callbackServer = startCallbackServerIfNeeded(context, session);
-            drainStream(client, context, session, null, callbackServer);
+            drainStream(client, context, session, null, callbackServer, null);
         } finally {
             // Terminal-path completeness (Correctness Invariant #2): the
             // callback server lifecycle is per-execution. Whether the stream
@@ -180,11 +180,18 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                                                   AgentExecutionContext context,
                                                   StreamingSession session) {
         admitThroughGateway(context);
-        var cancelled = new AtomicBoolean();
+        // The session's HTTP exchange: a cancel (or the turn's idle bound)
+        // closes the pending request or the event stream, so the connection
+        // is released even while the sidecar sends nothing.
+        var cancelled = new org.atmosphere.ai.llm.CancellableExchange();
         var sidecarSessionId = new AtomicReference<String>();
         var done = new CompletableFuture<Void>();
         var callbackServerRef = new AtomicReference<ToolCallbackServer>();
+        // Tool code the callback server runs, and anything on the worker that
+        // reads the static API, sees this runtime's application.
+        var aiEnvironment = environment();
         Thread.startVirtualThread(() -> {
+            var binding = org.atmosphere.ai.AiEnvironment.bind(aiEnvironment);
             try {
                 var srv = startCallbackServerIfNeeded(context, session);
                 callbackServerRef.set(srv);
@@ -193,15 +200,16 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                     if (cancelled.get()) {
                         client.cancelSession(ctx);
                     }
-                }, srv);
+                }, srv, cancelled);
                 done.complete(null);
-            } catch (RuntimeException t) {
+            } catch (Throwable t) {
                 done.completeExceptionally(t);
             } finally {
                 var srv = callbackServerRef.get();
                 if (srv != null) {
                     srv.stop();
                 }
+                binding.close();
             }
         });
         return new ExecutionHandle() {
@@ -214,9 +222,18 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                     return;
                 }
                 cancelled.set(true);
+                // The DELETE first: the sidecar ends its crew and enqueues a
+                // cancelled terminal; then the local stream is closed, so the
+                // connection is released even when the sidecar does not answer.
                 var id = sidecarSessionId.get();
                 if (id != null) {
                     client.cancelSession(id);
+                }
+                cancelled.abort();
+                // What the aborted stream still delivers is dropped: the
+                // cancel ends the turn, as on the other runtimes (no error frame).
+                if (!session.isClosed()) {
+                    session.complete();
                 }
             }
 
@@ -273,7 +290,8 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                              AgentExecutionContext context,
                              StreamingSession session,
                              java.util.function.Consumer<String> sessionIdSink,
-                             ToolCallbackServer callbackServer) {
+                             ToolCallbackServer callbackServer,
+                             org.atmosphere.ai.llm.CancellableExchange exchange) {
         var history = new ArrayList<CrewAiSidecarClient.HistoryEntry>();
         for (var msg : context.history()) {
             history.add(new CrewAiSidecarClient.HistoryEntry(msg.role(), msg.content()));
@@ -292,8 +310,14 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                 callbackToken);
         CrewAiSidecarClient.SidecarSession sidecarSession;
         try {
-            sidecarSession = client.startSession(request);
+            sidecarSession = exchange != null
+                    ? client.startSession(request, exchange, activityOf(session))
+                    : client.startSession(request);
         } catch (RuntimeException e) {
+            if (aborted(exchange, session)) {
+                // The turn's cancel or idle bound aborted the request.
+                return;
+            }
             // Classified through the shared taxonomy (timeout / unavailable
             // signals from the sidecar HTTP client) so retry, metrics, and
             // routing see a typed failure; no-signal errors pass through.
@@ -310,6 +334,11 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
             boolean terminal = false;
             var iterator = sidecarSession.events();
             while (iterator.hasNext()) {
+                if (aborted(exchange, session)) {
+                    // The turn ended (cancel, idle bound): stop forwarding.
+                    terminal = true;
+                    break;
+                }
                 var event = iterator.next();
                 if (event instanceof CrewAiSidecarClient.SidecarEvent.Token token) {
                     if (!token.text().isEmpty()) {
@@ -323,6 +352,11 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                     session.complete();
                     terminal = true;
                     break;
+                } else if (event instanceof CrewAiSidecarClient.SidecarEvent.Error
+                        && aborted(exchange, session)) {
+                    // The stream broke because the turn aborted it: no error frame.
+                    terminal = true;
+                    break;
                 } else if (event instanceof CrewAiSidecarClient.SidecarEvent.Error err) {
                     // The sidecar relays the underlying provider's message —
                     // classify it (429/auth/context-length signals) so a
@@ -333,7 +367,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                     break;
                 }
             }
-            if (!terminal) {
+            if (!terminal && !aborted(exchange, session)) {
                 // Stream ended without a Done or Error frame — surface a
                 // synthetic error so callers observe a terminal state
                 // (Correctness Invariant #2).
@@ -343,10 +377,22 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         } catch (RuntimeException e) {
             // Catch-all to guarantee the session reaches a terminal state
             // even when the iterator or session close throws.
-            if (!session.isClosed()) {
+            if (!session.isClosed() && !aborted(exchange, session)) {
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
             }
         }
+    }
+
+    /** Whether the turn ended or its exchange was aborted, so nothing more may be written. */
+    private static boolean aborted(org.atmosphere.ai.llm.CancellableExchange exchange, StreamingSession session) {
+        return (exchange != null && exchange.get()) || session.isClosed() || session.isTurnCancelled();
+    }
+
+    /** The turn's idle-bound activity feed, or a no-op when the session carries no watchdog. */
+    private static Runnable activityOf(StreamingSession session) {
+        return org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(watchdog -> watchdog::activity)
+                .orElse(() -> { });
     }
 
     /**

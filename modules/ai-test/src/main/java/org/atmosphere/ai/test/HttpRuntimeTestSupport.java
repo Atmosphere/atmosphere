@@ -56,8 +56,7 @@ public final class HttpRuntimeTestSupport {
     public static HttpClient mockHttpClient(int statusCode, String body, String errorSentinel) {
         try {
             var httpClient = mock(HttpClient.class);
-            when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                    .thenAnswer(inv -> {
+            org.mockito.stubbing.Answer<Object> answer = inv -> {
                         HttpRequest req = inv.getArgument(0);
                         var requestBody = readBody(req);
                         var response = mock(HttpResponse.class);
@@ -72,7 +71,8 @@ public final class HttpRuntimeTestSupport {
                                     body.getBytes(StandardCharsets.UTF_8)));
                         }
                         return response;
-                    });
+                    };
+            stubSendAndSendAsync(httpClient, answer);
             return httpClient;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -98,8 +98,7 @@ public final class HttpRuntimeTestSupport {
         try {
             var calls = new java.util.concurrent.atomic.AtomicInteger();
             var httpClient = mock(HttpClient.class);
-            when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                    .thenAnswer(inv -> {
+            org.mockito.stubbing.Answer<Object> answer = inv -> {
                         var first = calls.getAndIncrement() == 0;
                         if (!first) {
                             Thread.sleep(delayMillis);
@@ -109,7 +108,8 @@ public final class HttpRuntimeTestSupport {
                         when(response.body()).thenReturn(new ByteArrayInputStream(
                                 (first ? firstRound : laterRound).getBytes(StandardCharsets.UTF_8)));
                         return response;
-                    });
+                    };
+            stubSendAndSendAsync(httpClient, answer);
             return httpClient;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -157,14 +157,14 @@ public final class HttpRuntimeTestSupport {
             java.util.concurrent.atomic.AtomicInteger streamCloses) {
         try {
             var httpClient = mock(HttpClient.class);
-            when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                    .thenAnswer(inv -> {
+            org.mockito.stubbing.Answer<Object> answer = inv -> {
                         var response = mock(HttpResponse.class);
                         when(response.statusCode()).thenReturn(200);
                         when(response.body()).thenReturn(
                                 new OpenEndedSseStream(preamble, streamOpens, streamCloses));
                         return response;
-                    });
+                    };
+            stubSendAndSendAsync(httpClient, answer);
             return httpClient;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -234,6 +234,27 @@ public final class HttpRuntimeTestSupport {
                 closes.incrementAndGet();
             }
         }
+    }
+
+    /**
+     * Stubs both {@code send} and {@code sendAsync} with the same answer: a
+     * client that aborts a stalled exchange (a
+     * {@link org.atmosphere.ai.llm.CancellableExchange}) sends through
+     * {@code sendAsync}, a plain one through {@code send}.
+     */
+    // any(HttpResponse.BodyHandler.class) is a raw matcher: the generic
+    // send/sendAsync signatures cannot be matched without an unchecked conversion.
+    @SuppressWarnings("unchecked")
+    static void stubSendAndSendAsync(HttpClient httpClient, org.mockito.stubbing.Answer<Object> answer)
+            throws Exception {
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenAnswer(answer);
+        when(httpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenAnswer(inv -> {
+            try {
+                return java.util.concurrent.CompletableFuture.completedFuture(answer.answer(inv));
+            } catch (Throwable t) {
+                return java.util.concurrent.CompletableFuture.failedFuture(t);
+            }
+        });
     }
 
     /**

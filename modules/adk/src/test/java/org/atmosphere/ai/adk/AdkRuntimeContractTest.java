@@ -148,6 +148,63 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * ADK's Gemini model on a loopback socket that stalls: the runner, its
+     * agent and the genai client under it are the ones Atmosphere builds (the
+     * shared runner from the settings, a per-request runner for a tool turn),
+     * pointed at the server through genai's {@code HttpOptions.baseUrl}.
+     */
+    @Override
+    protected org.atmosphere.ai.test.StalledStreamFixture createStalledStreamFixture(
+            org.atmosphere.ai.test.StallingHttpServer server) {
+        var runtime = new StalledAdkRuntime(server.baseUrl());
+        return org.atmosphere.ai.test.StalledStreamFixture.of(runtime,
+                        tools -> new AgentExecutionContext(
+                                "Hello", "You are helpful", "gemini-2.5-flash",
+                                null, "session-1", "user-1", null,
+                                tools, null, null, List.of(), Map.of(),
+                                List.of(), null, null))
+                .releases()
+                .unaryModelCall("Atmosphere runs ADK under its default StreamingMode.NONE: each model call is "
+                        + "genai's unary generateContent, whose answer reaches ADK, and the session, only once "
+                        + "complete; its bytes still count as activity")
+                .withToolTurns();
+    }
+
+    @Override
+    protected org.atmosphere.ai.test.StallingHttpServer.Dialect streamIdleDialect() {
+        return org.atmosphere.ai.test.StallingHttpServer.Dialect.GEMINI;
+    }
+
+    /** The ADK runtime as Atmosphere builds it, its genai client pointed at a stalling server. */
+    static final class StalledAdkRuntime extends AdkAgentRuntime {
+        private final String baseUrl;
+
+        StalledAdkRuntime(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        private static org.atmosphere.ai.AiConfig.LlmSettings settings() {
+            return new org.atmosphere.ai.AiConfig.LlmSettings(null, "gemini-2.5-flash", "remote",
+                    null, "stall-test-key");
+        }
+
+        @Override
+        protected Runner createNativeClient(org.atmosphere.ai.AiConfig.LlmSettings ignored) {
+            return super.createNativeClient(settings());
+        }
+
+        @Override
+        org.atmosphere.ai.AiConfig.LlmSettings requestSettings() {
+            return settings();
+        }
+
+        @Override
+        String geminiBaseUrl() {
+            return baseUrl;
+        }
+    }
+
+    /**
      * Both entries point at dedicated tests in this module that assert more
      * than the TCK's hooks could:
      * <ul>

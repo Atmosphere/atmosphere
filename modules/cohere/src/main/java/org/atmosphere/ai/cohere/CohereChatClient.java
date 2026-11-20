@@ -208,8 +208,8 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                 ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
 
         while (true) {
-            if (effectiveCancel.get()) {
-                session.error(new InterruptedException("Cancelled before round " + rounds));
+            if (effectiveCancel.get() || session.isTurnCancelled() || session.isClosed()) {
+                // A cancel is the caller's to report: no error frame.
                 return;
             }
             switch (ToolLoopGuard.checkRoundCap(rounds, loopPolicy, session, providerName())) {
@@ -219,7 +219,9 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                     return;
                 }
                 case COMPLETE_WITHOUT_TOOLS -> {
-                    session.complete();
+                    if (!session.isClosed()) {
+                        session.complete();
+                    }
                     return;
                 }
             }
@@ -240,7 +242,9 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             working.add(buildAssistantMessage(roundOutcome.assistantText(),
                     roundOutcome.toolCalls()));
             if (roundOutcome.toolCalls().isEmpty()) {
-                session.complete();
+                if (!session.isClosed()) {
+                    session.complete();
+                }
                 return;
             }
             // A tool round that ended the turn (an approval that ran out with

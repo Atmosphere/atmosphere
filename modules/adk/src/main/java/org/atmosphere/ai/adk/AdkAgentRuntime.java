@@ -31,10 +31,13 @@ import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -196,7 +199,8 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                     settings.model());
         }
 
-        var gemini = new Gemini(settings.model(), apiKey);
+        var transport = newTransport(apiKey);
+        var gemini = Gemini.builder().modelName(settings.model()).apiClient(transport.client).build();
         var agentBuilder = LlmAgent.builder()
                 .name("atmosphere-agent")
                 .model(gemini)
@@ -209,6 +213,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .rootAgent(agent);
         applyCacheConfig(appBuilder);
         var runner = Runner.builder().app(appBuilder.build()).build();
+        transports.put(runner, transport);
         logger.info("ADK auto-configured: model={}", settings.model());
         return runner;
     }
@@ -346,6 +351,251 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         return settings;
     }
 
+    /** The settings a per-request runner is built from: the application's, else its environment's. */
+    // Package-private test seam: a stalled-stream fixture supplies its own key.
+    AiConfig.LlmSettings requestSettings() {
+        var aiEnvironment = environment();
+        var settings = aiEnvironment.settings();
+        return settings != null ? settings : environmentSettings(aiEnvironment);
+    }
+
+    /**
+     * The genai endpoint the {@link Gemini} models this instance builds call;
+     * {@code null} for genai's default.
+     */
+    // Package-private test seam: points the models at a loopback socket.
+    String geminiBaseUrl() {
+        return null;
+    }
+
+    /**
+     * How far past the stream idle bound the genai client's own read timeout
+     * sits: the turn's watchdog ends a silent turn first and aborts its call;
+     * the read timeout is the transport's backstop for a call no turn owns.
+     */
+    static final Duration TRANSPORT_GRACE = Duration.ofSeconds(10);
+
+    /**
+     * The genai clients this instance built, by the runner whose models use
+     * them: the shared runner's ({@link #createNativeClient}, closed by
+     * {@link #closeNativeClient}) and each per-request runner's (closed when its
+     * turn ends). Weak keys: a per-request runner a caller built through
+     * {@link #buildRequestRunner} and never dispatched does not pin its entry.
+     */
+    private final Map<Runner, GeminiTransport> transports = Collections.synchronizedMap(new WeakHashMap<>());
+
+    /**
+     * The turn subscribed on each turn thread this instance started: a genai
+     * call that thread opens on the shared client is that turn's, so its
+     * cancel aborts that call and no other turn's. Only the turn's own thread
+     * writes and removes its entry.
+     */
+    private final Map<Thread, TurnCalls> turnThreads = new ConcurrentHashMap<>();
+
+    /**
+     * A genai client on an OkHttp client this instance owns. genai's own
+     * {@code HttpOptions.timeout} sets OkHttp's {@code callTimeout}, which
+     * bounds the whole call and would cut a healthy answer that takes longer;
+     * the OkHttp client here gets a read timeout instead, the bound plus
+     * {@link #TRANSPORT_GRACE} between two reads ({@code 0}, none, when the
+     * bound is off, as genai's default), through genai's
+     * {@code ClientOptions.customHttpClient}.
+     */
+    private GeminiTransport newTransport(String apiKey) {
+        var bound = environment().resolveStreamIdleTimeout();
+        var read = bound.isZero() || bound.isNegative() ? Duration.ZERO : bound.plus(TRANSPORT_GRACE);
+        return new GeminiTransport(apiKey, geminiBaseUrl(), read, turnThreads);
+    }
+
+    /**
+     * A genai client this instance built and the OkHttp client under it, with
+     * its own dispatcher and connection pool. Each call it opens belongs to a
+     * turn: the one that owns the client (a per-request runner's), else the
+     * turn whose thread opened it. Every byte of a turn's response counts as
+     * that turn's activity: under ADK's default {@code StreamingMode.NONE}
+     * genai reads the whole answer before ADK sees an event, so the bytes are
+     * the only sign of life a slow answer gives.
+     */
+    static final class GeminiTransport {
+        final com.google.genai.Client client;
+        private final okhttp3.OkHttpClient http;
+        private final Map<Thread, TurnCalls> turnThreads;
+        private final Map<okhttp3.Call, TurnCalls> calls = new ConcurrentHashMap<>();
+        private volatile TurnCalls owner;
+
+        GeminiTransport(String apiKey, String baseUrl, Duration readTimeout, Map<Thread, TurnCalls> turnThreads) {
+            this.turnThreads = turnThreads;
+            this.http = new okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(Duration.ZERO)
+                    .writeTimeout(Duration.ZERO)
+                    .readTimeout(readTimeout)
+                    .eventListenerFactory(this::track)
+                    .addNetworkInterceptor(this::countBytes)
+                    .build();
+            var builder = com.google.genai.Client.builder()
+                    .apiKey(apiKey)
+                    .clientOptions(com.google.genai.types.ClientOptions.builder().customHttpClient(http).build());
+            if (baseUrl != null) {
+                builder.httpOptions(com.google.genai.types.HttpOptions.builder().baseUrl(baseUrl).build());
+            }
+            this.client = builder.build();
+        }
+
+        /** Makes every call of this client {@code turn}'s: for a client one turn owns. */
+        void ownedBy(TurnCalls turn) {
+            owner = turn;
+        }
+
+        private okhttp3.EventListener track(okhttp3.Call call) {
+            var turn = owner != null ? owner : turnThreads.get(Thread.currentThread());
+            if (turn == null) {
+                return okhttp3.EventListener.NONE;
+            }
+            calls.put(call, turn);
+            turn.add(call);
+            return new okhttp3.EventListener() {
+                @Override
+                public void callEnd(okhttp3.Call ended) {
+                    forget(ended, turn);
+                }
+
+                @Override
+                public void callFailed(okhttp3.Call failed, java.io.IOException error) {
+                    forget(failed, turn);
+                }
+
+                @Override
+                public void canceled(okhttp3.Call cancelled) {
+                    forget(cancelled, turn);
+                }
+            };
+        }
+
+        private void forget(okhttp3.Call call, TurnCalls turn) {
+            calls.remove(call);
+            turn.remove(call);
+        }
+
+        private okhttp3.Response countBytes(okhttp3.Interceptor.Chain chain) throws java.io.IOException {
+            var response = chain.proceed(chain.request());
+            var turn = calls.get(chain.call());
+            var body = response.body();
+            if (turn == null || body == null) {
+                return response;
+            }
+            turn.activity();
+            return response.newBuilder().body(new CountingBody(body, turn)).build();
+        }
+
+        void close() {
+            try {
+                client.close();
+            } catch (RuntimeException e) {
+                logger.debug("Closing an ADK genai client failed: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /** A response body whose every read is activity of the turn that opened the call. */
+    private static final class CountingBody extends okhttp3.ResponseBody {
+        private final okhttp3.ResponseBody delegate;
+        private final okio.BufferedSource source;
+
+        CountingBody(okhttp3.ResponseBody delegate, TurnCalls turn) {
+            this.delegate = delegate;
+            this.source = okio.Okio.buffer(new okio.ForwardingSource(delegate.source()) {
+                @Override
+                public long read(okio.Buffer sink, long byteCount) throws java.io.IOException {
+                    var read = super.read(sink, byteCount);
+                    if (read > 0) {
+                        turn.activity();
+                    }
+                    return read;
+                }
+            });
+        }
+
+        @Override
+        public okhttp3.MediaType contentType() {
+            return delegate.contentType();
+        }
+
+        @Override
+        public long contentLength() {
+            return delegate.contentLength();
+        }
+
+        @Override
+        public okio.BufferedSource source() {
+            return source;
+        }
+    }
+
+    /** The genai calls in flight for one turn, and the turn's activity feed. */
+    static final class TurnCalls {
+        private final Set<okhttp3.Call> calls = ConcurrentHashMap.newKeySet();
+        private final Runnable activity;
+        private volatile boolean aborted;
+
+        TurnCalls(Runnable activity) {
+            this.activity = activity;
+        }
+
+        void activity() {
+            activity.run();
+        }
+
+        void add(okhttp3.Call call) {
+            calls.add(call);
+            if (aborted) {
+                call.cancel();
+            }
+        }
+
+        void remove(okhttp3.Call call) {
+            calls.remove(call);
+        }
+
+        /** Cancels the turn's calls, which closes their connections; a call opened later is cancelled on arrival. */
+        void abort() {
+            aborted = true;
+            calls.forEach(okhttp3.Call::cancel);
+        }
+    }
+
+    /**
+     * Subscribes the turn on a virtual thread of its own: ADK's Gemini flow
+     * blocks its subscriber on the genai future, so a subscribe on the caller's
+     * thread held {@code executeWithHandle} until the model answered, and a
+     * model that never answered never let it return a handle to cancel.
+     */
+    private io.reactivex.rxjava3.core.Scheduler turnScheduler(TurnCalls turn) {
+        return io.reactivex.rxjava3.schedulers.Schedulers.from(task ->
+                Thread.ofVirtual().name("atmosphere-adk-turn").start(() -> {
+                    var thread = Thread.currentThread();
+                    turnThreads.put(thread, turn);
+                    try {
+                        task.run();
+                    } finally {
+                        turnThreads.remove(thread);
+                    }
+                }));
+    }
+
+    /** @return the OkHttp client under the genai client {@code runner}'s models use, if this instance built it */
+    // Package-private: tests read its timeouts and whether it was closed.
+    Optional<okhttp3.OkHttpClient> httpClientOf(Runner runner) {
+        return Optional.ofNullable(transports.get(runner)).map(t -> t.http);
+    }
+
+    @Override
+    protected void closeNativeClient(Runner runner) {
+        var transport = transports.remove(runner);
+        if (transport != null) {
+            transport.close();
+        }
+    }
+
     /**
      * Build a per-request {@link Runner} whose tools capture the caller's
      * {@link StreamingSession} and {@link org.atmosphere.ai.approval.ApprovalStrategy}.
@@ -357,11 +607,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     // this method to return a mocked Runner so they can exercise the
     // doExecuteWithHandle cancel path without needing a live Gemini API key.
     Runner buildRequestRunner(AgentExecutionContext context, StreamingSession session) {
-        var aiEnvironment = environment();
-        var settings = aiEnvironment.settings();
-        if (settings == null) {
-            settings = environmentSettings(aiEnvironment);
-        }
+        var settings = requestSettings();
 
         // When the caller attached a per-request root via AdkRootAgent.attach(),
         // skip the default LlmAgent assembly entirely. The user's BaseAgent
@@ -382,6 +628,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         var agentFs = resolveAgentFileSystem(environment(), session);
 
         var customRoot = AdkRootAgent.from(context);
+        GeminiTransport transport = null;
         com.google.adk.agents.BaseAgent rootAgent;
         int toolCount;
         if (customRoot != null) {
@@ -404,7 +651,8 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         } else {
             var modelName = (context.model() != null && !context.model().isBlank())
                     ? context.model() : settings.model();
-            var gemini = new Gemini(modelName, settings.apiKey());
+            transport = newTransport(settings.apiKey());
+            var gemini = Gemini.builder().modelName(modelName).apiClient(transport.client).build();
 
             var adkTools = new java.util.ArrayList<>(AdkToolBridge.toAdkTools(
                     context.tools(), session, context.approvalStrategy(), context.listeners(),
@@ -466,7 +714,11 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         if (agentFs != null) {
             runnerBuilder.artifactService(new AdkArtifactService(agentFs));
         }
-        return runnerBuilder.build();
+        var runner = runnerBuilder.build();
+        if (transport != null) {
+            transports.put(runner, transport);
+        }
+        return runner;
     }
 
     /**
@@ -620,11 +872,19 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
             // Content.Text is folded into the prompt text block above.
         }
 
+        var turnCalls = new TurnCalls(org.atmosphere.ai.StreamIdleWatchdog.of(session)
+                .<Runnable>map(w -> w::activity).orElse(() -> { }));
         var events = requestRunner.runAsync(
                 userId,
                 sessionId,
                 Content.fromParts(partsList.toArray(new Part[0]))
-        );
+        ).subscribeOn(turnScheduler(turnCalls));
+        // A per-request runner's genai client is this turn's alone: its calls
+        // are cancelled with the turn, and it is closed when the turn ends.
+        var ownedTransport = needsPerRequestRunner ? transports.remove(requestRunner) : null;
+        if (ownedTransport != null) {
+            ownedTransport.ownedBy(turnCalls);
+        }
 
         // Wire the AdkEventAdapter's existing cancel() + whenDone() into the
         // ExecutionHandle SPI so external callers can abort an in-flight ADK
@@ -655,6 +915,9 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 events, session, lifecycleListeners, lifecycleModelName,
                 lifecycleMessageCount, tools.size(), reportedTools);
         var closeOnCancel = needsPerRequestRunner ? requestRunner : null;
+        if (ownedTransport != null) {
+            adapter.whenDone().whenComplete((ignored, error) -> ownedTransport.close());
+        }
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =
                     new java.util.concurrent.atomic.AtomicBoolean();
@@ -663,6 +926,9 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
             public void cancel() {
                 if (cancelled.compareAndSet(false, true)) {
                     adapter.cancel();
+                    // Disposing the subscription does not close genai's
+                    // response stream: cancelling the turn's calls does.
+                    turnCalls.abort();
                     if (closeOnCancel != null) {
                         try {
                             // close() returns a Completable; subscribing kicks
