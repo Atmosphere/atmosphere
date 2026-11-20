@@ -300,11 +300,12 @@ ${BOLD}Examples:${RESET}
   atmosphere new my-ai-app --template ai-chat --runtime spring-ai --force
   atmosphere new my-ai-app --template ai-chat --routing
   atmosphere checkpoint list --coordination dispatch
-  atmosphere checkpoint approve abc-123 --by alice
+  atmosphere checkpoint approve abc-123 --token demo-alice
 
 ${BOLD}Environment:${RESET}
   ATMOSPHERE_HOME              Cache directory (default: ~/.atmosphere)
   ATMOSPHERE_CHECKPOINT_URL    Base URL for 'atmosphere checkpoint' (default: http://localhost:8095)
+  ATMOSPHERE_CHECKPOINT_TOKEN  Reviewer token 'atmosphere checkpoint' sends on fork/approve/delete
   JAVA_OPTS                    Extra JVM options passed to samples
 
 EOF
@@ -2223,6 +2224,9 @@ cmd_plugins() {
 # atmosphere-checkpoint. Default base URL: http://localhost:8095
 cmd_checkpoint() {
     local base="${ATMOSPHERE_CHECKPOINT_URL:-http://localhost:8095}"
+    # Reviewer token for the mutators (approve/fork/delete), sent as
+    # X-Atmosphere-Auth. The checkpoint-agent sample refuses them anonymously.
+    local token="${ATMOSPHERE_CHECKPOINT_TOKEN:-}"
     local subcmd="${1:-list}"
     shift || true
 
@@ -2241,6 +2245,13 @@ cmd_checkpoint() {
                 base="${1#--base-url=}"
                 [ -z "$base" ] && die "--base-url requires a value"
                 shift; remaining=$((remaining - 1)) ;;
+            --token)
+                [ -z "$2" ] && die "--token requires a value"
+                token="$2"; shift 2; remaining=$((remaining - 2)) ;;
+            --token=*)
+                token="${1#--token=}"
+                [ -z "$token" ] && die "--token requires a value"
+                shift; remaining=$((remaining - 1)) ;;
             *)
                 set -- "$@" "$1"; shift; remaining=$((remaining - 1)) ;;
         esac
@@ -2248,6 +2259,19 @@ cmd_checkpoint() {
 
     # Curl with sane defaults: fail on HTTP errors, silent, show errors.
     ac_curl() { curl -sSf "$@"; }
+    # The mutators carry the reviewer token when one is set, quoted so the
+    # token stays one argument whatever it contains.
+    ac_curl_auth() {
+        if [ -n "$token" ]; then
+            curl -sSf -H "X-Atmosphere-Auth: $token" "$@"
+        else
+            curl -sSf "$@"
+        fi
+    }
+    auth_hint() {
+        [ -z "$token" ] && printf ' (no reviewer token: pass --token or set ATMOSPHERE_CHECKPOINT_TOKEN)'
+        return 0
+    }
 
     case "$subcmd" in
         list|ls)
@@ -2295,30 +2319,35 @@ cmd_checkpoint() {
                 esac
             done
             local url="${base}/api/checkpoints/$(urlencode "$id")/fork${state:+?state=$(urlencode "$state")}"
-            ac_curl -X POST "$url" \
-                || die "Failed to fork $id"
+            ac_curl_auth -X POST "$url" \
+                || die "Failed to fork $id$(auth_hint)"
             printf "\n"
             ;;
         approve)
             local id="$1"; shift || true
             [ -z "$id" ] && die "Usage: atmosphere checkpoint approve <id> [--by NAME]"
-            local by="operator"
+            # The approver is the principal the token authenticates as. --by
+            # is sent only when given (the server refuses one naming anyone
+            # else); it used to default to "operator", which a server that
+            # records the authenticated reviewer refuses.
+            local by=""
             while [ $# -gt 0 ]; do
                 case "$1" in
                     --by) by="$2"; shift 2 ;;
                     *) shift ;;
                 esac
             done
-            ac_curl -X POST "${base}/api/checkpoints/$(urlencode "$id")/approve?by=$(urlencode "$by")" \
-                || die "Failed to approve $id"
+            ac_curl_auth -X POST \
+                "${base}/api/checkpoints/$(urlencode "$id")/approve${by:+?by=$(urlencode "$by")}" \
+                || die "Failed to approve $id$(auth_hint)"
             printf "\n"
             ;;
         delete|rm)
             local id="$1"
             [ -z "$id" ] && die "Usage: atmosphere checkpoint delete <id>"
-            ac_curl -X DELETE -o /dev/null -w "%{http_code}\n" \
+            ac_curl_auth -X DELETE -o /dev/null -w "%{http_code}\n" \
                 "${base}/api/checkpoints/$(urlencode "$id")" \
-                || die "Failed to delete $id"
+                || die "Failed to delete $id$(auth_hint)"
             ;;
         help|--help|-h|"")
             cat <<EOF
@@ -2335,17 +2364,20 @@ ${BOLD}Subcommands${RESET}
   list                         List snapshots (filter by --coordination/--agent)
   show <id>                    Show a single snapshot
   fork <id> [--state S]        Fork from a snapshot with new state
-  approve <id> [--by NAME]     Approve a snapshot (appends a child snapshot)
+  approve <id> [--by NAME]     Approve a snapshot (appends a child snapshot); the approver is
+                               the token's reviewer, --by must name that same reviewer
   delete <id>                  Delete a snapshot
 
 ${BOLD}Global options${RESET}
   --base-url URL               Base URL of the running agent (default: \$ATMOSPHERE_CHECKPOINT_URL or http://localhost:8095)
+  --token TOKEN                Reviewer token for fork/approve/delete, sent as X-Atmosphere-Auth
+                               (default: \$ATMOSPHERE_CHECKPOINT_TOKEN)
 
 ${BOLD}Examples${RESET}
   atmosphere checkpoint list --coordination dispatch
   atmosphere checkpoint show abc-123
-  atmosphere checkpoint approve abc-123 --by alice
-  atmosphere checkpoint fork abc-123 --state reverted
+  atmosphere checkpoint approve abc-123 --token demo-alice
+  atmosphere checkpoint fork abc-123 --state reverted --token demo-alice
   ATMOSPHERE_CHECKPOINT_URL=http://prod:8080 atmosphere checkpoint list
 
 EOF

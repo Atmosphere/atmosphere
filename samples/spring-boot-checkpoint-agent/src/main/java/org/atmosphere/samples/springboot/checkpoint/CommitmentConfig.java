@@ -26,7 +26,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Commitment-record wiring for the checkpoint-agent sample: every
- * cross-agent dispatch (analyzer → approver) emits a signed
+ * fleet dispatch (the coordinator's analyzer call) emits a signed
  * {@code CommitmentRecord} on the coordination journal, paired with
  * the checkpoint snapshot.
  *
@@ -70,6 +70,6 @@ public class CommitmentConfig {
     public void enableCommitmentRecords() {
         CommitmentRecordsFlag.override(Boolean.TRUE);
         logger.info("Commitment records ENABLED for checkpoint-agent sample "
-                + "— every analyzer/approver dispatch emits a signed VC-subtype record");
+                + "— every fleet dispatch (the analyzer) emits a signed VC-subtype record");
     }
 }

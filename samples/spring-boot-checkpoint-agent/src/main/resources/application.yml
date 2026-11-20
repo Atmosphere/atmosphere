@@ -14,6 +14,12 @@ atmosphere:
     store: ${ATMOSPHERE_CHECKPOINT_STORE:sqlite}
     sqlite:
       path: ${ATMOSPHERE_CHECKPOINT_SQLITE_PATH:target/checkpoint.db}
+    # Reviewer tokens for the checkpoint mutators (approve/fork/delete), as a
+    # comma-separated token=principal list. DEMO-ONLY default: the demo-alice
+    # token signs in as reviewer "alice" so the README flow works out of the
+    # box (a startup WARN says so). Empty = every mutator is denied (401).
+    # Replace with real secrets before exposing this app.
+    operator-tokens: ${CHECKPOINT_OPERATOR_TOKENS:demo-alice=alice}
 
 logging:
   level:

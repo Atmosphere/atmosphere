@@ -139,6 +139,53 @@ class JournalingAgentFleetCommitmentTest {
                 "one commitment record per pipeline step: " + commits);
     }
 
+    /**
+     * Mode parity (Correctness Invariant #7): a single-agent dispatch through
+     * {@code fleet.agent(name)} emits the same signed record as parallel and
+     * pipeline. The checkpoint-agent sample's coordinator dispatches this way
+     * and its boot log promised records that were never journaled.
+     */
+    @Test
+    void singleAgentCallEmitsASignedCommitment() {
+        var signer = Ed25519CommitmentSigner.generate();
+        fleet.signer(signer).principal("user-42");
+
+        fleet.agent("billing").call("query", Map.of("q", "single"));
+
+        var commits = commitments();
+        assertEquals(1, commits.size(), "agent(...).call must emit one record: " + commits);
+        var record = commits.get(0).record();
+        assertEquals("billing", record.subject());
+        assertEquals("query", record.scope());
+        assertEquals("user-42", record.principal());
+        assertTrue(Ed25519CommitmentSigner.verify(record, signer.publicKey()));
+    }
+
+    @Test
+    void singleAgentCallAsyncEmitsASignedCommitment() {
+        fleet.signer(Ed25519CommitmentSigner.generate());
+
+        fleet.agent("billing").callAsync("query", Map.of("q", "async")).join();
+
+        assertEquals(1, commitments().size(), "agent(...).callAsync must emit one record");
+    }
+
+    @Test
+    void singleAgentStreamEmitsASignedCommitment() {
+        fleet.signer(Ed25519CommitmentSigner.generate());
+
+        fleet.agent("billing").stream("query", Map.of("q", "stream"), token -> { }, () -> { });
+
+        assertEquals(1, commitments().size(), "agent(...).stream must emit one record");
+    }
+
+    @Test
+    void singleAgentDispatchWithoutASignerEmitsNothing() {
+        fleet.agent("billing").call("query", Map.of("q", "single"));
+
+        assertTrue(commitments().isEmpty(), "no signer installed -> no commitment events");
+    }
+
     @Test
     void unsignedSignerEquivalentToNone() {
         fleet.signer(CommitmentSigner.UNSIGNED);

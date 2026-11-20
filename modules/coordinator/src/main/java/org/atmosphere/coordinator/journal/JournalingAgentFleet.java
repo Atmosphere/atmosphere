@@ -460,6 +460,9 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
 
     /**
      * Wraps an {@link AgentProxy} to journal individual call/callAsync/stream.
+     * Every mode emits the dispatch's {@link CommitmentRecord} as
+     * {@link #parallel} and {@link #pipeline} do (Correctness Invariant #7):
+     * a single-agent dispatch used to journal no signed record at all.
      */
     private final class JournalingAgentProxy implements AgentProxy {
 
@@ -508,12 +511,13 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
             var dispatchId = journal.recordEnveloped(EventEnvelope.root(
                     new CoordinationEvent.AgentDispatched(
                             coordId, delegate.name(), skill, args, Instant.now())));
+            emitCommitmentRecord(coordId, dispatchId,
+                    new AgentCall(delegate.name(), skill, args), "started");
 
             var result = delegate.call(skill, args);
             var completedId = recordResult(coordId, dispatchId, result);
             autoEvaluate(coordId, completedId, result,
-                    new org.atmosphere.coordinator.fleet.AgentCall(
-                            delegate.name(), skill, args));
+                    new AgentCall(delegate.name(), skill, args));
             return result;
         }
 
@@ -523,6 +527,8 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
             var dispatchId = journal.recordEnveloped(EventEnvelope.root(
                     new CoordinationEvent.AgentDispatched(
                             coordId, delegate.name(), skill, args, Instant.now())));
+            emitCommitmentRecord(coordId, dispatchId,
+                    new AgentCall(delegate.name(), skill, args), "started");
 
             return delegate.callAsync(skill, args)
                     .whenComplete((result, error) -> {
@@ -545,6 +551,8 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
             var dispatchId = journal.recordEnveloped(EventEnvelope.root(
                     new CoordinationEvent.AgentDispatched(
                             coordId, delegate.name(), skill, args, Instant.now())));
+            emitCommitmentRecord(coordId, dispatchId,
+                    new AgentCall(delegate.name(), skill, args), "started");
 
             var start = Instant.now();
             delegate.stream(skill, args, onToken, () -> {

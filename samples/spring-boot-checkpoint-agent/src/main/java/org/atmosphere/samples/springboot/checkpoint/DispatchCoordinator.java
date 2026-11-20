@@ -18,11 +18,14 @@ package org.atmosphere.samples.springboot.checkpoint;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.checkpoint.CheckpointQuery;
+import org.atmosphere.checkpoint.CheckpointStore;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.commitment.CommitmentSigner;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.journal.CoordinationEvent;
 import org.atmosphere.coordinator.journal.JournalingAgentFleet;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
@@ -30,7 +33,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Demonstrates a durable HITL (human-in-the-loop) workflow split across
@@ -61,7 +67,7 @@ import java.util.Map;
  * the checkpoint id — no live coordinator thread is kept alive during the
  * HITL pause.</p>
  */
-@Coordinator(name = "dispatch",
+@Coordinator(name = DispatchCoordinator.COORDINATION_ID,
         description = "Analyzer/approver dispatch with checkpointed HITL pauses")
 @Fleet({
         @AgentRef(type = AnalyzerAgent.class),
@@ -80,12 +86,19 @@ public class DispatchCoordinator {
 
     /**
      * Ed25519 signer from {@link CommitmentConfig}. When present, every
-     * analyzer/approver dispatch emits a signed {@code CommitmentRecord}
+     * fleet dispatch (the analyzer) emits a signed {@code CommitmentRecord}
      * on the journal — paired with the checkpoint snapshot, this is the
      * signed audit trail across pause/resume.
      */
     @Autowired(required = false)
     private CommitmentSigner commitmentSigner;
+
+    /** The store the journal bridge writes the analyzer's snapshot to. */
+    @Autowired
+    private CheckpointStore checkpointStore;
+
+    /** The coordination id every snapshot of this coordinator carries. */
+    static final String COORDINATION_ID = "dispatch";
 
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session,
@@ -104,18 +117,68 @@ public class DispatchCoordinator {
         // Step 1 — analyze. The CheckpointingCoordinationJournal bridge
         // persists an AgentCompleted snapshot automatically after this call.
         // A signed CommitmentRecord for this dispatch is also journaled.
+        var dispatchedAt = Instant.now();
         var analysis = fleet.agent("analyzer").call("analyze", Map.of("request", message));
         if (!analysis.success()) {
-            session.stream("Analyzer failed: " + analysis.text());
+            session.send("Analyzer failed: " + analysis.text());
+            session.complete();
             return;
         }
 
         // Step 2 — surface the snapshot id so the human reviewer (or a
-        // follow-up automated gate) can inspect and approve via HTTP.
-        session.stream("Analysis complete.\n\n"
+        // follow-up automated gate) can inspect and approve via HTTP. Sent
+        // verbatim with send(): session.stream(...) hands its text to the
+        // model as a prompt, so the reply carried whatever the model made of
+        // these instructions and never the checkpoint id itself.
+        var checkpointId = analyzerSnapshotId(analysis.text(), dispatchedAt);
+        var pointer = checkpointId
+                .map(id -> "Checkpoint: " + id + "\n\n"
+                        + "Review it at GET /api/checkpoints/" + id + " and resume with "
+                        + "POST /api/checkpoints/" + id + "/approve (reviewer token required, "
+                        + "see the README).")
+                .orElse("The checkpoint for this analysis was not found in the store; list "
+                        + "GET /api/checkpoints?coordination=" + COORDINATION_ID + " to find it.");
+        session.send("Analysis complete.\n\n"
                 + "Result: " + analysis.text() + "\n\n"
-                + "This result has been checkpointed. Review at "
-                + "GET /api/checkpoints (filter by coordination=dispatch) and "
-                + "POST /api/checkpoints/{id}/approve to resume.");
+                + pointer);
+        session.complete();
+    }
+
+    /**
+     * The id of the snapshot the journal bridge wrote for this dispatch's
+     * analyzer completion: the newest {@code AgentCompleted} analyzer
+     * snapshot of this coordination since the dispatch started whose result
+     * is this analysis. Every session shares the coordination id, so the
+     * bridge's "last snapshot" would name a concurrent session's checkpoint.
+     */
+    Optional<String> analyzerSnapshotId(String analysisText, Instant since) {
+        // Whole seconds, one earlier: the SQLite store compares created_at as
+        // ISO-8601 text, where "…:00Z" sorts after "…:00.123Z"; a bound with
+        // no fraction in an earlier second compares correctly with every
+        // snapshot written since the dispatch started.
+        var bound = since.truncatedTo(ChronoUnit.SECONDS).minusSeconds(1);
+        var candidates = checkpointStore.list(CheckpointQuery.builder()
+                .coordinationId(COORDINATION_ID)
+                .agentName("analyzer")
+                .since(bound)
+                .build());
+        for (int i = candidates.size() - 1; i >= 0; i--) {
+            var snapshot = candidates.get(i);
+            if (analysisText.equals(resultTextOf(snapshot.state()))) {
+                return Optional.of(snapshot.id().value());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** The result text of a stored AgentCompleted, typed or read back from JSON as a map. */
+    private static Object resultTextOf(Object state) {
+        if (state instanceof CoordinationEvent.AgentCompleted completed) {
+            return completed.resultText();
+        }
+        if (state instanceof Map<?, ?> map) {
+            return map.get("resultText");
+        }
+        return null;
     }
 }

@@ -18,7 +18,8 @@ A durable HITL workflow split across two entry points, linked by a
 3. **`CheckpointController`** exposes the store over HTTP. A reviewer
    (human, automated gate, or the `atmosphere checkpoint` CLI) lists
    pending snapshots, inspects them, and calls `POST
-   /api/checkpoints/{id}/approve`.
+   /api/checkpoints/{id}/approve`. The mutators (`approve`, `fork`,
+   `delete`) need a reviewer token — see [Reviewer authentication](#reviewer-authentication).
 4. The **`/approve` endpoint actually resumes the workflow**: it recovers
    the original request from the analyzer's snapshot state, invokes
    `ApproverAgent.execute()`, and chains the approver's result as a child
@@ -42,10 +43,11 @@ Open a WebSocket to the coordinator:
 # Any WebSocket client, e.g. wscat
 wscat -c ws://localhost:8095/atmosphere/agent/dispatch
 > please refund order 1234
-# response includes the analysis + checkpoint reference
+# the reply carries the analysis and the checkpoint id, verbatim:
+#   Analysis complete. ... Checkpoint: <id> ...
 ```
 
-Then inspect the checkpoints:
+Then inspect the checkpoints (reads need no token):
 
 ```bash
 # List snapshots for the dispatch coordination
@@ -55,30 +57,55 @@ curl http://localhost:8095/api/checkpoints?coordination=dispatch
 curl http://localhost:8095/api/checkpoints/<id>
 
 # Resume the workflow: recovers the original request from the snapshot,
-# invokes the approver, and chains its result as a child snapshot.
-curl -X POST 'http://localhost:8095/api/checkpoints/<id>/approve?by=alice'
+# invokes the approver, and chains its result as a child snapshot. The
+# approver is the reviewer the token signs in as (demo-alice -> alice).
+curl -X POST -H 'X-Atmosphere-Auth: demo-alice' \
+  'http://localhost:8095/api/checkpoints/<id>/approve'
 # -> { "parentId": "<id>", "agentName": "approver",
 #      "metadata": { "approvedBy": "alice" },
 #      "state": "Executed 'please refund order 1234' approved by alice", ... }
 
 # Override the recovered request (useful if the reviewer amended it):
-curl -X POST 'http://localhost:8095/api/checkpoints/<id>/approve?by=alice&request=refund%20order%209999'
+curl -X POST -H 'X-Atmosphere-Auth: demo-alice' \
+  'http://localhost:8095/api/checkpoints/<id>/approve?request=refund%20order%209999'
 
 # Fork with arbitrary state (non-approver branch exploration)
-curl -X POST 'http://localhost:8095/api/checkpoints/<id>/fork?state=custom-branch'
+curl -X POST -H 'X-Atmosphere-Auth: demo-alice' \
+  'http://localhost:8095/api/checkpoints/<id>/fork?state=custom-branch'
 
 # Delete
-curl -X DELETE http://localhost:8095/api/checkpoints/<id>
+curl -X DELETE -H 'X-Atmosphere-Auth: demo-alice' http://localhost:8095/api/checkpoints/<id>
 ```
 
 Or use the Atmosphere CLI (if installed):
 
 ```bash
+export ATMOSPHERE_CHECKPOINT_TOKEN=demo-alice   # or pass --token demo-alice
 atmosphere checkpoint list --coordination dispatch
 atmosphere checkpoint show <id>
-atmosphere checkpoint approve <id> --by alice
+atmosphere checkpoint approve <id>
 atmosphere checkpoint fork <id> --state custom-branch
+atmosphere checkpoint delete <id>
 ```
+
+## Reviewer authentication
+
+The checkpoint mutators change the durable workflow, so they require an
+authenticated reviewer (default deny): `POST .../approve`, `POST .../fork`
+and `DELETE /api/checkpoints/{id}` answer **401** without a valid token.
+The reads (`GET /api/checkpoints`, `GET /api/checkpoints/{id}`) stay open.
+
+- Present the token as `X-Atmosphere-Auth: <token>` (what the CLI sends) or
+  `Authorization: Bearer <token>`.
+- Tokens come from `atmosphere.checkpoint.operator-tokens`
+  (env `CHECKPOINT_OPERATOR_TOKENS`), a comma-separated `token=principal`
+  list. The sample ships the **demo-only** token `demo-alice=alice` so the
+  flow above works out of the box; a startup WARN says so. Set real secrets
+  before exposing the app; an empty list denies every mutator.
+- The approval records the authenticated principal as `approvedBy`. `?by=`
+  is still accepted but must name that principal — any other name is
+  refused with **403**, so a caller cannot record an approval for someone
+  else.
 
 ## Key code
 
@@ -86,10 +113,11 @@ atmosphere checkpoint fork <id> --state custom-branch
 |------|---------|
 | `CheckpointConfig.java` | Wires a pluggable `CheckpointStore` and a `DurableTimerStore` (both SQLite by default, in-memory opt-in) + wraps the journal with `CheckpointingCoordinationJournal`. The `DurableTimerService` re-arms restart-surviving deadlines (e.g. approval auto-reject) from the SQLite store on boot |
 | `CommitmentConfig.java` | Installs an `Ed25519CommitmentSigner` bean + flips `CommitmentRecordsFlag` on so every dispatch emits a signed VC-subtype record on the journal |
-| `DispatchCoordinator.java` | `@Coordinator` that arms the signer per session, calls the analyzer, and returns the checkpoint pointer. Signed `CommitmentRecord`s land on the journal alongside each `AgentDispatched` event. |
+| `DispatchCoordinator.java` | `@Coordinator` that arms the signer per session, calls the analyzer, and sends the analysis plus the checkpoint id verbatim (`session.send`, no model call). Signed `CommitmentRecord`s land on the journal alongside each `AgentDispatched` event. |
 | `AnalyzerAgent.java` | `@Agent` whose `AgentCompleted` events are captured as snapshots |
 | `ApproverAgent.java` | `@Agent` invoked by `CheckpointController#approve` to resume the workflow after HITL approval |
 | `CheckpointController.java` | REST surface over the `CheckpointStore`; `/approve` is the resumption point that calls the approver and chains its result |
+| `CheckpointOperatorAuth.java` | Resolves the reviewer token on the mutators (401 without one); the principal becomes `approvedBy` |
 
 ## Governance — signed audit trail across HITL pause
 
@@ -120,9 +148,11 @@ wscat -c ws://localhost:8095/atmosphere/agent/dispatch
 # (published at /api/admin/governance/health → policies[].digest).
 
 # Hours later — approve via REST (resumes the workflow from the checkpoint)
-curl -X POST http://localhost:8095/api/checkpoints/{id}/approve
-# The approver agent's dispatch ALSO emits a signed CommitmentRecord,
-# cryptographically linked to the original analyzer snapshot.
+curl -X POST -H 'X-Atmosphere-Auth: demo-alice' http://localhost:8095/api/checkpoints/{id}/approve
+# /approve calls ApproverAgent directly (not through the fleet), so the
+# signed CommitmentRecord on the journal is the analyzer dispatch's; the
+# approval is bound to it by the checkpoint chain (the approver child's
+# parentId is the analyzer snapshot) and records the authenticated reviewer.
 ```
 
 ## Checkpoint store backends

@@ -20,11 +20,13 @@ import org.atmosphere.checkpoint.CheckpointQuery;
 import org.atmosphere.checkpoint.CheckpointStore;
 import org.atmosphere.checkpoint.WorkflowSnapshot;
 import org.atmosphere.coordinator.journal.CoordinationEvent;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,6 +51,13 @@ import java.util.regex.Pattern;
  *   DELETE /api/checkpoints/{id}                delete a snapshot
  * </pre>
  *
+ * <p>The three mutators ({@code fork}, {@code approve}, {@code delete}) need
+ * an authenticated reviewer ({@link CheckpointOperatorAuth}, Correctness
+ * Invariant #6): no token or an unknown one is 401. The approval records the
+ * authenticated principal as {@code approvedBy}; {@code ?by=} is still
+ * accepted for compatibility but must name that principal (403 otherwise),
+ * so a caller can no longer assert who approved. The reads stay open.</p>
+ *
  * <p>The {@code /approve} endpoint is the HITL resumption point: it loads
  * the analyzer's checkpoint, invokes the {@link ApproverAgent} with the
  * original request recovered from the analyzer's result, and appends the
@@ -70,10 +79,19 @@ public class CheckpointController {
     static final String APPROVED_BY_METADATA = "approvedBy";
 
     private final ApproverAgent approverAgent;
+    private final CheckpointOperatorAuth auth;
 
-    public CheckpointController(CheckpointStore store, ApproverAgent approverAgent) {
+    public CheckpointController(CheckpointStore store, ApproverAgent approverAgent,
+                                CheckpointOperatorAuth auth) {
         this.store = store;
         this.approverAgent = approverAgent;
+        this.auth = auth;
+    }
+
+    private static <T> ResponseEntity<T> unauthorized() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header("WWW-Authenticate", "Bearer")
+                .build();
     }
 
     @GetMapping
@@ -99,7 +117,12 @@ public class CheckpointController {
     @PostMapping("/{id}/fork")
     public ResponseEntity<Map<String, Object>> fork(
             @PathVariable String id,
-            @RequestParam(required = false) String state) {
+            @RequestParam(required = false) String state,
+            @RequestHeader(value = CheckpointOperatorAuth.TOKEN_HEADER, required = false) String token,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (auth.authenticate(token, authorization).isEmpty()) {
+            return unauthorized();
+        }
         try {
             var forked = store.fork(CheckpointId.of(id), state);
             return ResponseEntity.ok(toJson(forked));
@@ -117,12 +140,28 @@ public class CheckpointController {
      * <p>If the caller wants to override the request recovered from the
      * snapshot (e.g. the human amended it during review), they can pass
      * {@code ?request=...}.</p>
+     *
+     * <p>The approver is the authenticated principal. A {@code ?by=} naming
+     * anyone else is refused with 403: the approval record is bound to who
+     * actually authenticated, not to what the caller claims.</p>
      */
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(
             @PathVariable String id,
-            @RequestParam(defaultValue = "operator") String by,
-            @RequestParam(required = false) String request) {
+            @RequestParam(required = false) String by,
+            @RequestParam(required = false) String request,
+            @RequestHeader(value = CheckpointOperatorAuth.TOKEN_HEADER, required = false) String token,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        var principal = auth.authenticate(token, authorization);
+        if (principal.isEmpty()) {
+            return unauthorized();
+        }
+        if (by != null && !by.isBlank() && !by.equals(principal.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "?by= must name the authenticated reviewer '"
+                            + principal.get() + "'; an approval cannot be recorded for someone else"));
+        }
+        var approvedBy = principal.get();
         var sourceId = CheckpointId.of(id);
         var source = store.<Object>load(sourceId);
         if (source.isEmpty()) {
@@ -139,7 +178,7 @@ public class CheckpointController {
 
         // Real work: invoke the approver specialist. This is the workflow
         // resumption the README and the DispatchCoordinator advertise.
-        var approverResult = approverAgent.execute(originalRequest, by);
+        var approverResult = approverAgent.execute(originalRequest, approvedBy);
 
         // Chain the approver's completion as a child snapshot. Its state is
         // the approver's result string; its parent is the analyzer's
@@ -149,7 +188,7 @@ public class CheckpointController {
         // records who approved.
         var parent = source.get();
         var metadata = new LinkedHashMap<>(parent.metadata());
-        metadata.put(APPROVED_BY_METADATA, by);
+        metadata.put(APPROVED_BY_METADATA, approvedBy);
         var resumed = store.save(WorkflowSnapshot.<Object>builder()
                 .id(CheckpointId.random())
                 .parentId(sourceId)
@@ -181,7 +220,13 @@ public class CheckpointController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(
+            @PathVariable String id,
+            @RequestHeader(value = CheckpointOperatorAuth.TOKEN_HEADER, required = false) String token,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (auth.authenticate(token, authorization).isEmpty()) {
+            return unauthorized();
+        }
         return store.delete(CheckpointId.of(id))
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();

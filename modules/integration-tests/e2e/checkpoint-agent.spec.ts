@@ -113,6 +113,9 @@ test.afterAll(async () => {
 });
 
 const REST_PATH = '/api/checkpoints';
+// The demo reviewer token application.yml configures (signs in as alice).
+// The mutators (approve/fork/delete) refuse anonymous calls with 401.
+const REVIEWER = { 'X-Atmosphere-Auth': 'demo-alice' };
 const COORDINATOR_PATH = '/atmosphere/agent/dispatch';
 const COORDINATION_ID = 'dispatch';
 
@@ -208,14 +211,89 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     const show = await fetch(`${server.baseUrl}${REST_PATH}/${unknown}`);
     expect(show.status).toBe(404);
 
-    const del = await fetch(`${server.baseUrl}${REST_PATH}/${unknown}`, { method: 'DELETE' });
+    const del = await fetch(`${server.baseUrl}${REST_PATH}/${unknown}`,
+      { method: 'DELETE', headers: REVIEWER });
     expect(del.status).toBe(404);
 
     const approve = await fetch(
-      `${server.baseUrl}${REST_PATH}/${unknown}/approve?by=alice`,
-      { method: 'POST' },
+      `${server.baseUrl}${REST_PATH}/${unknown}/approve`,
+      { method: 'POST', headers: REVIEWER },
     );
     expect(approve.status).toBe(404);
+  });
+
+  test('sweep 4.0.78: anonymous mutators are refused and approvedBy is the authenticated reviewer', async () => {
+    // The packaged sample accepted anonymous approve/fork/delete and recorded
+    // whatever ?by= the caller asserted as the approver (Invariant #6).
+    clearCheckpointStore();
+    const analyzerId = seedAnalyzerSnapshot('refund order 4242');
+
+    for (const [method, path] of [
+      ['POST', `${REST_PATH}/${analyzerId}/approve?by=alice`],
+      ['POST', `${REST_PATH}/${analyzerId}/fork?state=x`],
+      ['DELETE', `${REST_PATH}/${analyzerId}`],
+    ] as const) {
+      const res = await fetch(`${server.baseUrl}${path}`, { method });
+      expect(res.status, `anonymous ${method} ${path} must be refused`).toBe(401);
+    }
+    const still = await fetch(`${server.baseUrl}${REST_PATH}/${analyzerId}`);
+    expect(still.status, 'the refused delete must not have deleted the snapshot').toBe(200);
+
+    const impersonation = await fetch(
+      `${server.baseUrl}${REST_PATH}/${analyzerId}/approve?by=mallory`,
+      { method: 'POST', headers: REVIEWER },
+    );
+    expect(impersonation.status, '?by= must name the authenticated reviewer').toBe(403);
+
+    const approve = await fetch(`${server.baseUrl}${REST_PATH}/${analyzerId}/approve`,
+      { method: 'POST', headers: REVIEWER });
+    expect(approve.status).toBe(200);
+    const child = await approve.json() as { metadata: Record<string, unknown>; state: string };
+    expect(child.metadata.approvedBy).toBe('alice');
+    expect(child.state).toBe("Executed 'refund order 4242' approved by alice");
+    clearCheckpointStore();
+  });
+
+  test('sweep 4.0.78: the chat reply carries the checkpoint id verbatim', async () => {
+    // The coordinator handed its checkpoint pointer to session.stream(), i.e.
+    // to the model as a prompt, so the reply never carried the id the README
+    // promises. It is now sent verbatim and names a stored analyzer snapshot.
+    clearCheckpointStore();
+    const wsUrl = server.baseUrl.replace('http://', 'ws://') + COORDINATOR_PATH;
+    const checkpointId = await new Promise<string>((resolve, reject) => {
+      const ws = new WebSocket(wsUrl);
+      let collected = '';
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch { /* ignore */ }
+        reject(new Error('no "Checkpoint: <id>" in the reply; frames: ' + collected));
+      }, 20_000);
+      ws.on('open', () => ws.send('please refund order 6060'));
+      ws.on('message', (d) => {
+        collected += d.toString();
+        const m = /Checkpoint: ([0-9a-fA-F-]{36})/.exec(collected);
+        if (m) {
+          clearTimeout(timer);
+          try { ws.close(); } catch { /* ignore */ }
+          resolve(m[1]);
+        }
+      });
+      ws.on('error', (e) => { clearTimeout(timer); reject(e); });
+    });
+
+    const res = await fetch(`${server.baseUrl}${REST_PATH}/${checkpointId}`);
+    expect(res.status, 'the id in the reply must name a stored checkpoint').toBe(200);
+    const snap = await res.json() as Record<string, unknown>;
+    expect(snap.agentName).toBe('analyzer');
+    expect(String(snap.state)).toContain('please refund order 6060');
+    // The boot log promised a signed record per dispatch; the coordinator's
+    // single-agent analyzer call journaled none (Invariant #7).
+    const commits = await fetch(`${server.baseUrl}/api/admin/governance/commitments?limit=50`);
+    expect(commits.status).toBe(200);
+    const records = await commits.json() as Array<{ subject: string; signed: boolean }>;
+    expect(records.some((r) => r.subject === 'analyzer' && r.signed),
+      'the analyzer dispatch must journal a signed CommitmentRecord: '
+        + JSON.stringify(records)).toBe(true);
+    clearCheckpointStore();
   });
 
   // ── Bug 1b: durable store wiring ─────────────────────────────────
@@ -487,7 +565,7 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     // and forks the result as a child snapshot.
     const approveRes = await fetch(
       `${server.baseUrl}${REST_PATH}/${analyzerId}/approve?by=alice`,
-      { method: 'POST' },
+      { method: 'POST', headers: REVIEWER },
     );
     expect(approveRes.status).toBe(200);
     const child = await approveRes.json() as Record<string, unknown>;
@@ -543,13 +621,13 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     // ApproverAgent and chain its result as a child snapshot. This is
     // the HITL continuation the durable store exists to enable.
     const approveRes = await fetch(
-      `${server.baseUrl}${REST_PATH}/${analyzerId}/approve?by=bob`,
-      { method: 'POST' },
+      `${server.baseUrl}${REST_PATH}/${analyzerId}/approve`,
+      { method: 'POST', headers: REVIEWER },
     );
     expect(approveRes.status).toBe(200);
     const resumed = await approveRes.json() as Record<string, unknown>;
     expect(resumed.parentId).toBe(analyzerId);
-    expect(resumed.state).toBe("Executed 'refund order 9999' approved by bob");
+    expect(resumed.state).toBe("Executed 'refund order 9999' approved by alice");
 
     // Cleanup so re-running the spec back-to-back leaves a clean slate.
     clearCheckpointStore();

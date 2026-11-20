@@ -129,6 +129,8 @@ class CheckpointApprovalE2ETest {
         var approve = http.send(HttpRequest.newBuilder()
                         .uri(URI.create("http://localhost:" + port
                                 + "/api/checkpoints/" + id + "/approve?by=alice"))
+                        // The demo reviewer token (application.yml) signs in as alice.
+                        .header(CheckpointOperatorAuth.TOKEN_HEADER, CheckpointOperatorAuth.DEMO_TOKEN)
                         .POST(HttpRequest.BodyPublishers.noBody())
                         .build(),
                 HttpResponse.BodyHandlers.ofString());
