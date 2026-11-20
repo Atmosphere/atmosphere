@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794955055466,
+  "lastUpdate": 1795139595069,
   "repoUrl": "https://github.com/Atmosphere/atmosphere",
   "entries": {
     "Atmosphere JMH Stable Gate": [
@@ -19524,6 +19524,126 @@ window.BENCHMARK_DATA = {
           {
             "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.semanticIntentScopeAdmit",
             "value": 0.07336268219859625,
+            "unit": "us/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfarcand@apache.org",
+            "name": "jfarcand",
+            "username": "jfarcand"
+          },
+          "committer": {
+            "email": "jfarcand@apache.org",
+            "name": "jfarcand",
+            "username": "jfarcand"
+          },
+          "distinct": false,
+          "id": "5373890120f80c1b73440d247ce3c8a11f4108d4",
+          "message": "fix(ai): bound a silent model stream and really cancel it on all twelve runtimes\n\natmosphere.ai.stream.idle-timeout (default 5m) ends a stalled turn once and releases its connection; TCK proves it per runtime.",
+          "timestamp": "2026-11-19T19:46:21-05:00",
+          "tree_id": "1ecef7fff206eec5cce129842ee40e1da8893f77",
+          "url": "https://github.com/Atmosphere/atmosphere/commit/5373890120f80c1b73440d247ce3c8a11f4108d4"
+        },
+        "date": 1795139593554,
+        "tool": "jmh",
+        "benches": [
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.5479511219627824,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 1.4395061383114802,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 2.7657605886231695,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 7.200651930427097,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 20.25314162168097,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.6881333461288769,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 3.007386634354486,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 4.694582115279949,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 9.277727555224748,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 21.96923999826297,
+            "unit": "ns/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.msAgentOsRuleMatch",
+            "value": 0.07876538765649155,
+            "unit": "us/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedInjectionFlagged",
+            "value": 0.6399907269153238,
+            "unit": "us/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedInjectionSafe",
+            "value": 3.9050721543452207,
+            "unit": "us/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedScopeAdmit",
+            "value": 6.150675130683492,
+            "unit": "us/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedScopeDeny",
+            "value": 1.1584643354844713,
+            "unit": "us/op",
+            "extra": "iterations: 5\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.semanticIntentScopeAdmit",
+            "value": 0.0710378701161573,
             "unit": "us/op",
             "extra": "iterations: 5\nforks: 1\nthreads: 1"
           }
