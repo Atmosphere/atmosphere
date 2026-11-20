@@ -156,9 +156,19 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         var client = applicationClient();
         if (getNativeClient() == null && client != null) {
             setNativeClient(client);
-            logger.info("Spring AI auto-configured: model={}, endpoint={}",
-                    settings != null ? settings.model() : "default",
-                    settings != null ? settings.baseUrl() : "default");
+            // Runtime truth (Correctness Invariant #5): the client in use may be
+            // one the application bound on its own ChatModel, and a ChatClient
+            // does not expose the model it was built with, so the LLM settings'
+            // model is not reported as the served one. The client Atmosphere
+            // builds itself logs its model and endpoint ("Spring AI ChatClient
+            // built"), and the auto-configuration says when the application's
+            // own client replaced it.
+            logger.info("Spring AI runtime configured: requests go through the application's "
+                    + "ChatClient, on the model and endpoint of its ChatModel");
+            if (settings != null) {
+                logger.debug("LLM settings at configure: model={}, endpoint={}",
+                        settings.model(), settings.baseUrl());
+            }
         }
     }
 
