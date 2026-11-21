@@ -586,38 +586,66 @@ printf "${BOLD}atmosphere checkpoint approve/fork/delete (auth)${RESET}\n"
 # The checkpoint-agent sample refuses its mutators anonymously and records the
 # authenticated reviewer as the approver, so the CLI sends the token as
 # X-Atmosphere-Auth and sends ?by= only when asked (it used to always send
-# by=operator, which such a server refuses). The shim records curl's argv.
+# by=operator, which such a server refuses). The shim records curl's argv, and
+# the config curl reads on stdin (`-K -`): the token goes there, never on the
+# command line, where the process list shows it to every local user.
 ckpt_tmp=$(mktemp -d)
 cat > "$ckpt_tmp/curl" <<CURLSHIMEOF
 #!/bin/sh
 for a in "\$@"; do printf '%s\n' "\$a"; done >> "$ckpt_tmp/argv"
+prev=""
+for a in "\$@"; do
+    if [ "\$prev" = "-K" ] && [ "\$a" = "-" ]; then cat >> "$ckpt_tmp/stdin"; fi
+    prev="\$a"
+done
 printf '{"id":"child-1"}'
 CURLSHIMEOF
 chmod +x "$ckpt_tmp/curl"
+: > "$ckpt_tmp/stdin"
 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint approve snap-1 --base-url http://localhost:1 --token 'demo alice' \
     > /dev/null 2>&1 && ec=0 || ec=$?
 assert_exit_code "$ec" 0 "checkpoint approve --token exits 0"
 argv=$(cat "$ckpt_tmp/argv")
-assert_contains "$argv" "X-Atmosphere-Auth: demo alice" "checkpoint approve sends the token, as one argument"
+assert_not_contains "$argv" "demo alice" "checkpoint approve keeps the token off curl's command line"
 assert_contains "$argv" "http://localhost:1/api/checkpoints/snap-1/approve" "checkpoint approve posts to the approve endpoint"
 assert_not_contains "$argv" "by=" "checkpoint approve without --by sends no by= (the server records the token's reviewer)"
+assert_contains "$(cat "$ckpt_tmp/stdin")" 'header = "X-Atmosphere-Auth: demo alice"' "checkpoint approve sends the token through curl's stdin config"
+: > "$ckpt_tmp/argv"; : > "$ckpt_tmp/stdin"
+PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint approve snap-1 --base-url http://localhost:1 --token 'a"b\c' \
+    > /dev/null 2>&1 && ec=0 || ec=$?
+assert_contains "$(cat "$ckpt_tmp/stdin")" 'header = "X-Atmosphere-Auth: a\"b\\c"' "a token's quote and backslash are escaped in curl's config"
+assert_not_contains "$(cat "$ckpt_tmp/argv")" 'a"b' "an escaped token stays off the command line too"
+: > "$ckpt_tmp/argv"
+# --token as the last argument has no value: it must fail, not take an
+# argument rotated behind it (here the checkpoint id) as the token.
+out=$(PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint approve snap-1 --token 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint --token as the last argument exits 1"
+assert_contains "$out" "--token requires a value" "checkpoint --token as the last argument says it requires a value"
+assert_not_contains "$(cat "$ckpt_tmp/argv")" "approve" "checkpoint --token with no value sends nothing"
+out=$(PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint show snap-1 --base-url 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint --base-url as the last argument exits 1"
+assert_contains "$out" "--base-url requires a value" "checkpoint --base-url as the last argument says it requires a value"
+: > "$ckpt_tmp/argv"; : > "$ckpt_tmp/stdin"
 : > "$ckpt_tmp/argv"
 PATH="$ckpt_tmp:$PATH" ATMOSPHERE_CHECKPOINT_TOKEN=env-token "$CLI" checkpoint approve snap-1 \
     --base-url http://localhost:1 --by alice > /dev/null 2>&1 && ec=0 || ec=$?
 argv=$(cat "$ckpt_tmp/argv")
-assert_contains "$argv" "X-Atmosphere-Auth: env-token" "ATMOSPHERE_CHECKPOINT_TOKEN supplies the token"
+assert_contains "$(cat "$ckpt_tmp/stdin")" "X-Atmosphere-Auth: env-token" "ATMOSPHERE_CHECKPOINT_TOKEN supplies the token"
+assert_not_contains "$argv" "env-token" "ATMOSPHERE_CHECKPOINT_TOKEN stays off curl's command line"
 assert_contains "$argv" "approve?by=alice" "checkpoint approve --by still reaches the wire"
 for sub in "fork snap-1 --state s" "delete snap-1"; do
-    : > "$ckpt_tmp/argv"
+    : > "$ckpt_tmp/argv"; : > "$ckpt_tmp/stdin"
     # shellcheck disable=SC2086
     PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint $sub --base-url http://localhost:1 --token t-1 \
         > /dev/null 2>&1 && ec=0 || ec=$?
-    assert_contains "$(cat "$ckpt_tmp/argv")" "X-Atmosphere-Auth: t-1" "checkpoint ${sub%% *} sends the token"
+    assert_contains "$(cat "$ckpt_tmp/stdin")" "X-Atmosphere-Auth: t-1" "checkpoint ${sub%% *} sends the token"
+    assert_not_contains "$(cat "$ckpt_tmp/argv")" "t-1" "checkpoint ${sub%% *} keeps the token off the command line"
 done
 : > "$ckpt_tmp/argv"
 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint delete snap-1 --base-url http://localhost:1 \
     > /dev/null 2>&1 && ec=0 || ec=$?
 assert_not_contains "$(cat "$ckpt_tmp/argv")" "X-Atmosphere-Auth" "no token configured: no auth header is invented"
+assert_not_contains "$(cat "$ckpt_tmp/argv")" "-K" "no token configured: curl reads no config"
 rm -rf "$ckpt_tmp"
 
 printf "\n"

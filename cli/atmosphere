@@ -2239,14 +2239,18 @@ cmd_checkpoint() {
     while [ "$remaining" -gt 0 ]; do
         case "$1" in
             --base-url)
-                [ -z "$2" ] && die "--base-url requires a value"
+                # Only the arguments not rotated yet can be its value: past
+                # them, "$2" is one rotated behind (the id, a subcommand flag).
+                { [ "$remaining" -lt 2 ] || [ -z "$2" ]; } && die "--base-url requires a value"
                 base="$2"; shift 2; remaining=$((remaining - 2)) ;;
             --base-url=*)
                 base="${1#--base-url=}"
                 [ -z "$base" ] && die "--base-url requires a value"
                 shift; remaining=$((remaining - 1)) ;;
             --token)
-                [ -z "$2" ] && die "--token requires a value"
+                # Only the arguments not rotated yet can be its value: past
+                # them, "$2" is one rotated behind (the id, a subcommand flag).
+                { [ "$remaining" -lt 2 ] || [ -z "$2" ]; } && die "--token requires a value"
                 token="$2"; shift 2; remaining=$((remaining - 2)) ;;
             --token=*)
                 token="${1#--token=}"
@@ -2259,11 +2263,20 @@ cmd_checkpoint() {
 
     # Curl with sane defaults: fail on HTTP errors, silent, show errors.
     ac_curl() { curl -sSf "$@"; }
-    # The mutators carry the reviewer token when one is set, quoted so the
-    # token stays one argument whatever it contains.
+    # The mutators carry the reviewer token when one is set. It goes to curl
+    # as a config read on stdin (-K -), never on the command line, where the
+    # process list shows it to every local user. Inside the config's double
+    # quotes a backslash and a quote are escaped; a line break would end the
+    # header (and inject another), so a token holding one is refused.
     ac_curl_auth() {
         if [ -n "$token" ]; then
-            curl -sSf -H "X-Atmosphere-Auth: $token" "$@"
+            case "$token" in
+                *"
+"*|*"$(printf '\r')"*) die "The reviewer token must not contain a line break" ;;
+            esac
+            printf 'header = "X-Atmosphere-Auth: %s"\n' \
+                "$(printf '%s' "$token" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')" \
+                | curl -sSf -K - "$@"
         else
             curl -sSf "$@"
         fi
@@ -2371,7 +2384,9 @@ ${BOLD}Subcommands${RESET}
 ${BOLD}Global options${RESET}
   --base-url URL               Base URL of the running agent (default: \$ATMOSPHERE_CHECKPOINT_URL or http://localhost:8095)
   --token TOKEN                Reviewer token for fork/approve/delete, sent as X-Atmosphere-Auth
-                               (default: \$ATMOSPHERE_CHECKPOINT_TOKEN)
+                               (default: \$ATMOSPHERE_CHECKPOINT_TOKEN). It reaches curl on stdin,
+                               never its command line; --token itself is on this command's,
+                               so prefer the variable on a shared host
 
 ${BOLD}Examples${RESET}
   atmosphere checkpoint list --coordination dispatch

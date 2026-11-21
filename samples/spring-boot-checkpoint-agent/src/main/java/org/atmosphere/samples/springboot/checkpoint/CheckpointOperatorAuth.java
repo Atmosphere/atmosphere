@@ -33,7 +33,9 @@ import java.util.Optional;
  * with no token configured every mutator answers 401.
  *
  * <p>Tokens come from {@code atmosphere.checkpoint.operator-tokens}, a comma
- * separated {@code token=principal} list. The sample ships the single DEMO
+ * separated {@code token=principal} list. An entry splits on its last
+ * {@code =}, so a token may hold {@code =} (base64 padding) and a principal may
+ * not; a malformed entry is skipped with a WARN at startup. The sample ships the single DEMO
  * token {@value #DEMO_TOKEN}, which signs in as {@code alice}, so the README
  * flow works out of the box; a WARN at startup says so. The caller presents the
  * token as {@code X-Atmosphere-Auth: <token>} (the header the Atmosphere
@@ -104,19 +106,21 @@ public class CheckpointOperatorAuth {
             return Map.of();
         }
         for (var pair : tokens.split(",")) {
-            var eq = pair.indexOf('=');
-            if (eq <= 0 || eq == pair.length() - 1) {
-                if (!pair.isBlank()) {
-                    logger.warn("Ignoring malformed atmosphere.checkpoint.operator-tokens entry "
-                            + "(expected token=principal)");
-                }
+            if (pair.isBlank()) {
                 continue;
             }
-            var token = pair.substring(0, eq).trim();
-            var principal = pair.substring(eq + 1).trim();
-            if (!token.isEmpty() && !principal.isEmpty()) {
-                parsed.put(token, principal);
+            // The last '=': a token may end in base64 padding ("abc=="), which
+            // splitting on the first one cut off and moved into the principal.
+            var eq = pair.lastIndexOf('=');
+            var token = eq < 0 ? "" : pair.substring(0, eq).trim();
+            var principal = eq < 0 ? "" : pair.substring(eq + 1).trim();
+            if (token.isEmpty() || principal.isEmpty()) {
+                // The entry itself is not logged: it may hold a secret.
+                logger.warn("Ignoring malformed atmosphere.checkpoint.operator-tokens entry "
+                        + "(expected token=principal)");
+                continue;
             }
+            parsed.put(token, principal);
         }
         return Map.copyOf(parsed);
     }

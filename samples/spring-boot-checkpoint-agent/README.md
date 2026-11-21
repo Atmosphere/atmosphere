@@ -128,11 +128,24 @@ impossible to produce a signed trail that survives a pause-and-resume.
 
 Every analyzer dispatch publishes a `CommitmentRecord` with fields
 `{issuer, principal, subject, scope, issuedAt, outcome, proof}` where
-`proof` carries the Ed25519 signature over the record's canonical bytes.
-A reviewer approving hours later can verify the signature against the
-coordinator's public key — cryptographic proof that (a) the request
-came from the expected coordinator, (b) the request is unmodified,
-(c) the approval decision is bound to this specific request.
+`proof` carries the Ed25519 signature over the record's canonical payload
+(`CommitmentRecord.canonicalPayload()`).
+
+**What the signature covers:** the record's `id`, `coordinationId`,
+`issuer` (the coordinator), `principal`, `subject` (the dispatched agent),
+`scope` (the skill), `delegationChain`, `issuedAt`, `expiresAt` when set,
+`outcome`, and the dispatch arguments (the request sent to the analyzer, as
+`prop:` lines). A reviewer approving hours later can verify it against the
+coordinator's public key: proof that (a) the dispatch was issued by that
+coordinator and (b) the dispatched request was not modified since.
+
+**What it does not cover:** the analyzer's answer (the checkpoint
+snapshot's state), the checkpoint chain (snapshot ids and `parentId`
+links), and the approval itself (`approvedBy`, the approver's result). The
+approval is linked to the signed dispatch only through that unsigned chain
+— the approver child snapshot's `parentId` is the analyzer snapshot — in
+the `CheckpointStore`, so nothing cryptographic binds the approval decision
+to the request; anyone who can write the store can relink or alter it.
 
 ```bash
 # Start the sample
@@ -151,7 +164,7 @@ wscat -c ws://localhost:8095/atmosphere/agent/dispatch
 curl -X POST -H 'X-Atmosphere-Auth: demo-alice' http://localhost:8095/api/checkpoints/{id}/approve
 # /approve calls ApproverAgent directly (not through the fleet), so the
 # signed CommitmentRecord on the journal is the analyzer dispatch's; the
-# approval is bound to it by the checkpoint chain (the approver child's
+# approval is linked to it only by the unsigned checkpoint chain (the approver child's
 # parentId is the analyzer snapshot) and records the authenticated reviewer.
 ```
 
