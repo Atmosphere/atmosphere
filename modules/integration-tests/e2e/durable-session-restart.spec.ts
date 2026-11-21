@@ -12,6 +12,21 @@ const SESSIONS_DB = repoPath(
 
 let server: SampleServer;
 
+/** The broadcaster of the sample's chat endpoint. */
+const CHAT_BROADCASTER = '/atmosphere/chat';
+
+/** The broadcaster ids SqliteSessionStore saved for `token` (a JSON array column), [] when none. */
+function storedBroadcasters(token: string): string[] {
+  const column = execFileSync('sqlite3',
+    [SESSIONS_DB, `SELECT broadcasters FROM durable_sessions WHERE token = '${token.replace(/'/g, "''")}';`],
+    { encoding: 'utf-8' }).trim();
+  if (column === '') {
+    return [];
+  }
+  const parsed: unknown = JSON.parse(column);
+  return Array.isArray(parsed) ? parsed.map(String) : [];
+}
+
 test.beforeAll(async () => {
   test.setTimeout(120_000);
   server = await startSample(SAMPLES['spring-boot-durable-sessions']);
@@ -83,10 +98,11 @@ test.describe('Durable Session Restart', () => {
     await server.restart();
     const sinceRestart = server.getOutput().length;
 
-    const broadcasters = execFileSync('sqlite3',
-      [SESSIONS_DB, `SELECT broadcasters FROM durable_sessions WHERE token = '${token.replace(/'/g, "''")}';`],
-      { encoding: 'utf-8' }).trim();
-    expect(broadcasters, 'the stop must save the live connection\'s broadcasters').not.toBe('');
+    // SqliteSessionStore keeps the set as a JSON array: an empty set is "[]",
+    // so the column must be parsed, not just be non-empty.
+    expect(storedBroadcasters(token),
+      'the stop must save the live connection\'s broadcasters, the chat one included')
+      .toContain(CHAT_BROADCASTER);
 
     const back = await connectDurableChat(server.baseUrl, { inband: true, sessionToken: token });
     await waitFor(() => back.sessionToken !== undefined);
@@ -95,10 +111,20 @@ test.describe('Durable Session Restart', () => {
     expect(log).toContain(`Restoring durable session ${token}`);
     expect(log).not.toContain('Suspend first');
 
-    // The restored connection is a chat member again.
+    // The restored connection is a chat member again, once: the restore's
+    // re-join adds no second membership that would deliver a message twice.
     const peer = await connectDurableChat(server.baseUrl);
     peer.ws.send(JSON.stringify({ author: 'peer', message: 'after-ws-restore' }));
     await waitFor(() => back.messages.some((m) => m.includes('after-ws-restore')));
+    peer.ws.send(JSON.stringify({ author: 'peer', message: 'after-ws-restore-fence' }));
+    await waitFor(() => back.messages.some((m) => m.includes('after-ws-restore-fence')));
+    expect(back.messages.filter((m) => m.includes('after-ws-restore') && !m.includes('fence')),
+      'the restored connection receives a chat message exactly once').toHaveLength(1);
+
+    // The restore moved the session to the new connection and kept what it
+    // holds: the stored session still names the chat broadcaster.
+    expect(storedBroadcasters(token),
+      'the restored session must still name the chat broadcaster').toContain(CHAT_BROADCASTER);
     back.close();
     peer.close();
     client.close();

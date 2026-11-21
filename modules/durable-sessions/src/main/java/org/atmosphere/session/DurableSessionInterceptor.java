@@ -58,10 +58,15 @@ import java.util.stream.Collectors;
  * connection is suspended. A client that does not ask never gets that frame.</p>
  *
  * <p>A restored session re-joins its broadcasters and rooms when the new
- * resource suspends, not while the request is inspected: a broadcaster refuses
- * a resource that is not suspended yet. The state of the connections still open
- * when the framework stops is saved before the framework closes them, since
- * closing a resource first removes it from its broadcasters.</p>
+ * resource suspends, not while the request is inspected: a broadcaster adds a
+ * resource that is not suspended yet all the same, but warns that it is not
+ * suspended and that messages its cache holds may then be delivered
+ * unexpectedly. Until the restored resource has re-joined, its connection does
+ * not save its state: it holds none of the restored broadcasters and rooms yet,
+ * and saving would overwrite the stored session with that empty state. The state
+ * of the connections still open when the framework stops is saved before the
+ * framework closes them, since closing a resource first removes it from its
+ * broadcasters.</p>
  */
 public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
@@ -238,7 +243,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                     logger.warn("Failed to touch durable session {}", known.token(), e);
                 }
                 logger.trace("Request of resource {} keeps durable session {}", r.uuid(), known.token());
-                registerSaveOnDisconnect(r, known.token());
+                registerSaveOnDisconnect(r, known.token(), null);
                 return Action.CONTINUE;
             }
         } else {
@@ -254,10 +259,16 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                     // Update the session with the new resource ID
                     store.save(session.withResourceId(r.uuid()));
                     response.setHeader(SESSION_TOKEN_RESPONSE_HEADER, token);
-                    registerSaveOnDisconnect(r, token);
-                    // Re-join once the resource is suspended: a broadcaster
-                    // refuses a resource that is not suspended yet.
-                    r.addEventListener(new OnSuspendOnce(r, session, inbandToken(r) ? token : null));
+                    // Until the restore ran, the resource holds none of the
+                    // session's broadcasters and rooms: a save then would
+                    // overwrite the stored session with that empty state.
+                    var restorePending = new AtomicBoolean(true);
+                    registerSaveOnDisconnect(r, token, restorePending);
+                    // Re-join once the resource is suspended: a broadcaster adds
+                    // a resource that is not suspended yet, but warns that
+                    // messages its cache holds may then be delivered unexpectedly.
+                    r.addEventListener(new OnSuspendOnce(r, session, inbandToken(r) ? token : null,
+                            restorePending));
                     return Action.CONTINUE;
                 }
             } catch (Exception e) {
@@ -280,9 +291,9 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
         logger.debug("Created new durable session {} for resource {}", newToken, r.uuid());
 
-        registerSaveOnDisconnect(r, newToken);
+        registerSaveOnDisconnect(r, newToken, null);
         if (inbandToken(r)) {
-            r.addEventListener(new OnSuspendOnce(r, null, newToken));
+            r.addEventListener(new OnSuspendOnce(r, null, newToken, null));
         }
         return Action.CONTINUE;
     }
@@ -318,12 +329,16 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         private final DurableSession restored;
         /** The token to write in band, or {@code null} when the client did not ask. */
         private final String inband;
+        /** Set until {@link #restored} is re-joined, or {@code null} for a new session. */
+        private final AtomicBoolean restorePending;
         private final AtomicBoolean done = new AtomicBoolean();
 
-        OnSuspendOnce(AtmosphereResource resource, DurableSession restored, String inband) {
+        OnSuspendOnce(AtmosphereResource resource, DurableSession restored, String inband,
+                      AtomicBoolean restorePending) {
             this.resource = resource;
             this.restored = restored;
             this.inband = inband;
+            this.restorePending = restorePending;
         }
 
         @Override
@@ -334,6 +349,9 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
             try {
                 if (restored != null) {
                     restoreSession(resource, restored);
+                    if (restorePending != null) {
+                        restorePending.set(false);
+                    }
                 }
                 if (inband != null) {
                     writeToken(resource, inband);
@@ -367,8 +385,14 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         var factory = config.resourcesFactory();
         if (factory != null) {
             for (var entry : connections.entrySet()) {
+                var connection = entry.getValue();
+                if (connection.restorePending()) {
+                    // Not re-joined yet: the stored session is still the whole state.
+                    logger.trace("Not saving durable session {}: its restore has not run", connection.token());
+                    continue;
+                }
                 factory.findResource(entry.getKey())
-                        .ifPresent(resource -> captureState(resource, entry.getValue().token()));
+                        .ifPresent(resource -> captureState(resource, connection.token()));
             }
         }
         logger.debug("Saved {} open durable session(s) before stopping", connections.size());
@@ -406,8 +430,12 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     /**
      * Save the current session state when the resource disconnects,
      * so it can be restored on reconnect.
+     *
+     * @param restorePending set while a restored session has not re-joined its
+     *                       broadcasters and rooms on {@code r} yet (no save
+     *                       then), or {@code null} when there is nothing to restore
      */
-    private void registerSaveOnDisconnect(AtmosphereResource r, String token) {
+    private void registerSaveOnDisconnect(AtmosphereResource r, String token, AtomicBoolean restorePending) {
         var registration = registrations.incrementAndGet();
         var now = System.nanoTime();
         // A connection without an entry is held by this resource. Otherwise the
@@ -415,7 +443,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         // request presenting another session's token never takes it over.
         connections.compute(r.uuid(), (uuid, connection) -> {
             if (connection == null) {
-                return new Connection(token, registration, now);
+                return new Connection(token, registration, now, restorePending);
             }
             if (connection.token().equals(token)) {
                 return connection.seen(now);
@@ -424,7 +452,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                     uuid, token);
             return connection;
         });
-        r.addEventListener(new SaveOnDisconnect(token, registration));
+        r.addEventListener(new SaveOnDisconnect(token, registration, restorePending));
     }
 
     /**
@@ -449,14 +477,17 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
         private final String token;
         private final long registration;
+        /** Set until a restored session re-joined on this resource, or {@code null}. */
+        private final AtomicBoolean restorePending;
         /** Whether this resource held the connection at some point. */
         private volatile boolean held;
         /** Saves once when this resource goes after a newer one took the connection over. */
         private final AtomicBoolean savedReplaced = new AtomicBoolean();
 
-        SaveOnDisconnect(String token, long registration) {
+        SaveOnDisconnect(String token, long registration, AtomicBoolean restorePending) {
             this.token = token;
             this.registration = registration;
+            this.restorePending = restorePending;
         }
 
         @Override
@@ -473,7 +504,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
             connections.compute(event.getResource().uuid(), (uuid, connection) -> {
                 if (connection == null || connection.token().equals(token)) {
                     held = true;
-                    return new Connection(token, registration, System.nanoTime());
+                    return new Connection(token, registration, System.nanoTime(), restorePending);
                 }
                 return connection;
             });
@@ -490,7 +521,16 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         private void connectionGoes(AtmosphereResource r) {
-            if (saveOnDisconnect(r, token, registration) && held && savedReplaced.compareAndSet(false, true)) {
+            // A restored resource that goes before it re-joined its session holds
+            // none of the session's broadcasters and rooms: the stored session is
+            // left as it is rather than overwritten with that empty state.
+            var save = restorePending == null || !restorePending.get();
+            if (!save) {
+                logger.debug("Resource {} went before durable session {} was restored: not saving it",
+                        r.uuid(), token);
+            }
+            if (saveOnDisconnect(r, token, registration, save) && held && save
+                    && savedReplaced.compareAndSet(false, true)) {
                 // The poll that took the connection over may never fire a disconnect
                 // (one answered from the BroadcasterCache): save now, and leave it the entry.
                 saveCurrentState(r, token);
@@ -504,9 +544,10 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * removes the connection's entry saves, so the connection is saved once. A
      * client that reconnects with the same tracking id is a new entry, saved again.
      *
+     * @param save whether to save the state when the entry is removed
      * @return whether a newer resource of the same session holds the connection
      */
-    private boolean saveOnDisconnect(AtmosphereResource r, String token, long registration) {
+    private boolean saveOnDisconnect(AtmosphereResource r, String token, long registration, boolean save) {
         var removed = new AtomicBoolean();
         var replaced = new AtomicBoolean();
         connections.computeIfPresent(r.uuid(), (uuid, connection) -> {
@@ -517,7 +558,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
             removed.set(true);
             return null;
         });
-        if (removed.get()) {
+        if (removed.get() && save) {
             saveCurrentState(r, token);
         }
         return replaced.get();
@@ -639,10 +680,15 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * The session a live connection uses, the registration of the resource that
      * holds the connection, and when a request of the connection was last seen.
      */
-    private record Connection(String token, long registration, long seenNanos) {
+    private record Connection(String token, long registration, long seenNanos, AtomicBoolean restorePendingFlag) {
 
         Connection seen(long nanos) {
-            return new Connection(token, registration, nanos);
+            return new Connection(token, registration, nanos, restorePendingFlag);
+        }
+
+        /** Whether the holding resource has not re-joined its restored session yet. */
+        boolean restorePending() {
+            return restorePendingFlag != null && restorePendingFlag.get();
         }
     }
 

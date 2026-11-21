@@ -99,8 +99,15 @@ const sub = await atmosphere.subscribe({
 });
 ```
 
+The token is a bearer credential: whoever holds it rejoins the session's rooms and
+broadcasters. `sub.close()` forgets the kept copy (in memory and in `sessionStorage`), so a
+later subscription or a reload starts a new session; `sub.abandon()`, a reconnect and a
+reload keep it. Call `clearSessionToken(url)` (exported by `atmosphere.js`) to drop it at
+any other time, a sign-out for one.
+
 Pass `sessionToken` only to choose the session yourself (it then wins over the one the
-client keeps). A raw WebSocket client opts in with
+client keeps, until the server hands back a different token because it no longer knew
+yours: that one is sent from then on). A raw WebSocket client opts in with
 `ws://host/atmosphere/chat?X-Atmosphere-Session-Token-Inband=true`, reads the
 `X-Atmosphere-Session-Token=<token>` frame, and reconnects with
 `X-Atmosphere-Session-Token=<token>` as a header or query parameter

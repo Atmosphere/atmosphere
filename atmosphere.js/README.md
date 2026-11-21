@@ -188,6 +188,25 @@ the same over every transport; where `sessionStorage` is missing or throws, the
 run id lives in memory only, as before. A `runId` set on the request is sent
 instead of the stored one.
 
+The durable session token a server with durable sessions assigns (the
+`X-Atmosphere-Session-Token` response header, or the in-band frame a WebSocket
+asks for) is kept the same way, under `atmosphere.js:session-token:` and the
+endpoint's origin and path, and sent on every reconnect, so a reload after a
+server restart rejoins the session's rooms and broadcasters. It is a bearer
+credential: `close()` forgets it (in memory and in `sessionStorage`), while
+`abandon()`, a reconnect and a reload keep it. Drop it at any other time — a
+sign-out — with `clearSessionToken(url)`:
+
+```typescript
+import { clearSessionToken } from 'atmosphere.js';
+
+clearSessionToken('/atmosphere/chat'); // the next connection starts a new durable session
+```
+
+A token the server hands back that differs from the one sent (it no longer
+knew it) replaces it, a `sessionToken` set on the request included, for the
+rest of the connection's reconnects.
+
 Every request also says what the connection last received of each AI session:
 `X-Atmosphere-Resume`, the `seq` of the last frame of each session as
 `sessionId:seq` pairs (at most 16, the most recently received last), read from

@@ -20,9 +20,21 @@ A WebSocket client cannot read the upgrade response's headers, so one that sends
 also gets one `X-Atmosphere-Session-Token=<token>` frame once its connection is
 suspended. A client that does not ask never gets it. The client re-sends the token as
 `X-Atmosphere-Session-Token` (header or query parameter) when it reconnects; the restored
-session re-joins its rooms and broadcasters once the new connection is suspended. The
+session re-joins its rooms and broadcasters once the new connection is suspended (a
+broadcaster adds a resource that is not suspended yet all the same, but logs that it is
+not suspended and that messages its cache holds may then be delivered unexpectedly).
+A restored connection that goes before it suspended saves nothing: it holds none of the
+session's rooms and broadcasters yet, and the stored session stays as it was. The
 state of the connections still open when the framework stops is saved before they are
 closed.
+
+A session whose token the server no longer knows (expired, or another store) is
+replaced by a new one: the response carries the new token, which the client keeps in
+place of the one it sent. The token is a bearer credential for the session's rooms and
+broadcasters. atmosphere.js keeps it in the tab's `sessionStorage` so a reload rejoins
+the session, and forgets it when the application closes the subscription
+(`Subscription.close()`) or calls `clearSessionToken(url)`; a reconnect, a reload and
+`Subscription.abandon()` keep it.
 
 ## Quick Start
 

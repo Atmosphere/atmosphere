@@ -28,7 +28,7 @@ import { AtmosphereProtocol } from '../utils/protocol';
 import { learnedHeartbeat } from '../utils/heartbeat-registry';
 import { SEND_ERROR_NAME } from '../utils/send-error';
 import { clearRunId, loadRunId, saveRunId } from '../utils/run-id-store';
-import { loadSessionToken, saveSessionToken } from '../utils/session-token-store';
+import { clearSessionToken, loadSessionToken, saveSessionToken } from '../utils/session-token-store';
 import {
   RUN_UNKNOWN_KEY,
   clearPendingPrompt,
@@ -172,6 +172,17 @@ export abstract class BaseTransport<T = unknown> {
     this.protocol.runId = null;
     clearRunId(this.request.url);
     this.forgetPendingPrompt();
+  }
+
+  /**
+   * Forget the durable session token, in memory and in the tab's storage:
+   * the client left on purpose (`close()`), so neither a later subscription
+   * nor a reload of this tab rejoins the session's rooms and broadcasters.
+   * A request's explicit `sessionToken` is the application's to drop.
+   */
+  forgetSessionToken(): void {
+    this.protocol.clearSessionToken();
+    clearSessionToken(this.request.url);
   }
 
   /**

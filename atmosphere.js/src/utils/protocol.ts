@@ -72,6 +72,16 @@ export class AtmosphereProtocol {
    */
   onSessionToken: ((token: string) => void) | null = null;
 
+  /**
+   * Whether {@link sessionToken} is one the server handed back on this
+   * connection's lifetime (header or in-band frame), as opposed to one loaded
+   * from storage. A token the server hands back replaces the one the request
+   * names (`AtmosphereRequest.sessionToken`) too: the server answers a token
+   * it no longer knows with a new one, and sending the stale one again would
+   * start yet another session on every reconnect.
+   */
+  private sessionTokenAssigned = false;
+
   /** Durable run id of the in-flight run, re-sent on reconnect to resume it. */
   runId: string | null = null;
 
@@ -158,7 +168,9 @@ export class AtmosphereProtocol {
     }
 
     // Send durable session token if available
-    const token = request.sessionToken ?? this.sessionToken;
+    const token = this.sessionTokenAssigned && this.sessionToken
+      ? this.sessionToken
+      : request.sessionToken ?? this.sessionToken;
     if (token) {
       params.push(`X-Atmosphere-Session-Token=${encodeURIComponent(token)}`);
     }
@@ -468,8 +480,18 @@ export class AtmosphereProtocol {
     return true;
   }
 
+  /**
+   * Forget the session token held in memory, so the next connection carries
+   * none and the server starts a new durable session.
+   */
+  clearSessionToken(): void {
+    this.sessionToken = null;
+    this.sessionTokenAssigned = false;
+  }
+
   private storeSessionToken(token: string): void {
     this.sessionToken = token;
+    this.sessionTokenAssigned = true;
     logger.debug(`Session token captured: ${token.substring(0, 8)}...`);
     this.onSessionToken?.(token);
   }

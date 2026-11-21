@@ -31,6 +31,13 @@ import { endpointKey } from './run-id-store';
  * frame a WebSocket gets) and read when a transport is created. A token the
  * server no longer knows is answered with a new one, which replaces it.
  *
+ * The token is a bearer credential: whoever holds it rejoins the session's
+ * rooms and broadcaster subscriptions. It is dropped when the application
+ * closes the subscription (`Subscription.close()`, which also clears the run
+ * id) and can be dropped at any time with {@link clearSessionToken} (a
+ * sign-out, for one); a transient reconnect, a transport fallback, a page
+ * reload and `Subscription.abandon()` keep it, so the session survives them.
+ *
  * `sessionStorage` can be missing or throw (React Native, Node, a sandboxed
  * frame, storage blocked): the token then lives in memory only.
  */
@@ -72,5 +79,21 @@ export function saveSessionToken(url: string, token: string): void {
     store.setItem(sessionTokenStorageKey(url), token);
   } catch (error) {
     logger.debug('Unable to store the session token:', error);
+  }
+}
+
+/**
+ * Forget the session token stored for `url`'s endpoint in this tab: the next
+ * connection to that endpoint starts a new durable session. Call it when the
+ * user signs out, or the session must not be rejoined from this tab.
+ * `Subscription.close()` calls it for its own endpoint.
+ */
+export function clearSessionToken(url: string): void {
+  const store = storage();
+  if (store === null) return;
+  try {
+    store.removeItem(sessionTokenStorageKey(url));
+  } catch (error) {
+    logger.debug('Unable to remove the stored session token:', error);
   }
 }

@@ -123,7 +123,12 @@ export interface AtmosphereRequest {
    * writes when the client asks for it ({@code X-Atmosphere-Session-Token-Inband=true},
    * sent on every WebSocket connect). The token is re-sent on every reconnect
    * and kept in the tab's {@code sessionStorage}, so a reload rejoins the
-   * session too.
+   * session too. A token the server hands back that differs from the one sent
+   * (the server no longer knew it) replaces it, this one included, for the
+   * rest of the connection's reconnects. The token is a bearer credential for
+   * the session's rooms and broadcasters: {@code Subscription.close()} drops
+   * the kept copy, and {@code clearSessionToken(url)} drops it at any time
+   * (a sign-out).
    */
   sessionToken?: string;
   /**
@@ -342,7 +347,11 @@ export interface Subscription {
    * listener. WebSocket and WebTransport
    * send no extra request: closing the socket tells the server. Calling
    * `close()` again sends nothing more, and a failed close message is logged
-   * at debug level, never thrown.
+   * at debug level, never thrown. Leaving for good, it also forgets the run id
+   * and the durable session token this client keeps for the endpoint (in
+   * memory and in the tab's `sessionStorage`), so a later subscription or a
+   * reload of the tab starts a new durable session; `abandon()`, a
+   * reconnect and a page reload keep them.
    */
   close(): Promise<void>;
   /**

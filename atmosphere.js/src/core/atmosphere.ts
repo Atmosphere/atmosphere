@@ -264,6 +264,9 @@ export class Atmosphere {
           // Leaving on purpose ends the run on the server: a reload of this
           // tab must not try to reattach to it.
           currentTransport.forgetRunId();
+          // The durable session token is a bearer credential for the
+          // session's rooms and broadcasters: leaving for good drops it.
+          currentTransport.forgetSessionToken();
         }
         await currentTransport.disconnect();
         this.subscriptions.delete(id);

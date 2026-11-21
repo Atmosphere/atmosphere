@@ -118,8 +118,9 @@ public class DurableSessionInterceptorTest {
 
         assertEquals(Action.CONTINUE, action);
         verify(response).setHeader(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER, "existing-token");
-        // The broadcaster refuses a resource that is not suspended yet: the
-        // restore waits for the suspend.
+        // A broadcaster adds a resource that is not suspended yet but warns that
+        // its cached messages may then be delivered unexpectedly: the restore
+        // waits for the suspend.
         verify(broadcaster, never()).addAtmosphereResource(resource);
         var listeners = ArgumentCaptor.forClass(org.atmosphere.cpr.AtmosphereResourceEventListener.class);
         verify(resource, atLeastOnce()).addEventListener(listeners.capture());
@@ -127,6 +128,86 @@ public class DurableSessionInterceptorTest {
         when(event.getResource()).thenReturn(resource);
         listeners.getAllValues().forEach(l -> l.onSuspend(event));
         verify(broadcaster).addAtmosphereResource(resource);
+    }
+
+    /**
+     * A restored resource that closes (or disconnects) before it suspends has not
+     * re-joined the session's broadcasters and rooms: saving its state then
+     * overwrote the stored session with empty sets, losing the session.
+     */
+    @Test
+    public void testRestoredResourceClosedBeforeSuspendKeepsStoredSession() {
+        assertStoredSessionKeptWhenGoneBeforeSuspend(true);
+    }
+
+    @Test
+    public void testRestoredResourceDisconnectedBeforeSuspendKeepsStoredSession() {
+        assertStoredSessionKeptWhenGoneBeforeSuspend(false);
+    }
+
+    private void assertStoredSessionKeptWhenGoneBeforeSuspend(boolean close) {
+        store.save(DurableSession.create("pending-token", "old-resource")
+                .withRooms(Set.of("chat"))
+                .withBroadcasters(Set.of("/chat")));
+        when(request.getHeader(DurableSessionInterceptor.SESSION_TOKEN_HEADER)).thenReturn("pending-token");
+        when(broadcasterFactory.lookup("/chat", false)).thenReturn(mock(Broadcaster.class));
+
+        interceptor.inspect(resource);
+        var listeners = ArgumentCaptor.forClass(org.atmosphere.cpr.AtmosphereResourceEventListener.class);
+        verify(resource, atLeastOnce()).addEventListener(listeners.capture());
+        var event = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);
+        when(event.getResource()).thenReturn(resource);
+        // The resource goes before it suspends: it holds no broadcaster yet.
+        listeners.getAllValues().forEach(l -> {
+            if (close) {
+                l.onClose(event);
+            } else {
+                l.onDisconnect(event);
+            }
+        });
+
+        var stored = store.restore("pending-token").orElseThrow();
+        assertEquals(Set.of("/chat"), stored.broadcasters());
+        assertEquals(Set.of("chat"), stored.rooms());
+    }
+
+    /** The stop path does not overwrite a session whose restore has not run either. */
+    @Test
+    public void testStopBeforeRestoredResourceSuspendsKeepsStoredSession() {
+        store.save(DurableSession.create("stop-token", "old-resource")
+                .withBroadcasters(Set.of("/chat")));
+        when(request.getHeader(DurableSessionInterceptor.SESSION_TOKEN_HEADER)).thenReturn("stop-token");
+        var factory = mock(org.atmosphere.cpr.AtmosphereResourceFactory.class);
+        when(config.resourcesFactory()).thenReturn(factory);
+        when(factory.findResource("resource-uuid-1")).thenReturn(java.util.Optional.of(resource));
+
+        interceptor.inspect(resource);
+        interceptor.saveOpenConnections();
+
+        assertEquals(Set.of("/chat"), store.restore("stop-token").orElseThrow().broadcasters());
+    }
+
+    /** Once re-joined, the restored resource saves what it holds when it goes. */
+    @Test
+    public void testRestoredResourceSavesAfterSuspend() {
+        store.save(DurableSession.create("done-token", "old-resource")
+                .withBroadcasters(Set.of("/chat")));
+        when(request.getHeader(DurableSessionInterceptor.SESSION_TOKEN_HEADER)).thenReturn("done-token");
+        var chat = mock(Broadcaster.class);
+        when(broadcasterFactory.lookup("/chat", false)).thenReturn(chat);
+        var other = mock(Broadcaster.class);
+        when(other.getID()).thenReturn("/other");
+
+        interceptor.inspect(resource);
+        var listeners = ArgumentCaptor.forClass(org.atmosphere.cpr.AtmosphereResourceEventListener.class);
+        verify(resource, atLeastOnce()).addEventListener(listeners.capture());
+        var event = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);
+        when(event.getResource()).thenReturn(resource);
+        listeners.getAllValues().forEach(l -> l.onSuspend(event));
+        when(resource.broadcasters()).thenReturn(List.of(other));
+        listeners.getAllValues().forEach(l -> l.onClose(event));
+
+        assertEquals(Set.of("/other"), store.restore("done-token").orElseThrow().broadcasters());
     }
 
     @Test
