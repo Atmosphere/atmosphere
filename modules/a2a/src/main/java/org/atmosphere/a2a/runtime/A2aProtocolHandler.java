@@ -865,18 +865,30 @@ public final class A2aProtocolHandler {
     }
 
     /**
-     * The tape status of a finished raw skill run: the task's own terminal
-     * state wins, since a skill can fail, reject or cancel its task through
+     * The tape status of a finished raw skill run: the task's own state wins,
+     * since a skill can fail, reject or cancel its task through
      * {@link TaskContext} without throwing (Correctness Invariant #5 — the
-     * tape records what happened, not "the handler returned"). A task the
-     * skill left non-terminal is taped from whether the handler threw.
+     * tape records what happened, not "the handler returned"). The mapping:
+     * <ul>
+     *   <li>{@code COMPLETED} → {@code COMPLETED};</li>
+     *   <li>{@code FAILED}, {@code REJECTED} → {@code ERROR};</li>
+     *   <li>{@code CANCELED} → {@code CANCELLED};</li>
+     *   <li>a task the skill left non-terminal ({@code SUBMITTED},
+     *       {@code WORKING}, {@code INPUT_REQUIRED}, {@code AUTH_REQUIRED},
+     *       {@code UNSPECIFIED}) → {@code ERROR} when the handler threw, else
+     *       {@code ABANDONED}: the dispatch's tape run is closed when the
+     *       handler returns, and no tape status means "still running" for a
+     *       closed run ({@code OPEN} is not terminal), so the run is recorded
+     *       as ended without reaching a terminal — never as completed.</li>
+     * </ul>
      */
     static org.atmosphere.ai.tape.TapeStatus tapeStatus(TaskContext taskCtx, boolean ok) {
         return switch (taskCtx.state()) {
             case COMPLETED -> org.atmosphere.ai.tape.TapeStatus.COMPLETED;
             case FAILED, REJECTED -> org.atmosphere.ai.tape.TapeStatus.ERROR;
             case CANCELED -> org.atmosphere.ai.tape.TapeStatus.CANCELLED;
-            default -> ok ? org.atmosphere.ai.tape.TapeStatus.COMPLETED
+            case UNSPECIFIED, SUBMITTED, WORKING, INPUT_REQUIRED, AUTH_REQUIRED -> ok
+                    ? org.atmosphere.ai.tape.TapeStatus.ABANDONED
                     : org.atmosphere.ai.tape.TapeStatus.ERROR;
         };
     }
