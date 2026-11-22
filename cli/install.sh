@@ -109,13 +109,16 @@ install_cli() {
 
     chmod +x "$tmp_dir/atmosphere"
 
-    # Install to INSTALL_DIR
+    # Install to INSTALL_DIR. A directory that does not exist yet is created:
+    # by the user when its parent allows it, else with sudo below.
+    [ -d "$INSTALL_DIR" ] || mkdir -p "$INSTALL_DIR" 2>/dev/null || true
     if [ -w "$INSTALL_DIR" ]; then
         cp "$tmp_dir/atmosphere" "$INSTALL_DIR/atmosphere"
         cp "$tmp_dir/samples.json" "$ATMOSPHERE_HOME/samples.json"
         ok "Installed to $INSTALL_DIR/atmosphere"
     else
         info "Installing to $INSTALL_DIR requires sudo"
+        sudo mkdir -p "$INSTALL_DIR"
         sudo cp "$tmp_dir/atmosphere" "$INSTALL_DIR/atmosphere"
         cp "$tmp_dir/samples.json" "$ATMOSPHERE_HOME/samples.json"
         ok "Installed to $INSTALL_DIR/atmosphere"

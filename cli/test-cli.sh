@@ -566,7 +566,18 @@ printf "${BOLD}atmosphere checkpoint list (stdout)${RESET}\n"
 ckpt_tmp=$(mktemp -d)
 cat > "$ckpt_tmp/curl" <<'CURLSHIMEOF'
 #!/bin/sh
-printf '[{"id":"snap-1"},{"id":"snap-2"}]'
+# Answers as curl does for `-o <file> -w '%{http_code}'`: the body to the
+# file, the status to stdout.
+prev=""; body_out=""; wfmt=""
+for a in "$@"; do
+    [ "$prev" = "-o" ] && body_out="$a"
+    [ "$prev" = "-w" ] && wfmt="$a"
+    prev="$a"
+done
+body='[{"id":"snap-1"},{"id":"snap-2"}]'
+if [ -n "$body_out" ]; then printf '%s' "$body" > "$body_out"; else printf '%s' "$body"; fi
+[ -n "$wfmt" ] && printf '200'
+exit 0
 CURLSHIMEOF
 chmod +x "$ckpt_tmp/curl"
 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint list --base-url http://localhost:1 \
@@ -674,6 +685,20 @@ assert_contains "$out" "Failed to delete snap-1: HTTP 403" "checkpoint delete na
 out=$(SHIM_STATUS=204 SHIM_BODY= PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint delete snap-1 --base-url http://localhost:1 --token t 2>/dev/null) && ec=0 || ec=$?
 assert_exit_code "$ec" 0 "checkpoint delete succeeds on 204"
 assert_contains "$out" "204" "checkpoint delete still prints the HTTP status"
+# The reads name a missing checkpoint the same way, without curl's own
+# "(22) The requested URL returned error: 404" line.
+out=$(SHIM_STATUS=404 SHIM_BODY='{"error":"not found"}' PATH="$ckpt_tmp:$PATH" "$CLI" \
+    checkpoint show missing-1 --base-url http://localhost:1 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint show of a missing id exits 1"
+assert_contains "$out" "Cannot show checkpoint missing-1: HTTP 404: no such checkpoint (not found)" "checkpoint show names a missing checkpoint"
+assert_not_contains "$out" "curl:" "checkpoint show prints no raw curl error"
+assert_not_contains "$out" "not found\"}" "checkpoint show writes no error body to stdout"
+out=$(SHIM_STATUS=500 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint list --base-url http://localhost:1 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint list refused exits 1"
+assert_contains "$out" "Failed to list checkpoints at http://localhost:1/api/checkpoints: HTTP 500" "checkpoint list names the status"
+out=$(PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint show snap-1 --base-url http://localhost:1 2>/dev/null) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "checkpoint show succeeds on 200"
+assert_contains "$out" "child-1" "checkpoint show prints the body"
 rm -rf "$ckpt_tmp"
 
 printf "\n"
@@ -2523,6 +2548,17 @@ sed 's|^    "$installed" version|    "$installed.broken" version|' "$INSTALLER" 
 run_installer "$inst_tmp/install-broken.sh" PATH="$inst_tmp/bin:$inst_tmp/dest:$PATH" > /dev/null
 out=$(cat "$inst_tmp/out")
 assert_contains "$out" "the installed CLI does not run" "install.sh fails when the CLI it installed does not run"
+# An install directory that does not exist yet is created, not handed to
+# sudo cp, which fails on a missing directory and prompts in a
+# non-interactive run.
+run_installer "$INSTALLER" ATMOSPHERE_INSTALL_DIR="$inst_tmp/fresh/bin" > /dev/null
+out=$(cat "$inst_tmp/out")
+assert_not_contains "$out" "requires sudo" "install.sh creates a missing install directory without sudo"
+if [ -x "$inst_tmp/fresh/bin/atmosphere" ]; then
+    pass "install.sh installs into a directory it created"
+else
+    fail "install.sh installs into a directory it created" "$out"
+fi
 
 rm -rf "$inst_tmp"
 printf "\n"

@@ -2261,9 +2261,9 @@ cmd_checkpoint() {
         esac
     done
 
-    # Curl with sane defaults: fail on HTTP errors, silent, show errors.
-    ac_curl() { curl -sSf "$@"; }
-    # The mutators carry the reviewer token when one is set. It goes to curl
+    # Every request goes through ac_curl_auth, the reads too, so a refusal or a
+    # missing checkpoint is named the same way on every subcommand.
+    # The requests carry the reviewer token when one is set. It goes to curl
     # as a config read on stdin (-K -), never on the command line, where the
     # process list shows it to every local user. Inside the config's double
     # quotes a backslash and a quote are escaped; a line break would end the
@@ -2342,14 +2342,14 @@ cmd_checkpoint() {
             # Progress goes to stderr: stdout carries only the JSON, as for
             # show/fork/approve, so `checkpoint list | jq` parses.
             info "GET $url" >&2
-            ac_curl "$url" || die "Failed to list checkpoints at $url"
+            ac_curl_auth "$url" || die "Failed to list checkpoints at $url${ac_reason:+: $ac_reason}"
             printf "\n"
             ;;
         show)
             local id="$1"
             [ -z "$id" ] && die "Usage: atmosphere checkpoint show <id>"
-            ac_curl "${base}/api/checkpoints/$(urlencode "$id")" \
-                || die "Checkpoint $id not found"
+            ac_curl_auth "${base}/api/checkpoints/$(urlencode "$id")" \
+                || die "Cannot show checkpoint $id${ac_reason:+: $ac_reason}"
             printf "\n"
             ;;
         fork)
