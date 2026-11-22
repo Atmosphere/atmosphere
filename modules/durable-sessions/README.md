@@ -34,7 +34,7 @@ place of the one it sent. The token is a bearer credential for the session's roo
 broadcasters. atmosphere.js keeps it in the tab's `sessionStorage` so a reload rejoins
 the session, and forgets it when the application closes the subscription
 (`Subscription.close()`) or calls `clearSessionToken(url)`; a reconnect, a reload and
-`Subscription.abandon()` keep it.
+`Subscription.abandon()` of a connection that already failed keep it.
 
 A client that leaves on purpose also ends the session on the server: a WebSocket closed
 with `1000`, or an HTTP transport's close message without the going-away reason (what

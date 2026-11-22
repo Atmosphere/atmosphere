@@ -65,10 +65,15 @@ public class Chat {
 
     @Disconnect
     public void onDisconnect() {
+        // The durable-sessions interceptor keeps the stored session of a
+        // connection that was lost or of a page going away (reload,
+        // navigation), and removes it when the client leaves on purpose.
         if (event.isCancelled()) {
-            logger.info("Client {} unexpectedly disconnected — session saved", event.getResource().uuid());
+            logger.info("Client {} unexpectedly disconnected — session kept for its reconnect",
+                    event.getResource().uuid());
         } else {
-            logger.info("Client {} closed — session saved", event.getResource().uuid());
+            logger.info("Client {} closed — session kept if the page is coming back, removed if the client left",
+                    event.getResource().uuid());
         }
     }
 
