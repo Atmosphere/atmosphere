@@ -300,10 +300,43 @@ else
   fail=1
 fi
 
+# shaded_index_check <name> <jar> — a shaded jar must carry the union of the
+# Atmosphere annotation indexes (META-INF/atmosphere/annotated-classes.txt) of
+# what it bundles: the runtime's and the sample's own. Without an appending
+# transformer the shade plugin keeps the first copy it meets and drops the
+# rest, so the embedded-jetty jar shipped only the sample's 3-line index. A
+# native image or the precomputed scan then misses every class of the others.
+shaded_index_check() {
+  local name="$1" jar="$2" index="META-INF/atmosphere/annotated-classes.txt"
+  local runtime="$ROOT/modules/cpr/target/atmosphere-runtime-$REACTOR_VERSION.jar"
+  local original
+  original="$(dirname "$jar")/original-$(basename "$jar")"
+  if [[ ! -f "$runtime" ]]; then
+    echo "ERROR [$name] $runtime missing: build the reactor before the smoke" >&2
+    return 1
+  fi
+  local have want missing
+  have="$(unzip -p "$jar" "$index" 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$' | sort -u)"
+  want="$( { unzip -p "$runtime" "$index" 2>/dev/null
+             [[ -f "$original" ]] && unzip -p "$original" "$index" 2>/dev/null
+           } | grep -v '^#' | grep -v '^[[:space:]]*$' | sort -u)"
+  if [[ -z "$want" ]]; then
+    echo "ERROR [$name] the runtime jar carries no $index" >&2
+    return 1
+  fi
+  missing="$(comm -13 <(printf '%s\n' "$have") <(printf '%s\n' "$want"))"
+  if [[ -n "$missing" ]]; then
+    echo "ERROR [$name] the shaded jar's $index drops $(printf '%s\n' "$missing" | wc -l | tr -d ' ') bundled entries, e.g. $(printf '%s\n' "$missing" | head -1) — append it in the shade plugin (AppendingTransformer)" >&2
+    return 1
+  fi
+  echo "[smoke] $name: shaded annotation index holds all $(printf '%s\n' "$want" | wc -l | tr -d ' ') bundled entries"
+}
+
 # kotlin-dsl-chat: maven-shade fat jar. Regressions the exploded run can't see —
 # the WS upgrade answered 501 (jakarta.websocket container missing) and SLF4J
 # no-oped (logback-core dropped). Reads -Dserver.port; WS at /chat.
 if KOTLIN_JAR="$(sample_jar kotlin-dsl-chat)"; then
+  shaded_index_check kotlin-dsl-chat "$KOTLIN_JAR" || fail=1
   boot_ws_and_check kotlin-dsl-chat \
     "$KOTLIN_JAR" \
     18099 /chat || fail=1
@@ -314,6 +347,7 @@ fi
 # embedded-jetty-websocket-chat: maven-shade fat jar serving Atmosphere on an
 # embedded Jetty with a classpath /webapp/. WS at /chat; same shade-drop risks.
 if JETTY_JAR="$(sample_jar embedded-jetty-websocket-chat)"; then
+  shaded_index_check embedded-jetty-websocket-chat "$JETTY_JAR" || fail=1
   boot_ws_and_check embedded-jetty-websocket-chat \
     "$JETTY_JAR" \
     18080 /chat || fail=1

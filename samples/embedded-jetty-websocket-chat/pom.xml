@@ -171,6 +171,11 @@
                                     <mainClass>org.atmosphere.samples.chat.EmbeddedJettyWebSocketChat</mainClass>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- Every Atmosphere jar ships its own annotation index: merge them, or the
+                                     first copy wins and the runtime's entries are dropped. -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/atmosphere/annotated-classes.txt</resource>
+                                </transformer>
                             </transformers>
                         </configuration>
                     </execution>
