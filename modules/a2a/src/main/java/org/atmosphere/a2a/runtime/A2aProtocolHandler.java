@@ -718,7 +718,7 @@ public final class A2aProtocolHandler {
     }
 
     private void executeSkill(A2aRegistry.SkillEntry skill, TaskContext taskCtx, JsonNode params) {
-        var inputText = firstMessageText(params);
+        var inputText = skillInputText(params);
         if (!admitRawSkill(skill, taskCtx, inputText)) {
             return;
         }
@@ -896,6 +896,28 @@ public final class A2aProtocolHandler {
     private String firstMessageText(JsonNode params) {
         var message = extractMessage(params);
         return message.parts().isEmpty() ? null : message.parts().getFirst().text();
+    }
+
+    /**
+     * The input of a raw skill run, as admission screens it and the tape records
+     * it: the named {@code arguments} when the caller sent them (the value of a
+     * single one, all of them as a JSON object otherwise), else the message's
+     * first text part. The coordinator's transports send both, and the message
+     * text is a single argument's value at best: for a call with several, it
+     * named whichever came first in the caller's map — the startup-team's
+     * {@code web_search} child was screened and taped as its {@code num_results}
+     * ({@code "3"}), not its query.
+     */
+    String skillInputText(JsonNode params) {
+        var arguments = params.get("arguments");
+        if (arguments != null && arguments.isObject() && !arguments.isEmpty()) {
+            if (arguments.size() == 1) {
+                var only = arguments.values().iterator().next();
+                return only.isString() ? only.stringValue() : only.toString();
+            }
+            return arguments.toString();
+        }
+        return firstMessageText(params);
     }
 
     private static String taskResultText(TaskContext taskCtx) {

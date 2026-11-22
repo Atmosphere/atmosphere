@@ -18,10 +18,13 @@ package org.atmosphere.coordinator.transport;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -182,10 +185,31 @@ final class JsonRpcUtils {
         return null;
     }
 
+    /**
+     * The text part of the message a call sends, for a receiver that reads the
+     * message rather than the named {@code arguments}: the value of a single
+     * argument, or the first of an ordered map's (a {@link SequencedMap}, such as
+     * a {@link LinkedHashMap}). An unordered map with several arguments
+     * ({@code Map.of}, a {@code HashMap}) has no first one: its iteration order
+     * is arbitrary, so the text was whichever came first, a call's
+     * {@code num_results} as easily as its query. All of them go as a JSON
+     * object then, keys sorted.
+     */
+    static String messageText(Map<String, Object> args) {
+        if (args.isEmpty()) {
+            return "";
+        }
+        if (args.size() == 1 || args instanceof SequencedMap<?, ?>) {
+            return String.valueOf(args.values().iterator().next());
+        }
+        var sorted = new TreeMap<String, Object>(Comparator.nullsFirst(Comparator.naturalOrder()));
+        sorted.putAll(args);
+        return mapper.writeValueAsString(sorted);
+    }
+
     private static String buildRequest(String method, String skill, Map<String, Object> args,
                                        Map<String, Object> dispatchMetadata) {
-        var firstValue = args.values().isEmpty()
-                ? "" : String.valueOf(args.values().iterator().next());
+        var firstValue = messageText(args);
         // Message metadata = the fixed skillId plus any caller-supplied dispatch
         // metadata (e.g. the coordinator's tape run id, atmosphere.tape.parentRunId,
         // which the receiving task inherits so the child records its parent run).
