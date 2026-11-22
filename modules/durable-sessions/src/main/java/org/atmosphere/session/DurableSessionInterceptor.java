@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereFrameworkListenerAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.interceptor.AllowInterceptor;
@@ -67,10 +68,22 @@ import java.util.stream.Collectors;
  * of the connections still open when the framework stops is saved before the
  * framework closes them, since closing a resource first removes it from its
  * broadcasters.</p>
+ *
+ * <p>A client that leaves on purpose ends its durable session: the stored
+ * session is removed rather than saved, so its token no longer rejoins the
+ * session's rooms and broadcasters. Leaving on purpose is a WebSocket closed
+ * with {@code 1000}, or an HTTP transport's close message without the
+ * going-away reason (atmosphere.js {@code Subscription.close()} sends either).
+ * A page that is reloaded or left (WebSocket {@code 1001}, a going-away close
+ * message), a lost connection and a server stop keep the session for its
+ * TTL, so the client can come back to it.</p>
  */
 public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(DurableSessionInterceptor.class);
+
+    /** WebSocket close status of a page going away (a reload, a navigation). */
+    private static final int WEBSOCKET_GOING_AWAY = 1001;
 
     /** Header sent by the client to identify a previous session. */
     public static final String SESSION_TOKEN_HEADER = "X-Atmosphere-Session-Token";
@@ -512,15 +525,22 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
         @Override
         public void onDisconnect(AtmosphereResourceEvent event) {
-            connectionGoes(event.getResource());
+            connectionGoes(event);
         }
 
         @Override
         public void onClose(AtmosphereResourceEvent event) {
-            connectionGoes(event.getResource());
+            connectionGoes(event);
         }
 
-        private void connectionGoes(AtmosphereResource r) {
+        private void connectionGoes(AtmosphereResourceEvent event) {
+            var r = event.getResource();
+            if (leftOnPurpose(event)) {
+                // The client ended the session: its token must not rejoin the
+                // session's rooms and broadcasters for the rest of the TTL.
+                forgetOnLeave(r, token, registration);
+                return;
+            }
             // A restored resource that goes before it re-joined its session holds
             // none of the session's broadcasters and rooms: the stored session is
             // left as it is rather than overwritten with that empty state.
@@ -535,6 +555,48 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                 // (one answered from the BroadcasterCache): save now, and leave it the entry.
                 saveCurrentState(r, token);
             }
+        }
+    }
+
+    /**
+     * Whether the client ended the connection on purpose: closed by the client,
+     * neither as a page going away (WebSocket {@code 1001}, a close message with
+     * the going-away reason) nor by the application. A lost connection is not a
+     * close by the client.
+     */
+    static boolean leftOnPurpose(AtmosphereResourceEvent event) {
+        if (event == null || !event.isClosedByClient() || event.isClosedByApplication()) {
+            return false;
+        }
+        return !(event instanceof AtmosphereResourceEventImpl impl)
+                || impl.webSocketCloseCode() != WEBSOCKET_GOING_AWAY && !impl.closedGoingAway();
+    }
+
+    /**
+     * Remove the stored session of a client that left on purpose, once, when the
+     * resource holding its connection goes. A newer resource of the same session
+     * holding the connection keeps it, and so does the stop path.
+     */
+    private void forgetOnLeave(AtmosphereResource r, String token, long registration) {
+        var removed = new AtomicBoolean();
+        connections.computeIfPresent(r.uuid(), (uuid, connection) -> {
+            if (connection.registration() != registration) {
+                return connection;
+            }
+            removed.set(true);
+            return null;
+        });
+        if (!removed.get() || stopping.get()) {
+            return;
+        }
+        var lock = lockSession(token);
+        try {
+            store.remove(token);
+            logger.debug("Client of resource {} left: durable session {} removed", r.uuid(), token);
+        } catch (Exception e) {
+            logger.warn("Failed to remove durable session {}", token, e);
+        } finally {
+            unlockSession(token, lock);
         }
     }
 

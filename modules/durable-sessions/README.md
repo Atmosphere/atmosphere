@@ -36,6 +36,12 @@ the session, and forgets it when the application closes the subscription
 (`Subscription.close()`) or calls `clearSessionToken(url)`; a reconnect, a reload and
 `Subscription.abandon()` keep it.
 
+A client that leaves on purpose also ends the session on the server: a WebSocket closed
+with `1000`, or an HTTP transport's close message without the going-away reason (what
+`Subscription.close()` sends), removes the stored session, so its token no longer
+rejoins anything. A page that is reloaded or left (`1001`, a going-away close message),
+a lost connection and a server stop keep the session for its TTL.
+
 ## Quick Start
 
 ```properties

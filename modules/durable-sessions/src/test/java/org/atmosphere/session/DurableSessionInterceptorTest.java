@@ -210,6 +210,75 @@ public class DurableSessionInterceptorTest {
         assertEquals(Set.of("/other"), store.restore("done-token").orElseThrow().broadcasters());
     }
 
+    /**
+     * A client that leaves on purpose (atmosphere.js {@code close()}: WebSocket
+     * 1000, or a close message without the going-away reason) ends its session:
+     * the stored session used to stay restorable for the whole TTL, so the token
+     * the client had dropped still rejoined the session's broadcasters.
+     */
+    @Test
+    public void testClientThatLeavesOnPurposeEndsItsSession() {
+        assertSessionAfterGoing("left-ws", leaving(1000, false), false);
+        assertSessionAfterGoing("left-close-message", leaving(-1, false), false);
+    }
+
+    /** A reload or a navigation may come back: the session stays restorable. */
+    @Test
+    public void testPageGoingAwayKeepsItsSession() {
+        assertSessionAfterGoing("away-ws", leaving(1001, false), true);
+        assertSessionAfterGoing("away-close-message", leaving(-1, true), true);
+    }
+
+    /** A lost connection and a close by the application keep the session too. */
+    @Test
+    public void testLostOrApplicationClosedConnectionKeepsItsSession() {
+        var lost = mock(org.atmosphere.cpr.AtmosphereResourceEventImpl.class);
+        when(lost.webSocketCloseCode()).thenReturn(1006);
+        assertSessionAfterGoing("lost", lost, true);
+        var byApp = leaving(1000, false);
+        when(byApp.isClosedByApplication()).thenReturn(true);
+        assertSessionAfterGoing("by-app", byApp, true);
+    }
+
+    private static org.atmosphere.cpr.AtmosphereResourceEventImpl leaving(int closeCode, boolean goingAway) {
+        var event = mock(org.atmosphere.cpr.AtmosphereResourceEventImpl.class);
+        when(event.isClosedByClient()).thenReturn(true);
+        when(event.webSocketCloseCode()).thenReturn(closeCode);
+        when(event.closedGoingAway()).thenReturn(goingAway);
+        return event;
+    }
+
+    private void assertSessionAfterGoing(String token, org.atmosphere.cpr.AtmosphereResourceEventImpl event,
+                                         boolean kept) {
+        store.save(DurableSession.create(token, "old-resource").withBroadcasters(Set.of("/chat")));
+        var r = mock(AtmosphereResource.class);
+        var req = mock(AtmosphereRequest.class);
+        when(r.getRequest()).thenReturn(req);
+        when(r.getResponse()).thenReturn(response);
+        when(r.uuid()).thenReturn("uuid-" + token);
+        when(req.getHeader(DurableSessionInterceptor.SESSION_TOKEN_HEADER)).thenReturn(token);
+        var chat = mock(Broadcaster.class);
+        when(chat.getID()).thenReturn("/chat");
+        when(broadcasterFactory.lookup("/chat", false)).thenReturn(chat);
+        when(r.broadcasters()).thenReturn(List.of(chat));
+        when(event.getResource()).thenReturn(r);
+
+        interceptor.inspect(r);
+        var listeners = ArgumentCaptor.forClass(org.atmosphere.cpr.AtmosphereResourceEventListener.class);
+        verify(r, atLeastOnce()).addEventListener(listeners.capture());
+        listeners.getAllValues().forEach(l -> l.onSuspend(event));
+        listeners.getAllValues().forEach(l -> {
+            l.onDisconnect(event);
+            l.onClose(event);
+        });
+
+        var stored = store.restore(token);
+        assertEquals(kept, stored.isPresent(), token + ": session kept?");
+        if (kept) {
+            assertEquals(Set.of("/chat"), stored.get().broadcasters(), token + ": state saved");
+        }
+    }
+
     @Test
     public void testExpiredTokenCreatesNewSession() {
         when(request.getHeader(DurableSessionInterceptor.SESSION_TOKEN_HEADER)).thenReturn("expired-token");

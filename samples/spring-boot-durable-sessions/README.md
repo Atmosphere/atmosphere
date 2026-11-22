@@ -103,9 +103,10 @@ const sub = await atmosphere.subscribe({
 ```
 
 The token is a bearer credential: whoever holds it rejoins the session's rooms and
-broadcasters. `sub.close()` forgets the kept copy (in memory and in `sessionStorage`), so a
-later subscription or a reload starts a new session; `sub.abandon()`, a reconnect and a
-reload keep it. Call `clearSessionToken(url)` (exported by `atmosphere.js`) to drop it at
+broadcasters. `sub.close()` forgets the kept copy (in memory and in `sessionStorage`), and
+the server removes the stored session when the client leaves on purpose, so a later
+subscription or a reload starts a new session; `sub.abandon()`, a reconnect and a reload
+keep it. Call `clearSessionToken(url)` (exported by `atmosphere.js`) to drop it at
 any other time, a sign-out for one.
 
 Pass `sessionToken` only to choose the session yourself (it then wins over the one the

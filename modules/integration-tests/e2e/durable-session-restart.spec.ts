@@ -27,6 +27,13 @@ function storedBroadcasters(token: string): string[] {
   return Array.isArray(parsed) ? parsed.map(String) : [];
 }
 
+/** Whether SqliteSessionStore holds a session for `token`. */
+function sessionStored(token: string): boolean {
+  return execFileSync('sqlite3',
+    [SESSIONS_DB, `SELECT count(*) FROM durable_sessions WHERE token = '${token.replace(/'/g, "''")}';`],
+    { encoding: 'utf-8' }).trim() !== '0';
+}
+
 test.beforeAll(async () => {
   test.setTimeout(120_000);
   server = await startSample(SAMPLES['spring-boot-durable-sessions']);
@@ -128,6 +135,30 @@ test.describe('Durable Session Restart', () => {
     back.close();
     peer.close();
     client.close();
+  });
+
+  test('a client that leaves on purpose ends its session; a page going away keeps it', async () => {
+    // atmosphere.js close() drops the token on the client and closes with 1000.
+    // The server used to keep the session restorable for its whole TTL, so the
+    // dropped token still rejoined the session's broadcasters.
+    const leaving = await connectDurableChat(server.baseUrl, { inband: true });
+    await waitFor(() => leaving.sessionToken !== undefined);
+    const left = leaving.sessionToken!;
+    expect(sessionStored(left), 'the session is stored while connected').toBe(true);
+    leaving.ws.close(1000, 'Client disconnect');
+    await waitFor(() => !sessionStored(left));
+
+    // A reload or a navigation (1001) may come back: the session and what it
+    // holds stay for the reconnect.
+    const reloading = await connectDurableChat(server.baseUrl, { inband: true });
+    await waitFor(() => reloading.sessionToken !== undefined);
+    const kept = reloading.sessionToken!;
+    reloading.ws.close(1001);
+    await waitFor(() => storedBroadcasters(kept).includes(CHAT_BROADCASTER));
+    const back = await connectDurableChat(server.baseUrl, { inband: true, sessionToken: kept });
+    await waitFor(() => back.sessionToken !== undefined);
+    expect(back.sessionToken, 'a page that went away rejoins its session').toBe(kept);
+    back.close();
   });
 
   test('broadcast resumes after restart', async () => {

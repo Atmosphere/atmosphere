@@ -193,8 +193,9 @@ The durable session token a server with durable sessions assigns (the
 asks for) is kept the same way, under `atmosphere.js:session-token:` and the
 endpoint's origin and path, and sent on every reconnect, so a reload after a
 server restart rejoins the session's rooms and broadcasters. It is a bearer
-credential: `close()` forgets it (in memory and in `sessionStorage`), while
-`abandon()`, a reconnect and a reload keep it. Drop it at any other time — a
+credential: `close()` forgets it (in memory and in `sessionStorage`), and the
+server ends the session of a client that leaves on purpose, while `abandon()`,
+a reconnect and a reload keep it. Drop it at any other time — a
 sign-out — with `clearSessionToken(url)`:
 
 ```typescript
