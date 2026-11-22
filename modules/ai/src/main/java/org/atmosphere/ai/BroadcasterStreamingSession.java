@@ -46,6 +46,9 @@ final class BroadcasterStreamingSession implements StreamingSession {
     private final Broadcaster broadcaster;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
+    /** Held from numbering a frame to queueing it, so frames are queued in {@code seq} order. */
+    private final java.util.concurrent.locks.ReentrantLock frameOrder =
+            new java.util.concurrent.locks.ReentrantLock();
 
     BroadcasterStreamingSession(String sessionId, Broadcaster broadcaster) {
         this.sessionId = sessionId;
@@ -63,7 +66,7 @@ final class BroadcasterStreamingSession implements StreamingSession {
             logger.warn("Attempted to send streaming text on closed session {}", sessionId);
             return;
         }
-        broadcast(buildMessage("streaming-text", text));
+        numbered(() -> buildMessage("streaming-text", text));
     }
 
     @Override
@@ -79,8 +82,10 @@ final class BroadcasterStreamingSession implements StreamingSession {
         msg.put("key", key);
         msg.put("value", value);
         msg.put("sessionId", sessionId);
-        msg.put("seq", sequence.incrementAndGet());
-        broadcast(toJson(msg));
+        numbered(() -> {
+            msg.put("seq", sequence.incrementAndGet());
+            return toJson(msg);
+        });
     }
 
     @Override
@@ -88,20 +93,20 @@ final class BroadcasterStreamingSession implements StreamingSession {
         if (closed.get()) {
             return;
         }
-        broadcast(buildMessage("progress", message));
+        numbered(() -> buildMessage("progress", message));
     }
 
     @Override
     public void complete() {
         if (closed.compareAndSet(false, true)) {
-            broadcastTerminal(buildMessage("complete", null));
+            broadcastTerminal(() -> buildMessage("complete", null));
         }
     }
 
     @Override
     public void complete(String summary) {
         if (closed.compareAndSet(false, true)) {
-            broadcastTerminal(buildMessage("complete", summary));
+            broadcastTerminal(() -> buildMessage("complete", summary));
         }
     }
 
@@ -109,11 +114,11 @@ final class BroadcasterStreamingSession implements StreamingSession {
     public void error(Throwable t) {
         if (closed.compareAndSet(false, true)) {
             if (t instanceof RunCancelledException cancelled) {
-                broadcastTerminal(buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
+                broadcastTerminal(() -> buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
                 return;
             }
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-            broadcastTerminal(buildMessage("error", message));
+            broadcastTerminal(() -> buildMessage("error", message));
         }
     }
 
@@ -131,15 +136,15 @@ final class BroadcasterStreamingSession implements StreamingSession {
         switch (event) {
             case AiEvent.Complete c -> {
                 if (closed.compareAndSet(false, true)) {
-                    broadcastTerminal(buildEventMessage(event));
+                    broadcastTerminal(() -> buildEventMessage(event));
                 }
             }
             case AiEvent.Error err -> {
                 if (closed.compareAndSet(false, true)) {
-                    broadcastTerminal(buildEventMessage(event));
+                    broadcastTerminal(() -> buildEventMessage(event));
                 }
             }
-            default -> broadcast(buildEventMessage(event));
+            default -> numbered(() -> buildEventMessage(event));
         }
     }
 
@@ -157,8 +162,10 @@ final class BroadcasterStreamingSession implements StreamingSession {
                 msg.put("mimeType", image.mimeType());
                 msg.put("data", image.dataBase64());
                 msg.put("sessionId", sessionId);
-                msg.put("seq", sequence.incrementAndGet());
-                broadcast(toJson(msg));
+                numbered(() -> {
+                    msg.put("seq", sequence.incrementAndGet());
+                    return toJson(msg);
+                });
             }
             case Content.File file -> {
                 var msg = new LinkedHashMap<String, Object>();
@@ -168,8 +175,10 @@ final class BroadcasterStreamingSession implements StreamingSession {
                 msg.put("fileName", file.fileName());
                 msg.put("data", file.dataBase64());
                 msg.put("sessionId", sessionId);
-                msg.put("seq", sequence.incrementAndGet());
-                broadcast(toJson(msg));
+                numbered(() -> {
+                    msg.put("seq", sequence.incrementAndGet());
+                    return toJson(msg);
+                });
             }
             case Content.Audio audio -> {
                 // Phase 4: audio variant for multi-modal parts.
@@ -179,8 +188,10 @@ final class BroadcasterStreamingSession implements StreamingSession {
                 msg.put("mimeType", audio.mimeType());
                 msg.put("data", audio.dataBase64());
                 msg.put("sessionId", sessionId);
-                msg.put("seq", sequence.incrementAndGet());
-                broadcast(toJson(msg));
+                numbered(() -> {
+                    msg.put("seq", sequence.incrementAndGet());
+                    return toJson(msg);
+                });
             }
         }
     }
@@ -210,8 +221,24 @@ final class BroadcasterStreamingSession implements StreamingSession {
      * so a filter deferring a frame past it sends that frame to every
      * subscriber too ({@link DefaultStreamingSession#deliveryForSession}).
      */
-    private void broadcastTerminal(String json) {
-        DefaultStreamingSession.broadcastTopicTerminal(sessionId, () -> broadcast(json));
+    private void broadcastTerminal(java.util.function.Supplier<String> frame) {
+        DefaultStreamingSession.broadcastTopicTerminal(sessionId, () -> numbered(frame));
+    }
+
+    /**
+     * Number a frame and hand it to the broadcaster as one step: a client drops
+     * a frame whose {@code seq} is not above the last one it received, so two
+     * threads emitting at once (agents fanned out with {@code parallel()}) lost
+     * the frame numbered first but queued second. Reentrant, for a broadcast
+     * filter that writes a frame of this session on the same thread.
+     */
+    private void numbered(java.util.function.Supplier<String> frame) {
+        frameOrder.lock();
+        try {
+            broadcast(frame.get());
+        } finally {
+            frameOrder.unlock();
+        }
     }
 
     private void broadcast(String json) {

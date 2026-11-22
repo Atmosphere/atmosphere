@@ -115,6 +115,9 @@ public final class DefaultStreamingSession implements StreamingSession {
     private volatile boolean closedUnderIt;
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
+    /** Held from numbering a frame to queueing it, so frames are queued in {@code seq} order. */
+    private final java.util.concurrent.locks.ReentrantLock frameOrder =
+            new java.util.concurrent.locks.ReentrantLock();
     /** The reply kept for a long-polling client, or {@code null} when the session streams. */
     private final LongPollingReplies.Buffer longPolling;
     /** The identity the long-polling connection was suspended under; its reply goes only to it. */
@@ -378,7 +381,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             writeAfterClose("streaming text");
             return;
         }
-        broadcast(buildMessage("streaming-text", text));
+        numbered(() -> buildMessage("streaming-text", text));
     }
 
     @Override
@@ -389,15 +392,17 @@ public final class DefaultStreamingSession implements StreamingSession {
             logger.debug("Dropping metadata '{}' on closed session {}", key, sessionId);
             return;
         }
-        var msg = new LinkedHashMap<String, Object>();
-        msg.put("type", "metadata");
-        msg.put("key", key);
-        msg.put("value", value);
-        msg.put("sessionId", sessionId);
-        // A metadata frame is a run event (the run records it for a reattach):
-        // it keeps the seq the run numbered it with.
-        msg.put("seq", frameSequence(true));
-        broadcast(toJson(msg));
+        numbered(() -> {
+            var msg = new LinkedHashMap<String, Object>();
+            msg.put("type", "metadata");
+            msg.put("key", key);
+            msg.put("value", value);
+            msg.put("sessionId", sessionId);
+            // A metadata frame is a run event (the run records it for a reattach):
+            // it keeps the seq the run numbered it with.
+            msg.put("seq", frameSequence(true));
+            return toJson(msg);
+        });
         if (org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER.equals(key)) {
             // Measurable: when a run's id left for its client (a reload before it lands cannot reattach).
             logger.debug("Session {} announced run {} to {}", sessionId, value, resource.uuid());
@@ -414,20 +419,20 @@ public final class DefaultStreamingSession implements StreamingSession {
         if (closed.get()) {
             return;
         }
-        broadcast(buildMessage("progress", message));
+        numbered(() -> buildMessage("progress", message));
     }
 
     @Override
     public void complete() {
         if (closed.compareAndSet(false, true)) {
-            broadcastTerminal(buildMessage("complete", null));
+            broadcastTerminal(() -> buildMessage("complete", null));
         }
     }
 
     @Override
     public void complete(String summary) {
         if (closed.compareAndSet(false, true)) {
-            broadcastTerminal(buildMessage("complete", summary));
+            broadcastTerminal(() -> buildMessage("complete", summary));
         }
     }
 
@@ -441,7 +446,7 @@ public final class DefaultStreamingSession implements StreamingSession {
                 // A cut-short run is not a failure: its one terminal frame is
                 // the cancelled frame naming why.
                 logger.debug("Streaming session {} cancelled: {}", sessionId, cancelled.reason().wire());
-                broadcastTerminal(buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
+                broadcastTerminal(() -> buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
                 return;
             }
             if (t instanceof RequestDeniedException denied) {
@@ -470,7 +475,7 @@ public final class DefaultStreamingSession implements StreamingSession {
                 logger.error("Streaming session {} error", sessionId, t);
             }
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-            broadcastTerminal(buildMessage("error", message));
+            broadcastTerminal(() -> buildMessage("error", message));
         } else {
             failedAfterEnd(t);
         }
@@ -518,14 +523,14 @@ public final class DefaultStreamingSession implements StreamingSession {
         switch (event) {
             case AiEvent.Complete c -> {
                 if (closed.compareAndSet(false, true)) {
-                    broadcastTerminal(buildEventMessage(event));
+                    broadcastTerminal(() -> buildEventMessage(event));
                 }
                 return;
             }
             case AiEvent.Error err -> {
                 if (closed.compareAndSet(false, true)) {
                     logger.error("Streaming session {} error: {}", sessionId, err.message());
-                    broadcastTerminal(buildMessage("error", err.message()));
+                    broadcastTerminal(() -> buildMessage("error", err.message()));
                 } else {
                     logger.warn("Streaming session {} had already ended when its run failed: {}",
                             sessionId, err.message());
@@ -537,7 +542,7 @@ public final class DefaultStreamingSession implements StreamingSession {
                     writeAfterClose("event " + event.eventType());
                     return;
                 }
-                broadcast(buildEventMessage(event));
+                numbered(() -> buildEventMessage(event));
                 if (longPolling != null && event instanceof AiEvent.ApprovalRequired) {
                     // The run waits for the client's answer: hand the reply so far over now.
                     flushLongPolling();
@@ -560,8 +565,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                 msg.put("mimeType", image.mimeType());
                 msg.put("data", image.dataBase64());
                 msg.put("sessionId", sessionId);
-                msg.put("seq", sequence.incrementAndGet());
-                broadcast(toJson(msg));
+                numbered(() -> {
+                    msg.put("seq", sequence.incrementAndGet());
+                    return toJson(msg);
+                });
             }
             case Content.File file -> {
                 var msg = new LinkedHashMap<String, Object>();
@@ -571,8 +578,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                 msg.put("fileName", file.fileName());
                 msg.put("data", file.dataBase64());
                 msg.put("sessionId", sessionId);
-                msg.put("seq", sequence.incrementAndGet());
-                broadcast(toJson(msg));
+                numbered(() -> {
+                    msg.put("seq", sequence.incrementAndGet());
+                    return toJson(msg);
+                });
             }
             case Content.Audio audio -> {
                 // Phase 4: audio variant for multi-modal parts.
@@ -582,8 +591,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                 msg.put("mimeType", audio.mimeType());
                 msg.put("data", audio.dataBase64());
                 msg.put("sessionId", sessionId);
-                msg.put("seq", sequence.incrementAndGet());
-                broadcast(toJson(msg));
+                numbered(() -> {
+                    msg.put("seq", sequence.incrementAndGet());
+                    return toJson(msg);
+                });
             }
         }
     }
@@ -609,7 +620,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             logger.debug("Dropping the prompt echo of closed session {}", sessionId);
             return;
         }
-        broadcast(org.atmosphere.ai.filter.AiStreamMessage.prompt(text, from, sessionId,
+        numbered(() -> org.atmosphere.ai.filter.AiStreamMessage.prompt(text, from, sessionId,
                 frameSequence(true)).toJson());
     }
 
@@ -682,9 +693,9 @@ public final class DefaultStreamingSession implements StreamingSession {
      * defers a frame of its own past this one ({@link #deliveryForSession})
      * still finds where the session's frames go.
      */
-    private void broadcastTerminal(String json) {
+    private void broadcastTerminal(java.util.function.Supplier<String> frame) {
         try {
-            broadcast(json);
+            numbered(frame);
             if (longPolling != null) {
                 flushLongPolling();
             }
@@ -887,6 +898,25 @@ public final class DefaultStreamingSession implements StreamingSession {
         } catch (RuntimeException e) {
             logger.trace("Unable to read the broadcaster of session {}", sessionId, e);
             return sessionId;
+        }
+    }
+
+    /**
+     * Number a frame and hand it to the broadcaster as one step. Frames come
+     * from several threads at once (the agents a coordinator fans out with
+     * {@code parallel()} emit their steps on their own threads), and a client
+     * drops a frame whose {@code seq} is not above the last one it received, as
+     * a duplicate: a frame numbered first but queued second was lost — an
+     * agent's {@code completed} step, which left it showing {@code thinking}
+     * after the turn ended. The lock is reentrant: a broadcast filter that
+     * writes a frame of this session on the same thread does not block.
+     */
+    private void numbered(java.util.function.Supplier<String> frame) {
+        frameOrder.lock();
+        try {
+            broadcast(frame.get());
+        } finally {
+            frameOrder.unlock();
         }
     }
 
