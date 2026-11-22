@@ -2,7 +2,10 @@
 
 Demonstrates Atmosphere's **durable sessions** feature — WebSocket sessions
 that survive server restarts. Clients automatically re-join their rooms and
-broadcaster subscriptions on reconnection.
+broadcaster subscriptions on reconnection. This sample's chat is a single
+`@ManagedService` broadcaster with no rooms, so what you see restored here is the
+broadcaster subscription. The interceptor restores room membership on the same
+path in an application that uses rooms; this sample does not exercise it.
 
 ## How It Works
 
