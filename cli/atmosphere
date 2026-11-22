@@ -2268,21 +2268,52 @@ cmd_checkpoint() {
     # process list shows it to every local user. Inside the config's double
     # quotes a backslash and a quote are escaped; a line break would end the
     # header (and inject another), so a token holding one is refused.
+    #
+    # The body is kept (no -f) so a refusal can say why: a 4xx/5xx answer
+    # sets ac_reason from its status and the server's "error" field, and
+    # returns 1 without writing the body to stdout. On success the body goes
+    # to stdout and ac_status holds the HTTP status.
+    ac_status=""; ac_reason=""
     ac_curl_auth() {
+        local body
+        body=$(mktemp) || die "Cannot create a temporary file"
+        ac_reason=""
         if [ -n "$token" ]; then
             case "$token" in
                 *"
-"*|*"$(printf '\r')"*) die "The reviewer token must not contain a line break" ;;
+"*|*"$(printf '\r')"*) rm -f "$body"; die "The reviewer token must not contain a line break" ;;
             esac
-            printf 'header = "X-Atmosphere-Auth: %s"\n' \
+            ac_status=$(printf 'header = "X-Atmosphere-Auth: %s"\n' \
                 "$(printf '%s' "$token" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')" \
-                | curl -sSf -K - "$@"
+                | curl -sS -K - -o "$body" -w '%{http_code}' "$@") || { rm -f "$body"; return 1; }
         else
-            curl -sSf "$@"
+            ac_status=$(curl -sS -o "$body" -w '%{http_code}' "$@") || { rm -f "$body"; return 1; }
         fi
+        case "$ac_status" in
+            2??) cat "$body"; rm -f "$body"; return 0 ;;
+        esac
+        local detail
+        detail=$(sed -n 's/.*"error"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$body" | head -n 1)
+        rm -f "$body"
+        case "$ac_status" in
+            401) if [ -n "$token" ]; then
+                     ac_reason="HTTP 401: the server refused the reviewer token"
+                 else
+                     ac_reason="HTTP 401: no reviewer token (pass --token or set ATMOSPHERE_CHECKPOINT_TOKEN)"
+                 fi ;;
+            403) ac_reason="HTTP 403: the reviewer is not allowed to do this" ;;
+            404) ac_reason="HTTP 404: no such checkpoint" ;;
+            *)   ac_reason="HTTP $ac_status" ;;
+        esac
+        [ -n "$detail" ] && ac_reason="$ac_reason ($detail)"
+        return 1
     }
     auth_hint() {
-        [ -z "$token" ] && printf ' (no reviewer token: pass --token or set ATMOSPHERE_CHECKPOINT_TOKEN)'
+        if [ -n "$ac_reason" ]; then
+            printf ': %s' "$ac_reason"
+        elif [ -z "$token" ]; then
+            printf ' (no reviewer token: pass --token or set ATMOSPHERE_CHECKPOINT_TOKEN)'
+        fi
         return 0
     }
 
@@ -2358,9 +2389,9 @@ cmd_checkpoint() {
         delete|rm)
             local id="$1"
             [ -z "$id" ] && die "Usage: atmosphere checkpoint delete <id>"
-            ac_curl_auth -X DELETE -o /dev/null -w "%{http_code}\n" \
-                "${base}/api/checkpoints/$(urlencode "$id")" \
+            ac_curl_auth -X DELETE "${base}/api/checkpoints/$(urlencode "$id")" > /dev/null \
                 || die "Failed to delete $id$(auth_hint)"
+            printf '%s\n' "$ac_status"
             ;;
         help|--help|-h|"")
             cat <<EOF

@@ -593,12 +593,19 @@ ckpt_tmp=$(mktemp -d)
 cat > "$ckpt_tmp/curl" <<CURLSHIMEOF
 #!/bin/sh
 for a in "\$@"; do printf '%s\n' "\$a"; done >> "$ckpt_tmp/argv"
-prev=""
+prev=""; body_out=""; wfmt=""
 for a in "\$@"; do
     if [ "\$prev" = "-K" ] && [ "\$a" = "-" ]; then cat >> "$ckpt_tmp/stdin"; fi
+    [ "\$prev" = "-o" ] && body_out="\$a"
+    [ "\$prev" = "-w" ] && wfmt="\$a"
     prev="\$a"
 done
-printf '{"id":"child-1"}'
+# SHIM_STATUS / SHIM_BODY stand in for the server's answer (default 200).
+status="\${SHIM_STATUS:-200}"
+body="\${SHIM_BODY:-{\"id\":\"child-1\"}}"
+if [ -n "\$body_out" ]; then printf '%s' "\$body" > "\$body_out"; else printf '%s' "\$body"; fi
+[ -n "\$wfmt" ] && printf '%s' "\$status"
+exit 0
 CURLSHIMEOF
 chmod +x "$ckpt_tmp/curl"
 : > "$ckpt_tmp/stdin"
@@ -646,6 +653,27 @@ PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint delete snap-1 --base-url http://localho
     > /dev/null 2>&1 && ec=0 || ec=$?
 assert_not_contains "$(cat "$ckpt_tmp/argv")" "X-Atmosphere-Auth" "no token configured: no auth header is invented"
 assert_not_contains "$(cat "$ckpt_tmp/argv")" "-K" "no token configured: curl reads no config"
+# A refusal says why: the status and the server's own "error" text, not
+# curl's bare "(22) ... 401" and "Failed to approve <id>".
+out=$(SHIM_STATUS=401 SHIM_BODY='{"error":"unauthenticated"}' PATH="$ckpt_tmp:$PATH" "$CLI" \
+    checkpoint approve snap-1 --base-url http://localhost:1 --token wrong 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint approve refused with 401 exits 1"
+assert_contains "$out" "HTTP 401: the server refused the reviewer token" "a refused token is named as refused"
+out=$(SHIM_STATUS=401 PATH="$ckpt_tmp:$PATH" "$CLI" \
+    checkpoint approve snap-1 --base-url http://localhost:1 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "HTTP 401: no reviewer token (pass --token or set ATMOSPHERE_CHECKPOINT_TOKEN)" "a missing token is named as missing"
+out=$(SHIM_STATUS=403 SHIM_BODY="{\"error\":\"?by= must name the authenticated reviewer 'alice'\"}" \
+    PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint approve snap-1 --base-url http://localhost:1 --token t --by bob 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint approve refused with 403 exits 1"
+assert_contains "$out" "HTTP 403: the reviewer is not allowed to do this (?by= must name the authenticated reviewer 'alice')" "a 403 carries the server's reason"
+assert_not_contains "$out" "child-1" "a refusal writes no body to stdout"
+out=$(SHIM_STATUS=401 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint fork snap-1 --base-url http://localhost:1 --token t 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "Failed to fork snap-1: HTTP 401" "checkpoint fork names the refusal"
+out=$(SHIM_STATUS=403 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint delete snap-1 --base-url http://localhost:1 --token t 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "Failed to delete snap-1: HTTP 403" "checkpoint delete names the refusal"
+out=$(SHIM_STATUS=204 SHIM_BODY= PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint delete snap-1 --base-url http://localhost:1 --token t 2>/dev/null) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "checkpoint delete succeeds on 204"
+assert_contains "$out" "204" "checkpoint delete still prints the HTTP status"
 rm -rf "$ckpt_tmp"
 
 printf "\n"
