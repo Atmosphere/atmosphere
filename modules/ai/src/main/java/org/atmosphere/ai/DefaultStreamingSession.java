@@ -633,10 +633,15 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("event", event.eventType());
         msg.put("data", event);
         msg.put("sessionId", sessionId);
+        // The events a run captures (RunEventCapturingSession.emit): their frame
+        // keeps the seq the capture numbered it with. A handoff or an approval
+        // card left out took a seq of its own, so the captured one was never
+        // written and its replay carried a seq the client never received.
         msg.put("seq", frameSequence(event instanceof AiEvent.TextDelta
                 || event instanceof AiEvent.Complete || event instanceof AiEvent.Error
                 || event instanceof AiEvent.ToolStart || event instanceof AiEvent.ToolResult
-                || event instanceof AiEvent.ToolError));
+                || event instanceof AiEvent.ToolError || event instanceof AiEvent.Handoff
+                || event instanceof AiEvent.ApprovalRequired));
         return toJson(msg);
     }
 
