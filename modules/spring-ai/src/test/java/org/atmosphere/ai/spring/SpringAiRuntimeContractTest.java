@@ -196,10 +196,11 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 "stall-test-key", server.baseUrl() + "/v1", "gpt-4o-mini");
         return org.atmosphere.ai.test.StalledStreamFixture.of(new TestableSpringAiRuntime(client),
                         tools -> streamIdleContext(tools))
-                .leftToProvider("Spring AI 2.0's OpenAiChatModel streams through a Flux.create that registers "
-                        + "no onDispose: disposing the subscription does not close the OpenAI SDK's "
-                        + "AsyncStreamResponse, so the connection stays open until the provider ends it or the "
-                        + "client's read timeout (the bound plus 10 s) fires")
+                .leftToProvider("Spring AI 2.1's OpenAiChatModel closes the OpenAI SDK's AsyncStreamResponse "
+                        + "on dispose, but that close waits for the SDK's reading thread, which a stalled socket "
+                        + "holds: the connection stays open until the provider ends it or the client's read "
+                        + "timeout (the bound plus 10 s) fires. The cancel waits for that release at most "
+                        + "1 s (SpringAiAgentRuntime.DISPOSE_WAIT), and the turn settles at once")
                 .keepalivesNotSeen("the OpenAI SDK's SSE parser drops comment lines before Spring AI emits an "
                         + "element, and Atmosphere registers no interceptor that counts bytes on that client")
                 .withToolTurns();

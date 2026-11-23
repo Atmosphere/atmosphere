@@ -42,6 +42,13 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringAiAgentRuntime.class);
 
+    /**
+     * How long a cancel waits for the Spring AI subscription's release: long
+     * enough for a live stream's, short enough that a stream stalled on its
+     * socket does not hold the cancelling thread (see the handle's cancel).
+     */
+    static final java.time.Duration DISPOSE_WAIT = java.time.Duration.ofSeconds(1);
+
     private static volatile ChatClient staticClient;
 
     /**
@@ -457,7 +464,22 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             @Override
             public void cancel() {
                 if (cancelled.compareAndSet(false, true)) {
-                    disposable.dispose();
+                    // Spring AI 2.1's OpenAiChatModel closes the OpenAI SDK's
+                    // stream on dispose, and that close waits for the reading
+                    // thread, which a stalled socket holds until its read timeout
+                    // (the idle bound plus 10 s). The dispose runs on its own
+                    // thread and the cancel (the caller's, or the idle watchdog's)
+                    // waits for it at most DISPOSE_WAIT: a live stream is released
+                    // before cancel returns, a stalled one when its read ends.
+                    var dispose = Thread.ofVirtual().name("atmosphere-spring-ai-dispose").start(disposable::dispose);
+                    try {
+                        if (!dispose.join(DISPOSE_WAIT)) {
+                            logger.debug("Spring AI stream release still waiting on a stalled read; "
+                                    + "the connection is released when the read ends");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                     if (!session.isClosed()) {
                         session.complete();
                     }
