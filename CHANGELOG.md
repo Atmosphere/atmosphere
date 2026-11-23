@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.78] - 2026-11-23
+
+### Fixed
+
+- a 404 on checkpoint list names the endpoint, not a missing checkpoint
+- log what happens to a closed client's session; abandon() keeps a failed one
+- name a missing checkpoint on show/list, and create a missing install dir
+- queue a streaming session's frames in seq order when threads emit at once
+- merge every jar's annotation index into the shaded jars
+- screen and tape a skill run's named arguments, not one picked at random
+- end the stored session of a client that leaves on purpose
+- say why the checkpoint server refused a mutator
+- never tape a skill run that left its task non-terminal as completed
+- keep the CLI reviewer token off curl's argv, parse padded tokens
+- drop the session token on close, keep a stored session until restored
+- deliver the session token in band to WebSocket clients
+- sign single-agent dispatches, gate HITL mutators, send the checkpoint id
+- tape a raw skill run with its task's real terminal state
+- stop reporting the LLM settings model as the bound ChatClient's
+- bound a silent model stream and really cancel it on all twelve runtimes
+- keep the answers of a reply with no usage, as the official SDK does
+- end a turn whose model stream goes silent, and abort it on cancel
+- register env post-processors under Boot 4.2's key, Boot 3 via listener
+
+### Changed
+
+- attest the 4.0.78 sample sweep at c8d63f0594
+- attest the 4.0.78 sample sweep at 53bd6eba9a
+- say the sample restores a broadcaster, not rooms
+- remote-work verify runs default to the small model
+- take the remote-work cloud environment from the signed-in account
+- take the remote-work cloud environment from each account's settings
+- leave the remote-work cloud environment to each developer
+- add the remote-work off switches
+- resync the remote-work scripts and record their source
+- enforce the verify-only remote role the policy declares
+- cloud sessions verify builds; the change is written and pushed from the Mac
+- let a remote run commit to refs/remote-work, landed locally
+- send full-reactor builds to a cloud session
+- drop the Claude-Session trailer and PR link from cloud-session commits
+- document the CVE-2026-114938 JDK update and the -XX:-UseBASE64Intrinsics stopgap
+- test on JDK 27 instead of 26, which gets no fix for CVE-2026-114938
+- align integration-tests on Playwright 1.59.1, install browsers once, cache foundation-e2e's
+- fix ContextProvider's VectorStore example to use SearchRequest
+- point the support link at async-io.live/atmosphere/#support
+- scope lineage's no-content default to the in-memory recorder
+- list Anthropic prompt caching and tool-call deltas
+- describe default-on AI lineage, agent identity and the MCP .mcpb bundles
+
 ## [4.0.77] - 2026-11-12
 
 ### Added
