@@ -1500,8 +1500,10 @@
              server instrumentations) and GHSA-w737-wx49-qj23 (gRPC server
              instrumentation). Both reach us directly — the framework meters
              HTTP and gRPC transports — so this is not a provided-scope-only
-             advisory. Overrides the version Spring Boot's BOM manages. -->
-        <micrometer.version>1.16.6</micrometer.version>
+             advisory. Overrides the version Spring Boot's BOM manages, so it
+             follows the Spring Boot line: 1.18.0 is what 4.2.0 manages, and its
+             observation auto-configuration calls Micrometer API older lines lack. -->
+        <micrometer.version>1.18.0</micrometer.version>
         <jsoup.version>1.23.2</jsoup.version>
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.21.4</testcontainers.version>
@@ -1514,13 +1516,14 @@
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
-        <!-- 4.1.1 manages Spring Framework 7.0.9 (4.1.0: 7.0.8), closing the
+        <!-- 4.2.0 manages Spring Framework 7.1.0, which Spring AI 2.1 is built
+             against. 4.1.1 (Spring Framework 7.0.9) was the floor for the
              spring-webmvc / spring-webflux batch GHSA-j9f9-w8pj-32f8 (SSE fragment
              stream corruption), GHSA-pc63-qcmh-9cmg (XsltView path limitation) and
              GHSA-9qf2-26p9-2q2q (WebFlux functional-endpoint header predicate
              bypass) in every module and sample importing spring-boot-dependencies
              at ${spring-boot.version}. -->
-        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-boot.version>4.2.0</spring-boot.version>
         <!-- Floor netty at 4.2.17.Final (Spring Boot 4.1.0 pinned 4.2.15.Final;
              4.1.1 manages 4.2.17.Final itself), closing the codec-family batch: GHSA-jppx-w49h-x2qq /
              GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w (codec-http),
@@ -1528,14 +1531,15 @@
              (codec-compression), GHSA-hpcc-26xq-25fv (codec-http3) and the
              medium-severity codec/dns advisories. spring-boot-dependencies
              reads ${netty.version} from caller properties, so this wins precedence
-             over the BOM pin without forcing a netty-bom import. -->
-        <netty.version>4.2.17.Final</netty.version>
+             over the BOM pin without forcing a netty-bom import; it is kept at the
+             version Spring Boot 4.2.0 manages, never below it. -->
+        <netty.version>4.2.20.Final</netty.version>
         <!-- 3.39.5 BOM: netty 4.1.138.Final, OTel 1.62.0, grpc 1.81.0.
              (3.36.3 was the floor for GHSA-qcxp-gm7m-4j5v, quarkus-vertx-http.) -->
         <quarkus.version>3.39.5</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->
-        <spring-ai.version>2.0.0</spring-ai.version>
+        <spring-ai.version>2.1.0</spring-ai.version>
         <embabel.version>1.5.0</embabel.version>
         <google-adk.version>1.11.0</google-adk.version>
         <koog.version>1.0.0</koog.version>

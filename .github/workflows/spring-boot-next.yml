@@ -6,10 +6,11 @@ name: "CI: Spring Boot next"
 # no longer reads its spring.factories key: a post-processor still registered that
 # way compiles on 4.1 and silently never runs on 4.2. Each module's *BootTest boots
 # a real SpringApplication and asserts the post-processor's property source.
-# Move SPRING_BOOT_NEXT to 4.2.0 when it ships on Maven Central. The root pom pins
-# micrometer.version over Spring Boot's managed one, so the lane moves it to the
-# version the next line manages (Spring Boot 4.2's observation auto-configuration
-# calls Micrometer API that older lines lack).
+# The root pom is on 4.2.0 now, and no later line is on Maven Central yet: the lane
+# runs 4.2.0 until then. Move SPRING_BOOT_NEXT to the next line's first milestone
+# when it ships. The root pom pins micrometer.version over Spring Boot's managed
+# one, so the lane moves it to the version the next line manages (a new line's
+# observation auto-configuration calls Micrometer API that older lines lack).
 on:
   push:
     branches: [ '**' ]
@@ -40,8 +41,8 @@ on:
   workflow_dispatch:
 
 env:
-  SPRING_BOOT_NEXT: 4.2.0-RC2
-  MICROMETER_NEXT: 1.18.0-RC2
+  SPRING_BOOT_NEXT: 4.2.0
+  MICROMETER_NEXT: 1.18.0
 
 jobs:
   spring-boot-next:
