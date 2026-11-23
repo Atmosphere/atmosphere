@@ -696,6 +696,9 @@ assert_not_contains "$out" "not found\"}" "checkpoint show writes no error body 
 out=$(SHIM_STATUS=500 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint list --base-url http://localhost:1 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "checkpoint list refused exits 1"
 assert_contains "$out" "Failed to list checkpoints at http://localhost:1/api/checkpoints: HTTP 500" "checkpoint list names the status"
+out=$(SHIM_STATUS=404 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint list --base-url http://localhost:1 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "HTTP 404: no checkpoint endpoint at this URL (check --base-url)" "a 404 on list names the endpoint, not a checkpoint"
+assert_not_contains "$out" "no such checkpoint" "a 404 on list does not claim a missing checkpoint"
 out=$(PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint show snap-1 --base-url http://localhost:1 2>/dev/null) && ec=0 || ec=$?
 assert_exit_code "$ec" 0 "checkpoint show succeeds on 200"
 assert_contains "$out" "child-1" "checkpoint show prints the body"

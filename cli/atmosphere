@@ -2302,7 +2302,10 @@ cmd_checkpoint() {
                      ac_reason="HTTP 401: no reviewer token (pass --token or set ATMOSPHERE_CHECKPOINT_TOKEN)"
                  fi ;;
             403) ac_reason="HTTP 403: the reviewer is not allowed to do this" ;;
-            404) ac_reason="HTTP 404: no such checkpoint" ;;
+            404) case "$subcmd" in
+                     list|ls) ac_reason="HTTP 404: no checkpoint endpoint at this URL (check --base-url)" ;;
+                     *)       ac_reason="HTTP 404: no such checkpoint" ;;
+                 esac ;;
             *)   ac_reason="HTTP $ac_status" ;;
         esac
         [ -n "$detail" ] && ac_reason="$ac_reason ($detail)"
