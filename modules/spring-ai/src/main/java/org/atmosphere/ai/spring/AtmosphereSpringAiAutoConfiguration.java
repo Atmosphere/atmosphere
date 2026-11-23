@@ -316,4 +316,23 @@ public class AtmosphereSpringAiAutoConfiguration {
         }
         return new SpringAiEmbeddingRuntime();
     }
+
+    /**
+     * Hands the application's Spring AI 2.1 decision model to Atmosphere's
+     * {@link org.atmosphere.ai.decision.DecisionModelResolver}. In its own class,
+     * conditional on the {@code org.springframework.ai.decision} package, so a
+     * Spring AI line without it never loads its types.
+     */
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.ai.decision.DecisionModel")
+    static class DecisionModelConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        SpringAiDecisionModelRegistrar springAiDecisionModelRegistrar(
+                ObjectProvider<org.springframework.ai.decision.DecisionModel> models,
+                ObjectProvider<AiEnvironment> environments) {
+            return new SpringAiDecisionModelRegistrar(models, environments);
+        }
+    }
 }

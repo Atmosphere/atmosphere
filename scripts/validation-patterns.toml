@@ -231,7 +231,7 @@ reason = "the no-argument DecisionModelResolver.resolve() is the facade; callers
 
 [[ai_application_state.allowed]]
 file = "org/atmosphere/ai/decision/DecisionModelResolver.java"
-pattern = '^var slot = environment == AiEnvironment\.processDefault\(\)$'
+pattern = '^return environment == AiEnvironment\.processDefault\(\);$'
 sites = 1
 reason = "identity check: the process default's resolution has its own slot, outside the per-application map"
 

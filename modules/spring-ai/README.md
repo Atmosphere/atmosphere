@@ -93,6 +93,7 @@ rule is shared by every runtime: see
 | `SpringAiEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping Spring AI `EmbeddingModel` (priority 200) |
 | `SpringAiToolBridge` | Translates Atmosphere `ToolDefinition` to Spring AI `ToolCallback` with HITL approval gating |
 | `SpringAiAdvisors` | Per-request bridge for the Spring AI `Advisor` chain — RAG / memory / guardrails / observability |
+| `SpringAiDecisionModel` | Atmosphere `DecisionModel` over a Spring AI 2.1 `org.springframework.ai.decision.DecisionModel` (priority 200) |
 | `AtmosphereSpringAiAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Per-Request Advisors (`SpringAiAdvisors`)
@@ -134,7 +135,59 @@ across all runtimes.
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- Spring AI 2.0.0+
+- Spring AI 2.1.0 (the version the build compiles and tests against)
+
+## Decision models
+
+Spring AI 2.1 adds `org.springframework.ai.decision`, typed yes/no, choice and
+score questions answered with probabilities. When the application context holds
+one Spring AI `DecisionModel` bean (or several, one of them `@Primary`) and an
+`AiEnvironment`, the auto-configuration wraps it in `SpringAiDecisionModel` and
+registers it with `DecisionModelResolver` for that application, once every bean
+exists. The governance tiers' `LLM_CLASSIFIER` and intent routing then ask it
+instead of the `RuntimeDecisionModel` fallback. Its priority, 200, is above the
+TypeSafe module's 100: a model the application defined as a bean outranks one
+its classpath brought. The registration ends when the context closes; the bean
+stays the context's, and nothing in Atmosphere closes it. With several decision
+model beans and none `@Primary`, nothing is registered and an INFO line says so.
+
+**This is on by default.** Spring AI 2.1's OpenAI and Ollama model starters
+create a decision model bean unless `spring.ai.model.decision` names another
+provider, so an application that adds one of them next to
+`atmosphere-spring-ai` moves its safety questions from the LLM-chat fallback to
+that provider's decisions API. A provider that has no such API (an
+OpenAI-compatible local server, say) then fails those questions as `ERROR`.
+To keep the fallback, define no Spring AI decision model bean; with the
+starters, set `spring.ai.model.decision=none`, a value no starter matches.
+
+The consumers that resolve a model on every check (the scope and moderation
+`LLM_CLASSIFIER` tiers built without an explicit model, and intent routing)
+ask the registered model from the next check on. The `LLM_CLASSIFIER` injection
+tier builds its classifier once: it asks the registered model only when it is
+built after the registration, and the model it kept before stays open until
+`DecisionModelResolver.reset()` or the application closes.
+
+The mapping:
+
+| Atmosphere `Question` | Spring AI question | Answer |
+|---|---|---|
+| `Noul` (`whenTrue`/`whenFalse`) | `YesNoQuestion` (`whenYes`/`whenNo`) | `p(yes)` → `probabilityTrue`, value `p >= 0.5`, confidence `\|2p - 1\|` |
+| `Choice` (key → description) | `ChoiceQuestion` (same keys and descriptions) | the provider's probabilities and confidence, unchanged |
+| `Score` (level texts, lowest first) | `ScoreQuestion`, level `i` labelled `"i"` | the per-level probability list → level → probability |
+
+Every confidence is tagged `PROVIDER_DISTRIBUTION`. A provider that returns no
+distribution leaves the probability map empty, and no confidence leaves it
+unknown: neither is inferred. A `RefusalAnswer` fails its question (`ERROR`,
+the provider's reason in the detail). Spring AI's `DecisionResponse` builder
+already refuses a response that skips a question or answers outside it; such a
+call fails every question as `ERROR` with Spring AI's message.
+
+`decide` returns within the request's timeout: the call runs on a virtual
+thread interrupted at the deadline (`TIMEOUT`), at most 8 calls are in flight
+(`CAPACITY` when no slot frees before the deadline), and a call that throws is
+`ERROR`. `isAvailable()` is `true` for a registered bean: Spring AI has no probe
+that does not make a billed call, so a backend that is down shows up as `ERROR`
+answers, not as an unavailable model.
 
 ## Stream idle timeout
 

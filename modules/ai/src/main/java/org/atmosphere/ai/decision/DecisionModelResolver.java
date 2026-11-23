@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
@@ -31,8 +32,10 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Resolves the {@link DecisionModel} to use, in order:
  * <ol>
- *   <li>the available {@code META-INF/services/org.atmosphere.ai.decision.DecisionModel}
- *       registration with the highest {@link DecisionModel#priority()};</li>
+ *   <li>the available model with the highest {@link DecisionModel#priority()}
+ *       among the ones the application registered ({@link #register}) and the
+ *       {@code META-INF/services/org.atmosphere.ai.decision.DecisionModel}
+ *       registrations; an application's own model wins a tie;</li>
  *   <li>otherwise a {@link RuntimeDecisionModel} over the resolved
  *       {@link org.atmosphere.ai.AgentRuntime}, when it is available — that is,
  *       when the runtime is not the {@code DemoAgentRuntime} canned fallback;</li>
@@ -78,6 +81,14 @@ import java.util.concurrent.locks.ReentrantLock;
  * the resolver instantiated it through {@link ServiceLoader}, so it owns it.
  * Nothing else closes it; a selected registration lives until {@code reset()}
  * or the end of the JVM.</p>
+ *
+ * <p>A model an application hands in with {@link #register} (a Spring bean, say)
+ * belongs to that application: the resolver never closes it, and drops it when
+ * the registration is closed or the application's environment closes. A
+ * registration, and its removal, make the application's next resolution
+ * rescan; the model that resolution cached is not closed then, since a consumer
+ * may still hold it: one the resolver created is closed by {@link #reset()} or
+ * when the application closes. {@link #reset()} keeps the registrations.</p>
  */
 public final class DecisionModelResolver {
 
@@ -111,10 +122,43 @@ public final class DecisionModelResolver {
      */
     private static final ConcurrentHashMap<AiEnvironment, Slot> SLOTS = new ConcurrentHashMap<>();
 
+    /** Most models one application may register ({@link #register}). */
+    public static final int MAX_REGISTRATIONS = 16;
+
+    /**
+     * The models each application registered, written under {@link #LOCK}.
+     * Bounded by the open environments and {@value #MAX_REGISTRATIONS} per
+     * environment: a closed one's entry is dropped when it closes.
+     */
+    private static final ConcurrentHashMap<AiEnvironment, List<DecisionModel>> REGISTRATIONS =
+            new ConcurrentHashMap<>();
+
+    /**
+     * A model registered with {@link #register}; {@link #close()} removes it.
+     * Closing does not close the model: it belongs to whoever registered it.
+     */
+    public interface Registration extends AutoCloseable {
+
+        /** Remove the model from the resolution. Idempotent. */
+        @Override
+        void close();
+    }
+
     /** One application's cached resolution; written under {@link #LOCK}. */
     private static final class Slot {
         private volatile Resolution cached;
+        /**
+         * Models the resolver created and a registration change displaced: a
+         * consumer that kept one (the {@code LLM_CLASSIFIER} injection tier
+         * keeps the model it resolved) still asks it, so it is closed only by
+         * {@link #reset()} or when the application closes. At most
+         * {@link #MAX_RETIRED}; past it the oldest is closed.
+         */
+        private final List<DecisionModel> retired = new ArrayList<>();
     }
+
+    /** Most displaced models one application keeps open ({@link Slot#retired}). */
+    static final int MAX_RETIRED = 2 * 16;
 
     /**
      * A cached model; {@code provisional} when it is the fallback chosen while a
@@ -154,7 +198,7 @@ public final class DecisionModelResolver {
         if (environment.isClosed()) {
             return Optional.empty();
         }
-        var slot = environment == AiEnvironment.processDefault()
+        var slot = isProcessDefault(environment)
                 ? DEFAULT_SLOT : SLOTS.computeIfAbsent(environment, e -> new Slot());
         var resolution = slot.cached;
         if (resolution != null && resolution.current()) {
@@ -195,6 +239,170 @@ public final class DecisionModelResolver {
         }
     }
 
+    /**
+     * Offer {@code model} to the resolution of one application. It competes
+     * with the {@link ServiceLoader} registrations on availability and
+     * {@link DecisionModel#priority()}, and wins a tie: the application chose
+     * it. The resolver never closes it; the registration is dropped when it is
+     * closed or {@code environment} closes. The application's next
+     * {@link #resolve(AiEnvironment)} rescans.
+     *
+     * @param environment the application's environment
+     * @param model       the model; the caller keeps ownership of it
+     * @return the registration, whose {@link Registration#close()} removes it
+     * @throws IllegalArgumentException when {@code model} is registered already
+     * @throws IllegalStateException    when {@code environment} is closed, or
+     *                                  holds {@value #MAX_REGISTRATIONS} models already
+     */
+    public static Registration register(AiEnvironment environment, DecisionModel model) {
+        Objects.requireNonNull(environment, "environment");
+        Objects.requireNonNull(model, "model");
+        boolean first;
+        LOCK.lock();
+        try {
+            if (environment.isClosed()) {
+                throw new IllegalStateException("AI environment " + environment.name() + " is closed");
+            }
+            var models = REGISTRATIONS.get(environment);
+            first = models == null;
+            if (first) {
+                models = new java.util.concurrent.CopyOnWriteArrayList<>();
+                REGISTRATIONS.put(environment, models);
+            }
+            if (containsSame(models, model)) {
+                throw new IllegalArgumentException("DecisionModel " + model.name() + " is registered already");
+            }
+            if (models.size() >= MAX_REGISTRATIONS) {
+                throw new IllegalStateException("AI environment " + environment.name() + " holds "
+                        + MAX_REGISTRATIONS + " registered decision models already");
+            }
+            models.add(model);
+            invalidate(environment, List.of());
+        } finally {
+            LOCK.unlock();
+        }
+        if (first) {
+            // Outside the lock: on an environment that closed meanwhile the action runs now.
+            environment.onClose(() -> unregisterAll(environment));
+        }
+        logger.info("DecisionModel {} registered for AI environment {}", model.name(), environment.name());
+        var closed = new java.util.concurrent.atomic.AtomicBoolean();
+        return () -> {
+            if (closed.compareAndSet(false, true)) {
+                unregister(environment, model);
+            }
+        };
+    }
+
+    private static void unregister(AiEnvironment environment, DecisionModel model) {
+        LOCK.lock();
+        try {
+            var models = REGISTRATIONS.get(environment);
+            // The entry stays, empty, until the environment closes: its close
+            // action is registered once, with the first registration.
+            if (models == null || !models.removeIf(candidate -> candidate == model)) {
+                return;
+            }
+            invalidate(environment, List.of(model));
+        } finally {
+            LOCK.unlock();
+        }
+        logger.info("DecisionModel {} unregistered from AI environment {}", model.name(), environment.name());
+    }
+
+    /** Drops every registration of a closed environment; the models stay their owner's. */
+    private static void unregisterAll(AiEnvironment environment) {
+        LOCK.lock();
+        try {
+            var models = REGISTRATIONS.remove(environment);
+            if (models != null) {
+                invalidate(environment, models);
+            }
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /**
+     * Make the application's next resolution rescan. The cached model is not
+     * closed: a consumer may still hold it. One the resolver created is
+     * retired ({@link Slot#retired}); one an application registered, still or
+     * until this change ({@code leaving}), stays its owner's. The caller holds
+     * {@link #LOCK}.
+     */
+    private static void invalidate(AiEnvironment environment, List<DecisionModel> leaving) {
+        var slot = isProcessDefault(environment) ? DEFAULT_SLOT : SLOTS.get(environment);
+        if (slot == null || slot.cached == null) {
+            return;
+        }
+        var cached = slot.cached.model();
+        slot.cached = null;
+        if (containsSame(leaving, cached) || isRegistered(cached) || containsSame(slot.retired, cached)) {
+            return;
+        }
+        slot.retired.add(cached);
+        if (slot.retired.size() > MAX_RETIRED) {
+            release(slot.retired.removeFirst());
+        }
+    }
+
+    /** Take the models {@code slot} retired, to release; the caller holds {@link #LOCK}. */
+    private static List<DecisionModel> drainRetired(Slot slot) {
+        var drained = List.copyOf(slot.retired);
+        slot.retired.clear();
+        return drained;
+    }
+
+    /** The models {@code environment} registered, in registration order. */
+    private static List<DecisionModel> registered(AiEnvironment environment) {
+        var models = REGISTRATIONS.get(environment);
+        return models == null ? List.of() : List.copyOf(models);
+    }
+
+    /**
+     * Whether {@code environment} is the process default, whose resolution has
+     * its own slot outside the per-application map: an identity check.
+     */
+    private static boolean isProcessDefault(AiEnvironment environment) {
+        return environment == AiEnvironment.processDefault();
+    }
+
+    /** Test hook: how many displaced models {@code environment}'s resolution keeps open. */
+    static int retiredCount(AiEnvironment environment) {
+        LOCK.lock();
+        try {
+            var slot = isProcessDefault(environment) ? DEFAULT_SLOT : SLOTS.get(environment);
+            return slot == null ? 0 : slot.retired.size();
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /** Test hook: how many models {@code environment} holds registered. */
+    static int registrationCount(AiEnvironment environment) {
+        var models = REGISTRATIONS.get(environment);
+        return models == null ? 0 : models.size();
+    }
+
+    /** Whether {@code model} is one an application registered, which the resolver never closes. */
+    private static boolean isRegistered(DecisionModel model) {
+        for (var models : REGISTRATIONS.values()) {
+            if (containsSame(models, model)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsSame(java.util.Collection<DecisionModel> models, DecisionModel model) {
+        for (var candidate : models) {
+            if (candidate == model) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Drops the resolutions of closed applications and releases their models; the caller holds {@link #LOCK}. */
     private static void pruneClosed() {
         var iterator = SLOTS.entrySet().iterator();
@@ -206,6 +414,7 @@ public final class DecisionModelResolver {
                 if (dropped != null) {
                     release(dropped.model());
                 }
+                drainRetired(entry.getValue()).forEach(DecisionModelResolver::release);
             }
         }
     }
@@ -218,12 +427,15 @@ public final class DecisionModelResolver {
      */
     public static void reset() {
         var dropped = new ArrayList<Resolution>();
+        var retired = new ArrayList<DecisionModel>();
         LOCK.lock();
         try {
             dropped.add(DEFAULT_SLOT.cached);
             DEFAULT_SLOT.cached = null;
+            retired.addAll(drainRetired(DEFAULT_SLOT));
             for (var slot : SLOTS.values()) {
                 dropped.add(slot.cached);
+                retired.addAll(drainRetired(slot));
             }
             SLOTS.clear();
         } finally {
@@ -234,6 +446,7 @@ public final class DecisionModelResolver {
                 release(resolution.model());
             }
         }
+        retired.forEach(DecisionModelResolver::release);
     }
 
     /** Test hook: make a provisional fallback due for its recheck now. */
@@ -262,6 +475,21 @@ public final class DecisionModelResolver {
     private static Scan scan(AiEnvironment environment, RuntimeDecisionModel previousFallback) {
         var registrationUnavailable = false;
         DecisionModel best = null;
+        // The application's own models first: a ServiceLoader one replaces one
+        // of them only with a strictly higher priority.
+        for (var candidate : registered(environment)) {
+            try {
+                if (!candidate.isAvailable()) {
+                    registrationUnavailable = true;
+                } else if (best == null || candidate.priority() > best.priority()) {
+                    best = candidate;
+                }
+            } catch (RuntimeException e) {
+                registrationUnavailable = true;
+                logger.debug("Skipping registered DecisionModel {}: availability check threw",
+                        candidate.getClass().getName(), e);
+            }
+        }
         var iterator = ServiceLoader.load(DecisionModel.class).iterator();
         var loadErrors = 0;
         while (loadErrors <= MAX_LOAD_ERRORS) {
@@ -319,7 +547,7 @@ public final class DecisionModelResolver {
      * instances, so the resolver owns them.
      */
     private static void release(DecisionModel candidate) {
-        if (candidate instanceof AutoCloseable closeable) {
+        if (candidate instanceof AutoCloseable closeable && !isRegistered(candidate)) {
             try {
                 closeable.close();
             } catch (InterruptedException e) {

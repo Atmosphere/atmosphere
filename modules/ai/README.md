@@ -1647,9 +1647,16 @@ thread, then cancelled through its handle and its carrier interrupted, so a
 runtime that streams on the dispatching thread without publishing a handle is
 stopped too.
 
-**Discovery.** `DecisionModelResolver.resolve()` picks the available
-`META-INF/services/org.atmosphere.ai.decision.DecisionModel` registration with
-the highest `priority()`. Without one, it falls back to a `RuntimeDecisionModel`
+**Discovery.** `DecisionModelResolver.resolve()` picks the available model with
+the highest `priority()` among the application's own models and the
+`META-INF/services/org.atmosphere.ai.decision.DecisionModel` registrations. An
+application hands its own model in with
+`DecisionModelResolver.register(environment, model)`; on a tie it wins. The
+resolver never closes a registered model, and the registration is dropped when
+its `Registration` is closed or the application's `AiEnvironment` closes
+(at most 16 per application). The Spring AI adapter registers a Spring AI 2.1
+decision model bean this way (see `modules/spring-ai/README.md`, *Decision
+models*). Without one, it falls back to a `RuntimeDecisionModel`
 over the resolved `AgentRuntime`, but only if that runtime is not the demo
 fallback. A keyless local model (Ollama, `LLM_MODE=local`) counts as reachable.
 Only a found model is cached, so a model configured after the first lookup is

@@ -43,7 +43,9 @@ path is fixture-verified only.
 The module is registered in
 `META-INF/services/org.atmosphere.ai.decision.DecisionModel`. When its
 `isAvailable()` is true, `DecisionModelResolver.resolve()` selects it ahead of
-the `RuntimeDecisionModel` fallback over your `AgentRuntime`. That makes it the
+the `RuntimeDecisionModel` fallback over your `AgentRuntime` (a Spring AI 2.1
+decision model bean, registered at priority 200 by `atmosphere-spring-ai`,
+outranks it). That makes it the
 model behind the `LLM_CLASSIFIER` injection, scope and moderation tiers (see
 `modules/ai/README.md`, *Decision models*).
 
