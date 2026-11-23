@@ -2274,6 +2274,21 @@ cmd_checkpoint() {
     # returns 1 without writing the body to stdout. On success the body goes
     # to stdout and ac_status holds the HTTP status.
     ac_status=""; ac_reason=""
+    # No answer at all: curl -s prints nothing, so its exit code is named here
+    # instead of curl's own "curl: (7) Failed to connect ..." line.
+    ac_unreachable() {
+        ac_status=""
+        case "$1" in
+            6)  ac_reason="cannot resolve the host (check --base-url)" ;;
+            7)  ac_reason="no server answered at this address (is it running? check --base-url)" ;;
+            28) ac_reason="the server did not answer in time" ;;
+            35|51|53|54|58|59|60|64|66|77|80|82|83|90|91)
+                ac_reason="the TLS connection failed (curl exit $1)" ;;
+            52) ac_reason="the server closed the connection without answering" ;;
+            56) ac_reason="the connection was cut while reading the answer" ;;
+            *)  ac_reason="the request failed (curl exit $1)" ;;
+        esac
+    }
     ac_curl_auth() {
         local body
         body=$(mktemp) || die "Cannot create a temporary file"
@@ -2285,9 +2300,9 @@ cmd_checkpoint() {
             esac
             ac_status=$(printf 'header = "X-Atmosphere-Auth: %s"\n' \
                 "$(printf '%s' "$token" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')" \
-                | curl -sS -K - -o "$body" -w '%{http_code}' "$@") || { rm -f "$body"; return 1; }
+                | curl -s -K - -o "$body" -w '%{http_code}' "$@") || { ac_unreachable $?; rm -f "$body"; return 1; }
         else
-            ac_status=$(curl -sS -o "$body" -w '%{http_code}' "$@") || { rm -f "$body"; return 1; }
+            ac_status=$(curl -s -o "$body" -w '%{http_code}' "$@") || { ac_unreachable $?; rm -f "$body"; return 1; }
         fi
         case "$ac_status" in
             2??) cat "$body"; rm -f "$body"; return 0 ;;

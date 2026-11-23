@@ -615,6 +615,11 @@ done
 status="\${SHIM_STATUS:-200}"
 body="\${SHIM_BODY:-{\"id\":\"child-1\"}}"
 if [ -n "\$body_out" ]; then printf '%s' "\$body" > "\$body_out"; else printf '%s' "\$body"; fi
+# SHIM_EXIT stands in for a request that got no answer (curl's exit code).
+if [ -n "\${SHIM_EXIT:-}" ]; then
+    [ -n "\$wfmt" ] && printf '000'
+    exit "\$SHIM_EXIT"
+fi
 [ -n "\$wfmt" ] && printf '%s' "\$status"
 exit 0
 CURLSHIMEOF
@@ -702,6 +707,21 @@ assert_not_contains "$out" "no such checkpoint" "a 404 on list does not claim a 
 out=$(PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint show snap-1 --base-url http://localhost:1 2>/dev/null) && ec=0 || ec=$?
 assert_exit_code "$ec" 0 "checkpoint show succeeds on 200"
 assert_contains "$out" "child-1" "checkpoint show prints the body"
+# No server at the address: the CLI names it, not curl's raw
+# "curl: (7) Failed to connect to 127.0.0.1 port 1" line. Real curl, a closed port.
+out=$("$CLI" checkpoint show snap-1 --base-url http://127.0.0.1:1 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint show with no server exits 1"
+assert_contains "$out" "Cannot show checkpoint snap-1: no server answered at this address (is it running? check --base-url)" "checkpoint show names an unreachable server"
+assert_not_contains "$out" "curl:" "checkpoint show prints no raw curl connect error"
+out=$("$CLI" checkpoint list --base-url http://127.0.0.1:1 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint list with no server exits 1"
+assert_contains "$out" "Failed to list checkpoints at http://127.0.0.1:1/api/checkpoints: no server answered at this address" "checkpoint list names an unreachable server"
+assert_not_contains "$out" "curl:" "checkpoint list prints no raw curl connect error"
+out=$(SHIM_EXIT=6 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint approve snap-1 --base-url http://nowhere.invalid --token t 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "checkpoint approve to an unknown host exits 1"
+assert_contains "$out" "cannot resolve the host (check --base-url)" "checkpoint approve names an unresolvable host"
+out=$(SHIM_EXIT=28 PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint list --base-url http://localhost:1 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "the server did not answer in time" "checkpoint list names a timeout"
 rm -rf "$ckpt_tmp"
 
 printf "\n"
