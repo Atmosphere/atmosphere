@@ -1,7 +1,7 @@
 {
-  "sha": "53bd6eba9ad15a7e480ea760d2d5cc167182ba98",
+  "sha": "c8d63f0594203be9d9970500c03f7e9b812ae3b6",
   "version": "4.0.78-SNAPSHOT",
-  "date": "2026-11-21",
+  "date": "2026-11-22",
   "verdict": "clean",
   "ledgers": [
     "sample-sweep-2026-11-20-laneA1",
@@ -13,16 +13,26 @@
     "sample-sweep-2026-11-21-retest-R1",
     "sample-sweep-2026-11-21-retest-R2",
     "sample-sweep-2026-11-21-retest-expo",
-    "sample-sweep-2026-11-21-retest-cli"
+    "sample-sweep-2026-11-21-retest-cli",
+    "sample-sweep-2026-11-22-retest2-R1",
+    "sample-sweep-2026-11-22-retest2-R2",
+    "sample-sweep-2026-11-22-retest2-R3",
+    "sample-sweep-2026-11-22-retest2-cli",
+    "sample-sweep-2026-11-22-retest3-R1",
+    "sample-sweep-2026-11-22-retest3-cli"
   ],
   "skipped": [
-    "first pass drove all 33 samples + Expo + CLI on 5373890120; its four findings (spring-ai startup log, a2a tape status, checkpoint-agent commitment/auth/reply, durable-sessions WebSocket restore) were fixed and re-driven on 53bd6eba9a with every fix check holding",
-    "samples outside the re-test blast-radius subset were driven on the first pass (5373890120) only: spring-boot-ai-classroom (browser), embedded-jetty-websocket-chat and quarkus-chat (browser, re-driven only via atmosphere run), chat (WAR), kotlin-dsl-chat, spring-boot-one-dep-agent, spring-boot-ms-governance-chat, spring-boot-mcp-server, spring-boot-passivation-agent, spring-boot-reattach-harness, spring-boot-channels-chat, spring-boot-otel-chat, quarkus-ai-chat, spring-boot-team-rooms, spring-boot-low-level-handlers",
+    "first pass drove all 33 samples + Expo + CLI on 5373890120; its four findings were fixed and re-driven on 53bd6eba9a (re-test #1) with every fix check holding",
+    "re-test #1's five follow-ups (streaming frame order, durable session ended on a leave, A2A skill input from named arguments, shaded annotation index, CLI refusal reasons) were fixed in 1d93a24a75 and re-driven in re-test #2 with all eight fix checks holding; its follow-ups (durable-sessions log line and abandon() docs, CLI show/list reasons, install.sh missing dir, list 404 wording) were fixed in 55d56e204f/1877e5fdaa/c8d63f0594 and re-driven in re-test #3 (durable-sessions + CLI)",
+    "samples outside every re-test blast-radius subset were driven on the first pass (5373890120) only: spring-boot-ai-classroom (browser), chat (WAR), spring-boot-one-dep-agent, spring-boot-ms-governance-chat, spring-boot-mcp-server, spring-boot-passivation-agent, spring-boot-channels-chat, spring-boot-otel-chat, quarkus-ai-chat, spring-boot-team-rooms, spring-boot-low-level-handlers, spring-boot-guarded-email-agent, spring-boot-admin-bundle, spring-boot-agui-chat, grpc-chat (the last five re-driven in re-test #1 at 53bd6eba9a)",
+    "Expo: last driven in re-test #1 at 53bd6eba9a; atmosphere.js/src and the Console bundle are unchanged since, so it is outside re-tests #2 and #3",
+    "concurrent-emitter frame-order fix (1d93a24a75) exercised end to end only on multi-agent-startup-team (6/6 turns, seq order recorded); the other runtimes were checked for no regression on single-emitter streams",
+    "Spring AI runtime against a real LLM not exercised: rag-chat resolves the Built-in runtime (as on every earlier pass), spring-ai-advisors uses SpringAiAgentRuntime with a deterministic echo ChatModel",
     "coding-agent, browser-agent: Docker daemon down; sandbox / code_exec gated, fail-closed path verified",
     "browser-agent: no COHERE_API_KEY (paid keys off-limits), graceful degradation verified only",
     "dentist-agent, channels-chat: external messaging channels need tokens; web channel only",
-    "durable-sessions: the sample has no rooms, so only broadcaster-subscription restore was driven; room restore covered by DurableSessionInterceptorTest",
-    "Expo offline banner: needs host network loss (forbidden); covered by atmosphere.js unit tests. Expo in-band session-token frame not exercised (classroom backend runs no durable sessions); covered by websocket-session-token and session-token-lifecycle unit tests",
-    "CLI: new/compose/import scaffolds not compiled standalone; post-publish channel checks pending the release"
+    "durable-sessions: the sample has no rooms, so only broadcaster-subscription restore was driven; room restore covered by DurableSessionInterceptorTest; SSE/long-polling and the Redis store not driven",
+    "Expo offline banner: needs host network loss (forbidden); covered by atmosphere.js unit tests",
+    "CLI: new/compose/import scaffolds not compiled standalone; install.sh fetched the pinned 4.0.77 CLI; an unreachable server still shows curl's own connect error on checkpoint show/list; post-publish channel checks pending the release"
   ]
 }
