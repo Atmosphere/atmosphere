@@ -693,6 +693,27 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     /**
+     * Run {@code step} holding this session's frame order: no other frame of
+     * the session is numbered or handed to the broadcaster meanwhile. A run
+     * capture ({@link org.atmosphere.ai.resume.RunEventCapturingSession})
+     * numbers an event as it captures it ({@link #nextFrameSequence}), then
+     * writes the event's frame; a frame another thread numbered in between
+     * would reach the client first, and the client would drop the captured
+     * one, numbered below it, as a duplicate. The lock is reentrant: the
+     * frames {@code step} writes on this thread go out under it.
+     *
+     * @param step what to run, typically a capture and the write of its frame
+     */
+    public void inFrameOrder(Runnable step) {
+        frameOrder.lock();
+        try {
+            step.run();
+        } finally {
+            frameOrder.unlock();
+        }
+    }
+
+    /**
      * Broadcast the session's terminal frame, then deregister the session. The
      * broadcaster runs its filters inside {@code broadcast}, so a filter that
      * defers a frame of its own past this one ({@link #deliveryForSession})

@@ -112,11 +112,13 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void send(String text) {
-        var position = captureText(text);
-        if (delegate.isClosed()) {
-            return;
-        }
-        writing(position, s -> s.send(text));
+        inOrder(() -> {
+            var position = captureText(text);
+            if (delegate.isClosed()) {
+                return;
+            }
+            writing(position, s -> s.send(text));
+        });
     }
 
     /**
@@ -134,11 +136,13 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         if (!(delegate instanceof DefaultStreamingSession leaf) || text == null || text.isEmpty()) {
             return;
         }
-        var event = buffer.captureIfOpen(AiStreamMessage.PROMPT_TYPE, text, numbering());
-        if (event == null || delegate.isClosed()) {
-            return;
-        }
-        writing(new RunEventReplayBuffer.Position(buffer, event.sequence()), s -> leaf.sendPrompt(text, from));
+        inOrder(() -> {
+            var event = buffer.captureIfOpen(AiStreamMessage.PROMPT_TYPE, text, numbering());
+            if (event == null || delegate.isClosed()) {
+                return;
+            }
+            writing(new RunEventReplayBuffer.Position(buffer, event.sequence()), s -> leaf.sendPrompt(text, from));
+        });
     }
 
     /**
@@ -150,14 +154,16 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      */
     @Override
     public void sendMetadata(String key, Object value) {
-        RunEventReplayBuffer.Position position = null;
-        if (key != null && !RunReattachSupport.RUN_ID_HEADER.equals(key)) {
-            position = captureMetadata(key, value);
-            if (position != null && delegate.isClosed()) {
-                return;
+        inOrder(() -> {
+            RunEventReplayBuffer.Position position = null;
+            if (key != null && !RunReattachSupport.RUN_ID_HEADER.equals(key)) {
+                position = captureMetadata(key, value);
+                if (position != null && delegate.isClosed()) {
+                    return;
+                }
             }
-        }
-        writing(position, s -> s.sendMetadata(key, value));
+            writing(position, s -> s.sendMetadata(key, value));
+        });
     }
 
     /** The event type a metadata frame is recorded under. */
@@ -182,11 +188,13 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
     @Override
     public void sendContent(Content content) {
         if (content instanceof Content.Text text) {
-            var position = captureText(text.text());
-            if (delegate.isClosed()) {
-                return;
-            }
-            writing(position, s -> s.sendContent(content));
+            inOrder(() -> {
+                var position = captureText(text.text());
+                if (delegate.isClosed()) {
+                    return;
+                }
+                writing(position, s -> s.sendContent(content));
+            });
             return;
         }
         delegate.sendContent(content);
@@ -194,6 +202,10 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void emit(AiEvent event) {
+        inOrder(() -> emitInOrder(event));
+    }
+
+    private void emitInOrder(AiEvent event) {
         RunEventReplayBuffer.Position position = null;
         switch (event) {
             case AiEvent.TextDelta delta -> {
@@ -300,6 +312,37 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
     }
 
     /**
+     * Run {@code step}, which captures an event and writes its frame, holding
+     * the delegate's frame order ({@link DefaultStreamingSession#inFrameOrder}):
+     * the event is numbered as it is captured, and a frame another thread
+     * numbered between the capture and the write would reach the client first,
+     * the captured one then dropped as a duplicate for its lower {@code seq}.
+     * The run's listeners are handed the event once the lock is
+     * released ({@link RunEventReplayBuffer#deferringDeliveries}): a listener
+     * writes to another connection, through broadcast filters that may write a
+     * frame of this session, and must not do it holding this session's lock.
+     * A delegate that is not a {@link DefaultStreamingSession} numbers its
+     * frames as it writes them, under its own lock.
+     */
+    private void inOrder(Runnable step) {
+        if (!(delegate instanceof DefaultStreamingSession leaf)) {
+            step.run();
+            return;
+        }
+        if (RunEventReplayBuffer.isDeferringDeliveries()) {
+            // A capture this thread is already making delivers once its lock is released.
+            leaf.inFrameOrder(step);
+            return;
+        }
+        var deliveries = new java.util.ArrayList<Runnable>();
+        try {
+            leaf.inFrameOrder(() -> RunEventReplayBuffer.deferringDeliveries(deliveries, step));
+        } finally {
+            RunEventReplayBuffer.deliver(deliveries);
+        }
+    }
+
+    /**
      * How the delegate numbers the frame of an event captured now, so the event
      * carries its frame's {@code seq} before anything listening to the run sees
      * it, also when the delegate, its client gone, never writes it; {@code null}
@@ -320,6 +363,10 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
      * recorded, so the client is written the end its replay ends with.
      */
     private void end(String type, String payload, Consumer<StreamingSession> frame) {
+        inOrder(() -> endInOrder(type, payload, frame));
+    }
+
+    private void endInOrder(String type, String payload, Consumer<StreamingSession> frame) {
         var event = buffer.terminateEvent(type, payload, numbering());
         if (!terminalWritten.compareAndSet(false, true)) {
             // A terminal frame was written already: the session ended once.

@@ -926,23 +926,84 @@ public final class RunEventReplayBuffer {
                 waitingPolls.clear();
             }
         }
+        // Journaled before its frame is written, as the event is captured: a
+        // journal writes no frame, and a restore finds every event a client saw.
         mirrorToJournal(event);
-        // Outside the lock: a listener writes to a network connection, and a
-        // reattach holds its own write lock while it subscribes.
-        for (var listener : listeners) {
-            try {
-                listener.accept(event);
-            } catch (RuntimeException e) {
-                logger.warn("A run event subscriber failed on event {} ({}); dropping it ({})",
-                        event.sequence(), describe(), e.toString());
-                unsubscribe(listener);
+        Runnable delivery = () -> {
+            // Outside the lock: a listener writes to a network connection, and a
+            // reattach holds its own write lock while it subscribes.
+            for (var listener : listeners) {
+                try {
+                    listener.accept(event);
+                } catch (RuntimeException e) {
+                    logger.warn("A run event subscriber failed on event {} ({}); dropping it ({})",
+                            event.sequence(), describe(), e.toString());
+                    unsubscribe(listener);
+                }
             }
-        }
-        if (isTerminal(type)) {
-            // The first terminal event is the run's end; a later one changes nothing.
-            ended.complete(terminal().orElse(event));
+            if (isTerminal(type)) {
+                // The first terminal event is the run's end; a later one changes nothing.
+                ended.complete(terminal().orElse(event));
+            }
+        };
+        var deferred = DEFERRED_DELIVERIES.get();
+        if (deferred != null) {
+            deferred.add(delivery);
+        } else {
+            delivery.run();
         }
         return event;
+    }
+
+    /**
+     * The deliveries ({@link #append}: listeners, the run's end) of
+     * the events this thread captures while it holds a session's frame order,
+     * run once it released it ({@link #deferringDeliveries}); {@code null}
+     * when they run as the event is captured.
+     */
+    private static final ThreadLocal<List<Runnable>> DEFERRED_DELIVERIES = new ThreadLocal<>();
+
+    /**
+     * Run {@code step}, the deliveries of the events it captures added to
+     * {@code sink} instead of run, in capture order: the caller runs them
+     * ({@link #deliver}) after the lock it holds around {@code step}.
+     */
+    static void deferringDeliveries(List<Runnable> sink, Runnable step) {
+        var previous = DEFERRED_DELIVERIES.get();
+        DEFERRED_DELIVERIES.set(sink);
+        try {
+            step.run();
+        } finally {
+            if (previous != null) {
+                DEFERRED_DELIVERIES.set(previous);
+            } else {
+                DEFERRED_DELIVERIES.remove();
+            }
+        }
+    }
+
+    /** Whether this thread is deferring the deliveries of the events it captures. */
+    static boolean isDeferringDeliveries() {
+        return DEFERRED_DELIVERIES.get() != null;
+    }
+
+    /** Run deliveries {@link #deferringDeliveries} collected, each one even if an earlier one threw. */
+    static void deliver(List<Runnable> deliveries) {
+        RuntimeException failure = null;
+        for (var delivery : deliveries) {
+            try {
+                delivery.run();
+            } catch (RuntimeException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     /** The characters of {@code event}'s payload. */
