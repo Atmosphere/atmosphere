@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -109,7 +110,10 @@ class AiEndpointHandlerLongPollingReadyTest {
 
         /** The poll returned: resumed by a reply, a broadcast or its timeout. */
         void resumed() {
-            when(resource.isSuspended()).thenReturn(false);
+            // doReturn, not when(resource.isSuspended()): the handler's own thread
+            // (an @Ready run) may call the resource meanwhile, and when() would
+            // stub whichever call came last (Mockito WrongTypeOfReturnValue).
+            doReturn(false).when(resource).isSuspended();
             var event = mock(AtmosphereResourceEvent.class);
             when(event.isResuming()).thenReturn(true);
             listeners.forEach(l -> l.onResume(event));
@@ -117,7 +121,7 @@ class AiEndpointHandlerLongPollingReadyTest {
 
         /** The client closed the connection, or it was cancelled. */
         void departed() {
-            when(resource.isSuspended()).thenReturn(false);
+            doReturn(false).when(resource).isSuspended();
             var event = mock(AtmosphereResourceEvent.class);
             when(event.isCancelled()).thenReturn(true);
             listeners.forEach(l -> l.onDisconnect(event));
