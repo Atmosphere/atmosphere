@@ -154,7 +154,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             } catch (IllegalStateException ex) {
                 AtmosphereResourceImpl r = (AtmosphereResourceImpl) req.resource();
-                logger.warn("Session Expired for {}. Closing the connection", req.uuid(), ex);
+                logger.debug("Session Expired for {}. Closing the connection", req.uuid(), ex);
                 if (r != null) {
                     logger.trace("Ending request for {}", r.uuid());
                     endRequest(r, true);
