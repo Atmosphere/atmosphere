@@ -186,7 +186,7 @@
         <profile>
             <id>spring-boot3</id>
             <properties>
-                <spring-boot.version>3.5.15</spring-boot.version>
+                <spring-boot.version>3.5.16</spring-boot.version>
                 <netty.version>4.1.137.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
